@@ -1,0 +1,29 @@
+node_modules
+.vscode
+
+# Built application files
+.DS*
+*.apk
+*.ap_
+*.aab
+
+# Generated files
+bin/
+gen/
+out/
+
+# Gradle files
+.gradle/
+build/
+
+*.log
+
+dist
+.env
+
+prisma/.temp.prisma
+
+# add agent for oauth2, ignore in git
+strategy.js
+
+dist.tar.gz

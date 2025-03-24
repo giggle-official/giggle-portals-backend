@@ -1,0 +1,684 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi", "views"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id                             Int                           @id @default(autoincrement())
+  username                       String                        @db.VarChar(255)
+  password                       String                        @db.VarChar(255)
+  is_blocked                     Boolean?                      @default(false)
+  created_at                     DateTime?                     @default(now()) @db.Timestamp(0)
+  username_in_be                 String?                       @unique @db.VarChar(255)
+  agent_user                     String?                       @db.VarChar(255)
+  email                          String?                       @unique(map: "unique_email_constraint") @db.VarChar(255)
+  email_confirm_token            String?                       @db.VarChar(255)
+  email_confirm_token_created_at DateTime?                     @db.Timestamp(0)
+  email_confirmed                Boolean                       @default(false)
+  avatar                         String?                       @db.LongText
+  invite_code                    String                        @default("") @db.VarChar(255)
+  invited_by                     String                        @default("") @db.VarChar(255)
+  stripe_customer_id             String?                       @db.VarChar(255)
+  current_pay_period             String?                       @db.VarChar(32)
+  current_plan                   String?                       @default("none") @db.VarChar(32)
+  is_admin                       Boolean?                      @default(false)
+  can_create_ip                  Boolean?
+  plan_settings                  Json?
+  current_credit_balance         Int?
+  description                    String?                       @db.Text
+  followers                      Int?                          @default(0)
+  following                      Int?                          @default(0)
+  login_code                     String?                       @db.VarChar(6)
+  login_code_expired             DateTime?                     @db.DateTime(0)
+  login_code_requested_at        DateTime?                     @db.DateTime(0)
+  register_app_id                String?                       @db.VarChar(32)
+  universal_stimulator_videos    universal_stimulator_videos[]
+  stripe_orders                  stripe_orders[]
+  assets                         assets[]
+  roles                          user_roles[]
+  ip_library                     ip_library[]
+  admin_logs                     admin_logs[]
+  face_swap_videos               face_swap_videos[]
+  user_credit_issues             user_credit_issues[]
+  generate_video_request         generate_video_request[]
+  generate_image_request         generate_image_request[]
+  user_logs                      user_logs[]
+  user_api_keys                  user_api_keys[]
+  asset_to_meme_record           asset_to_meme_record[]
+  ip_license_orders              ip_license_orders[]
+  apps                           apps[]
+  ip_token_trade_record          ip_token_trade_record[]
+  token_send_history             token_send_history[]
+  web3_orders                    web3_orders[]
+}
+
+model user_request_log {
+  id           Int       @id @default(autoincrement())
+  user_name    String    @db.VarChar(255)
+  request_url  String    @db.LongText
+  request_time DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([user_name], map: "idx_user_name")
+  @@index([request_url(length: 100)], map: "request_url")
+}
+
+model user_reset_password_record {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique @db.VarChar(255)
+  token      String?  @db.VarChar(255)
+  created_at DateTime @db.Timestamp(0)
+}
+
+model stripe_orders {
+  id                     Int       @unique @default(autoincrement())
+  order_id               String    @id @unique(map: "unique_order_id") @db.VarChar(255)
+  payment_period         String?   @db.VarChar(32)
+  plan                   String?   @db.VarChar(32)
+  raw_data               Json?
+  current_status         String?   @db.VarChar(255)
+  current_payment_status String?   @db.VarChar(255)
+  stripe_order_id        String    @unique @db.VarChar(255)
+  username               String    @db.VarChar(255)
+  amount                 Int?
+  payment_url            String?   @db.Text
+  subscription_id        String?   @db.VarChar(255)
+  created_at             DateTime? @db.Timestamp(0)
+  user_info              users?    @relation(fields: [username], references: [username_in_be])
+}
+
+model request_contact_us {
+  id           Int       @id @default(autoincrement())
+  first_name   String?   @db.VarChar(255)
+  last_name    String?   @db.VarChar(255)
+  email        String?   @db.VarChar(255)
+  phone_number String?   @db.VarChar(255)
+  message      String?   @db.Text
+  requested_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model audit_logs {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(255)
+  request    String?   @db.VarChar(255)
+  params     Json?
+  remark     String?   @db.LongText
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model universal_stimulator_video_split {
+  id                   Int                          @id @default(autoincrement())
+  video_id             Int?
+  path                 String?                      @db.VarChar(255)
+  thumbnail            String?                      @db.VarChar(255)
+  sequence             Int?
+  generate_task_id     String?                      @db.VarChar(255)
+  generate_status      String?                      @db.VarChar(32)
+  generated_video_path String?                      @db.VarChar(32)
+  created_at           DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                    @default(now()) @db.Timestamp(0)
+  generate_params      Json?
+  queue_position       Int?                         @default(0)
+  video_info           universal_stimulator_videos? @relation(fields: [video_id], references: [id])
+}
+
+model universal_stimulator_videos {
+  id                  Int                                @id @default(autoincrement())
+  user                String?                            @db.VarChar(255)
+  path                String?                            @db.VarChar(255)
+  name                String?                            @db.VarChar(255)
+  current_status      String?                            @db.VarChar(32)
+  video_info          Json?
+  video_info_task_id  String?                            @db.VarChar(255)
+  split_task_id       String?                            @db.VarChar(255)
+  split_status        String?                            @db.VarChar(32)
+  generate_params     Json?
+  concat_path         String?                            @db.VarChar(255)
+  concat_task_id      String?                            @db.VarChar(255)
+  clean_cache_task_id String?                            @db.VarChar(255)
+  created_at          DateTime?                          @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                          @default(now()) @db.Timestamp(0)
+  thumbnail           String?                            @db.VarChar(255)
+  sliced_videos       universal_stimulator_video_split[]
+  user_info           users?                             @relation(fields: [user], references: [username_in_be])
+}
+
+model universal_stimulator_users {
+  id            Int       @id @default(autoincrement())
+  user          String?   @unique @db.VarChar(32)
+  s3_bucket     String?   @db.VarChar(32)
+  s3_region     String?   @db.VarChar(32)
+  s3_endpoint   String?   @db.Text
+  s3_access_key String?   @db.VarChar(255)
+  s3_secret_key String?   @db.VarChar(255)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model user_credit_consume {
+  id             Int                 @id @default(autoincrement())
+  credit_id      Int?
+  amount         Int?
+  consume_type   String?             @db.VarChar(32)
+  balance_before Int?
+  balance_after  Int?
+  status         String?             @db.VarChar(32)
+  consume_date   DateTime?           @db.DateTime(0)
+  created_at     DateTime?           @default(now()) @db.DateTime(0)
+  related_id     String?             @db.VarChar(255)
+  credit_info    user_credit_issues? @relation(fields: [credit_id], references: [id])
+}
+
+model user_credit_issues {
+  id                  Int                   @id @default(autoincrement())
+  user                String?               @db.VarChar(32)
+  credit              Int?
+  type                String?               @db.VarChar(32)
+  invoice_id          String?               @db.VarChar(255)
+  subscription_id     String?               @db.VarChar(255)
+  effective_date      DateTime?             @db.Date
+  expire_date         DateTime?             @db.Date
+  current_balance     Int?
+  created_at          DateTime?             @default(now()) @db.DateTime(0)
+  user_credit_consume user_credit_consume[]
+  user_info           users?                @relation(fields: [user], references: [username_in_be])
+}
+
+model stripe_webhook_log {
+  id         Int       @id @default(autoincrement())
+  type       String?   @db.VarChar(255)
+  raw_data   Json?
+  status     String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+}
+
+model assets {
+  id                   Int                    @id @default(autoincrement())
+  name                 String?                @db.VarChar(255)
+  type                 String?                @db.VarChar(32)
+  category             String?                @db.VarChar(32)
+  exported_by          String?                @db.VarChar(32)
+  source_video         Int?
+  path                 String?                @db.Text
+  path_optimized       Json?
+  asset_info           Json?
+  thumbnail            String?                @db.Text
+  exported_by_task_id  String?                @db.VarChar(255)
+  user                 String?                @db.VarChar(32)
+  created_at           DateTime?              @default(now()) @db.DateTime(0)
+  ipfs_key             String?                @db.VarChar(255)
+  user_info            users?                 @relation(fields: [user], references: [username_in_be])
+  asset_related_ips    asset_related_ips[]
+  video_edit_jobs      video_edit_jobs[]
+  video_edit_subtasks  video_edit_subtasks[]
+  ip_signature_clips   ip_signature_clips[]
+  asset_to_meme_record asset_to_meme_record[]
+}
+
+model ai_router_requesting {
+  id            Int       @id @default(autoincrement())
+  is_requesting Boolean?
+  updated_at    DateTime? @default(now()) @db.DateTime(0)
+}
+
+model roles {
+  id             Int          @id @default(autoincrement())
+  name           String?      @db.VarChar(255)
+  created_at     DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?    @db.Timestamp(0)
+  permissions    Json?
+  resources      Json?
+  assigned_users user_roles[]
+}
+
+model user_roles {
+  id             Int       @id @default(autoincrement())
+  username_in_be String?   @db.VarChar(32)
+  role_id        Int?
+  assigned_by    String?   @db.VarChar(32)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+  user_info      users?    @relation(fields: [username_in_be], references: [username_in_be])
+  role_detail    roles?    @relation(fields: [role_id], references: [id])
+}
+
+model ip_library {
+  id                      Int                         @id @default(autoincrement())
+  owner                   String?                     @db.VarChar(32)
+  name                    String?                     @unique(map: "name") @db.VarChar(255)
+  director                Json?
+  genre                   Json?
+  imdb_code               String?                     @db.VarChar(32)
+  description             String?                     @db.Text
+  cover_images            Json?
+  is_public               Boolean?
+  parent_ip_id            Int?
+  on_chain_error          String?                     @db.Text
+  on_chain_detail         Json?
+  on_chain_request_params Json?
+  meta_hash               String?                     @db.VarChar(255)
+  authorization_hash      String?                     @db.VarChar(255)
+  ticker                  String?                     @db.VarChar(255)
+  extra_info              Json?
+  authorization_settings  Json?
+  token_info              Json?
+  current_token_info      Json?
+  created_at              DateTime?                   @default(now()) @db.DateTime(0)
+  updated_at              DateTime?                   @default(now()) @db.DateTime(0)
+  web3_order_sn           String?                     @db.VarChar(255)
+  user_info               users?                      @relation(fields: [owner], references: [username_in_be])
+  on_chain_status         ip_library_on_chain_status? @default(pending)
+  ip_signature_clips      ip_signature_clips[]
+  ip_library_tags         ip_library_tags[]
+  asset_related_ips       asset_related_ips[]
+  ip_library_child        ip_library_child[]
+  ip_license_orders       ip_license_orders[]
+  ip_license_consume_log  ip_license_consume_log[]
+  app_bind_ips            app_bind_ips[]
+  view_ip_token_prices    view_ip_token_prices?
+}
+
+model ip_library_tags {
+  id         Int         @id @default(autoincrement())
+  ip_id      Int?
+  tag        String?     @db.VarChar(32)
+  priority   Int?
+  created_by String?     @db.VarChar(32)
+  created_at DateTime?   @default(now()) @db.DateTime(0)
+  updated_at DateTime?   @default(now()) @db.DateTime(0)
+  ip_info    ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+model ip_signature_clips {
+  id          Int         @id @default(autoincrement())
+  ip_id       Int?
+  name        String?     @db.VarChar(255)
+  description String?     @db.Text
+  object_key  String?     @db.VarChar(255)
+  ipfs_hash   String?     @db.VarChar(255)
+  thumbnail   String?     @db.VarChar(255)
+  video_info  Json?
+  created_at  DateTime?   @default(now()) @db.DateTime(0)
+  updated_at  DateTime?   @default(now()) @db.DateTime(0)
+  asset_id    Int?
+  ip_info     ip_library? @relation(fields: [ip_id], references: [id])
+  asset       assets?     @relation(fields: [asset_id], references: [id])
+}
+
+model admin_logs {
+  id         Int       @id @default(autoincrement())
+  action     String?   @db.VarChar(32)
+  data       Json?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+  updated_at DateTime? @default(now()) @db.DateTime(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model face_swap_extracted {
+  id                   Int               @id @default(autoincrement())
+  face_swap_video_id   Int?
+  recognition_face_key String?           @db.VarChar(1024)
+  target_face_key      String?           @db.VarChar(1024)
+  created_at           DateTime?         @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?         @default(now()) @db.Timestamp(0)
+  face_swap_video_info face_swap_videos? @relation(fields: [face_swap_video_id], references: [id])
+}
+
+model face_swap_videos {
+  id                 Int                   @id @default(autoincrement())
+  user               String                @default("") @db.VarChar(255)
+  name               String                @default("") @db.VarChar(255)
+  object_key         String                @default("") @db.VarChar(1024)
+  status             String                @default("") @db.VarChar(32)
+  video_info         Json?
+  extract_task_id    String?               @db.VarChar(255)
+  extracting_params  Json?
+  swapped_result_key String?               @db.VarChar(255)
+  swapping_task_id   String?               @db.VarChar(255)
+  from_asset_id      Int
+  result_asset_id    Int?
+  thumbnail          String?               @db.VarChar(255)
+  created_at         DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?             @default(now()) @db.Timestamp(0)
+  face_extracted     face_swap_extracted[]
+  user_info          users?                @relation(fields: [user], references: [username_in_be])
+}
+
+model generate_video_request {
+  id                    Int                     @id @default(autoincrement())
+  user                  String?                 @db.VarChar(32)
+  model                 String?                 @db.VarChar(255)
+  from_asset_id         Int?
+  object_key            String?                 @db.VarChar(1024)
+  type                  String?                 @db.VarChar(32)
+  prompt                String?                 @db.Text
+  generate_params       Json?
+  current_status        String?                 @db.VarChar(32)
+  created_at            DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?               @default(now()) @db.Timestamp(0)
+  user_info             users?                  @relation(fields: [user], references: [username_in_be])
+  generate_video_result generate_video_result[]
+}
+
+model generate_video_result {
+  id               Int                     @id @default(autoincrement())
+  request_id       Int?
+  object_key       String?                 @db.VarChar(1024)
+  thumbnail        String?                 @db.VarChar(1024)
+  generate_params  Json?
+  generate_task_id String?                 @db.VarChar(255)
+  current_status   String?                 @db.VarChar(32)
+  to_asset_id      Int?
+  task_request     Json?
+  task_response    Json?
+  created_at       DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?               @default(now()) @db.Timestamp(0)
+  request_info     generate_video_request? @relation(fields: [request_id], references: [id])
+}
+
+model generate_image_request {
+  id                    Int                     @id @default(autoincrement())
+  user                  String?                 @db.VarChar(32)
+  model                 String?                 @db.VarChar(255)
+  ratio                 String?                 @db.VarChar(32)
+  from_asset_id         Int?
+  object_key            String?                 @db.VarChar(1024)
+  type                  String?                 @db.VarChar(32)
+  prompt                String?                 @db.Text
+  generate_params       Json?
+  current_status        String?                 @db.VarChar(32)
+  created_at            DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?               @default(now()) @db.Timestamp(0)
+  user_info             users?                  @relation(fields: [user], references: [username_in_be])
+  generate_image_result generate_image_result[]
+}
+
+model generate_image_result {
+  id                     Int                     @id @default(autoincrement())
+  request_id             Int?
+  generate_params        Json?
+  generate_task_id       String?                 @db.VarChar(255)
+  current_status         String?                 @db.VarChar(32)
+  task_request           Json?
+  task_response          Json?
+  created_at             DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at             DateTime?               @default(now()) @db.Timestamp(0)
+  generate_image_request generate_image_request? @relation(fields: [request_id], references: [id])
+  generate_image_detail  generate_image_detail[]
+}
+
+model generate_image_detail {
+  id           Int                    @id @default(autoincrement())
+  result_id    Int?
+  object_key   String?                @db.VarChar(1024)
+  thumbnail    String?                @db.VarChar(1024)
+  to_asset_id  Int?
+  created_at   DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?              @default(now()) @db.Timestamp(0)
+  request_info generate_image_result? @relation(fields: [result_id], references: [id])
+}
+
+model user_logs {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(32)
+  product    String?   @db.VarChar(1024)
+  action     String?   @db.VarChar(4096)
+  detail     Json?
+  status     String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model ip_library_child {
+  id         Int         @id @default(autoincrement())
+  parent_ip  Int?
+  ip_id      Int?
+  created_at DateTime?   @default(now()) @db.Timestamp(0)
+  updated_at DateTime?   @default(now()) @db.Timestamp(0)
+  ip_info    ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+enum ip_library_on_chain_status {
+  pending
+  ready
+  onChain
+  failed
+}
+
+model asset_related_ips {
+  id         Int         @id @default(autoincrement())
+  asset_id   Int
+  ip_id      Int
+  created_at DateTime?   @default(now()) @db.Timestamp(0)
+  updated_at DateTime?   @default(now()) @db.Timestamp(0)
+  asset      assets?     @relation(fields: [asset_id], references: [id])
+  ip         ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+model user_api_keys {
+  id         Int       @id @default(autoincrement())
+  user       String    @db.VarChar(32)
+  api_key    String    @db.VarChar(255)
+  discarded  Boolean   @default(false)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model video_edit_jobs {
+  id                  Int                   @id @default(autoincrement())
+  asset_id            Int?
+  edit_params         Json?
+  current_status      String?               @db.VarChar(32)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(0)
+  asset               assets?               @relation(fields: [asset_id], references: [id])
+  video_edit_subtasks video_edit_subtasks[]
+}
+
+model video_edit_subtasks {
+  id              Int              @id @default(autoincrement())
+  job_id          Int?
+  asset_id        Int
+  task_type       String?          @db.VarChar(64)
+  task_id         String?          @db.VarChar(255)
+  current_step    String?          @db.VarChar(32)
+  request_params  Json?
+  response_result Json?
+  created_at      DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at      DateTime?        @default(now()) @db.Timestamp(0)
+  job             video_edit_jobs? @relation(fields: [job_id], references: [id])
+  asset           assets?          @relation(fields: [asset_id], references: [id])
+}
+
+model asset_to_meme_record {
+  id                    Int       @id @default(autoincrement())
+  owner                 String?   @db.VarChar(32)
+  asset_id              Int
+  ip_id                 Json?
+  mint_params           Json?
+  status                String?   @db.VarChar(32)
+  token_info            Json?
+  current_token_info    Json?
+  token_registered      Boolean?  @default(false)
+  token_registered_info Json?
+  created_at            DateTime? @default(now()) @db.Timestamp(0)
+  updated_at            DateTime? @default(now()) @db.Timestamp(0)
+  asset                 assets?   @relation(fields: [asset_id], references: [id])
+  user                  users?    @relation(fields: [owner], references: [username_in_be])
+}
+
+model ip_license_consume_log {
+  id             Int                @id @default(autoincrement())
+  order_id       Int?
+  ip_id          Int?
+  consume_amount Int?
+  consume_type   String?            @db.VarChar(255)
+  consume_detail Json?
+  created_at     DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?          @default(now()) @db.Timestamp(0)
+  refunded       Boolean?           @default(false)
+  refunded_date  DateTime?          @db.Timestamp(0)
+  order_info     ip_license_orders? @relation(fields: [order_id], references: [id])
+  ip_info        ip_library?        @relation(fields: [ip_id], references: [id])
+}
+
+model ip_license_orders {
+  id                     Int                      @id @default(autoincrement())
+  ip_id                  Int?
+  owner                  String?                  @db.VarChar(255)
+  quantity               Int?
+  remain_quantity        Int?
+  amount                 Int?
+  web3_order_sn          String?                  @db.VarChar(255)
+  created_at             DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(0)
+  ip_info                ip_library?              @relation(fields: [ip_id], references: [id])
+  user_info              users?                   @relation(fields: [owner], references: [username_in_be])
+  ip_license_consume_log ip_license_consume_log[]
+  ip_license_income      ip_license_income[]
+}
+
+model ip_license_income {
+  id           Int                @id @default(autoincrement())
+  ip_id        Int?
+  order_id     Int?
+  order_amount Int?
+  income       Int?
+  balance      Int?
+  ratio        Int?
+  allocated_to String?            @db.VarChar(255)
+  created_at   DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?          @default(now()) @db.Timestamp(0)
+  order_info   ip_license_orders? @relation(fields: [order_id], references: [id])
+}
+
+model user_wallet_record_24h {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(255)
+  date       DateTime? @db.DateTime(0)
+  record     Json?
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model apps {
+  id           Int            @id @default(autoincrement())
+  app_id       String?        @unique(map: "app_id") @db.VarChar(32)
+  app_secret   String?        @db.VarChar(255)
+  creator      String?        @db.VarChar(32)
+  name         String?        @db.VarChar(255)
+  description  String?        @db.Text
+  radius       String?        @db.VarChar(32)
+  style_name   String?        @db.VarChar(32)
+  sub_domain   String?        @db.VarChar(32)
+  configs      Json?
+  created_at   DateTime?      @default(now()) @db.Timestamp(0)
+  is_temp      Boolean?       @default(false)
+  user         users?         @relation(fields: [creator], references: [username_in_be])
+  app_bind_ips app_bind_ips[]
+}
+
+model app_bind_ips {
+  id         Int         @id @default(autoincrement())
+  app_id     String?     @db.VarChar(32)
+  ip_id      Int?
+  created_at DateTime?   @default(now()) @db.Timestamp(0)
+  is_temp    Boolean?    @default(false)
+  app        apps?       @relation(fields: [app_id], references: [app_id])
+  ip         ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+model ip_announcement {
+  id             Int       @id @default(autoincrement())
+  ip_id          Int?
+  title          String?   @db.VarChar(255)
+  cover_key      String?   @db.VarChar(1024)
+  cover_asset_id Int?
+  video_key      String?   @db.VarChar(1024)
+  video_asset_id Int?
+  description    String?   @db.Text
+  creator        String?   @db.VarChar(32)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_token_trade_record {
+  id         Int       @id @default(autoincrement())
+  token      String?   @db.VarChar(1024)
+  type       String?   @db.VarChar(32)
+  amount     Decimal?  @db.Decimal(65, 30)
+  user       String?   @db.VarChar(32)
+  status     Int?
+  request    Json?
+  response   Json?
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model token_send_history {
+  id         Int       @id @default(autoincrement())
+  mint       String?   @db.VarChar(1024)
+  amount     Decimal?
+  receipt    String?   @db.VarChar(1024)
+  user       String?   @db.VarChar(32)
+  request    Json?
+  response   Json?
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model web3_orders {
+  id           Int       @id @default(autoincrement())
+  user         String?   @db.VarChar(32)
+  sn           String?   @unique(map: "sn") @db.VarChar(255)
+  amount       Decimal?
+  mint         String?   @db.VarChar(1024)
+  status       Int?
+  payment_hash String?   @db.VarChar(1024)
+  refund_hash  String?   @db.VarChar(1024)
+  request      Json?
+  response     Json?
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+  user_info    users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model user_followers {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(255)
+  follower   String?   @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model creator_applications {
+  id           Int       @id @default(autoincrement())
+  full_name    String    @db.VarChar(255)
+  email        String    @db.VarChar(255)
+  company      String?   @db.VarChar(255)
+  website      String?   @db.VarChar(255)
+  social_media String?   @db.VarChar(255)
+  description  String?   @db.Text
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+view view_ip_token_prices {
+  id                     Int         @unique @default(0)
+  current_token_info     Json?
+  price                  Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  bonding_curve_progress Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  change1h               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  change5m               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  change24h              Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  market_cap             Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  total_supply           Decimal     @default(0) @db.Decimal(10, 0)
+  trade_volume           Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  ip_info                ip_library? @relation(fields: [id], references: [id])
+}
