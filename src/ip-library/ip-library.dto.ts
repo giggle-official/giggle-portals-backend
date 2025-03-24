@@ -530,6 +530,11 @@ export class IpSummaryDto {
     creator_description: string
 
     @ApiProperty({
+        description: "is public",
+    })
+    is_public: boolean
+
+    @ApiProperty({
         description: "creator followers of the ip library",
     })
     creator_followers: number
@@ -802,4 +807,20 @@ export class AvailableParentIpsDto {
         type: () => [PurchasedIpDto],
     })
     purchased: PurchasedIpDto[]
+}
+
+export class SetVisibilityDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+
+    @IsNotEmpty()
+    @IsBoolean()
+    @ApiProperty({
+        description: "visibility of the ip library",
+    })
+    is_public: boolean
 }

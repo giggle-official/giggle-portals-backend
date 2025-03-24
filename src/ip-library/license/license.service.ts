@@ -26,7 +26,7 @@ export class LicenseService {
         const userProfile = await this.userService.getProfile(user)
         const amount = (await this.getLicensePrice(parseInt(body.ip_id.toString()))) * body.quantity
 
-        const ip = await this.ipLibraryService.detail(body.ip_id.toString())
+        const ip = await this.ipLibraryService.detail(body.ip_id.toString(), true)
         if (!ip.can_purchase) {
             throw new BadRequestException("this ip does not support purchase")
         }
@@ -125,7 +125,7 @@ export class LicenseService {
         const userProfile = await this.userService.getProfile(user)
         const amount = (await this.getLicensePrice(parseInt(body.ip_id.toString()))) * body.quantity
 
-        const ip = await this.ipLibraryService.detail(body.ip_id.toString())
+        const ip = await this.ipLibraryService.detail(body.ip_id.toString(), true)
         if (!ip.can_purchase) {
             throw new BadRequestException("this ip does not support purchase")
         }
@@ -334,6 +334,7 @@ export class LicenseService {
         const ip_ids = ips.map((ip) => ip.ip_id)
         const ip_infos = await this.ipLibraryService.getList(
             { page: "1", page_size: ip_ids.length.toString() },
+            null,
             undefined,
             ip_ids,
         )
@@ -419,7 +420,7 @@ export class LicenseService {
     }
 
     async getLicensePrice(ipId: number): Promise<number> {
-        const ipInfo = await this.ipLibraryService.detail(ipId.toString())
+        const ipInfo = await this.ipLibraryService.detail(ipId.toString(), null)
         return Number(ipInfo?.authorization_settings?.license_price) || 10
     }
 

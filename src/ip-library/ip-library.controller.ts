@@ -23,6 +23,7 @@ import {
     IpLibraryListDto,
     RegisterTokenDto,
     RemixClipsDto,
+    SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
 } from "./ip-library.dto"
@@ -58,7 +59,7 @@ export class IpLibraryController {
     @ApiOperation({ summary: "Get list of ip libraries" })
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
     async get(@Query() query: GetListParams, @Headers("app-id") app_id?: string): Promise<IpLibraryListDto> {
-        return await this.ipLibraryService.getList(query, null, null, app_id)
+        return await this.ipLibraryService.getList(query, true, null, null, app_id)
     }
 
     @Get("/my")
@@ -67,7 +68,7 @@ export class IpLibraryController {
     @ApiBearerAuth()
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
     async getMy(@Req() req: Request, @Query() query: GetListParams): Promise<IpLibraryListDto> {
-        return await this.ipLibraryService.getList(query, req.user as UserInfoDTO)
+        return await this.ipLibraryService.getList(query, null, req.user as UserInfoDTO)
     }
 
     @Get("/genres")
@@ -101,7 +102,18 @@ export class IpLibraryController {
     @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
     @ApiParam({ name: "id", type: Number })
     async getMyDetail(@Req() req: Request, @Param("id") id: string): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.detail(id, req.user as UserInfoDTO)
+        return await this.ipLibraryService.detail(id, null, req.user as UserInfoDTO)
+    }
+
+    @Post("/set-visibility")
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: "Set visibility of ip library" })
+    @ApiBody({ type: SetVisibilityDto })
+    @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    async setIpVisibility(@Req() req: Request, @Body() body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
+        return await this.ipLibraryService.setIpVisibility(req.user as UserInfoDTO, body)
     }
 
     @Post("/create-ip")
@@ -355,7 +367,7 @@ data: some error message
     @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
     @ApiParam({ name: "id", type: Number })
     async getDetail(@Param("id") id: string): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.detail(id)
+        return await this.ipLibraryService.detail(id, true)
     }
 
     @Post("/register-token")

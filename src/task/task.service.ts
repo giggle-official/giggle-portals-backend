@@ -87,9 +87,10 @@ export class TaskService {
         }
     }
 
-    @Cron(CronExpression.EVERY_30_SECONDS, {
-        name: "checkTaskStatus",
-    })
+    //disable cron job
+    // @Cron(CronExpression.EVERY_30_SECONDS, {
+    //     name: "checkTaskStatus",
+    // })
     async checkTaskStatus() {
         const processingId = 1
         // Sleep random time (0-1000ms) to prevent concurrent requests

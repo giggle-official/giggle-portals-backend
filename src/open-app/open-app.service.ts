@@ -85,7 +85,7 @@ export class OpenAppService {
             radius: app.radius,
             style_name: app.style_name,
             sub_domain: app.sub_domain,
-            ip_info: await this.ipLibraryService.detail(ipInfo.id.toString()),
+            ip_info: await this.ipLibraryService.detail(ipInfo.id.toString(), null),
             is_admin: userInfo?.usernameShorted === ipInfo.owner,
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
             configs: this._processConfigs(app.configs),

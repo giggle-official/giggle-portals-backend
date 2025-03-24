@@ -39,7 +39,7 @@ export class IpOnChainService {
         let onChainRequestParams: any
         let functionName = "RegisterIP"
         try {
-            const ip = await this.ipLibraryService.detail(ip_id.toString())
+            const ip = await this.ipLibraryService.detail(ip_id.toString(), null)
             const user = await this.userService.getProfile(userInfo)
 
             if (!ip) {
@@ -129,7 +129,7 @@ export class IpOnChainService {
     async registerToken(params: { ip_id: number; record_id: number }): Promise<RegisterTokenResponseDto> {
         let registerTokenRequestParams: any
         try {
-            const ip = await this.ipLibraryService.detail(params.ip_id.toString())
+            const ip = await this.ipLibraryService.detail(params.ip_id.toString(), null)
             if (!ip || !ip?.on_chain_detail?.ipAddr) {
                 throw new Error("Ip not found or ip not on chain")
             }

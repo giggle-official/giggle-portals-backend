@@ -27,6 +27,7 @@ import {
     PurchasedIpDto,
     RegisterTokenDto,
     RemixClipsDto,
+    SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
 } from "./ip-library.dto"
@@ -92,8 +93,8 @@ export class IpLibraryService {
     getGenres(): GenreDto[] {
         return [
             {
-                name: "Official",
-                value: "official",
+                name: "Novel",
+                value: "novel",
             },
             {
                 name: "Film",
@@ -351,12 +352,15 @@ export class IpLibraryService {
 
     async getList(
         params: GetListParams,
+        is_public: boolean | null,
         user?: UserInfoDTO,
         ids?: number[],
         app_id?: string,
     ): Promise<IpLibraryListDto> {
-        const where: Prisma.ip_libraryWhereInput = {
-            is_public: true,
+        const where: Prisma.ip_libraryWhereInput = {}
+
+        if (is_public !== null) {
+            where.is_public = is_public
         }
 
         const select: Prisma.ip_librarySelect = {
@@ -370,6 +374,7 @@ export class IpLibraryService {
             token_info: true,
             current_token_info: true,
             authorization_settings: true,
+            is_public: true,
             user_info: {
                 select: {
                     username: true,
@@ -531,7 +536,7 @@ export class IpLibraryService {
                 const cover_hash = cover_images?.[0]?.hash || null
                 const cover_asset_id = await this.getCoverAssetId(item.id)
                 const authSettings = this.processAuthSettings(item.authorization_settings as any)
-                const child_ip_info = await this._getChildIps(item.id)
+                const child_ip_info = await this._getChildIps(item.id, is_public)
                 const res = {
                     id: item.id,
                     name: item.name,
@@ -543,6 +548,7 @@ export class IpLibraryService {
                     genre: item.genre as { name: string }[],
                     cover_image: cover_image,
                     cover_hash,
+                    is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
                     creator_id: item.user_info?.username_in_be || "",
@@ -561,11 +567,17 @@ export class IpLibraryService {
         }
     }
 
-    async detail(id: string, user?: UserInfoDTO): Promise<IpLibraryDetailDto> {
+    async detail(id: string, is_public: boolean | null, user?: UserInfoDTO): Promise<IpLibraryDetailDto> {
         const where: Prisma.ip_libraryWhereUniqueInput = { id: parseInt(id) }
+
+        if (is_public !== null) {
+            where.is_public = is_public
+        }
+
         if (user) {
             where.owner = user.usernameShorted
         }
+
         const data = await this.prismaService.ip_library.findUnique({
             where,
             select: {
@@ -581,6 +593,7 @@ export class IpLibraryService {
                 extra_info: true,
                 token_info: true,
                 current_token_info: true,
+                is_public: true,
                 user_info: {
                     select: {
                         username: true,
@@ -622,12 +635,16 @@ export class IpLibraryService {
         //get parent ip info
         let parentIpInfo: IpSummaryDto[] = []
         if (data.ip_library_child.length > 0) {
-            const parentIps = await this.prismaService.ip_library.findMany({
-                where: {
-                    id: {
-                        in: data.ip_library_child.map((item) => item.parent_ip),
-                    },
+            const parentWhere: Prisma.ip_libraryWhereInput = {
+                id: {
+                    in: data.ip_library_child.map((item) => item.parent_ip),
                 },
+            }
+            if (is_public !== null) {
+                parentWhere.is_public = is_public
+            }
+            const parentIps = await this.prismaService.ip_library.findMany({
+                where: parentWhere,
                 select: {
                     id: true,
                     name: true,
@@ -638,6 +655,7 @@ export class IpLibraryService {
                     token_info: true,
                     current_token_info: true,
                     authorization_settings: true,
+                    is_public: true,
                     owner: true,
                     user_info: {
                         select: {
@@ -667,6 +685,7 @@ export class IpLibraryService {
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image,
                     cover_hash,
+                    is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -726,6 +745,7 @@ export class IpLibraryService {
             description: data.description,
             cover_image,
             cover_hash,
+            is_public: data.is_public,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
             creator_description: data.user_info?.description || "",
@@ -736,7 +756,7 @@ export class IpLibraryService {
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
             can_purchase: this.ipCanPurchase(authSettings, data.token_info as any),
-            child_ip_info: await this._getChildIps(data.id),
+            child_ip_info: await this._getChildIps(data.id, is_public),
             extra_info: {
                 twitter: extra_info?.twitter || "",
                 website: extra_info?.website || "",
@@ -810,7 +830,7 @@ export class IpLibraryService {
                 throw new BadRequestException("Video asset is already related to an ip")
             }
 
-            const ipDetailBeforeUpdate = await this.detail(body.id.toString())
+            const ipDetailBeforeUpdate = await this.detail(body.id.toString(), null)
 
             const result = await this.prismaService.$transaction(async (tx) => {
                 const ipLibrary = await tx.ip_library.update({
@@ -877,7 +897,7 @@ export class IpLibraryService {
 
             subscriber.next({
                 event: "ip.updated",
-                data: await this.detail(result.id.toString()),
+                data: await this.detail(result.id.toString(), null),
             })
 
             if (!onChainUpdated) {
@@ -1183,7 +1203,7 @@ export class IpLibraryService {
 
             subscriber.next({
                 event: "ip.created",
-                data: await this.detail(ipId.toString()),
+                data: await this.detail(ipId.toString(), null),
             })
 
             if (shareWarning) {
@@ -1209,7 +1229,7 @@ export class IpLibraryService {
                 //ip on chain is created, but giggle token is not created, refund payment
                 subscriber.next({
                     event: "ip.created",
-                    data: await this.detail(ipId.toString()),
+                    data: await this.detail(ipId.toString(), null),
                 })
                 subscriber.next({
                     event: "ip.warning",
@@ -1264,7 +1284,7 @@ export class IpLibraryService {
                 throw new NotFoundException("IP not found")
             }
 
-            const ip = await this.detail(body.id.toString())
+            const ip = await this.detail(body.id.toString(), null)
 
             const existingTokenInfo = await this.prismaService.asset_to_meme_record.findFirst({
                 where: {
@@ -1297,7 +1317,7 @@ export class IpLibraryService {
                 throw new BadRequestException("IP does not have cover image")
             }
 
-            const ipDetail = await this.detail(body.id.toString())
+            const ipDetail = await this.detail(body.id.toString(), null)
 
             //step1 > push ip to chain if not on chain
             if (ipDetail.on_chain_status === "onChain" && ipDetail.on_chain_detail) {
@@ -1437,22 +1457,26 @@ export class IpLibraryService {
         }
     }
 
-    private async _getChildIps(ip_id: number, take: number = 100): Promise<IpSummaryDto[]> {
+    private async _getChildIps(ip_id: number, is_public: boolean | null, take: number = 100): Promise<IpSummaryDto[]> {
         const childIps = await this.prismaService.ip_library_child.findMany({
-            where: {
-                parent_ip: ip_id,
-                ip_info: {
-                    is_public: true,
-                },
-            },
+            where: { parent_ip: ip_id },
             orderBy: { id: "desc" },
             take,
         })
         if (childIps.length === 0) {
             return []
         }
+
+        const detailWhere: Prisma.ip_libraryWhereInput = {
+            id: {
+                in: childIps.map((item) => item.ip_id),
+            },
+        }
+        if (is_public !== null) {
+            detailWhere.is_public = is_public
+        }
         const childIpsDetail = await this.prismaService.ip_library.findMany({
-            where: { id: { in: childIps.map((item) => item.ip_id) } },
+            where: detailWhere,
             include: {
                 user_info: {
                     select: {
@@ -1477,6 +1501,7 @@ export class IpLibraryService {
                     id: item.id,
                     name: item.name,
                     ticker: item.ticker,
+                    is_public: item.is_public,
                     description: item.description,
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image: coverImage,
@@ -1808,5 +1833,33 @@ export class IpLibraryService {
         }
 
         return { create_amount: create_amount, buy_amount: buy_amount }
+    }
+
+    async setIpVisibility(user: UserInfoDTO, body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: body.id, owner: user.usernameShorted },
+        })
+        if (!ip) {
+            throw new BadRequestException("IP not found or you are not the owner of this IP")
+        }
+
+        //if set to private, check if it is bound to an app
+        if (!body.is_public) {
+            const appBind = await this.prismaService.app_bind_ips.findFirst({
+                where: {
+                    ip_id: body.id,
+                },
+            })
+
+            if (appBind) {
+                throw new BadRequestException("This IP is bound to an app, please unbind it first")
+            }
+        }
+
+        await this.prismaService.ip_library.update({
+            where: { id: body.id },
+            data: { is_public: body.is_public },
+        })
+        return await this.detail(body.id.toString(), null)
     }
 }
