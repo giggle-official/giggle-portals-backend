@@ -26,6 +26,7 @@ import {
     SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
+    UntokenizeDto,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -114,6 +115,17 @@ export class IpLibraryController {
     @ApiBearerAuth()
     async setIpVisibility(@Req() req: Request, @Body() body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
         return await this.ipLibraryService.setIpVisibility(req.user as UserInfoDTO, body)
+    }
+
+    @Post("/untokenize")
+    @ApiOperation({ summary: "Untokenize an ip library" })
+    @ApiBody({ type: UntokenizeDto })
+    @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    async untokenize(@Req() req: Request, @Body() body: UntokenizeDto): Promise<IpLibraryDetailDto> {
+        return await this.ipLibraryService.untokenize(req.user as UserInfoDTO, body)
     }
 
     @Post("/create-ip")

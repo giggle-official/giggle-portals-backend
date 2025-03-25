@@ -925,4 +925,34 @@ export class GiggleService {
             }
         }
     }
+
+    async toggleIpVisibility(ip_id: number, is_public: boolean) {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: ip_id },
+        })
+        const mint = (ip?.token_info as any as CreateIpTokenGiggleResponseDto)?.mint || ""
+        if (!mint) {
+            return
+        }
+
+        const signatureParams = this.generateSignature({
+            mint: mint,
+        })
+
+        let url = this.endpoint + "/cus/mint/del"
+        if (is_public) {
+            url = this.endpoint + "/cus/mint/recover"
+        }
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(url, signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (response.data.code !== 0) {
+            this.logger.error("Failed to toggle ip visibility: " + JSON.stringify(response.data))
+        } else {
+            this.logger.log("Successfully toggled ip visibility: " + ip_id + " to " + is_public)
+        }
+        return
+    }
 }

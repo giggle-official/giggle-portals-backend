@@ -824,3 +824,12 @@ export class SetVisibilityDto {
     })
     is_public: boolean
 }
+
+export class UntokenizeDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+}

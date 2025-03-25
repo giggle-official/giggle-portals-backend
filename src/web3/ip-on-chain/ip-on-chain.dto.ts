@@ -28,3 +28,5 @@ export class RegisterTokenRequestDto {
 export class PushIpToChainResponseDto extends IpToChainResDto<OnChainDetailDto> {}
 
 export class RegisterTokenResponseDto extends IpToChainResDto<RegisterTokenRequestDto> {}
+
+export class UntokenizeResponseDto extends IpToChainResDto<RegisterTokenRequestDto> {}

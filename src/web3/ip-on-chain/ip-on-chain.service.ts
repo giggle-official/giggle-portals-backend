@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, forwardRef } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { PushIpToChainResponseDto, RegisterTokenResponseDto } from "./ip-on-chain.dto"
+import { PushIpToChainResponseDto, RegisterTokenResponseDto, UntokenizeResponseDto } from "./ip-on-chain.dto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
@@ -15,7 +15,7 @@ export class IpOnChainService {
     private readonly ipOnChainToken: string
     private readonly ipfsPrefix: string
     private readonly logger = new Logger(IpOnChainService.name)
-    private readonly requestTimeout = 30000 //30 seconds
+    private readonly requestTimeout = 60000 //60 seconds
     constructor(
         private readonly prismaService: PrismaService,
 
@@ -187,6 +187,34 @@ export class IpOnChainService {
             return registerTokenResponse.data
         } catch (error) {
             this.logger.error("Error registering token:", error)
+            return { isSucc: false, err: { type: "error", message: error.message } }
+        }
+    }
+
+    async untokenize(ipAddr: string): Promise<UntokenizeResponseDto> {
+        try {
+            let untokenizeRequestParams: any
+            untokenizeRequestParams = {
+                ipAddr: ipAddr,
+                __authToken: this.ipOnChainToken,
+            }
+
+            const untokenizeRequest = this.httpService.post(
+                this.ipOnChainEndpoint + "/UnRegisterToken",
+                untokenizeRequestParams,
+                { timeout: this.requestTimeout },
+            )
+
+            const untokenizeResponse: AxiosResponse<UntokenizeResponseDto> = await lastValueFrom(untokenizeRequest)
+
+            if (!untokenizeResponse.data.isSucc) {
+                this.logger.error("Failed to untokenize: " + untokenizeResponse.data.err.message)
+                throw new Error("Failed to untokenize: " + untokenizeResponse.data.err.message)
+            }
+            console.log("untokenizeResponse", untokenizeResponse.data)
+            return untokenizeResponse.data
+        } catch (error) {
+            this.logger.error("Error untokenizing:", error)
             return { isSucc: false, err: { type: "error", message: error.message } }
         }
     }

@@ -30,6 +30,7 @@ import {
     SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
+    UntokenizeDto,
 } from "./ip-library.dto"
 import { asset_to_meme_record, assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -47,6 +48,7 @@ import { PinataSDK } from "pinata-web3"
 import { LicenseService } from "./license/license.service"
 import { AssetDetailDto } from "src/assets/assets.dto"
 import { PriceService } from "src/web3/price/price.service"
+import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
 
 @Injectable()
 export class IpLibraryService {
@@ -543,7 +545,7 @@ export class IpLibraryService {
                     ticker: item.ticker,
                     description: item.description,
                     cover_asset_id,
-                    can_purchase: this.ipCanPurchase(authSettings, item.token_info as any),
+                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
                     on_chain_detail: item.on_chain_detail as any,
                     genre: item.genre as { name: string }[],
                     cover_image: cover_image,
@@ -681,7 +683,7 @@ export class IpLibraryService {
                     name: item.name,
                     ticker: item.ticker,
                     description: item.description,
-                    can_purchase: this.ipCanPurchase(authSettings, item.token_info as any),
+                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image,
                     cover_hash,
@@ -755,7 +757,7 @@ export class IpLibraryService {
             ip_signature_clips: ipSignatureClips,
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
-            can_purchase: this.ipCanPurchase(authSettings, data.token_info as any),
+            can_purchase: await this.ipCanPurchase(data.id, authSettings, data.token_info as any),
             child_ip_info: await this._getChildIps(data.id, is_public),
             extra_info: {
                 twitter: extra_info?.twitter || "",
@@ -1045,6 +1047,10 @@ export class IpLibraryService {
 
         if (body.buy_amount < 0 || body.buy_amount > 98) {
             throw new BadRequestException("buy_amount must be between 0 and 98")
+        }
+
+        if (!(await this._checkCreateIpPermission(user, body))) {
+            throw new BadRequestException("you have no permission or license to create this ip")
         }
 
         let consumeLicenseLogs: number[] = []
@@ -1414,6 +1420,14 @@ export class IpLibraryService {
 
             ipProcessStepsDto.ipTokenRegistered = true
 
+            if (complete) {
+                subscriber.next({
+                    event: "ip.token_created_on_chain",
+                    data: await this.detail(ip.id.toString(), null),
+                })
+                subscriber.complete()
+            }
+
             return ipProcessStepsDto
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"
@@ -1509,7 +1523,7 @@ export class IpLibraryService {
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     on_chain_detail: onChainDetail,
                     authorization_settings: authSettings,
-                    can_purchase: this.ipCanPurchase(authSettings, item.token_info as any),
+                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
                     creator_id: item.user_info?.username_in_be || "",
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
@@ -1589,7 +1603,27 @@ export class IpLibraryService {
         }
     }
 
-    ipCanPurchase(authSettings: AuthorizationSettingsDto, tokenInfo: CreateIpTokenGiggleResponseDto | null): boolean {
+    async ipCanPurchase(
+        ip_id: number,
+        authSettings: AuthorizationSettingsDto,
+        tokenInfo: CreateIpTokenGiggleResponseDto | null,
+    ): Promise<boolean> {
+        //return false if ip is top ip or ip has 2 level of parent ip
+        const ip = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: ip_id },
+        })
+        if (!ip) {
+            return false
+        }
+
+        //parent has parent ip
+        const parentIp = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: ip.parent_ip },
+        })
+        if (parentIp) {
+            return false
+        }
+
         const now = new Date()
         let validDate = false
         let isOpenAccess = false
@@ -1856,9 +1890,73 @@ export class IpLibraryService {
             }
         }
 
-        await this.prismaService.ip_library.update({
-            where: { id: body.id },
-            data: { is_public: body.is_public },
+        //toggle from giggle
+        await this.giggleService.toggleIpVisibility(ip.id, body.is_public)
+
+        return await this.detail(body.id.toString(), null)
+    }
+
+    async _checkCreateIpPermission(user: UserInfoDTO, ipInfo: CreateIpDto): Promise<boolean> {
+        const userInfo = await this.userService.getProfile(user)
+        if (userInfo.can_create_ip) {
+            return true
+        }
+
+        //check user has license of parent ip
+        if (!ipInfo.parent_ip_library_id) {
+            return false
+        }
+        const hasLicense = await this.prismaService.ip_license_orders.findFirst({
+            where: {
+                owner: user.usernameShorted,
+                ip_id: ipInfo.parent_ip_library_id,
+                remain_quantity: {
+                    gt: 0,
+                },
+            },
+        })
+        return !!hasLicense
+    }
+
+    async untokenize(user: UserInfoDTO, body: UntokenizeDto): Promise<IpLibraryDetailDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: body.id, owner: user.usernameShorted },
+        })
+
+        if (!ip) {
+            throw new BadRequestException("IP not found or you are not the owner of this IP")
+        }
+
+        if (!ip.token_info) {
+            return await this.detail(body.id.toString(), null)
+        }
+
+        //unbind from block chain
+        const onChainInfo = ip.on_chain_detail as any as OnChainDetailDto
+        if (onChainInfo?.ipAddr) {
+            const untokenizeResponse = await this.ipOnChainService.untokenize(onChainInfo.ipAddr)
+            if (!untokenizeResponse.isSucc) {
+                throw new BadRequestException("Failed to untokenize: " + untokenizeResponse.err.message)
+            }
+        }
+
+        //toggle from giggle
+        if (ip.is_public) {
+            await this.giggleService.toggleIpVisibility(ip.id, false)
+        }
+        //update local db
+        await this.prismaService.$transaction(async (tx) => {
+            await tx.asset_to_meme_record.deleteMany({
+                where: {
+                    ip_id: {
+                        array_contains: { ip_id: ip.id },
+                    },
+                },
+            })
+            await tx.ip_library.update({
+                where: { id: body.id },
+                data: { token_info: null, current_token_info: null },
+            })
         })
         return await this.detail(body.id.toString(), null)
     }
