@@ -1893,6 +1893,11 @@ export class IpLibraryService {
         //toggle from giggle
         await this.giggleService.toggleIpVisibility(ip.id, body.is_public)
 
+        //update local db
+        await this.prismaService.ip_library.update({
+            where: { id: body.id },
+            data: { is_public: body.is_public },
+        })
         return await this.detail(body.id.toString(), null)
     }
 
