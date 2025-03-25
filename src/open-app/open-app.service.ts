@@ -98,6 +98,13 @@ export class OpenAppService {
             where: { creator: userInfo.usernameShorted, is_temp: false },
             skip: (parseInt(query.page) - 1) * parseInt(query.page_size),
             take: parseInt(query.page_size),
+            include: {
+                app_bind_ips: {
+                    select: {
+                        ip: true,
+                    },
+                },
+            },
             orderBy: {
                 created_at: "desc",
             },
@@ -105,6 +112,17 @@ export class OpenAppService {
         const total = await this.prisma.apps.count({
             where: { creator: userInfo.usernameShorted, is_temp: false },
         })
+
+        const ipIdList = appList.map((app) => app.app_bind_ips.map((ip) => ip.ip.id)[0])
+        const ipSummaarayList = await this.ipLibraryService.getList(
+            {
+                page: "1",
+                page_size: ipIdList.length.toString(),
+            },
+            null,
+            null,
+            ipIdList,
+        )
         return {
             data: appList.map((app) => ({
                 app_id: app.app_id,
@@ -113,6 +131,7 @@ export class OpenAppService {
                 radius: app.radius,
                 style_name: app.style_name,
                 sub_domain: app.sub_domain,
+                ip_info: ipSummaarayList.data.find((ip) => ip.id === app.app_bind_ips.map((ip) => ip.ip.id)[0]),
             })),
             total,
         }
@@ -312,6 +331,7 @@ export class OpenAppService {
         const ipList = await this.prisma.ip_library.findMany({
             where: {
                 owner: userInfo.usernameShorted,
+                is_public: true,
                 ip_library_child: {
                     none: {},
                 },

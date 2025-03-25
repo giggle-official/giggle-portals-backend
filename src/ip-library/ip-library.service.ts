@@ -1882,6 +1882,7 @@ export class IpLibraryService {
             const appBind = await this.prismaService.app_bind_ips.findFirst({
                 where: {
                     ip_id: body.id,
+                    is_temp: false,
                 },
             })
 
