@@ -383,6 +383,7 @@ export class IpLibraryService {
                     username_in_be: true,
                     description: true,
                     followers: true,
+                    avatar: true,
                 },
             },
         }
@@ -557,6 +558,7 @@ export class IpLibraryService {
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
+                    creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                     child_ip_info,
                 }
@@ -602,6 +604,7 @@ export class IpLibraryService {
                         username_in_be: true,
                         description: true,
                         followers: true,
+                        avatar: true,
                     },
                 },
                 ip_signature_clips: {
@@ -665,6 +668,7 @@ export class IpLibraryService {
                             username_in_be: true,
                             description: true,
                             followers: true,
+                            avatar: true,
                         },
                     },
                 },
@@ -695,6 +699,7 @@ export class IpLibraryService {
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
+                    creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                 })
             }
@@ -752,6 +757,7 @@ export class IpLibraryService {
             creator: data.user_info?.username || "",
             creator_description: data.user_info?.description || "",
             creator_followers: data.user_info?.followers || 0,
+            creator_avatar: data.user_info?.avatar || "",
             cover_asset_id: await this.getCoverAssetId(data.id),
             authorization_settings: authSettings,
             ip_signature_clips: ipSignatureClips,
@@ -1498,6 +1504,7 @@ export class IpLibraryService {
                         username_in_be: true,
                         description: true,
                         followers: true,
+                        avatar: true,
                     },
                 },
             },
@@ -1528,6 +1535,7 @@ export class IpLibraryService {
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
+                    creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                 }
                 return res

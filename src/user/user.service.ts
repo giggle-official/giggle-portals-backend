@@ -23,6 +23,9 @@ import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
+import { PinataSDK } from "pinata-web3"
+import * as fs from "fs"
+import { Readable } from "stream"
 @Injectable()
 export class UserService {
     constructor(
@@ -566,8 +569,9 @@ export class UserService {
                     avatar: result,
                 },
             })
-            return {}
+            return this.getProfile(userInfo)
         } catch (error) {
+            console.error(error)
             throw new BadRequestException("upload avatar failed")
         }
     }
@@ -655,17 +659,19 @@ Message: ${contactInfo.message}
     }
 
     private async _processAvatar(file: Express.Multer.File): Promise<string> {
-        const key = `${process.env.S3_PREFIX}${crypto.randomUUID()}-${file.originalname}`
-        let buffer = file.buffer
-        if (file.size > 50 * 1024) {
-            buffer = await sharp(file.buffer)
-                .resize({ width: 100, height: 100, fit: sharp.fit.inside, withoutEnlargement: true })
-                .toBuffer()
-        }
+        const pinata = new PinataSDK({
+            pinataJwt: process.env.PINATA_JWT,
+            pinataGateway: process.env.PINATA_GATEWAY,
+        })
 
-        //const result = await this.uploadService.s3_upload(buffer, key, file.mimetype)
-        //return result.Location
-        return ""
+        // Create a readable stream from the buffer
+        const readable = new Readable()
+        readable.push(file.buffer)
+        readable.push(null)
+
+        const result = await pinata.upload.stream(readable)
+
+        return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
     async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string) {

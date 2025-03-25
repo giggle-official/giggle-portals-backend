@@ -530,6 +530,11 @@ export class IpSummaryDto {
     creator_description: string
 
     @ApiProperty({
+        description: "creator avatar of the ip library",
+    })
+    creator_avatar: string
+
+    @ApiProperty({
         description: "is public",
     })
     is_public: boolean
