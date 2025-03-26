@@ -669,6 +669,28 @@ model creator_applications {
   updated_at   DateTime? @default(now()) @db.Timestamp(0)
 }
 
+model app_band_users {
+  id         Int       @id @default(autoincrement())
+  app_id     String?   @db.VarChar(32)
+  band_type  String?   @db.VarChar(32)
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_comments {
+  id            Int       @id @default(autoincrement())
+  ip_id         Int?
+  image_url     String?   @db.Text
+  content       String?   @db.Text
+  author        String?   @db.VarChar(32)
+  reply_post_id Int?
+  likes         Int?
+  from_app_id   String?   @db.VarChar(32)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?

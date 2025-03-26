@@ -67,7 +67,7 @@ async function bootstrap() {
     document["x-tagGroups"] = [
         {
             name: "📚 IP Management",
-            tags: ["IP Library", "License", "Announcement"],
+            tags: ["IP Library", "License", "Announcement", "Comments"],
         },
         {
             name: "🔨 AIGC Tools",

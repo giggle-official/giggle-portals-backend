@@ -13,6 +13,8 @@ import { LicenseController } from "./license/license.controller"
 import { IpNameValidator } from "./ip-library.validator"
 import { AnnouncementController } from './announcement/announcement.controller';
 import { AnnouncementService } from './announcement/announcement.service';
+import { CommentsController } from './comments/comments.controller';
+import { CommentsService } from './comments/comments.service';
 
 @Module({
     imports: [
@@ -22,8 +24,8 @@ import { AnnouncementService } from './announcement/announcement.service';
         forwardRef(() => CreditModule),
         forwardRef(() => Web3Module),
     ],
-    controllers: [IpLibraryController, LicenseController, AnnouncementController],
-    providers: [IpLibraryService, PrismaService, UtilitiesService, LicenseService, IpNameValidator, AnnouncementService],
+    controllers: [IpLibraryController, LicenseController, AnnouncementController, CommentsController],
+    providers: [IpLibraryService, PrismaService, UtilitiesService, LicenseService, IpNameValidator, AnnouncementService, CommentsService],
     exports: [IpLibraryService, LicenseService],
 })
 export class IpLibraryModule {}
