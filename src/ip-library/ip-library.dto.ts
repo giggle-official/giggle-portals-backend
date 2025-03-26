@@ -551,6 +551,12 @@ export class IpSummaryDto {
     token_info: CreateIpTokenGiggleResponseDto
 
     @ApiProperty({
+        description: "signature clips of the ip library",
+        type: [IpSignatureClipDto],
+    })
+    ip_signature_clips: IpSignatureClipDto[]
+
+    @ApiProperty({
         type: () => AuthorizationSettingsDto,
         description: "authorization settings of the ip library",
     })
@@ -564,12 +570,6 @@ export class IpLibraryDetailDto extends IpSummaryDto {
         type: [GenreDto],
     })
     genre: GenreDto[]
-
-    @ApiProperty({
-        description: "signature clips of the ip library",
-        type: [IpSignatureClipDto],
-    })
-    ip_signature_clips: IpSignatureClipDto[]
 
     @ApiProperty({
         description: "parent ip library",

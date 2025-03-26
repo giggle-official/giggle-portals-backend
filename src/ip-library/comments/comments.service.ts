@@ -10,7 +10,7 @@ import {
 import { PinataSDK } from "pinata-web3"
 import { Readable } from "stream"
 import { IpLibraryService } from "../ip-library.service"
-import { Prisma } from "@prisma/client"
+import { ip_comments, Prisma } from "@prisma/client"
 @Injectable()
 export class CommentsService {
     constructor(
@@ -206,14 +206,21 @@ export class CommentsService {
         return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
-    private async _mapToResponse(comment: any, includeReplies = true): Promise<CommentResponseDto> {
+    private async _mapToResponse(comment: ip_comments, includeReplies = true): Promise<CommentResponseDto> {
         // Base comment object
+        const user = await this.prisma.users.findUnique({
+            where: { username_in_be: comment.author },
+        })
         const response: CommentResponseDto = {
             id: comment.id,
             ip_id: comment.ip_id,
             content: comment.content,
             image_url: comment.image_url,
-            author: comment.author,
+            author: {
+                id: user?.username_in_be,
+                avatar: user?.avatar,
+                username: user?.username,
+            },
             reply_post_id: comment.reply_post_id,
             likes: comment.likes || 0,
             from_app_id: comment.from_app_id,

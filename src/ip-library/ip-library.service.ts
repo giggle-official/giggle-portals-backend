@@ -43,7 +43,7 @@ import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
 import { Observable } from "rxjs"
-import { ConfirmStatus, CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
+import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { PinataSDK } from "pinata-web3"
 import { LicenseService } from "./license/license.service"
 import { AssetDetailDto } from "src/assets/assets.dto"
@@ -386,6 +386,17 @@ export class IpLibraryService {
                     avatar: true,
                 },
             },
+            ip_signature_clips: {
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    object_key: true,
+                    thumbnail: true,
+                    video_info: true,
+                    asset_id: true,
+                },
+            },
         }
         const skip =
             Math.max(0, parseInt(params.page.toString()) - 1) * Math.max(0, parseInt(params.page_size.toString()))
@@ -561,6 +572,7 @@ export class IpLibraryService {
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                     child_ip_info,
+                    ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                 }
                 return res
             }),
@@ -671,6 +683,7 @@ export class IpLibraryService {
                             avatar: true,
                         },
                     },
+                    ip_signature_clips: true,
                 },
             })
             for (const item of parentIps) {
@@ -701,38 +714,15 @@ export class IpLibraryService {
                     creator_followers: item.user_info?.followers || 0,
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
+                    ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                 })
             }
         }
 
         //remove cover_images
         data?.cover_images && delete data.cover_images
-        let ipSignatureClips: IpSignatureClipDto[] = []
+
         if (data?.ip_signature_clips) {
-            const ip_signature_clips = data.ip_signature_clips as any[]
-            ipSignatureClips = await Promise.all(
-                ip_signature_clips.map(async (item) => {
-                    const video_url = await this.utilitiesService.createS3SignedUrl(item.object_key, s3Info)
-                    const thumbnail = await this.utilitiesService.createS3SignedUrl(item.thumbnail, s3Info)
-                    const video_info = item.video_info as IpSignatureClipMetadataDto
-                    if (!video_info?.size) {
-                        const size = await this.assetsService.getAssetSize(item.asset_id)
-                        await this.prismaService.ip_signature_clips.update({
-                            where: { id: item.id },
-                            data: { video_info: { ...video_info, size: size } },
-                        })
-                        video_info.size = size
-                    }
-                    return {
-                        ...item,
-                        video_url,
-                        thumbnail,
-                        asset_id: item.asset_id,
-                        ipfs_hash: item.ipfs_hash,
-                        video_info,
-                    }
-                }),
-            )
         }
 
         data?.ip_library_child && delete data.ip_library_child
@@ -760,7 +750,7 @@ export class IpLibraryService {
             creator_avatar: data.user_info?.avatar || "",
             cover_asset_id: await this.getCoverAssetId(data.id),
             authorization_settings: authSettings,
-            ip_signature_clips: ipSignatureClips,
+            ip_signature_clips: await this._processIpSignatureClips(data.ip_signature_clips as any[]),
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
             can_purchase: await this.ipCanPurchase(data.id, authSettings, data.token_info as any),
@@ -1498,6 +1488,7 @@ export class IpLibraryService {
         const childIpsDetail = await this.prismaService.ip_library.findMany({
             where: detailWhere,
             include: {
+                ip_signature_clips: true,
                 user_info: {
                     select: {
                         username: true,
@@ -1537,6 +1528,7 @@ export class IpLibraryService {
                     creator_followers: item.user_info?.followers || 0,
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
+                    ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                 }
                 return res
             }),
@@ -1973,5 +1965,35 @@ export class IpLibraryService {
             })
         })
         return await this.detail(body.id.toString(), null)
+    }
+
+    async _processIpSignatureClips(ip_signature_clips: any[]): Promise<IpSignatureClipDto[]> {
+        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
+        return await Promise.all(
+            ip_signature_clips.map(async (item) => {
+                const video_url = await this.utilitiesService.createS3SignedUrl(item.object_key, s3Info)
+                const thumbnail = await this.utilitiesService.createS3SignedUrl(item.thumbnail, s3Info)
+                const video_info = item.video_info as IpSignatureClipMetadataDto
+                if (!video_info?.size) {
+                    const size = await this.assetsService.getAssetSize(item.asset_id)
+                    await this.prismaService.ip_signature_clips.update({
+                        where: { id: item.id },
+                        data: { video_info: { ...video_info, size: size } },
+                    })
+                    video_info.size = size
+                }
+                return {
+                    id: item?.id,
+                    name: item?.name,
+                    description: item?.description,
+                    object_key: item?.object_key,
+                    thumbnail: thumbnail,
+                    asset_id: item?.asset_id,
+                    ipfs_hash: item?.ipfs_hash,
+                    video_info: video_info,
+                    video_url: video_url,
+                }
+            }),
+        )
     }
 }

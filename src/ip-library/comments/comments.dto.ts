@@ -35,12 +35,26 @@ export class ListCommentReqDto extends PaginationDto {
     ip_id: string
 }
 
+export class CommentAuthorDto {
+    @ApiProperty()
+    @IsString()
+    id: string
+
+    @ApiProperty()
+    @IsString()
+    avatar: string
+
+    @ApiProperty()
+    @IsString()
+    username: string
+}
+
 export class CommentResponseDto {
     id: number
     ip_id: number
     content: string
     image_url?: string
-    author: string
+    author: CommentAuthorDto
     reply_post_id?: number
     likes: number
     from_app_id: string
