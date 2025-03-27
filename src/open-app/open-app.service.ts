@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
-    AppConfigDto,
     AppInfoDto,
     AppListDto,
     ApproveCreatorDto,
@@ -387,11 +386,8 @@ export class OpenAppService {
         })
     }
 
-    private _processConfigs(configs: any): AppConfigDto {
-        const menus = configs?.menus || []
-        return {
-            menus: menus,
-        }
+    private _processConfigs(configs: any): Record<string, any> {
+        return configs
     }
 
     async getOpenAppSettings(): Promise<OpenAppSettingsDto> {

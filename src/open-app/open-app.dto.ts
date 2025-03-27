@@ -2,16 +2,6 @@ import { ApiProperty, PickType } from "@nestjs/swagger"
 import { IpLibraryDetailDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 
-export class AppConfigDto {
-    @ApiProperty({
-        description: "Menus",
-        required: false,
-        type: [String],
-        example: ["ip-library", "ip-token", "ip-announcement"],
-    })
-    menus?: string[]
-}
-
 export class AppInfoDto {
     @ApiProperty({
         description: "App ID",
@@ -68,9 +58,11 @@ export class AppInfoDto {
     radius: string
 
     @ApiProperty({
-        description: "Configs",
+        description: "App configs, you can pass any configs you want",
+        required: false,
+        type: Object,
     })
-    configs: AppConfigDto
+    configs: Record<string, any>
 
     @ApiProperty({
         description: "Kline URL",
