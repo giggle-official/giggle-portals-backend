@@ -484,6 +484,16 @@ export class IpSummaryDto {
     description: string
 
     @ApiProperty({
+        description: "likes of the ip library",
+    })
+    likes: number
+
+    @ApiProperty({
+        description: "is liked by the user",
+    })
+    is_user_liked: boolean
+
+    @ApiProperty({
         description: "cover asset id of the ip library",
     })
     cover_asset_id: number
@@ -838,3 +848,14 @@ export class UntokenizeDto {
     })
     id: number
 }
+
+export class LikeIpDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+}
+
+export class UnlikeIpDto extends LikeIpDto {}

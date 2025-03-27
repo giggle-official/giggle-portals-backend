@@ -261,6 +261,7 @@ model ip_library {
   on_chain_detail         Json?
   on_chain_request_params Json?
   meta_hash               String?                     @db.VarChar(255)
+  likes                   Int?                        @default(0)
   authorization_hash      String?                     @db.VarChar(255)
   ticker                  String?                     @db.VarChar(255)
   extra_info              Json?
@@ -710,6 +711,14 @@ model ip_clips_likes {
 model ip_comments_likes {
   id         Int       @id @default(autoincrement())
   comment_id Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_library_likes {
+  id         Int       @id @default(autoincrement())
+  ip_id      Int?
   user       String?   @db.VarChar(32)
   created_at DateTime? @default(now()) @db.Timestamp(0)
   updated_at DateTime? @default(now()) @db.Timestamp(0)

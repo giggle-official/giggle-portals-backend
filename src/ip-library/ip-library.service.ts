@@ -42,7 +42,7 @@ import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
-import { Observable } from "rxjs"
+import { async, Observable } from "rxjs"
 import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { PinataSDK } from "pinata-web3"
 import { LicenseService } from "./license/license.service"
@@ -355,9 +355,10 @@ export class IpLibraryService {
     async getList(
         params: GetListParams,
         is_public: boolean | null,
-        user?: UserInfoDTO,
+        user?: UserInfoDTO, // note: this is the user params to filter the ip
         ids?: number[],
         app_id?: string,
+        request_user?: UserInfoDTO, // note: this is the user who is requesting the list
     ): Promise<IpLibraryListDto> {
         const where: Prisma.ip_libraryWhereInput = {}
 
@@ -377,6 +378,7 @@ export class IpLibraryService {
             current_token_info: true,
             authorization_settings: true,
             is_public: true,
+            likes: true,
             user_info: {
                 select: {
                     username: true,
@@ -556,6 +558,8 @@ export class IpLibraryService {
                     name: item.name,
                     ticker: item.ticker,
                     description: item.description,
+                    likes: item.likes,
+                    is_user_liked: await this.isUserLiked(item.id, request_user),
                     cover_asset_id,
                     can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
                     on_chain_detail: item.on_chain_detail as any,
@@ -583,7 +587,12 @@ export class IpLibraryService {
         }
     }
 
-    async detail(id: string, is_public: boolean | null, user?: UserInfoDTO): Promise<IpLibraryDetailDto> {
+    async detail(
+        id: string,
+        is_public: boolean | null,
+        user?: UserInfoDTO, // note: this is the user params to filter the ip
+        request_user?: UserInfoDTO, // note: this is the user who is requesting the detail
+    ): Promise<IpLibraryDetailDto> {
         const where: Prisma.ip_libraryWhereUniqueInput = { id: parseInt(id) }
 
         if (is_public !== null) {
@@ -610,6 +619,7 @@ export class IpLibraryService {
                 token_info: true,
                 current_token_info: true,
                 is_public: true,
+                likes: true,
                 user_info: {
                     select: {
                         username: true,
@@ -674,6 +684,7 @@ export class IpLibraryService {
                     authorization_settings: true,
                     is_public: true,
                     owner: true,
+                    likes: true,
                     user_info: {
                         select: {
                             username: true,
@@ -704,6 +715,8 @@ export class IpLibraryService {
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image,
                     cover_hash,
+                    likes: item.likes,
+                    is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
@@ -742,6 +755,8 @@ export class IpLibraryService {
             description: data.description,
             cover_image,
             cover_hash,
+            likes: data.likes,
+            is_user_liked: await this.isUserLiked(data.id, request_user),
             is_public: data.is_public,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
@@ -1467,7 +1482,12 @@ export class IpLibraryService {
         }
     }
 
-    private async _getChildIps(ip_id: number, is_public: boolean | null, take: number = 100): Promise<IpSummaryDto[]> {
+    private async _getChildIps(
+        ip_id: number,
+        is_public: boolean | null,
+        take: number = 100,
+        request_user?: UserInfoDTO,
+    ): Promise<IpSummaryDto[]> {
         const childIps = await this.prismaService.ip_library_child.findMany({
             where: { parent_ip: ip_id },
             orderBy: { id: "desc" },
@@ -1518,6 +1538,8 @@ export class IpLibraryService {
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image: coverImage,
                     cover_hash: item?.cover_images?.[0]?.hash,
+                    likes: item.likes,
+                    is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     on_chain_detail: onChainDetail,
                     authorization_settings: authSettings,
@@ -1559,21 +1581,22 @@ export class IpLibraryService {
     }
 
     async registerToken(user: UserInfoDTO, body: RegisterTokenDto) {
-        let isAdmin = false
-        if (user.usernameShorted && user.usernameShorted === process.env.ADMIN_USER) {
-            isAdmin = true
-        }
-        let where: Prisma.ip_libraryWhereUniqueInput = { id: body.id }
-        if (!isAdmin) {
-            where.owner = user.usernameShorted
-        }
-
         const ip = await this.prismaService.ip_library.findUnique({
-            where,
+            where: {
+                id: body.id,
+            },
         })
 
         if (!ip) {
             throw new BadRequestException("IP not found")
+        }
+
+        const userInfo = await this.prismaService.users.findUnique({
+            where: { username_in_be: user.usernameShorted },
+        })
+
+        if (!userInfo.is_admin && ip.owner !== user.usernameShorted) {
+            throw new BadRequestException("You are not allowed to register token for this ip")
         }
 
         const memeRecord = await this.prismaService.asset_to_meme_record.findFirst({
@@ -1967,6 +1990,61 @@ export class IpLibraryService {
         return await this.detail(body.id.toString(), null)
     }
 
+    async likeIp(ip_id: number, user: UserInfoDTO): Promise<IpLibraryDetailDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: ip_id },
+        })
+        if (!ip) {
+            throw new BadRequestException("IP not found")
+        }
+
+        const existingLike = await this.prismaService.ip_library_likes.findFirst({
+            where: { ip_id, user: user.usernameShorted },
+        })
+        if (existingLike) {
+            return await this.detail(ip_id.toString(), null, null, user)
+        }
+
+        const likedIpId = await this.prismaService.$transaction(async (tx) => {
+            await tx.ip_library_likes.create({
+                data: { ip_id, user: user.usernameShorted },
+            })
+            const updatedIp = await tx.ip_library.update({
+                where: { id: ip_id },
+                data: { likes: ip.likes + 1 },
+            })
+            return updatedIp.id
+        })
+        return await this.detail(likedIpId.toString(), null, null, user)
+    }
+
+    async unlikeIp(ip_id: number, user: UserInfoDTO): Promise<IpLibraryDetailDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: ip_id },
+        })
+        if (!ip) {
+            throw new BadRequestException("IP not found")
+        }
+        const existingLike = await this.prismaService.ip_library_likes.findFirst({
+            where: { ip_id, user: user.usernameShorted },
+        })
+        if (!existingLike) {
+            return await this.detail(ip_id.toString(), null, null, user)
+        }
+
+        const unlikedIpId = await this.prismaService.$transaction(async (tx) => {
+            await tx.ip_library_likes.delete({
+                where: { id: existingLike.id },
+            })
+            const updatedIp = await tx.ip_library.update({
+                where: { id: ip_id },
+                data: { likes: ip.likes - 1 },
+            })
+            return updatedIp.id
+        })
+        return await this.detail(unlikedIpId.toString(), null, null, user)
+    }
+
     async _processIpSignatureClips(ip_signature_clips: any[]): Promise<IpSignatureClipDto[]> {
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
         return await Promise.all(
@@ -1995,5 +2073,15 @@ export class IpLibraryService {
                 }
             }),
         )
+    }
+
+    async isUserLiked(ip_id: number, user: UserInfoDTO): Promise<boolean> {
+        if (!user?.usernameShorted) {
+            return false
+        }
+        const like = await this.prismaService.ip_library_likes.findFirst({
+            where: { ip_id, user: user.usernameShorted },
+        })
+        return !!like
     }
 }

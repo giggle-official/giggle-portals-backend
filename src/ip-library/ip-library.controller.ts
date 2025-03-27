@@ -21,11 +21,13 @@ import {
     GetListParams,
     IpLibraryDetailDto,
     IpLibraryListDto,
+    LikeIpDto,
     RegisterTokenDto,
     RemixClipsDto,
     SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
+    UnlikeIpDto,
     UntokenizeDto,
 } from "./ip-library.dto"
 import {
@@ -44,6 +46,7 @@ import { Request } from "express"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 import { ValidEventBody } from "src/common/rawbody.decorator"
+import { OptionalJwtAuthGuard } from "src/auth/optional-jwt-auth.guard"
 
 @Controller("/api/v1/ip-library")
 @ApiTags("IP Library")
@@ -57,10 +60,15 @@ export class IpLibraryController {
             required: false,
         },
     ])
+    @UseGuards(OptionalJwtAuthGuard)
     @ApiOperation({ summary: "Get list of ip libraries" })
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
-    async get(@Query() query: GetListParams, @Headers("app-id") app_id?: string): Promise<IpLibraryListDto> {
-        return await this.ipLibraryService.getList(query, true, null, null, app_id)
+    async get(
+        @Req() req: Request,
+        @Query() query: GetListParams,
+        @Headers("app-id") app_id?: string,
+    ): Promise<IpLibraryListDto> {
+        return await this.ipLibraryService.getList(query, true, null, null, app_id, req?.user as UserInfoDTO)
     }
 
     @Get("/my")
@@ -69,7 +77,14 @@ export class IpLibraryController {
     @ApiBearerAuth()
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
     async getMy(@Req() req: Request, @Query() query: GetListParams): Promise<IpLibraryListDto> {
-        return await this.ipLibraryService.getList(query, null, req.user as UserInfoDTO)
+        return await this.ipLibraryService.getList(
+            query,
+            null,
+            req.user as UserInfoDTO,
+            null,
+            null,
+            req.user as UserInfoDTO,
+        )
     }
 
     @Get("/genres")
@@ -84,6 +99,24 @@ export class IpLibraryController {
     @ApiResponse({ type: [TerritoryDto], status: 200 })
     async getTerritories(): Promise<TerritoryDto[]> {
         return this.ipLibraryService.getTerritories()
+    }
+
+    @Post("like")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({ summary: "Like an ip library" })
+    @ApiBody({ type: LikeIpDto })
+    async likeIp(@Body() dto: LikeIpDto, @Req() req: any): Promise<IpLibraryDetailDto> {
+        return this.ipLibraryService.likeIp(dto.id, req.user as UserInfoDTO)
+    }
+
+    @Post("unlike")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({ summary: "Unlike an ip library" })
+    @ApiBody({ type: UnlikeIpDto })
+    async unlikeIp(@Body() dto: UnlikeIpDto, @Req() req: any): Promise<IpLibraryDetailDto> {
+        return this.ipLibraryService.unlikeIp(dto.id, req.user as UserInfoDTO)
     }
 
     @Get("/available-parent-ips")
@@ -103,7 +136,7 @@ export class IpLibraryController {
     @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
     @ApiParam({ name: "id", type: Number })
     async getMyDetail(@Req() req: Request, @Param("id") id: string): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.detail(id, null, req.user as UserInfoDTO)
+        return await this.ipLibraryService.detail(id, null, req.user as UserInfoDTO, req.user as UserInfoDTO)
     }
 
     @Post("/set-visibility")
@@ -377,9 +410,10 @@ data: some error message
     @Get("/:id")
     @ApiOperation({ summary: "Get detail of ip library" })
     @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
+    @UseGuards(OptionalJwtAuthGuard)
     @ApiParam({ name: "id", type: Number })
-    async getDetail(@Param("id") id: string): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.detail(id, true)
+    async getDetail(@Param("id") id: string, @Req() req: Request): Promise<IpLibraryDetailDto> {
+        return await this.ipLibraryService.detail(id, true, null, req?.user as UserInfoDTO)
     }
 
     @Post("/register-token")
