@@ -21,14 +21,16 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags } from 
 import { CommentsService } from "./comments.service"
 import {
     CreateCommentDto,
-    UpdateCommentDto,
     CommentResponseDto,
     DeleteCommentDto,
     ListCommentReqDto,
     ListCommentResDto,
+    LikeCommentDto,
+    UnlikeCommentDto,
 } from "./comments.dto"
 import { FileInterceptor } from "@nestjs/platform-express"
 import { AuthGuard } from "@nestjs/passport"
+import { OptionalJwtAuthGuard } from "src/auth/optional-jwt-auth.guard"
 
 @ApiTags("Comments")
 @Controller("/api/v1/ip/comments")
@@ -37,8 +39,9 @@ export class CommentsController {
 
     @Get()
     @ApiOperation({ summary: "List comments by IP" })
-    async findAll(@Query() query: ListCommentReqDto): Promise<ListCommentResDto> {
-        return this.commentsService.findAll(query)
+    @UseGuards(OptionalJwtAuthGuard)
+    async findAll(@Query() query: ListCommentReqDto, @Req() req: any): Promise<ListCommentResDto> {
+        return this.commentsService.findAll(query, req.user?.usernameShorted)
     }
 
     @Post()
@@ -77,15 +80,13 @@ export class CommentsController {
         return this.commentsService.create(dto, req.user.usernameShorted, appId, image)
     }
 
-    //todo: add get one comment
-    /*
     @Get(":id")
+    @UseGuards(OptionalJwtAuthGuard)
     @ApiOperation({ summary: "Get one comment by ID" })
     @ApiParam({ name: "id", description: "Comment ID" })
-    async findOne(@Param("id", ParseIntPipe) id: number): Promise<CommentResponseDto> {
-        return this.commentsService.findOne(id)
+    async findOne(@Param("id", ParseIntPipe) id: number, @Req() req: any): Promise<CommentResponseDto> {
+        return this.commentsService.findOne(id, req.user?.usernameShorted)
     }
-    */
 
     //todo: add update comment
     /*
@@ -115,14 +116,21 @@ export class CommentsController {
         return this.commentsService.remove(dto.id, req.user.usernameShorted, appId)
     }
 
-    //todo: add like comment
-    /*
-    @Post(":id/like")
+    @Post("like")
+    @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "Like a comment" })
-    @ApiParam({ name: "id", description: "Comment ID" })
-    async likeComment(@Param("id", ParseIntPipe) id: number): Promise<CommentResponseDto> {
-        return this.commentsService.likeComment(id)
+    @ApiBody({ type: LikeCommentDto })
+    async likeComment(@Body() dto: LikeCommentDto, @Req() req: any): Promise<CommentResponseDto> {
+        return this.commentsService.likeComment(dto.id, req.user.usernameShorted)
     }
-    */
+
+    @Post("unlike")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({ summary: "Unlike a comment" })
+    @ApiBody({ type: UnlikeCommentDto })
+    async unlikeComment(@Body() dto: UnlikeCommentDto, @Req() req: any): Promise<CommentResponseDto> {
+        return this.commentsService.unlikeComment(dto.id, req.user?.usernameShorted)
+    }
 }

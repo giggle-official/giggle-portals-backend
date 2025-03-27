@@ -61,6 +61,7 @@ export class CommentResponseDto {
     created_at: Date
     updated_at: Date
     reply_post?: CommentResponseDto[]
+    user_has_liked?: boolean
 }
 
 export class ListCommentResDto {
@@ -89,3 +90,6 @@ export class DeleteCommentDto {
     @IsNotEmpty()
     id: number
 }
+
+export class LikeCommentDto extends DeleteCommentDto {}
+export class UnlikeCommentDto extends DeleteCommentDto {}

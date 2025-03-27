@@ -82,7 +82,7 @@ export class CommentsService {
         return this._mapToResponse(comment)
     }
 
-    async findAll(query: ListCommentReqDto): Promise<ListCommentResDto> {
+    async findAll(query: ListCommentReqDto, username?: string): Promise<ListCommentResDto> {
         const where: Prisma.ip_commentsWhereInput = {
             ip_id: Number(query.ip_id),
             reply_post_id: null, // Only get top-level comments
@@ -99,13 +99,16 @@ export class CommentsService {
             where,
         })
 
+        // Map comments to response and include if the user has liked each comment
+        const mappedData = await Promise.all(data.map((comment) => this._mapToResponse(comment, username, true)))
+
         return {
-            data: await Promise.all(data.map((comment) => this._mapToResponse(comment))),
+            data: mappedData,
             count: total,
         }
     }
 
-    async findOne(id: number): Promise<CommentResponseDto> {
+    async findOne(id: number, username?: string): Promise<CommentResponseDto> {
         const comment = await this.prisma.ip_comments.findUnique({
             where: { id },
         })
@@ -114,7 +117,7 @@ export class CommentsService {
             throw new NotFoundException(`Comment with ID ${id} not found`)
         }
 
-        return this._mapToResponse(comment)
+        return this._mapToResponse(comment, username)
     }
 
     async update(id: number, dto: UpdateCommentDto, author: string): Promise<CommentResponseDto> {
@@ -171,7 +174,7 @@ export class CommentsService {
         })
     }
 
-    async likeComment(id: number): Promise<CommentResponseDto> {
+    async likeComment(id: number, usernameShorted: string): Promise<CommentResponseDto> {
         const comment = await this.prisma.ip_comments.findUnique({
             where: { id },
         })
@@ -180,14 +183,66 @@ export class CommentsService {
             throw new NotFoundException(`Comment with ID ${id} not found`)
         }
 
-        const updatedComment = await this.prisma.ip_comments.update({
-            where: { id },
-            data: {
-                likes: (comment.likes || 0) + 1,
+        const existingLikes = await this.prisma.ip_comments_likes.findFirst({
+            where: {
+                comment_id: id,
+                user: usernameShorted,
             },
         })
 
-        return this._mapToResponse(updatedComment)
+        const userAlreadyLiked = existingLikes && Array.isArray(existingLikes) && existingLikes.length > 0
+
+        if (userAlreadyLiked) {
+            // User already liked this comment
+            return this._mapToResponse(comment, usernameShorted)
+        }
+
+        const updatedComment = await this.prisma.$transaction(async (tx) => {
+            // Create a like record using raw SQL
+            await tx.ip_comments_likes.create({
+                data: {
+                    comment_id: id,
+                    user: usernameShorted,
+                },
+            })
+
+            // Increment like count regardless of who liked it
+            return await tx.ip_comments.update({
+                where: { id },
+                data: {
+                    likes: (comment.likes || 0) + 1,
+                },
+            })
+        })
+        return this._mapToResponse(updatedComment, usernameShorted)
+    }
+
+    async unlikeComment(id: number, usernameShorted: string): Promise<CommentResponseDto> {
+        const comment = await this.prisma.ip_comments.findUnique({
+            where: { id },
+        })
+        if (!comment) {
+            throw new NotFoundException(`Comment with ID ${id} not found`)
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            const deleted = await tx.ip_comments_likes.deleteMany({
+                where: {
+                    comment_id: id,
+                    user: usernameShorted,
+                },
+            })
+            if (deleted.count > 0) {
+                const updatedComment = await tx.ip_comments.update({
+                    where: { id },
+                    data: {
+                        likes: Math.max(0, comment.likes - 1, 0),
+                    },
+                })
+                return updatedComment
+            }
+        })
+        return this._mapToResponse(comment, usernameShorted)
     }
 
     private async _processImage(file: Express.Multer.File): Promise<string> {
@@ -206,11 +261,28 @@ export class CommentsService {
         return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
-    private async _mapToResponse(comment: ip_comments, includeReplies = true): Promise<CommentResponseDto> {
+    private async _mapToResponse(
+        comment: ip_comments,
+        username?: string,
+        includeReplies = true,
+    ): Promise<CommentResponseDto> {
         // Base comment object
         const user = await this.prisma.users.findUnique({
             where: { username_in_be: comment.author },
         })
+
+        // Check if the current user has liked this comment
+        let userHasLiked = false
+        if (username) {
+            const like = await this.prisma.ip_comments_likes.findMany({
+                where: {
+                    comment_id: comment.id,
+                    user: username,
+                },
+            })
+            userHasLiked = like && Array.isArray(like) && like.length > 0
+        }
+
         const response: CommentResponseDto = {
             id: comment.id,
             ip_id: comment.ip_id,
@@ -227,6 +299,7 @@ export class CommentsService {
             created_at: comment.created_at,
             updated_at: comment.updated_at,
             reply_post: [],
+            user_has_liked: userHasLiked,
         }
 
         // If we should include replies and this is a top-level comment (not a reply itself)
@@ -243,7 +316,9 @@ export class CommentsService {
 
             // Recursively map replies (but don't look for nested replies to avoid excessive queries)
             if (replies.length > 0) {
-                response.reply_post = await Promise.all(replies.map((reply) => this._mapToResponse(reply, false)))
+                response.reply_post = await Promise.all(
+                    replies.map((reply) => this._mapToResponse(reply, username, false)),
+                )
             }
         }
 

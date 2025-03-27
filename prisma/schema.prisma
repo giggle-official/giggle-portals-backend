@@ -691,6 +691,30 @@ model ip_comments {
   updated_at    DateTime? @default(now()) @db.Timestamp(0)
 }
 
+model ip_announcement_likes {
+  id              Int       @id @default(autoincrement())
+  announcement_id Int?
+  user            String?   @db.VarChar(32)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_clips_likes {
+  id         Int       @id @default(autoincrement())
+  clip_id    Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_comments_likes {
+  id         Int       @id @default(autoincrement())
+  comment_id Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?
