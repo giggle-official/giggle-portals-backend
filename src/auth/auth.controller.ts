@@ -24,7 +24,7 @@ export class AuthController {
     })
     @HttpCode(HttpStatus.OK)
     async loginWithEmail(@Req() req: Request) {
-        return await this.authService.login(req)
+        return await this.authService.login(req.user as UserInfoDTO)
     }
 
     @ApiExcludeEndpoint()
@@ -68,7 +68,7 @@ export class AuthController {
     @UseGuards(AuthGuard("google"))
     @BypassInterceptor()
     async googleAuthRedirect(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        const loginResponse = await this.authService.login(req)
+        const loginResponse = await this.authService.login(req.user as UserInfoDTO)
         let to = process.env.FRONTEND_URL + "/user/login?token=" + loginResponse.access_token
         if (req.cookies.redirectUrl && req.cookies.redirectUrl !== "null") {
             const redirectUrl = req.cookies.redirectUrl
@@ -102,6 +102,6 @@ export class AuthController {
     @UseGuards(AuthGuard("code"))
     @HttpCode(HttpStatus.OK)
     async loginWithCode(@Req() req: Request) {
-        return this.authService.login(req)
+        return this.authService.login(req.user as UserInfoDTO)
     }
 }

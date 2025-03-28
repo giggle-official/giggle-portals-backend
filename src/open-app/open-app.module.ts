@@ -9,13 +9,15 @@ import { NotificationModule } from "src/notification/notification.module"
 import { JwtModule } from "@nestjs/jwt"
 import { AuthController } from "./auth/auth.controller"
 import { AuthService } from "./auth/auth.service"
+import { AuthModule as AuthUserModule } from "src/auth/auth.module"
 @Module({
     imports: [
         UserModule,
         AuthModule,
         IpLibraryModule,
+        AuthUserModule,
         NotificationModule,
-        JwtModule.register({ secret: process.env.SESSION_SECRET, signOptions: { expiresIn: "1h" } }),
+        JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
     controllers: [OpenAppController, AuthController],
     providers: [OpenAppService, PrismaService, AuthService],
