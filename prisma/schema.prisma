@@ -281,6 +281,7 @@ model ip_library {
   ip_license_consume_log  ip_license_consume_log[]
   app_bind_ips            app_bind_ips[]
   view_ip_token_prices    view_ip_token_prices?
+  ip_comments             ip_comments[]
 }
 
 model ip_library_tags {
@@ -680,16 +681,17 @@ model app_band_users {
 }
 
 model ip_comments {
-  id            Int       @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   ip_id         Int?
-  image_url     String?   @db.Text
-  content       String?   @db.Text
-  author        String?   @db.VarChar(32)
+  image_url     String?     @db.Text
+  content       String?     @db.Text
+  author        String?     @db.VarChar(32)
   reply_post_id Int?
   likes         Int?
-  from_app_id   String?   @db.VarChar(32)
-  created_at    DateTime? @default(now()) @db.Timestamp(0)
-  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+  from_app_id   String?     @db.VarChar(32)
+  created_at    DateTime?   @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?   @default(now()) @db.Timestamp(0)
+  ip_info       ip_library? @relation(fields: [ip_id], references: [id])
 }
 
 model ip_announcement_likes {

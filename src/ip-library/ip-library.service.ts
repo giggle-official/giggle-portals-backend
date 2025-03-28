@@ -400,6 +400,11 @@ export class IpLibraryService {
                 },
             },
             ip_library_child: true,
+            _count: {
+                select: {
+                    ip_comments: true,
+                },
+            },
         }
         const skip =
             Math.max(0, parseInt(params.page.toString()) - 1) * Math.max(0, parseInt(params.page_size.toString()))
@@ -560,6 +565,7 @@ export class IpLibraryService {
                     ticker: item.ticker,
                     description: item.description,
                     likes: item.likes,
+                    comments: item._count.ip_comments,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     cover_asset_id,
                     can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
@@ -643,6 +649,11 @@ export class IpLibraryService {
                     },
                 },
                 ip_library_child: true,
+                _count: {
+                    select: {
+                        ip_comments: true,
+                    },
+                },
             },
         })
         if (!data) {
@@ -698,6 +709,11 @@ export class IpLibraryService {
                     },
                     ip_signature_clips: true,
                     ip_library_child: true,
+                    _count: {
+                        select: {
+                            ip_comments: true,
+                        },
+                    },
                 },
             })
             for (const item of parentIps) {
@@ -719,6 +735,7 @@ export class IpLibraryService {
                     cover_image,
                     cover_hash,
                     likes: item.likes,
+                    comments: item._count.ip_comments,
                     is_top: item.ip_library_child.length === 0,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
@@ -752,6 +769,7 @@ export class IpLibraryService {
             cover_image,
             cover_hash,
             likes: data.likes,
+            comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
             is_top: data.ip_library_child.length === 0,
             is_public: data.is_public,
@@ -1515,6 +1533,11 @@ export class IpLibraryService {
                         avatar: true,
                     },
                 },
+                _count: {
+                    select: {
+                        ip_comments: true,
+                    },
+                },
             },
         })
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
@@ -1536,6 +1559,7 @@ export class IpLibraryService {
                     cover_image: coverImage,
                     cover_hash: item?.cover_images?.[0]?.hash,
                     likes: item.likes,
+                    comments: item._count.ip_comments,
                     is_top: false,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),

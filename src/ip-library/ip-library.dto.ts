@@ -489,6 +489,11 @@ export class IpSummaryDto {
     likes: number
 
     @ApiProperty({
+        description: "comments of the ip library",
+    })
+    comments: number
+
+    @ApiProperty({
         description: "is liked by the user",
     })
     is_user_liked: boolean
