@@ -722,7 +722,6 @@ export class IpLibraryService {
                     is_top: item.ip_library_child.length === 0,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
-                    is_top: item.ip_library_child.length === 0,
                     on_chain_detail: item.on_chain_detail as any,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -744,7 +743,6 @@ export class IpLibraryService {
         }
 
         data?.ip_library_child && delete data.ip_library_child
-
         //extra info
         const extra_info = data.extra_info as any
 
@@ -762,9 +760,8 @@ export class IpLibraryService {
             cover_hash,
             likes: data.likes,
             is_user_liked: await this.isUserLiked(data.id, request_user),
-            is_top: data.ip_library_child.length === 0,
+            is_top: data.ip_library_child === null,
             is_public: data.is_public,
-            is_top: data.ip_library_child.length === 0,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
             creator_description: data.user_info?.description || "",
