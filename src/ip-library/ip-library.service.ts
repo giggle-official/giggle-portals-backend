@@ -736,13 +736,6 @@ export class IpLibraryService {
             }
         }
 
-        //remove cover_images
-        data?.cover_images && delete data.cover_images
-
-        if (data?.ip_signature_clips) {
-        }
-
-        data?.ip_library_child && delete data.ip_library_child
         //extra info
         const extra_info = data.extra_info as any
 
