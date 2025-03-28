@@ -484,6 +484,16 @@ export class IpSummaryDto {
     description: string
 
     @ApiProperty({
+        description: "likes of the ip library",
+    })
+    likes: number
+
+    @ApiProperty({
+        description: "is liked by the user",
+    })
+    is_user_liked: boolean
+
+    @ApiProperty({
         description: "cover asset id of the ip library",
     })
     cover_asset_id: number
@@ -556,6 +566,12 @@ export class IpSummaryDto {
     token_info: CreateIpTokenGiggleResponseDto
 
     @ApiProperty({
+        description: "signature clips of the ip library",
+        type: [IpSignatureClipDto],
+    })
+    ip_signature_clips: IpSignatureClipDto[]
+
+    @ApiProperty({
         type: () => AuthorizationSettingsDto,
         description: "authorization settings of the ip library",
     })
@@ -569,12 +585,6 @@ export class IpLibraryDetailDto extends IpSummaryDto {
         type: [GenreDto],
     })
     genre: GenreDto[]
-
-    @ApiProperty({
-        description: "signature clips of the ip library",
-        type: [IpSignatureClipDto],
-    })
-    ip_signature_clips: IpSignatureClipDto[]
 
     @ApiProperty({
         description: "parent ip library",
@@ -843,3 +853,14 @@ export class UntokenizeDto {
     })
     id: number
 }
+
+export class LikeIpDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+}
+
+export class UnlikeIpDto extends LikeIpDto {}

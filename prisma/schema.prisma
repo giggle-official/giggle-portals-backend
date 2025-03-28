@@ -261,6 +261,7 @@ model ip_library {
   on_chain_detail         Json?
   on_chain_request_params Json?
   meta_hash               String?                     @db.VarChar(255)
+  likes                   Int?                        @default(0)
   authorization_hash      String?                     @db.VarChar(255)
   ticker                  String?                     @db.VarChar(255)
   extra_info              Json?
@@ -667,6 +668,60 @@ model creator_applications {
   description  String?   @db.Text
   created_at   DateTime? @default(now()) @db.Timestamp(0)
   updated_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model app_band_users {
+  id         Int       @id @default(autoincrement())
+  app_id     String?   @db.VarChar(32)
+  band_type  String?   @db.VarChar(32)
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_comments {
+  id            Int       @id @default(autoincrement())
+  ip_id         Int?
+  image_url     String?   @db.Text
+  content       String?   @db.Text
+  author        String?   @db.VarChar(32)
+  reply_post_id Int?
+  likes         Int?
+  from_app_id   String?   @db.VarChar(32)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_announcement_likes {
+  id              Int       @id @default(autoincrement())
+  announcement_id Int?
+  user            String?   @db.VarChar(32)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_clips_likes {
+  id         Int       @id @default(autoincrement())
+  clip_id    Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_comments_likes {
+  id         Int       @id @default(autoincrement())
+  comment_id Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ip_library_likes {
+  id         Int       @id @default(autoincrement())
+  ip_id      Int?
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
 }
 
 view view_ip_token_prices {
