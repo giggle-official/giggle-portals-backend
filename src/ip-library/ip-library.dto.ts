@@ -525,6 +525,11 @@ export class IpSummaryDto {
     can_purchase: boolean
 
     @ApiProperty({
+        description: "creation guide lines",
+    })
+    creation_guide_lines: string
+
+    @ApiProperty({
         description: "is governance right",
     })
     governance_right: boolean
@@ -692,6 +697,14 @@ export class CreateIpDto {
         description: "share this ip to giggle",
     })
     share_to_giggle: boolean
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({
+        description: "creation guide lines of the ip library",
+        required: false,
+    })
+    creation_guide_lines?: string
 
     @IsOptional()
     @IsOptional()

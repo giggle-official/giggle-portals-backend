@@ -265,6 +265,7 @@ model ip_library {
   authorization_hash      String?                     @db.VarChar(255)
   ticker                  String?                     @db.VarChar(255)
   extra_info              Json?
+  creation_guide_lines    String?                     @db.Text
   authorization_settings  Json?
   token_info              Json?
   current_token_info      Json?

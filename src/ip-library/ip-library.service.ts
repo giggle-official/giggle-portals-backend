@@ -379,6 +379,7 @@ export class IpLibraryService {
             authorization_settings: true,
             is_public: true,
             likes: true,
+            creation_guide_lines: true,
             user_info: {
                 select: {
                     username: true,
@@ -573,6 +574,7 @@ export class IpLibraryService {
                     genre: item.genre as { name: string }[],
                     cover_image: cover_image,
                     cover_hash,
+                    creation_guide_lines: item.creation_guide_lines,
                     is_top: item.ip_library_child.length === 0,
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
@@ -628,6 +630,7 @@ export class IpLibraryService {
                 current_token_info: true,
                 is_public: true,
                 likes: true,
+                creation_guide_lines: true,
                 user_info: {
                     select: {
                         username: true,
@@ -698,6 +701,7 @@ export class IpLibraryService {
                     is_public: true,
                     owner: true,
                     likes: true,
+                    creation_guide_lines: true,
                     user_info: {
                         select: {
                             username: true,
@@ -734,6 +738,7 @@ export class IpLibraryService {
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image,
                     cover_hash,
+                    creation_guide_lines: item.creation_guide_lines,
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: item.ip_library_child.length === 0,
@@ -769,6 +774,7 @@ export class IpLibraryService {
             cover_image,
             cover_hash,
             likes: data.likes,
+            creation_guide_lines: data.creation_guide_lines,
             comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
             is_top: data.ip_library_child.length === 0,
@@ -864,20 +870,29 @@ export class IpLibraryService {
                 const ipLibrary = await tx.ip_library.update({
                     where: { id: parseInt(body.id.toString()) },
                     data: {
-                        description: body.description,
-                        extra_info: {
-                            twitter: body?.twitter || "",
-                            website: body?.website || "",
-                            telegram: body?.telegram || "",
-                        },
-                        authorization_settings: body.authorization_settings as any,
-                        cover_images: [
-                            {
-                                key: imageAsset.path,
-                                hash: imageAsset.ipfs_key,
+                        ...(body.description && { description: body.description }),
+                        ...((body.twitter || body.website || body.telegram) && {
+                            extra_info: {
+                                twitter: body.twitter || "",
+                                website: body.website || "",
+                                telegram: body.telegram || "",
                             },
-                        ],
-                        genre: body.genre as any,
+                        }),
+                        ...(body.authorization_settings && {
+                            authorization_settings: body.authorization_settings as any,
+                        }),
+                        ...(imageAsset && {
+                            cover_images: [
+                                {
+                                    key: imageAsset.path,
+                                    hash: imageAsset.ipfs_key,
+                                },
+                            ],
+                        }),
+                        ...(body.genre && { genre: body.genre as any }),
+                        ...(body.creation_guide_lines && {
+                            creation_guide_lines: body.creation_guide_lines,
+                        }),
                     },
                 })
 
@@ -1165,6 +1180,7 @@ export class IpLibraryService {
                         is_public: true,
                         on_chain_status: "ready",
                         genre: body.genre as any,
+                        creation_guide_lines: body.creation_guide_lines || "",
                     },
                 })
 
@@ -1561,6 +1577,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: false,
+                    creation_guide_lines: item.creation_guide_lines,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     on_chain_detail: onChainDetail,
