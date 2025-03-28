@@ -399,6 +399,7 @@ export class IpLibraryService {
                     asset_id: true,
                 },
             },
+            ip_library_child: true,
         }
         const skip =
             Math.max(0, parseInt(params.page.toString()) - 1) * Math.max(0, parseInt(params.page_size.toString()))
@@ -718,6 +719,7 @@ export class IpLibraryService {
                     cover_image,
                     cover_hash,
                     likes: item.likes,
+                    is_top: item.ip_library_child.length === 0,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     is_top: item.ip_library_child.length === 0,
@@ -760,6 +762,7 @@ export class IpLibraryService {
             cover_hash,
             likes: data.likes,
             is_user_liked: await this.isUserLiked(data.id, request_user),
+            is_top: data.ip_library_child.length === 0,
             is_public: data.is_public,
             is_top: data.ip_library_child.length === 0,
             creator_id: data.user_info?.username_in_be || "",
