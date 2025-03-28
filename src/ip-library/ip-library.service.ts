@@ -399,6 +399,7 @@ export class IpLibraryService {
                     asset_id: true,
                 },
             },
+            ip_library_child: true,
         }
         const skip =
             Math.max(0, parseInt(params.page.toString()) - 1) * Math.max(0, parseInt(params.page_size.toString()))
@@ -566,6 +567,7 @@ export class IpLibraryService {
                     genre: item.genre as { name: string }[],
                     cover_image: cover_image,
                     cover_hash,
+                    is_top: item.ip_library_child.length === 0,
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -695,6 +697,7 @@ export class IpLibraryService {
                         },
                     },
                     ip_signature_clips: true,
+                    ip_library_child: true,
                 },
             })
             for (const item of parentIps) {
@@ -716,6 +719,7 @@ export class IpLibraryService {
                     cover_image,
                     cover_hash,
                     likes: item.likes,
+                    is_top: item.ip_library_child.length === 0,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
@@ -757,6 +761,7 @@ export class IpLibraryService {
             cover_hash,
             likes: data.likes,
             is_user_liked: await this.isUserLiked(data.id, request_user),
+            is_top: data.ip_library_child.length === 0,
             is_public: data.is_public,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
@@ -1539,6 +1544,7 @@ export class IpLibraryService {
                     cover_image: coverImage,
                     cover_hash: item?.cover_images?.[0]?.hash,
                     likes: item.likes,
+                    is_top: false,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     on_chain_detail: onChainDetail,

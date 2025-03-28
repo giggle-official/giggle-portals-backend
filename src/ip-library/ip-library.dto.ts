@@ -550,6 +550,11 @@ export class IpSummaryDto {
     is_public: boolean
 
     @ApiProperty({
+        description: "is top",
+    })
+    is_top: boolean
+
+    @ApiProperty({
         description: "creator followers of the ip library",
     })
     creator_followers: number
