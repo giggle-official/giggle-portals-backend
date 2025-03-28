@@ -208,7 +208,7 @@ export class OpenAppService {
     ): Promise<AppInfoDto> {
         userInfo = await this.userService.getUserInfoByUsernameShorted(userInfo.usernameShorted)
         const ip = await this.prisma.ip_library.findUnique({
-            where: { id: createData.ip_id, owner: userInfo.usernameShorted },
+            where: { id: parseInt(createData.ip_id.toString()), owner: userInfo.usernameShorted },
         })
         if (!ip) {
             throw new BadRequestException("IP not found or you are not the owner of the ip")
