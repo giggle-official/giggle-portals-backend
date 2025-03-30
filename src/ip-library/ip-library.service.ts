@@ -494,6 +494,12 @@ export class IpLibraryService {
             }
         }
 
+        if (params.is_top === "true") {
+            where.ip_library_child = {
+                none: {},
+            }
+        }
+
         if (app_id) {
             //request from app
             const app = await this.prismaService.apps.findUnique({
@@ -559,7 +565,13 @@ export class IpLibraryService {
                 const cover_hash = cover_images?.[0]?.hash || null
                 const cover_asset_id = await this.getCoverAssetId(item.id)
                 const authSettings = this.processAuthSettings(item.authorization_settings as any)
-                const child_ip_info = await this._getChildIps(item.id, is_public)
+                const child_ip_info = await this._getChildIps({
+                    ip_id: item.id,
+                    is_public,
+                    take: 100,
+                    request_user,
+                    children_levels: parseInt(params.children_levels) || 1,
+                })
                 const res = {
                     id: item.id,
                     name: item.name,
@@ -790,7 +802,13 @@ export class IpLibraryService {
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
             can_purchase: await this.ipCanPurchase(data.id, authSettings, data.token_info as any),
-            child_ip_info: await this._getChildIps(data.id, is_public),
+            child_ip_info: await this._getChildIps({
+                ip_id: data.id,
+                is_public,
+                take: 100,
+                request_user,
+                children_levels: 1,
+            }),
             extra_info: {
                 twitter: extra_info?.twitter || "",
                 website: extra_info?.website || "",
@@ -1513,14 +1531,26 @@ export class IpLibraryService {
         }
     }
 
-    private async _getChildIps(
-        ip_id: number,
-        is_public: boolean | null,
-        take: number = 100,
-        request_user?: UserInfoDTO,
-    ): Promise<IpSummaryDto[]> {
+    private async _getChildIps(params: {
+        ip_id: number
+        is_public: boolean | null
+        take?: number
+        request_user?: UserInfoDTO
+        children_levels?: number
+    }): Promise<IpSummaryDto[] | IpSummaryWithChildDto[]> {
+        let { ip_id, is_public, take, request_user, children_levels } = params
+        if (!take) {
+            take = 100
+        }
+        if (!children_levels) {
+            children_levels = 1
+        }
+
+        const where: Prisma.ip_library_childWhereInput = {
+            parent_ip: ip_id,
+        }
         const childIps = await this.prismaService.ip_library_child.findMany({
-            where: { parent_ip: ip_id },
+            where,
             orderBy: { id: "desc" },
             take,
         })
@@ -1536,6 +1566,11 @@ export class IpLibraryService {
         if (is_public !== null) {
             detailWhere.is_public = is_public
         }
+
+        if (request_user) {
+            detailWhere.owner = request_user.usernameShorted
+        }
+
         const childIpsDetail = await this.prismaService.ip_library.findMany({
             where: detailWhere,
             include: {
@@ -1565,7 +1600,7 @@ export class IpLibraryService {
                     coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
                 }
                 const authSettings = this.processAuthSettings(item.authorization_settings as any)
-                const res = {
+                const res: IpSummaryWithChildDto | IpSummaryDto = {
                     id: item.id,
                     name: item.name,
                     ticker: item.ticker,
@@ -1590,6 +1625,16 @@ export class IpLibraryService {
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
+                    child_ip_info: [],
+                }
+                if (children_levels === 2) {
+                    res.child_ip_info = await this._getChildIps({
+                        ip_id: item.id,
+                        is_public,
+                        take: 100,
+                        request_user,
+                        children_levels: 1,
+                    })
                 }
                 return res
             }),
@@ -1734,34 +1779,43 @@ export class IpLibraryService {
 
         if (!videoAsset.ipfs_key) {
             //upload video to ipfs
-            const pinata = new PinataSDK({
-                pinataJwt: process.env.PINATA_JWT,
-                pinataGateway: process.env.PINATA_GATEWAY,
-            })
+            try {
+                const pinata = new PinataSDK({
+                    pinataJwt: process.env.PINATA_JWT,
+                    pinataGateway: process.env.PINATA_GATEWAY,
+                })
 
-            const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-            const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
+                const s3Info = await this.utilitiesService.getIpLibraryS3Info()
+                const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
 
-            const fileStream = s3Client.getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path }).createReadStream()
-            const headObject = await s3Client.headObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path }).promise()
-            const contentLength = headObject.ContentLength
-            const totalSize = contentLength
-            let uploadedSize = 0
-            fileStream.on("data", (chunk) => {
-                uploadedSize += chunk.length
-                const progress = (uploadedSize / totalSize) * 100
-                subscriber.next({ event: "ip.video_uploading", data: progress })
-            })
+                const fileStream = s3Client
+                    .getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
+                    .createReadStream()
+                const headObject = await s3Client
+                    .headObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
+                    .promise()
+                const contentLength = headObject.ContentLength
+                const totalSize = contentLength
+                let uploadedSize = 0
+                fileStream.on("data", (chunk) => {
+                    uploadedSize += chunk.length
+                    const progress = (uploadedSize / totalSize) * 100
+                    subscriber.next({ event: "ip.video_uploading", data: progress })
+                })
 
-            const pinataResult = await pinata.upload.stream(fileStream)
+                const pinataResult = await pinata.upload.stream(fileStream)
 
-            await this.prismaService.assets.update({
-                where: { id: videoAsset.id },
-                data: {
-                    ipfs_key: pinataResult.IpfsHash,
-                },
-            })
-            videoAsset.ipfs_key = pinataResult.IpfsHash
+                await this.prismaService.assets.update({
+                    where: { id: videoAsset.id },
+                    data: {
+                        ipfs_key: pinataResult.IpfsHash,
+                    },
+                })
+                videoAsset.ipfs_key = pinataResult.IpfsHash
+            } catch (error) {
+                this.logger.error(error)
+                throw new BadRequestException("Failed to upload video to ipfs")
+            }
         }
         return { imageAsset, videoAsset }
     }
@@ -1811,6 +1865,7 @@ export class IpLibraryService {
     }
 
     async getAvailableParentIps(user: UserInfoDTO) {
+        // Get all IPs owned by the user
         const ownedIps = await this.prismaService.ip_library.findMany({
             where: {
                 owner: user.usernameShorted,
@@ -1826,6 +1881,7 @@ export class IpLibraryService {
             },
         })
 
+        // Get purchased IPs with available licenses
         const purchasedIps = await this.prismaService.ip_license_orders.findMany({
             where: {
                 owner: user.usernameShorted,
@@ -1858,10 +1914,8 @@ export class IpLibraryService {
             },
         })
 
-        // Build tree structure for owned IPs
+        // Create a lookup of all owned IPs for quick access
         const ownedIpMap = new Map<number, AvailableParentIpDto>()
-
-        // First, create all nodes
         for (const ip of ownedIps) {
             ownedIpMap.set(ip.id, {
                 id: ip.id,
@@ -1871,15 +1925,11 @@ export class IpLibraryService {
             })
         }
 
-        // Get parent-child relationships for owned IPs
+        // Get ALL parent-child relationships for owned IPs (both as parent or child)
+        const allIpIds = ownedIps.map((ip) => ip.id)
         const ipRelationships = await this.prismaService.ip_library_child.findMany({
             where: {
-                parent_ip: {
-                    in: ownedIps.map((ip) => ip.id),
-                },
-                ip_id: {
-                    in: ownedIps.map((ip) => ip.id),
-                },
+                OR: [{ parent_ip: { in: allIpIds } }, { ip_id: { in: allIpIds } }],
             },
             select: {
                 parent_ip: true,
@@ -1887,20 +1937,58 @@ export class IpLibraryService {
             },
         })
 
-        // Build the tree structure
+        // Create a map of parent IDs to their children
+        const parentToChildrenMap = new Map<number, number[]>()
         for (const relation of ipRelationships) {
-            const parent = ownedIpMap.get(relation.parent_ip)
-            const child = ownedIpMap.get(relation.ip_id)
-
-            if (parent && child) {
-                parent.children.push(child)
-                // Remove from root level if it's a child
-                ownedIpMap.delete(relation.ip_id)
+            if (!parentToChildrenMap.has(relation.parent_ip)) {
+                parentToChildrenMap.set(relation.parent_ip, [])
             }
+            parentToChildrenMap.get(relation.parent_ip).push(relation.ip_id)
         }
 
-        // Convert map to array for root level IPs
-        const ownedIpTree = Array.from(ownedIpMap.values())
+        // Create a set of all IPs that are children (to identify root IPs)
+        const childIpIds = new Set<number>()
+        for (const relation of ipRelationships) {
+            childIpIds.add(relation.ip_id)
+        }
+
+        // Find root IPs (owned IPs that are not children of any other IP)
+        const rootIpIds = ownedIps.map((ip) => ip.id).filter((id) => !childIpIds.has(id))
+
+        // Build a 2-level tree (parent and children only, no grandchildren)
+        const ownedIpTree: AvailableParentIpDto[] = []
+
+        // Process each root IP
+        for (const rootId of rootIpIds) {
+            const rootIp = ownedIpMap.get(rootId)
+            if (!rootIp) continue
+
+            // Get direct children of this root
+            const childIds = parentToChildrenMap.get(rootId) || []
+            const children: AvailableParentIpDto[] = []
+
+            // Add each direct child that the user owns
+            for (const childId of childIds) {
+                const childIp = ownedIpMap.get(childId)
+                if (childIp) {
+                    // Add child without its children (empty array)
+                    children.push({
+                        id: childIp.id,
+                        name: childIp.name,
+                        ticker: childIp.ticker,
+                        children: [], // No grandchildren
+                    })
+                }
+            }
+
+            // Add root with its children
+            ownedIpTree.push({
+                id: rootIp.id,
+                name: rootIp.name,
+                ticker: rootIp.ticker,
+                children: children,
+            })
+        }
 
         // Convert purchased IPs to DTO format
         const purchasedIpList: PurchasedIpDto[] = purchasedIpDetails.map((ip) => ({
