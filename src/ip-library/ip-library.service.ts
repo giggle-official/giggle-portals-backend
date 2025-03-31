@@ -569,8 +569,9 @@ export class IpLibraryService {
                     ip_id: item.id,
                     is_public,
                     take: 100,
-                    request_user,
+                    user,
                     children_levels: parseInt(params.children_levels) || 1,
+                    request_user,
                 })
                 const res = {
                     id: item.id,
@@ -806,8 +807,9 @@ export class IpLibraryService {
                 ip_id: data.id,
                 is_public,
                 take: 100,
-                request_user,
+                user,
                 children_levels: 1,
+                request_user,
             }),
             extra_info: {
                 twitter: extra_info?.twitter || "",
@@ -1535,10 +1537,11 @@ export class IpLibraryService {
         ip_id: number
         is_public: boolean | null
         take?: number
-        request_user?: UserInfoDTO
+        user?: UserInfoDTO
         children_levels?: number
+        request_user?: UserInfoDTO
     }): Promise<IpSummaryDto[] | IpSummaryWithChildDto[]> {
-        let { ip_id, is_public, take, request_user, children_levels } = params
+        let { ip_id, is_public, take, user, children_levels, request_user } = params
         if (!take) {
             take = 100
         }
@@ -1567,8 +1570,8 @@ export class IpLibraryService {
             detailWhere.is_public = is_public
         }
 
-        if (request_user) {
-            detailWhere.owner = request_user.usernameShorted
+        if (user) {
+            detailWhere.owner = user.usernameShorted
         }
 
         const childIpsDetail = await this.prismaService.ip_library.findMany({
@@ -1591,6 +1594,8 @@ export class IpLibraryService {
                 },
             },
         })
+
+        console.log(childIpsDetail)
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
         const childIpsSummary = await Promise.all(
             childIpsDetail.map(async (item) => {
@@ -1632,8 +1637,9 @@ export class IpLibraryService {
                         ip_id: item.id,
                         is_public,
                         take: 100,
-                        request_user,
+                        user,
                         children_levels: 1,
+                        request_user,
                     })
                 }
                 return res

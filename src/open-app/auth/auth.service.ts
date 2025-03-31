@@ -32,10 +32,15 @@ export class AuthService {
         origin: string,
     ): Promise<{ host: string; app_id: string }> {
         //remove port from host
+        if (!origin) {
+            this.logger.error(`header origin is required, requested params: ${JSON.stringify(requestParams)}`)
+            throw new UnauthorizedException("Origin in header is required")
+        }
         this.logger.log(`requested origin: ${origin}, requested params: ${JSON.stringify(requestParams)}`)
         const urlObj = new URL(origin)
         const host = urlObj.hostname
         if (!requestParams?.app_id) {
+            this.logger.error(`requested app id is required, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("App id is required")
         }
         const appInfo = await this.prisma.apps.findUnique({ where: { app_id: requestParams.app_id } })
