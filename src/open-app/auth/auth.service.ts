@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common"
+import { BadRequestException, Injectable, UnauthorizedException, Logger } from "@nestjs/common"
 import {
     CheckTokenDto,
     CheckTokenResponseDto,
@@ -18,6 +18,7 @@ import { NotificationService } from "src/notification/notification.service"
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name)
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
@@ -38,6 +39,9 @@ export class AuthService {
         }
         const appInfo = await this.prisma.apps.findUnique({ where: { app_id: requestParams.app_id } })
         if (!appInfo) {
+            this.logger.error(
+                `requested app not found:  ${requestParams.app_id}, requested params: ${JSON.stringify(requestParams)}`,
+            )
             throw new UnauthorizedException("App not found")
         }
 
@@ -45,16 +49,23 @@ export class AuthService {
 
         const foundedDomain = appAllowdDomains.find((domain) => host.endsWith(domain.domain))
         if (!foundedDomain) {
+            this.logger.error(`requested host not allowed: ${host}, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Host not allowed")
         }
 
         if (!requestParams?.sign) {
+            this.logger.error(
+                `requested signature is required: ${host}, requested params: ${JSON.stringify(requestParams)}`,
+            )
             throw new UnauthorizedException("Signature is required")
         }
         const signature: string = requestParams.sign
         delete requestParams.sign
 
         if (!requestParams?.timestamp) {
+            this.logger.error(
+                `requested timestamp is required: ${host}, requested params: ${JSON.stringify(requestParams)}`,
+            )
             throw new UnauthorizedException("Timestamp is required")
         }
 
@@ -63,6 +74,9 @@ export class AuthService {
             requestParams.timestamp * 1000 > Date.now() + 1000 * 60 * 5
         ) {
             // in 5 minutes
+            this.logger.error(
+                `requested timestamp expired: ${host}, requested params: ${JSON.stringify(requestParams)}`,
+            )
             throw new UnauthorizedException("Timestamp expired")
         }
 
@@ -76,6 +90,9 @@ export class AuthService {
         const hash = crypto.createHash("md5").update(stringSignTemp).digest("hex").toUpperCase()
 
         if (signature !== hash) {
+            this.logger.error(
+                `requested signature not match: ${host}, requested params: ${JSON.stringify(requestParams)}`,
+            )
             throw new UnauthorizedException("Signature not match")
         }
         return { host: foundedDomain.domain, app_id: appInfo.app_id }
