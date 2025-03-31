@@ -32,6 +32,7 @@ export class AuthService {
         origin: string,
     ): Promise<{ host: string; app_id: string }> {
         //remove port from host
+        this.logger.log(`requested origin: ${origin}, requested params: ${JSON.stringify(requestParams)}`)
         const urlObj = new URL(origin)
         const host = urlObj.hostname
         if (!requestParams?.app_id) {
