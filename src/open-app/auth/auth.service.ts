@@ -54,18 +54,14 @@ export class AuthService {
         }
 
         if (!requestParams?.sign) {
-            this.logger.error(
-                `requested signature is required: ${host}, requested params: ${JSON.stringify(requestParams)}`,
-            )
+            this.logger.error(`requested signature is required, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Signature is required")
         }
         const signature: string = requestParams.sign
         delete requestParams.sign
 
         if (!requestParams?.timestamp) {
-            this.logger.error(
-                `requested timestamp is required: ${host}, requested params: ${JSON.stringify(requestParams)}`,
-            )
+            this.logger.error(`requested timestamp is required, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Timestamp is required")
         }
 
@@ -74,9 +70,7 @@ export class AuthService {
             requestParams.timestamp * 1000 > Date.now() + 1000 * 60 * 5
         ) {
             // in 5 minutes
-            this.logger.error(
-                `requested timestamp expired: ${host}, requested params: ${JSON.stringify(requestParams)}`,
-            )
+            this.logger.error(`requested timestamp expired, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Timestamp expired")
         }
 
@@ -91,7 +85,7 @@ export class AuthService {
 
         if (signature !== hash) {
             this.logger.error(
-                `requested signature not match: ${host}, requested params: ${JSON.stringify(requestParams)}`,
+                `requested signature not match: ${signature}, expected: ${hash}, requested params: ${JSON.stringify(requestParams)}`,
             )
             throw new UnauthorizedException("Signature not match")
         }
