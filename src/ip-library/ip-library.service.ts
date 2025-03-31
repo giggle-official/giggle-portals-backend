@@ -32,7 +32,7 @@ import {
     TerritoryDto,
     UntokenizeDto,
 } from "./ip-library.dto"
-import { asset_to_meme_record, assets, Prisma } from "@prisma/client"
+import { assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserInfoDTO } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
@@ -42,7 +42,7 @@ import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
-import { async, Observable } from "rxjs"
+import { Observable } from "rxjs"
 import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { PinataSDK } from "pinata-web3"
 import { LicenseService } from "./license/license.service"
@@ -366,40 +366,9 @@ export class IpLibraryService {
             where.is_public = is_public
         }
 
-        const select: Prisma.ip_librarySelect = {
-            id: true,
-            name: true,
-            ticker: true,
-            genre: true,
-            description: true,
-            cover_images: true,
-            on_chain_detail: true,
-            token_info: true,
-            current_token_info: true,
-            authorization_settings: true,
-            is_public: true,
-            likes: true,
-            creation_guide_lines: true,
-            user_info: {
-                select: {
-                    username: true,
-                    username_in_be: true,
-                    description: true,
-                    followers: true,
-                    avatar: true,
-                },
-            },
-            ip_signature_clips: {
-                select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    object_key: true,
-                    thumbnail: true,
-                    video_info: true,
-                    asset_id: true,
-                },
-            },
+        const include: Prisma.ip_libraryInclude = {
+            user_info: true,
+            ip_signature_clips: true,
             ip_library_child: true,
             _count: {
                 select: {
@@ -456,7 +425,7 @@ export class IpLibraryService {
                     tag: params.tag,
                 },
             }
-            select.ip_library_tags = {
+            include.ip_library_tags = {
                 orderBy: {
                     priority: "desc",
                 },
@@ -543,7 +512,7 @@ export class IpLibraryService {
 
         const data = await this.prismaService.ip_library.findMany({
             where,
-            select,
+            include,
             orderBy,
             skip,
             take,
@@ -570,7 +539,6 @@ export class IpLibraryService {
                     is_public,
                     take: 100,
                     user,
-                    children_levels: parseInt(params.children_levels) || 1,
                     request_user,
                 })
                 const res = {
@@ -628,42 +596,9 @@ export class IpLibraryService {
 
         const data = await this.prismaService.ip_library.findUnique({
             where,
-            select: {
-                id: true,
-                name: true,
-                genre: true,
-                description: true,
-                cover_images: true,
-                ticker: true,
-                authorization_settings: true,
-                on_chain_detail: true,
-                on_chain_status: true,
-                extra_info: true,
-                token_info: true,
-                current_token_info: true,
-                is_public: true,
-                likes: true,
-                creation_guide_lines: true,
-                user_info: {
-                    select: {
-                        username: true,
-                        username_in_be: true,
-                        description: true,
-                        followers: true,
-                        avatar: true,
-                    },
-                },
-                ip_signature_clips: {
-                    select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        object_key: true,
-                        thumbnail: true,
-                        video_info: true,
-                        asset_id: true,
-                    },
-                },
+            include: {
+                user_info: true,
+                ip_signature_clips: true,
                 ip_library_child: true,
                 _count: {
                     select: {
@@ -701,31 +636,10 @@ export class IpLibraryService {
             }
             const parentIps = await this.prismaService.ip_library.findMany({
                 where: parentWhere,
-                select: {
-                    id: true,
-                    name: true,
-                    ticker: true,
-                    description: true,
-                    on_chain_detail: true,
-                    cover_images: true,
-                    token_info: true,
-                    current_token_info: true,
-                    authorization_settings: true,
-                    is_public: true,
-                    owner: true,
-                    likes: true,
-                    creation_guide_lines: true,
-                    user_info: {
-                        select: {
-                            username: true,
-                            username_in_be: true,
-                            description: true,
-                            followers: true,
-                            avatar: true,
-                        },
-                    },
+                include: {
                     ip_signature_clips: true,
                     ip_library_child: true,
+                    user_info: true,
                     _count: {
                         select: {
                             ip_comments: true,
@@ -775,7 +689,13 @@ export class IpLibraryService {
         const extra_info = data.extra_info as any
 
         const authSettings = this.processAuthSettings(data.authorization_settings as any)
-
+        const child_ip_info = await this._getChildIps({
+            ip_id: data.id,
+            is_public,
+            take: 100,
+            user,
+            request_user,
+        })
         const res = {
             genre: data?.genre as { name: string }[],
             on_chain_status: data.on_chain_status,
@@ -803,14 +723,7 @@ export class IpLibraryService {
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
             can_purchase: await this.ipCanPurchase(data.id, authSettings, data.token_info as any),
-            child_ip_info: await this._getChildIps({
-                ip_id: data.id,
-                is_public,
-                take: 100,
-                user,
-                children_levels: 1,
-                request_user,
-            }),
+            child_ip_info,
             extra_info: {
                 twitter: extra_info?.twitter || "",
                 website: extra_info?.website || "",
@@ -839,6 +752,7 @@ export class IpLibraryService {
                 end_date: "",
             },
             license_price: authSettings?.license_price || IpLibraryService.DEFAULT_LICENSE_PRICE,
+            notes: authSettings?.notes || "",
         }
     }
 
@@ -1150,7 +1064,7 @@ export class IpLibraryService {
             }
 
             //The period of a new ip without long term must be greater than now
-            const authSettings = body.authorization_settings as AuthorizationSettingsDto
+            const authSettings = this.processAuthSettings(body.authorization_settings as any)
             if (!authSettings.long_term_license) {
                 const startDate = new Date(authSettings.valid_date.start_date).toDateString()
                 const now = new Date().toDateString()
@@ -1189,7 +1103,7 @@ export class IpLibraryService {
                             website: body?.website || "",
                             telegram: body?.telegram || "",
                         },
-                        authorization_settings: body.authorization_settings as any,
+                        authorization_settings: authSettings as any,
                         cover_images: [
                             {
                                 key: imageAsset.path,
@@ -1538,15 +1452,11 @@ export class IpLibraryService {
         is_public: boolean | null
         take?: number
         user?: UserInfoDTO
-        children_levels?: number
         request_user?: UserInfoDTO
-    }): Promise<IpSummaryDto[] | IpSummaryWithChildDto[]> {
-        let { ip_id, is_public, take, user, children_levels, request_user } = params
+    }): Promise<IpSummaryDto[]> {
+        let { ip_id, is_public, take, user, request_user } = params
         if (!take) {
             take = 100
-        }
-        if (!children_levels) {
-            children_levels = 1
         }
 
         const where: Prisma.ip_library_childWhereInput = {
@@ -1557,13 +1467,14 @@ export class IpLibraryService {
             orderBy: { id: "desc" },
             take,
         })
+
         if (childIps.length === 0) {
             return []
         }
 
         const detailWhere: Prisma.ip_libraryWhereInput = {
             id: {
-                in: childIps.map((item) => item.ip_id),
+                in: await Promise.all(childIps.map(async (item) => item.ip_id)),
             },
         }
         if (is_public !== null) {
@@ -1578,15 +1489,7 @@ export class IpLibraryService {
             where: detailWhere,
             include: {
                 ip_signature_clips: true,
-                user_info: {
-                    select: {
-                        username: true,
-                        username_in_be: true,
-                        description: true,
-                        followers: true,
-                        avatar: true,
-                    },
-                },
+                user_info: true,
                 _count: {
                     select: {
                         ip_comments: true,
@@ -1595,9 +1498,9 @@ export class IpLibraryService {
             },
         })
 
-        console.log(childIpsDetail)
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-        const childIpsSummary = await Promise.all(
+        let childIpsSummary: IpSummaryWithChildDto[] = []
+        await Promise.all(
             childIpsDetail.map(async (item) => {
                 const onChainDetail = item.on_chain_detail as any
                 let coverImage = item.cover_images?.[0]
@@ -1605,7 +1508,7 @@ export class IpLibraryService {
                     coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
                 }
                 const authSettings = this.processAuthSettings(item.authorization_settings as any)
-                const res: IpSummaryWithChildDto | IpSummaryDto = {
+                const res: IpSummaryWithChildDto = {
                     id: item.id,
                     name: item.name,
                     ticker: item.ticker,
@@ -1630,19 +1533,15 @@ export class IpLibraryService {
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: this.getGovernanceRight(authSettings),
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
-                    child_ip_info: [],
-                }
-                if (children_levels === 2) {
-                    res.child_ip_info = await this._getChildIps({
+                    child_ip_info: await this._getChildIps({
                         ip_id: item.id,
                         is_public,
                         take: 100,
                         user,
-                        children_levels: 1,
                         request_user,
-                    })
+                    }),
                 }
-                return res
+                childIpsSummary.push(res)
             }),
         )
         return childIpsSummary
