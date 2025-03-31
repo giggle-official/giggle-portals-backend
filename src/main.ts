@@ -87,7 +87,7 @@ async function bootstrap() {
         },
         {
             name: "🧩 Open App",
-            tags: ["Open App"],
+            tags: ["Open App", "Widgets"],
         },
     ]
 

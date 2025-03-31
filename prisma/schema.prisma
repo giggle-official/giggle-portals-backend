@@ -570,20 +570,21 @@ model user_wallet_record_24h {
 }
 
 model apps {
-  id           Int            @id @default(autoincrement())
-  app_id       String?        @unique(map: "app_id") @db.VarChar(32)
-  app_secret   String?        @db.VarChar(255)
-  creator      String?        @db.VarChar(32)
-  name         String?        @db.VarChar(255)
-  description  String?        @db.Text
-  radius       String?        @db.VarChar(32)
-  style_name   String?        @db.VarChar(32)
-  sub_domain   String?        @db.VarChar(32)
-  configs      Json?
-  created_at   DateTime?      @default(now()) @db.Timestamp(0)
-  is_temp      Boolean?       @default(false)
-  user         users?         @relation(fields: [creator], references: [username_in_be])
-  app_bind_ips app_bind_ips[]
+  id               Int                @id @default(autoincrement())
+  app_id           String?            @unique(map: "app_id") @db.VarChar(32)
+  app_secret       String?            @db.VarChar(255)
+  creator          String?            @db.VarChar(32)
+  name             String?            @db.VarChar(255)
+  description      String?            @db.Text
+  radius           String?            @db.VarChar(32)
+  style_name       String?            @db.VarChar(32)
+  sub_domain       String?            @db.VarChar(32)
+  configs          Json?
+  created_at       DateTime?          @default(now()) @db.Timestamp(0)
+  is_temp          Boolean?           @default(false)
+  user             users?             @relation(fields: [creator], references: [username_in_be])
+  app_bind_ips     app_bind_ips[]
+  app_bind_widgets app_bind_widgets[]
 }
 
 model app_bind_ips {
@@ -747,6 +748,42 @@ model user_trusted_apps {
   confirmed_time            DateTime? @db.Timestamp(0)
   created_at                DateTime? @default(now()) @db.Timestamp(0)
   updated_at                DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model app_bind_widgets {
+  id               Int                      @id @default(autoincrement())
+  app_id           String?                  @db.VarChar(32)
+  subscription_id  Int?
+  widget_tag       String?                  @db.VarChar(255)
+  widget_configs   Json?                    @db.Json
+  created_at       DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?                @default(now()) @db.Timestamp(0)
+  app_detail       apps?                    @relation(fields: [app_id], references: [app_id])
+  widget_detail    widgets?                 @relation(fields: [widget_tag], references: [tag])
+  subscribe_detail user_subscribed_widgets? @relation(fields: [subscription_id], references: [id])
+}
+
+model user_subscribed_widgets {
+  id               Int                @id @default(autoincrement())
+  user             String?            @db.VarChar(32)
+  widget_id        Int?
+  started_at       DateTime?          @db.Timestamp(0)
+  expired_at       DateTime?          @db.Timestamp(0)
+  created_at       DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(0)
+  widget_info      widgets?           @relation(fields: [widget_id], references: [id])
+  app_bind_widgets app_bind_widgets[]
+}
+
+model widgets {
+  id                      Int                       @id @default(autoincrement())
+  tag                     String?                   @unique(map: "tag") @db.VarChar(255)
+  name                    String?                   @db.VarChar(255)
+  for_all_users           Boolean?                  @default(false)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  user_subscribed_widgets user_subscribed_widgets[]
+  app_bind_widgets        app_bind_widgets[]
 }
 
 view view_ip_token_prices {

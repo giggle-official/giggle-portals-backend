@@ -10,6 +10,8 @@ import { JwtModule } from "@nestjs/jwt"
 import { AuthController } from "./auth/auth.controller"
 import { AuthService } from "./auth/auth.service"
 import { AuthModule as AuthUserModule } from "src/auth/auth.module"
+import { WidgetsController } from './widgets/widgets.controller';
+import { WidgetsService } from './widgets/widgets.service';
 @Module({
     imports: [
         UserModule,
@@ -19,7 +21,7 @@ import { AuthModule as AuthUserModule } from "src/auth/auth.module"
         NotificationModule,
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
-    controllers: [OpenAppController, AuthController],
-    providers: [OpenAppService, PrismaService, AuthService],
+    controllers: [OpenAppController, AuthController, WidgetsController],
+    providers: [OpenAppService, PrismaService, AuthService, WidgetsService],
 })
 export class OpenAppModule {}

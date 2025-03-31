@@ -56,6 +56,13 @@ export class OpenAppService {
                         ip: true,
                     },
                 },
+                app_bind_widgets: {
+                    select: {
+                        widget_tag: true,
+                        widget_configs: true,
+                        widget_detail: true,
+                    },
+                },
             },
         })
         if (!app) {
@@ -89,6 +96,11 @@ export class OpenAppService {
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
             configs: this._processConfigs(app.configs),
             kline_url: process.env.GIGGLE_KLINE_URL,
+            widgets: app.app_bind_widgets.map((widget) => ({
+                tag: widget.widget_tag,
+                configs: widget.widget_configs as Record<string, any>,
+                widget_detail: widget.widget_detail,
+            })),
         }
     }
 
