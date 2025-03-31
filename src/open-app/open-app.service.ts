@@ -15,7 +15,7 @@ import {
 } from "./open-app.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
-import { ip_library } from "@prisma/client"
+import { ip_library, Prisma } from "@prisma/client"
 import { AuthService } from "src/auth/auth.service"
 import * as crypto from "crypto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
@@ -207,6 +207,20 @@ export class OpenAppService {
                     ip_id: ip.id,
                     app_id: app_id,
                 },
+            })
+
+            const widgetList = await tx.widgets.findMany({
+                where: {
+                    for_all_users: true,
+                },
+            })
+            const widgetBindList: Prisma.app_bind_widgetsCreateManyInput[] = widgetList.map((widget) => ({
+                widget_tag: widget.tag,
+                app_id: app_id,
+                widget_configs: { enabled: true },
+            }))
+            await tx.app_bind_widgets.createMany({
+                data: widgetBindList,
             })
             return app
         })
