@@ -79,7 +79,7 @@ export class IpLibraryController {
     async getMy(@Req() req: Request, @Query() query: GetListParams): Promise<IpLibraryListDto> {
         return await this.ipLibraryService.getList(
             query,
-            null,
+            query.is_public === "true" ? true : query.is_public === "false" ? false : null,
             req.user as UserInfoDTO,
             null,
             null,

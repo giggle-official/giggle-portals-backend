@@ -230,6 +230,30 @@ export class GetListParams extends PaginationDto {
         enum: ["true", "false"],
     })
     launched_to_giggle?: "true" | "false"
+
+    @ApiProperty({
+        required: false,
+        description: "is top",
+    })
+    @IsOptional()
+    @IsEnum(["true", "false"])
+    is_top?: "true" | "false"
+
+    @ApiProperty({
+        required: false,
+        description: "is public",
+    })
+    @IsOptional()
+    @IsEnum(["true", "false"])
+    is_public?: "true" | "false"
+
+    @ApiProperty({
+        required: false,
+        description: "children levels",
+    })
+    @IsOptional()
+    @IsEnum(["1", "2", "3"])
+    children_levels?: "1" | "2"
 }
 
 export class RemixClipsDto {
@@ -489,6 +513,11 @@ export class IpSummaryDto {
     likes: number
 
     @ApiProperty({
+        description: "comments of the ip library",
+    })
+    comments: number
+
+    @ApiProperty({
         description: "is liked by the user",
     })
     is_user_liked: boolean
@@ -518,6 +547,11 @@ export class IpSummaryDto {
         description: "can purchase",
     })
     can_purchase: boolean
+
+    @ApiProperty({
+        description: "creation guide lines",
+    })
+    creation_guide_lines: string
 
     @ApiProperty({
         description: "is governance right",
@@ -687,6 +721,14 @@ export class CreateIpDto {
         description: "share this ip to giggle",
     })
     share_to_giggle: boolean
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({
+        description: "creation guide lines of the ip library",
+        required: false,
+    })
+    creation_guide_lines?: string
 
     @IsOptional()
     @IsOptional()

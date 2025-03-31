@@ -626,6 +626,7 @@ export class AssetsService {
     }
 
     async getAssetSize(assetId: number): Promise<number> {
+        if (!assetId) return 0
         const asset = await this.prismaService.assets.findUnique({ where: { id: assetId } })
         if (!asset) throw new NotFoundException("Asset not found")
         const videoInfo = (asset.asset_info as any)?.videoInfo as VideoInfoTaskResponseDto
