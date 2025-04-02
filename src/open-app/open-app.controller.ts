@@ -233,4 +233,26 @@ export class OpenAppController {
     async lookupBySubdomain(@Param("subdomain") subdomain: string) {
         return this.openAppService.lookupBySubdomain(subdomain)
     }
+
+    @Get("/info/:appId")
+    @ApiOperation({
+        summary: "Get app info by app id",
+        description: "Get app info by app id",
+    })
+    @ApiHeaders([
+        {
+            name: "authorization",
+            description: "JWT Auth orization, if set,this field is using to verify if user is admin of the app",
+            required: false,
+        },
+    ])
+    @ApiResponse({
+        status: 200,
+        description: "App info",
+        type: AppInfoDto,
+    })
+    async getAppInfoByAppId(@Param("appId") appId: string, @Headers("authorization") authorization?: string) {
+        const token = authorization?.split(" ")[1]
+        return this.openAppService.getAppDetail(appId, token)
+    }
 }

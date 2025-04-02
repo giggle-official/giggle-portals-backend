@@ -148,3 +148,12 @@ export class ConfirmBindResponseDto {
     })
     access_token: string
 }
+
+export class WidgetAuthDto {
+    public: {
+        allowed_domains: string[]
+    }
+    private: {
+        secret_key: string
+    }
+}

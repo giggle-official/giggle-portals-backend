@@ -211,7 +211,6 @@ export class IpOnChainService {
                 this.logger.error("Failed to untokenize: " + untokenizeResponse.data.err.message)
                 throw new Error("Failed to untokenize: " + untokenizeResponse.data.err.message)
             }
-            console.log("untokenizeResponse", untokenizeResponse.data)
             return untokenizeResponse.data
         } catch (error) {
             this.logger.error("Error untokenizing:", error)

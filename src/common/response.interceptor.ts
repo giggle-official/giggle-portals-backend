@@ -25,7 +25,13 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
         const noLogInterceptor = this.reflector.get(NO_LOG, context.getHandler())
         const request = context.switchToHttp().getRequest()
         const response = context.switchToHttp().getResponse()
-        const status = context.switchToHttp().getResponse().statusCode
+        let status = context.switchToHttp().getResponse().statusCode
+
+        if (status === 201) {
+            status = 200
+            response.status(200)
+        }
+
         if (bypassInterceptor) {
             if (request.method === "POST" && !noLogInterceptor) {
                 this.recordLog(request, response, status)

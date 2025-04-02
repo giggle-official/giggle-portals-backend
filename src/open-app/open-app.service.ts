@@ -25,6 +25,7 @@ import { Response } from "express"
 import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
 import { NotificationService } from "src/notification/notification.service"
+import { WidgetConfigDto } from "./widgets/widget.dto"
 
 @Injectable()
 export class OpenAppService {
@@ -98,7 +99,7 @@ export class OpenAppService {
             kline_url: process.env.GIGGLE_KLINE_URL,
             widgets: app.app_bind_widgets.map((widget) => ({
                 tag: widget.widget_tag,
-                configs: widget.widget_configs as Record<string, any>,
+                configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
                 widget_detail: widget.widget_detail,
             })),
         }
@@ -207,20 +208,6 @@ export class OpenAppService {
                     ip_id: ip.id,
                     app_id: app_id,
                 },
-            })
-
-            const widgetList = await tx.widgets.findMany({
-                where: {
-                    for_all_users: true,
-                },
-            })
-            const widgetBindList: Prisma.app_bind_widgetsCreateManyInput[] = widgetList.map((widget) => ({
-                widget_tag: widget.tag,
-                app_id: app_id,
-                widget_configs: { enabled: true },
-            }))
-            await tx.app_bind_widgets.createMany({
-                data: widgetBindList,
             })
             return app
         })

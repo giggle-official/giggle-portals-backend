@@ -7,6 +7,7 @@ import {
     GetBindCodeDto,
     GetBindCodeResponseDto,
     LoginDto,
+    WidgetAuthDto,
 } from "./auto.dto"
 import { PrismaService } from "src/common/prisma.service"
 import crypto from "crypto"
@@ -15,9 +16,11 @@ import { UserService } from "src/user/user.service"
 import { UserInfoDTO } from "src/user/user.controller"
 import { AuthService as AuthUserService } from "src/auth/auth.service"
 import { NotificationService } from "src/notification/notification.service"
+import { WidgetConfigDto } from "../widgets/widget.dto"
 
 @Injectable()
 export class AuthService {
+    private readonly authWidgetTag = "login_from_external"
     private readonly logger = new Logger(AuthService.name)
     constructor(
         private readonly prisma: PrismaService,
@@ -51,9 +54,33 @@ export class AuthService {
             throw new UnauthorizedException("App not found")
         }
 
-        const appAllowdDomains = await this.prisma.app_registered_domain.findMany({ where: { app_id: appInfo.app_id } })
+        const bindRecord = await this.prisma.app_bind_widgets.findFirst({
+            where: {
+                widget_tag: this.authWidgetTag,
+                app_id: appInfo.app_id,
+            },
+            select: {
+                widget_configs: true,
+            },
+        })
+        if (!bindRecord) {
+            this.logger.error(
+                `requested app not allowed:  ${requestParams.app_id}, requested params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new UnauthorizedException("App not allowed")
+        }
 
-        const foundedDomain = appAllowdDomains.find((domain) => host.endsWith(domain.domain))
+        const widgetConfig: WidgetAuthDto = bindRecord.widget_configs as unknown as WidgetAuthDto
+        if (!widgetConfig.public?.allowed_domains || !widgetConfig.private?.secret_key) {
+            this.logger.error(
+                `requested app not allowed:  ${requestParams.app_id}, requested params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new UnauthorizedException("App not allowed")
+        }
+
+        const appAllowdDomains = widgetConfig.public.allowed_domains
+
+        const foundedDomain = appAllowdDomains.find((domain) => host.endsWith(domain))
         if (!foundedDomain) {
             this.logger.error(`requested host not allowed: ${host}, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Host not allowed")
@@ -85,7 +112,7 @@ export class AuthService {
             .sort()
         const stringA = sortedKeys.map((key) => `${key}=${requestParams[key]}`).join(",")
 
-        const stringSignTemp = `${stringA},key=${appInfo.app_secret}`
+        const stringSignTemp = `${stringA},key=${widgetConfig.private.secret_key}`
 
         const hash = crypto.createHash("md5").update(stringSignTemp).digest("hex").toUpperCase()
 
@@ -95,7 +122,7 @@ export class AuthService {
             )
             throw new UnauthorizedException("Signature not match")
         }
-        return { host: foundedDomain.domain, app_id: appInfo.app_id }
+        return { host: foundedDomain, app_id: appInfo.app_id }
     }
 
     async login(body: LoginDto, origin: string) {

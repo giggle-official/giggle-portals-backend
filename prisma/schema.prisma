@@ -766,12 +766,14 @@ model app_bind_widgets {
 model user_subscribed_widgets {
   id               Int                @id @default(autoincrement())
   user             String?            @db.VarChar(32)
-  widget_id        Int?
-  started_at       DateTime?          @db.Timestamp(0)
-  expired_at       DateTime?          @db.Timestamp(0)
+  widget_tag       String?            @db.VarChar(32)
+  public_config    Json?
+  private_config   Json?
+  started_at       DateTime?          @db.DateTime(0)
+  expired_at       DateTime?          @db.DateTime(0)
   created_at       DateTime?          @default(now()) @db.Timestamp(0)
   updated_at       DateTime?          @default(now()) @db.Timestamp(0)
-  widget_info      widgets?           @relation(fields: [widget_id], references: [id])
+  widget_info      widgets?           @relation(fields: [widget_tag], references: [tag])
   app_bind_widgets app_bind_widgets[]
 }
 
@@ -779,7 +781,16 @@ model widgets {
   id                      Int                       @id @default(autoincrement())
   tag                     String?                   @unique(map: "tag") @db.VarChar(255)
   name                    String?                   @db.VarChar(255)
-  for_all_users           Boolean?                  @default(false)
+  summary                 String?                   @db.Text
+  pricing                 Json?
+  settings                Json?
+  is_featured             Boolean?
+  is_new                  Boolean?
+  is_official             Boolean?
+  category                String?                   @db.VarChar(32)
+  author                  String?                   @db.VarChar(32)
+  icon                    String?                   @db.VarChar(32)
+  description             String?                   @db.Text
   created_at              DateTime?                 @default(now()) @db.Timestamp(0)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
   user_subscribed_widgets user_subscribed_widgets[]

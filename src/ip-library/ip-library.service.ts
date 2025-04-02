@@ -1595,7 +1595,6 @@ export class IpLibraryService {
             },
         })
 
-        console.log(childIpsDetail)
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
         const childIpsSummary = await Promise.all(
             childIpsDetail.map(async (item) => {
