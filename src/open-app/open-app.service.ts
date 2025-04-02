@@ -484,7 +484,16 @@ export class OpenAppService {
         })
 
         if (!user) {
-            throw new NotFoundException("User account not found for this email")
+            const userNameShorted = this.userService.generateShortName()
+            const username = approveData.email.split("@")[0]
+            const newUserInfo: UserInfoDTO = {
+                username: username,
+                password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
+                email: approveData.email,
+                usernameShorted: userNameShorted,
+                emailConfirmed: true,
+            }
+            userInfo = await this.userService.createUser(newUserInfo)
         }
 
         // Update the user's permission to create IPs
