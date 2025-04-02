@@ -25,11 +25,11 @@ export class AuthService {
         return user
     }
 
-    async login(req: Request): Promise<LoginResponseDTO> {
+    async login(userInfo: UserInfoDTO): Promise<LoginResponseDTO> {
         // Check if the user is blocked
         const user = await this.prismaService.users.findUnique({
             where: {
-                username_in_be: (req.user as UserInfoDTO).usernameShorted,
+                username_in_be: userInfo.usernameShorted,
             },
         })
 
@@ -37,7 +37,7 @@ export class AuthService {
             throw new UnauthorizedException("User not exists")
         }
 
-        const access_token = this.jwtService.sign(req.user as UserInfoDTO)
+        const access_token = this.jwtService.sign(userInfo)
         return { access_token: access_token }
     }
 

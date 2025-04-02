@@ -68,6 +68,17 @@ export class AppInfoDto {
         description: "Kline URL",
     })
     kline_url: string
+
+    @ApiProperty({
+        description: "Widgets",
+        type: Object,
+        isArray: true,
+    })
+    widgets: {
+        tag: string
+        configs: Record<string, any>
+        widget_detail: any
+    }[]
 }
 
 export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs"]) {
