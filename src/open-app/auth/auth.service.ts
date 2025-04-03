@@ -292,10 +292,7 @@ export class AuthService {
             }
         } catch (error) {
             console.error("Error sending bind code:", error)
-            return {
-                success: false,
-                message: error.message || "Failed to send verification code",
-            }
+            throw new BadRequestException(error.message || "Failed to send verification code")
         }
     }
 
