@@ -173,6 +173,8 @@ export class WidgetsController {
   "icon": "bot",
   "summary": "An AI agent dedicated to creators,supporting content broadcasting, social interaction,and monetization",
   "description": "An AI agent dedicated to creators,supporting content broadcasting, social interaction,and monetization",
+  "coming_soon": false,
+  "priority": 10,
   "settings": {
     "widget_tag": "creator_agent",
     "management_url": "/widgets/creator_agent",
@@ -181,5 +183,127 @@ export class WidgetsController {
     }
   }
 }
+
+{
+  "tag": "ai_music_video",
+  "name": "AI Music Video Platform",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "ai",
+  "author": "Giggle",
+  "icon": "music",
+  "summary": "Generate professional music videos with AI, combining audio tracks with synchronized visual content",
+  "description": "Create stunning music videos using AI technology that analyzes audio tracks and generates perfectly synchronized visual content. Customize styles, themes, and visual elements to match your musical vision.",
+  "coming_soon": true,
+  "priority": 8,
+  "settings": {
+    "widget_tag": "ai_music_video",
+    "management_url": "/widgets/ai_music_video",
+    "widget_url": "/widgets/ai_music_video",
+    "metadata": {}
+  }
+}
+
+{
+  "tag": "ai_director",
+  "name": "AI Director",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "ai",
+  "author": "Giggle",
+  "icon": "video",
+  "summary": "Intelligent film direction assistant that helps with scene planning, shot composition, and cinematic storytelling",
+  "description": "An AI-powered film direction tool that guides creators through scene planning, shot composition, and storytelling techniques. Provides real-time feedback on pacing, visual composition, and narrative flow to enhance the quality of your video productions.",
+  "coming_soon": true,
+  "priority": 9,
+  "settings": {
+    "widget_tag": "ai_director",
+    "management_url": "/widgets/ai_director",
+    "widget_url": "/widgets/ai_director",
+    "metadata": {}
+  }
+}
+
+{
+  "tag": "ip_rwa_crowdfunding",
+  "name": "IP RWA Crowdfunding",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "finance",
+  "author": "Giggle",
+  "icon": "dollar",
+  "summary": "Tokenized real-world asset crowdfunding platform for intellectual property projects",
+  "description": "A crowdfunding platform that tokenizes intellectual property as real-world assets (RWA), enabling creators to raise funds while giving supporters fractional ownership. Includes legal compliance tools, transparent milestone tracking, and integrated royalty distribution.",
+  "coming_soon": true,
+  "priority": 7,
+  "settings": {
+    "widget_tag": "ip_rwa_crowdfunding",
+    "management_url": "/widgets/ip_rwa_crowdfunding",
+    "widget_url": "/widgets/ip_rwa_crowdfunding",
+    "metadata": {}
+  }
+}
+
+{
+  "tag": "film_remix",
+  "name": "Film Remix Studio",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "creation",
+  "author": "Giggle",
+  "icon": "edit",
+  "summary": "Interactive platform for remixing and transforming existing film content into new creative works",
+  "description": "An interactive studio for legally remixing and transforming existing film content. Leverage AI tools to modify scenes, add effects, change narratives, and blend multiple sources while respecting copyright. Create derivative works with proper attribution and licensing.",
+  "coming_soon": true,
+  "priority": 6,
+  "settings": {
+    "widget_tag": "film_remix",
+    "management_url": "/widgets/film_remix",
+    "widget_url": "/widgets/film_remix",
+    "metadata": {}
+  }
+}
+
+{
+  "tag": "prediction_market",
+  "name": "Prediction Market",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "finance",
+  "author": "Giggle",
+  "icon": "chart",
+  "summary": "Decentralized prediction marketplace for entertainment outcomes and creator success metrics",
+  "description": "A decentralized prediction market focused on entertainment and creator outcomes. Make forecasts on box office performance, content virality, award winners, and more. Earn rewards for accurate predictions while generating valuable market intelligence for the creative industry.",
+  "coming_soon": true,
+  "priority": 5,
+  "settings": {
+    "widget_tag": "prediction_market",
+    "management_url": "/widgets/prediction_market",
+    "widget_url": "/widgets/prediction_market",
+    "metadata": {}
+  }
+}
+
+
      */
 }

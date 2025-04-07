@@ -397,19 +397,19 @@ export class WidgetsService {
 
     _mapToUpdateWidgetDto(body: UpdateWidgetDto, originalWidget: widgets): Prisma.widgetsUpdateInput {
         return {
-            name: body.name || originalWidget.name,
-            summary: body.summary || originalWidget.summary,
-            pricing: body.pricing || originalWidget.pricing,
-            is_featured: body.is_featured || originalWidget.is_featured,
-            is_new: body.is_new || originalWidget.is_new,
-            is_official: body.is_official || originalWidget.is_official,
-            category: body.category || originalWidget.category,
-            author: body.author || originalWidget.author,
-            icon: body.icon || originalWidget.icon,
-            description: body.description || originalWidget.description,
+            name: body.name !== undefined ? body.name : originalWidget.name,
+            summary: body.summary !== undefined ? body.summary : originalWidget.summary,
+            pricing: body.pricing !== undefined ? body.pricing : originalWidget.pricing,
+            is_featured: body.is_featured !== undefined ? body.is_featured : originalWidget.is_featured,
+            is_new: body.is_new !== undefined ? body.is_new : originalWidget.is_new,
+            is_official: body.is_official !== undefined ? body.is_official : originalWidget.is_official,
+            category: body.category !== undefined ? body.category : originalWidget.category,
+            author: body.author !== undefined ? body.author : originalWidget.author,
+            icon: body.icon !== undefined ? body.icon : originalWidget.icon,
+            description: body.description !== undefined ? body.description : originalWidget.description,
             settings: this._parseSettings(body.settings),
-            coming_soon: body.coming_soon || originalWidget.coming_soon,
-            priority: body.priority || originalWidget.priority,
+            coming_soon: body.coming_soon !== undefined ? body.coming_soon : originalWidget.coming_soon,
+            priority: body.priority !== undefined ? body.priority : originalWidget.priority,
         }
     }
 
