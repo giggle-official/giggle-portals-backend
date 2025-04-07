@@ -4,6 +4,7 @@ import {
     ApplyWidgetConfigToAppsDto,
     CreateWidgetDto,
     DeleteWidgetDto,
+    GetWidgetsRequestDto,
     SubscribeWidgetDto,
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
@@ -64,20 +65,34 @@ export class WidgetsService {
         })
     }
 
-    async getWidgets(user: UserInfoDTO): Promise<WidgetSummaryDto[]> {
+    async getWidgets(user: UserInfoDTO, query: GetWidgetsRequestDto): Promise<WidgetSummaryDto[]> {
+        const where: Prisma.widgetsWhereInput = {}
+
+        if (query.category) {
+            where.category = query.category
+        }
+
+        if (query.exclude) {
+            where.tag = { notIn: query.exclude.split(",") }
+        }
+
+        const limit = parseInt(query?.limit?.toString() || "999")
+
         const widgets = await this.prisma.widgets.findMany({
+            where,
             include: {
                 _count: {
                     select: {
                         user_subscribed_widgets: true,
                     },
                 },
-                user_subscribed_widgets: true,
             },
+            take: limit,
             orderBy: {
                 priority: "desc",
             },
         })
+
         const subscribedWidgets = await this.prisma.user_subscribed_widgets.findMany({
             where: { user: user.usernameShorted },
         })
@@ -367,6 +382,10 @@ export class WidgetsService {
     }
 
     async updateWidget(body: UpdateWidgetDto, user: UserInfoDTO) {
+        if (!body.tag) {
+            throw new BadRequestException("Widget tag is required")
+        }
+
         const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
         if (!widget) {
             throw new NotFoundException("Widget not found")

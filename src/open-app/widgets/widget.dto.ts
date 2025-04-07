@@ -3,6 +3,7 @@ import { widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
+import { PaginationParams } from "src/admin/request.dto"
 
 export class WidgetSettingsDto {
     @ApiProperty({ description: "widget tag" })
@@ -97,7 +98,7 @@ export class CreateWidgetDto extends PickType(WidgetDto, [
 ]) {}
 
 export class UpdateWidgetDto extends PartialType(CreateWidgetDto) {
-    @ApiProperty({ description: "widget tag", required: false })
+    @ApiProperty({ description: "widget tag" })
     @IsNotEmpty()
     @IsString()
     @MinLength(1)
@@ -174,4 +175,15 @@ export class UnbindWidgetConfigFromAppsDto extends PickType(WidgetDto, ["tag"]) 
     @IsNotEmpty()
     @IsString()
     app_id: string
+}
+
+export class GetWidgetsRequestDto {
+    @ApiProperty({ description: "category", required: false })
+    category?: string
+
+    @ApiProperty({ description: "limit", required: false })
+    limit?: number
+
+    @ApiProperty({ description: "exclude tags", required: false })
+    exclude?: string
 }
