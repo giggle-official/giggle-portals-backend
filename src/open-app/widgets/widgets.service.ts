@@ -418,7 +418,10 @@ export class WidgetsService {
             author: body.author !== undefined ? body.author : originalWidget.author,
             icon: body.icon !== undefined ? body.icon : originalWidget.icon,
             description: body.description !== undefined ? body.description : originalWidget.description,
-            settings: this._parseSettingsForUpdate(body.settings, originalWidget.settings, body.tag) as any,
+            settings:
+                body.settings !== undefined
+                    ? (this._parseSettingsForUpdate(body.settings, originalWidget.settings, body.tag) as any)
+                    : originalWidget.settings,
             coming_soon: body.coming_soon !== undefined ? body.coming_soon : originalWidget.coming_soon,
             priority: body.priority !== undefined ? body.priority : originalWidget.priority,
         }
