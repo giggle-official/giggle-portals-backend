@@ -53,6 +53,8 @@ export class WidgetsService {
                     is_official: body.is_official,
                     category: body.category,
                     description: body.description,
+                    coming_soon: body.coming_soon,
+                    priority: body.priority,
                     author: body.author,
                     icon: body.icon,
                     settings: this._parseSettings(body.settings, body),
