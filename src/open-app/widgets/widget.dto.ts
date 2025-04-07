@@ -4,6 +4,20 @@ import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
 
+export class WidgetSettingsDto {
+    @ApiProperty({ description: "widget tag" })
+    widget_tag: string
+
+    @ApiProperty({ description: "management url" })
+    management_url: string
+
+    @ApiProperty({ description: "widget url" })
+    widget_url: string
+
+    @ApiProperty({ description: "metadata" })
+    metadata: Record<string, any>
+}
+
 export class WidgetDto implements widgets {
     @ApiProperty({ description: "widget id" })
     id: number
@@ -28,7 +42,7 @@ export class WidgetDto implements widgets {
     @ApiProperty({ description: "widget pricing", required: false })
     pricing: JsonValue
 
-    @ApiProperty({ description: "widget settings" })
+    @ApiProperty({ description: "widget settings", type: WidgetSettingsDto })
     settings: JsonValue
 
     @ApiProperty({ description: "widget is featured" })
@@ -132,20 +146,6 @@ export class SubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {
 }
 
 export class UnsubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {}
-
-export class WidgetSettingsDto {
-    @ApiProperty({ description: "widget tag" })
-    widget_tag: string
-
-    @ApiProperty({ description: "management url" })
-    management_url: string
-
-    @ApiProperty({ description: "widget url" })
-    widget_url: string
-
-    @ApiProperty({ description: "metadata" })
-    metadata: Record<string, any>
-}
 
 export class WidgetConfigDto {
     @ApiProperty({ description: "public configuration for widget" })

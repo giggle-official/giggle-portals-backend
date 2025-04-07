@@ -57,7 +57,7 @@ export class WidgetsService {
                     priority: body.priority,
                     author: body.author,
                     icon: body.icon,
-                    settings: this._parseSettings(body.settings, body),
+                    settings: this._parseSettings(body.settings, body) as any,
                 },
             })
             return widget
@@ -232,7 +232,7 @@ export class WidgetsService {
             coming_soon: widget.coming_soon,
             priority: widget.priority,
             is_subscribed: !!subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
-            settings: this._parseSettings(widget.settings),
+            settings: this._parseSettings(widget.settings) as any,
         }))
     }
 
@@ -258,18 +258,27 @@ export class WidgetsService {
             updated_at: widget.updated_at,
             subscribers: widget._count.user_subscribed_widgets,
             is_subscribed: !!subscribedWidgets,
-            settings: this._parseSettings(widget.settings),
+            settings: this._parseSettings(widget.settings) as any,
         }
     }
 
-    _parseSettings(settings: any, createDto?: CreateWidgetDto): JsonValue {
+    _parseSettings(settings: any, createDto?: CreateWidgetDto): WidgetSettingsDto {
         let settingsDto: WidgetSettingsDto = {
             widget_tag: createDto?.tag || settings?.widget_tag || "",
             management_url: settings?.management_url || "",
             widget_url: settings?.widget_url || "",
             metadata: settings?.metadata || {},
         }
-        return settingsDto as unknown as JsonValue
+        return settingsDto
+    }
+
+    _parseSettingsForUpdate(settings: any, originalSettings: any, tag: string): WidgetSettingsDto {
+        return {
+            widget_tag: tag,
+            management_url: settings?.management_url || originalSettings?.management_url || "",
+            widget_url: settings?.widget_url || originalSettings?.widget_url || "",
+            metadata: settings?.metadata || originalSettings?.metadata || {},
+        }
     }
 
     async getWidgetConfigs(tag: string, appId: string, user: UserInfoDTO): Promise<ApplyWidgetConfigToAppsDto[]> {
@@ -409,7 +418,7 @@ export class WidgetsService {
             author: body.author !== undefined ? body.author : originalWidget.author,
             icon: body.icon !== undefined ? body.icon : originalWidget.icon,
             description: body.description !== undefined ? body.description : originalWidget.description,
-            settings: this._parseSettings(body.settings),
+            settings: this._parseSettingsForUpdate(body.settings, originalWidget.settings, body.tag) as any,
             coming_soon: body.coming_soon !== undefined ? body.coming_soon : originalWidget.coming_soon,
             priority: body.priority !== undefined ? body.priority : originalWidget.priority,
         }
