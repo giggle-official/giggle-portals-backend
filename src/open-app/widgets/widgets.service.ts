@@ -7,6 +7,7 @@ import {
     SubscribeWidgetDto,
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
+    UpdateWidgetDto,
     WidgetConfigDto,
     WidgetDetailDto,
     WidgetSettingsDto,
@@ -15,7 +16,6 @@ import {
 import { app_bind_widgets, Prisma, user_subscribed_widgets, widgets } from "@prisma/client"
 import { UserInfoDTO } from "src/user/user.controller"
 import { WidgetFactory } from "./widget.factory"
-import { Config } from "./widget.interface"
 import { JsonValue } from "@prisma/client/runtime/library"
 
 @Injectable()
@@ -72,6 +72,9 @@ export class WidgetsService {
                 },
                 user_subscribed_widgets: true,
             },
+            orderBy: {
+                priority: "desc",
+            },
         })
         const subscribedWidgets = await this.prisma.user_subscribed_widgets.findMany({
             where: { user: user.usernameShorted },
@@ -104,6 +107,10 @@ export class WidgetsService {
         const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
         if (!widget) {
             throw new NotFoundException("Widget not found")
+        }
+
+        if (widget.coming_soon) {
+            throw new BadRequestException("This widget is coming soon")
         }
 
         //already subscribed
@@ -220,6 +227,8 @@ export class WidgetsService {
             icon: widget.icon,
             description: widget.description,
             subscribers: widget._count.user_subscribed_widgets,
+            coming_soon: widget.coming_soon,
+            priority: widget.priority,
             is_subscribed: !!subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
             settings: this._parseSettings(widget.settings),
         }))
@@ -241,6 +250,8 @@ export class WidgetsService {
             author: widget.author,
             icon: widget.icon,
             description: widget.description,
+            coming_soon: widget.coming_soon,
+            priority: widget.priority,
             created_at: widget.created_at,
             updated_at: widget.updated_at,
             subscribers: widget._count.user_subscribed_widgets,
@@ -344,6 +355,29 @@ export class WidgetsService {
         return this._mapToApplyWidgetConfigToAppsDto(existingAppBindWidget)
     }
 
+    async updateWidget(body: UpdateWidgetDto, user: UserInfoDTO) {
+        const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
+        if (!widget) {
+            throw new NotFoundException("Widget not found")
+        }
+
+        const userInfo = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: user.usernameShorted,
+            },
+        })
+        if (!userInfo || !userInfo.is_admin) {
+            throw new ForbiddenException("You are not authorized to update a widget")
+        }
+
+        const mappedBody = this._mapToUpdateWidgetDto(body, widget)
+        await this.prisma.widgets.update({
+            where: { tag: body.tag },
+            data: mappedBody,
+        })
+        return this.getWidgetByTag(body.tag, user)
+    }
+
     async unbindWidgetConfigFromApps(
         body: UnbindWidgetConfigFromAppsDto,
         user: UserInfoDTO,
@@ -358,6 +392,24 @@ export class WidgetsService {
         })
         return {
             status: "success",
+        }
+    }
+
+    _mapToUpdateWidgetDto(body: UpdateWidgetDto, originalWidget: widgets): Prisma.widgetsUpdateInput {
+        return {
+            name: body.name || originalWidget.name,
+            summary: body.summary || originalWidget.summary,
+            pricing: body.pricing || originalWidget.pricing,
+            is_featured: body.is_featured || originalWidget.is_featured,
+            is_new: body.is_new || originalWidget.is_new,
+            is_official: body.is_official || originalWidget.is_official,
+            category: body.category || originalWidget.category,
+            author: body.author || originalWidget.author,
+            icon: body.icon || originalWidget.icon,
+            description: body.description || originalWidget.description,
+            settings: this._parseSettings(body.settings),
+            coming_soon: body.coming_soon || originalWidget.coming_soon,
+            priority: body.priority || originalWidget.priority,
         }
     }
 

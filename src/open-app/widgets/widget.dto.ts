@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiProperty, PartialType } from "@nestjs/swagger"
 import { widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
@@ -57,6 +57,12 @@ export class WidgetDto implements widgets {
 
     @ApiProperty({ description: "widget updated at" })
     updated_at: Date
+
+    @ApiProperty({ description: "widget coming soon" })
+    coming_soon: boolean
+
+    @ApiProperty({ description: "widget priority" })
+    priority: number
 }
 
 export class CreateWidgetDto extends PickType(WidgetDto, [
@@ -72,7 +78,18 @@ export class CreateWidgetDto extends PickType(WidgetDto, [
     "icon",
     "description",
     "settings",
+    "coming_soon",
+    "priority",
 ]) {}
+
+export class UpdateWidgetDto extends PartialType(CreateWidgetDto) {
+    @ApiProperty({ description: "widget tag", required: false })
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(1)
+    @MaxLength(32)
+    tag: string
+}
 
 export class WidgetSummaryDto extends PickType(WidgetDto, [
     "tag",
@@ -87,6 +104,8 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
     "icon",
     "description",
     "settings",
+    "coming_soon",
+    "priority",
 ]) {
     @ApiProperty({ description: "widget subscribers" })
     subscribers: number

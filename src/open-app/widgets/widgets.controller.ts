@@ -13,6 +13,7 @@ import {
     WidgetConfigDto,
     WidgetSummaryDto,
     UnbindWidgetConfigFromAppsDto,
+    UpdateWidgetDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -60,6 +61,16 @@ export class WidgetsController {
     @ApiResponse({ type: LoginResponseDto })
     async createWidget(@Body() body: CreateWidgetDto, @Req() req: Request) {
         return this.widgetService.createWidget(body, req.user as UserInfoDTO)
+    }
+
+    @Post("/update")
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({ summary: "update a widget" })
+    @ApiBody({ type: UpdateWidgetDto })
+    @HttpCode(HttpStatus.OK)
+    @ApiResponse({ type: LoginResponseDto })
+    async updateWidget(@Body() body: UpdateWidgetDto, @Req() req: Request) {
+        return this.widgetService.updateWidget(body, req.user as UserInfoDTO)
     }
 
     @Post("/delete")
@@ -145,6 +156,29 @@ export class WidgetsController {
     "management_url": "/widgets/login_from_external",
     "widget_url": "/widgets/login_from_external",
     "metadata": {}
+  }
+}
+
+{
+  "tag": "creator_agent",
+  "name": "Creator Agent",
+  "pricing": {
+    "model":"free"
+   },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "ai",
+  "author": "Giggle",
+  "icon": "bot",
+  "summary": "An AI agent dedicated to creators,supporting content broadcasting, social interaction,and monetization",
+  "description": "An AI agent dedicated to creators,supporting content broadcasting, social interaction,and monetization",
+  "settings": {
+    "widget_tag": "creator_agent",
+    "management_url": "/widgets/creator_agent",
+    "widget_url": "/widgets/creator_agent",
+    "metadata": {
+    }
   }
 }
      */

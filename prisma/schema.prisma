@@ -793,6 +793,8 @@ model widgets {
   description             String?                   @db.Text
   created_at              DateTime?                 @default(now()) @db.Timestamp(0)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  coming_soon             Boolean?                  @default(true)
+  priority                Int?                      @default(1)
   user_subscribed_widgets user_subscribed_widgets[]
   app_bind_widgets        app_bind_widgets[]
 }
