@@ -47,6 +47,7 @@ import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 import { ValidEventBody } from "src/common/rawbody.decorator"
 import { OptionalJwtAuthGuard } from "src/auth/optional-jwt-auth.guard"
+import { CheckJwtPolicies, JwtPoliciesGuard } from "src/guards/jwt-policies.guard"
 
 @Controller("/api/v1/ip-library")
 @ApiTags("IP Library")
@@ -73,7 +74,8 @@ export class IpLibraryController {
 
     @Get("/my")
     @ApiOperation({ summary: "Get my ip libraries" })
-    @UseGuards(AuthGuard("jwt"))
+    @UseGuards(AuthGuard("jwt"), JwtPoliciesGuard)
+    @CheckJwtPolicies((abilities) => abilities.can("read_ip"))
     @ApiBearerAuth()
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
     async getMy(@Req() req: Request, @Query() query: GetListParams): Promise<IpLibraryListDto> {

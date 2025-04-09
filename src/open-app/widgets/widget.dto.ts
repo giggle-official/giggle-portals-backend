@@ -3,7 +3,7 @@ import { widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
-import { PaginationParams } from "src/admin/request.dto"
+import { JwtPermissions, ROLES } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 
 export class WidgetSettingsDto {
     @ApiProperty({ description: "widget tag" })
@@ -17,6 +17,12 @@ export class WidgetSettingsDto {
 
     @ApiProperty({ description: "metadata" })
     metadata: Record<string, any>
+
+    @ApiProperty({ description: "permissions", required: true, enum: ROLES })
+    permissions: JwtPermissions[]
+
+    @ApiProperty({ description: "type", required: true, enum: ["iframe", "system"] })
+    type: "iframe" | "system"
 }
 
 export class WidgetDto implements widgets {
@@ -147,6 +153,7 @@ export class SubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {
 }
 
 export class UnsubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {}
+export class GetAccessTokenDto extends PickType(WidgetDto, ["tag"]) {}
 
 export class WidgetConfigDto {
     @ApiProperty({ description: "public configuration for widget" })
@@ -168,6 +175,9 @@ export class ApplyWidgetConfigToAppsDto extends WidgetConfigDto {
     @IsNotEmpty()
     @IsString()
     app_id: string
+
+    @ApiProperty({ description: "enabled", required: false })
+    enabled?: boolean
 }
 
 export class UnbindWidgetConfigFromAppsDto extends PickType(WidgetDto, ["tag"]) {
@@ -186,4 +196,12 @@ export class GetWidgetsRequestDto {
 
     @ApiProperty({ description: "exclude tags", required: false })
     exclude?: string
+
+    @ApiProperty({ description: "type", required: false, enum: ["iframe", "system"] })
+    type?: "iframe" | "system"
+}
+
+export class GetAccessTokenResponseDto {
+    @ApiProperty({ description: "access token" })
+    access_token: string
 }

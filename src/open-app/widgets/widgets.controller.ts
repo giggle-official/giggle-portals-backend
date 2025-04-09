@@ -15,6 +15,8 @@ import {
     UnbindWidgetConfigFromAppsDto,
     UpdateWidgetDto,
     GetWidgetsRequestDto,
+    GetAccessTokenDto,
+    GetAccessTokenResponseDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -38,8 +40,8 @@ export class WidgetsController {
     @ApiOperation({ summary: "get all my widgets" })
     @ApiResponse({ type: WidgetSummaryDto, isArray: true })
     @UseGuards(AuthGuard("jwt"))
-    async getMyWidgets(@Req() req: Request) {
-        return this.widgetService.getMyWidgets(req.user as UserInfoDTO)
+    async getMyWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
+        return this.widgetService.getMyWidgets(req.user as UserInfoDTO, query)
     }
 
     @Get("/getConfigs")
@@ -62,6 +64,16 @@ export class WidgetsController {
     @ApiResponse({ type: LoginResponseDto })
     async createWidget(@Body() body: CreateWidgetDto, @Req() req: Request) {
         return this.widgetService.createWidget(body, req.user as UserInfoDTO)
+    }
+
+    @Post("/getAccessToken")
+    @ApiOperation({ summary: "get access token for a widget" })
+    @ApiBody({ type: GetAccessTokenDto })
+    @ApiResponse({ type: GetAccessTokenResponseDto })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    async getAccessToken(@Body() body: GetAccessTokenDto, @Req() req: Request) {
+        return this.widgetService.getAccessToken(body, req.user as UserInfoDTO)
     }
 
     @Post("/update")
@@ -253,6 +265,8 @@ export class WidgetsController {
     "widget_tag": "ip_rwa_crowdfunding",
     "management_url": "/widgets/ip_rwa_crowdfunding",
     "widget_url": "/widgets/ip_rwa_crowdfunding",
+    "permissions": ["all"],
+    "type": "iframe",
     "metadata": {}
   }
 }

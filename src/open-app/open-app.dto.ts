@@ -78,10 +78,11 @@ export class AppInfoDto {
         tag: string
         configs: Record<string, any>
         widget_detail: any
+        enabled: boolean
     }[]
 }
 
-export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs"]) {
+export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs", "widgets"]) {
     @ApiProperty({
         description:
             "IP ID, this ip must be shared to giggle and have no parent ip and ip owner is the same as the app owner",
@@ -89,7 +90,7 @@ export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", 
     ip_id: number
 }
 
-export class UpdateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs"]) {
+export class UpdateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs", "widgets"]) {
     @ApiProperty({
         description: "App ID",
     })

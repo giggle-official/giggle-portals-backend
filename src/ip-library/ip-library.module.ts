@@ -11,10 +11,11 @@ import { Web3Module } from "src/web3/web3.module"
 import { LicenseService } from "./license/license.service"
 import { LicenseController } from "./license/license.controller"
 import { IpNameValidator } from "./ip-library.validator"
-import { AnnouncementController } from './announcement/announcement.controller';
-import { AnnouncementService } from './announcement/announcement.service';
-import { CommentsController } from './comments/comments.controller';
-import { CommentsService } from './comments/comments.service';
+import { AnnouncementController } from "./announcement/announcement.controller"
+import { AnnouncementService } from "./announcement/announcement.service"
+import { CommentsController } from "./comments/comments.controller"
+import { CommentsService } from "./comments/comments.service"
+import { JwtCaslAbilityFactory } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 
 @Module({
     imports: [
@@ -25,7 +26,16 @@ import { CommentsService } from './comments/comments.service';
         forwardRef(() => Web3Module),
     ],
     controllers: [IpLibraryController, LicenseController, AnnouncementController, CommentsController],
-    providers: [IpLibraryService, PrismaService, UtilitiesService, LicenseService, IpNameValidator, AnnouncementService, CommentsService],
+    providers: [
+        IpLibraryService,
+        PrismaService,
+        UtilitiesService,
+        LicenseService,
+        IpNameValidator,
+        AnnouncementService,
+        CommentsService,
+        JwtCaslAbilityFactory,
+    ],
     exports: [IpLibraryService, LicenseService],
 })
 export class IpLibraryModule {}

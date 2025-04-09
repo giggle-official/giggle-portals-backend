@@ -10,7 +10,6 @@ import {
 } from "./user.controller"
 import { PrismaService } from "src/common/prisma.service"
 import * as crypto from "crypto"
-import sharp from "sharp"
 import { isEmail } from "class-validator"
 import validator from "validator"
 import { NotificationService } from "src/notification/notification.service"
@@ -160,6 +159,8 @@ export class UserService {
             followers: _userInfo.followers,
             following: _userInfo.following,
             can_create_ip: _userInfo.can_create_ip,
+            permissions: userInfo?.permissions,
+            widget_info: userInfo?.widget_info,
         }
     }
 

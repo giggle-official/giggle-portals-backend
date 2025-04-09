@@ -11,6 +11,8 @@ import { PrismaService } from "./common/prisma.service"
 import { LogsService } from "./user/logs/logs.service"
 import { useContainer } from "class-validator"
 import { apiReference } from "@scalar/nestjs-api-reference"
+import * as fs from "fs"
+import { join } from "path"
 
 declare module "express-session" {
     interface Session {
@@ -64,18 +66,11 @@ async function bootstrap() {
         .setOpenAPIVersion("3.1.1")
         .build()
     const document = SwaggerModule.createDocument(app, config)
+
     document["x-tagGroups"] = [
         {
             name: "📚 IP Management",
             tags: ["IP Library", "License", "Announcement", "Comments"],
-        },
-        {
-            name: "🔨 AIGC Tools",
-            tags: ["AIGC Video Animation", "AIGC Face Swap", "AIGC Video Generator", "AIGC Image Generator"],
-        },
-        {
-            name: "🖼️ Assets",
-            tags: ["Assets"],
         },
         {
             name: "🧑‍💼 Account",
@@ -86,8 +81,12 @@ async function bootstrap() {
             tags: ["Web3 Giggle", "Web3 Tools"],
         },
         {
-            name: "🧩 Open App",
-            tags: ["Open App", "Widgets"],
+            name: "🏠 Portals",
+            tags: ["IP Portal"],
+        },
+        {
+            name: "🧩 Widgets",
+            tags: ["Widgets"],
         },
     ]
 
@@ -103,6 +102,9 @@ async function bootstrap() {
         }),
     )
     SwaggerModule.setup("/api/docs", app, document)
+
+    const outputPath = join(process.cwd(), "openapi-spec.json")
+    fs.writeFileSync(outputPath, JSON.stringify(document, null, 2))
 
     await app.listen(process.env.RUN_PORT || 3000, "0.0.0.0")
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     AppInfoDto,
@@ -29,6 +29,7 @@ import { WidgetConfigDto } from "./widgets/widget.dto"
 
 @Injectable()
 export class OpenAppService {
+    private readonly logger = new Logger(OpenAppService.name)
     constructor(
         private readonly prisma: PrismaService,
         private readonly userService: UserService,
@@ -62,6 +63,7 @@ export class OpenAppService {
                         widget_tag: true,
                         widget_configs: true,
                         widget_detail: true,
+                        enabled: true,
                     },
                 },
             },
@@ -101,6 +103,7 @@ export class OpenAppService {
                 tag: widget.widget_tag,
                 configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
                 widget_detail: widget.widget_detail,
+                enabled: widget.enabled,
             })),
         }
     }
@@ -151,7 +154,7 @@ export class OpenAppService {
 
     async createApp(createData: CreateAppDto, userInfo: UserInfoDTO) {
         const ip = await this.prisma.ip_library.findUnique({
-            where: { id: createData.ip_id, owner: userInfo.usernameShorted },
+            where: { id: parseInt(createData.ip_id.toString()), owner: userInfo.usernameShorted },
         })
         if (!ip) {
             throw new BadRequestException("IP not found or you are not the owner of the ip")
@@ -177,6 +180,7 @@ export class OpenAppService {
                 throw new BadRequestException("Sub domain already exists")
             }
         }
+
         const app_id = crypto.randomBytes(16).toString("hex")
         const app_secret = crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex")
         return await this.prisma.$transaction(async (tx) => {
@@ -209,6 +213,46 @@ export class OpenAppService {
                     app_id: app_id,
                 },
             })
+
+            //process widgets
+            await Promise.all(
+                createData.widgets.map(async (widget) => {
+                    const widgetDetail = await this.prisma.widgets.findUnique({
+                        where: { tag: widget.tag },
+                    })
+                    if (!widgetDetail) {
+                        this.logger.error(
+                            `user: ${userInfo.usernameShorted} widget: ${widget.tag} not found, ignore it`,
+                        )
+                        return
+                    }
+                    const subscription = await this.prisma.user_subscribed_widgets.findFirst({
+                        where: { user: userInfo.usernameShorted, widget_tag: widget.tag },
+                    })
+                    if (!subscription) {
+                        // not subscribed, ignore it
+                        this.logger.error(
+                            `user: ${userInfo.usernameShorted} not subscribed to widget: ${widget.tag}, ignore it`,
+                        )
+                        return
+                    }
+
+                    const widgetConfigs = {
+                        public: subscription.public_config,
+                        private: subscription.private_config,
+                    }
+
+                    await this.prisma.app_bind_widgets.create({
+                        data: {
+                            app_id: app_id,
+                            widget_tag: widget.tag,
+                            widget_configs: widgetConfigs,
+                            subscription_id: subscription.id,
+                            enabled: true,
+                        },
+                    })
+                }),
+            )
             return app
         })
     }
@@ -290,7 +334,7 @@ export class OpenAppService {
         }
 
         const ip = await this.prisma.ip_library.findUnique({
-            where: { id: updateData.ip_id, owner: userInfo.usernameShorted },
+            where: { id: parseInt(updateData.ip_id.toString()), owner: userInfo.usernameShorted },
         })
         if (!ip) {
             throw new BadRequestException("IP not found or you are not the owner of the ip")
@@ -335,6 +379,64 @@ export class OpenAppService {
                     app_id: updateData.app_id,
                 },
             })
+
+            //process widgets
+            await Promise.all(
+                updateData.widgets.map(async (widget) => {
+                    const widgetDetail = await this.prisma.widgets.findUnique({
+                        where: { tag: widget.tag },
+                    })
+                    if (!widgetDetail) {
+                        this.logger.error(
+                            `user: ${userInfo.usernameShorted} widget: ${widget.tag} not found, ignore it`,
+                        )
+                        return
+                    }
+                    const subscription = await this.prisma.user_subscribed_widgets.findFirst({
+                        where: { user: userInfo.usernameShorted, widget_tag: widget.tag },
+                    })
+                    if (!subscription) {
+                        // not subscribed, ignore it
+                        this.logger.error(
+                            `user: ${userInfo.usernameShorted} not subscribed to widget: ${widget.tag}, ignore it`,
+                        )
+                        return
+                    }
+
+                    const widgetConfigs = {
+                        public: subscription.public_config,
+                        private: subscription.private_config,
+                    }
+
+                    const isBind = await this.prisma.app_bind_widgets.findFirst({
+                        where: { app_id: updateData.app_id, widget_tag: widget.tag },
+                    })
+                    if (!isBind && widget.enabled) {
+                        console.log("create it")
+                        // not bind, create it
+                        await this.prisma.app_bind_widgets.create({
+                            data: {
+                                app_id: updateData.app_id,
+                                widget_tag: widget.tag,
+                                widget_configs: widgetConfigs,
+                                subscription_id: subscription.id,
+                                enabled: true,
+                            },
+                        })
+                    } else if (isBind) {
+                        // already bind, update it
+                        await this.prisma.app_bind_widgets.update({
+                            where: { id: isBind.id },
+                            data: {
+                                widget_configs: widgetConfigs,
+                                subscription_id: subscription.id,
+                                enabled: widget.enabled,
+                            },
+                        })
+                    }
+                }),
+            )
+
             return app
         })
     }

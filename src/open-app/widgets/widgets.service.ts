@@ -4,6 +4,8 @@ import {
     ApplyWidgetConfigToAppsDto,
     CreateWidgetDto,
     DeleteWidgetDto,
+    GetAccessTokenDto,
+    GetAccessTokenResponseDto,
     GetWidgetsRequestDto,
     SubscribeWidgetDto,
     UnbindWidgetConfigFromAppsDto,
@@ -17,13 +19,16 @@ import {
 import { app_bind_widgets, Prisma, user_subscribed_widgets, widgets } from "@prisma/client"
 import { UserInfoDTO } from "src/user/user.controller"
 import { WidgetFactory } from "./widget.factory"
-import { JsonValue } from "@prisma/client/runtime/library"
-
+import { UserService } from "src/user/user.service"
+import { JwtService } from "@nestjs/jwt"
+import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 @Injectable()
 export class WidgetsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly widgetFactory: WidgetFactory,
+        private readonly userService: UserService,
+        private readonly jwtService: JwtService,
     ) {}
 
     async createWidget(body: CreateWidgetDto, user: UserInfoDTO) {
@@ -203,9 +208,18 @@ export class WidgetsService {
         }
     }
 
-    async getMyWidgets(user: UserInfoDTO): Promise<WidgetSummaryDto[]> {
+    async getMyWidgets(user: UserInfoDTO, query: GetWidgetsRequestDto): Promise<WidgetSummaryDto[]> {
+        const filterWhere: Prisma.widgetsWhereInput = {}
+
+        if (query.type) {
+            filterWhere.settings = {
+                path: "$.type",
+                equals: query.type,
+            }
+        }
+
         const widgets = await this.prisma.user_subscribed_widgets.findMany({
-            where: { user: user.usernameShorted },
+            where: { user: user.usernameShorted, widget_info: filterWhere },
             include: {
                 widget_info: {
                     include: {
@@ -283,6 +297,8 @@ export class WidgetsService {
             management_url: settings?.management_url || "",
             widget_url: settings?.widget_url || "",
             metadata: settings?.metadata || {},
+            permissions: (createDto?.settings as any)?.permissions || [],
+            type: (createDto?.settings as any)?.type || "iframe",
         }
         return settingsDto
     }
@@ -293,6 +309,8 @@ export class WidgetsService {
             management_url: settings?.management_url || originalSettings?.management_url || "",
             widget_url: settings?.widget_url || originalSettings?.widget_url || "",
             metadata: settings?.metadata || originalSettings?.metadata || {},
+            permissions: settings?.permissions || originalSettings?.permissions || [],
+            type: settings?.type || originalSettings?.type || "iframe",
         }
     }
 
@@ -358,6 +376,7 @@ export class WidgetsService {
                 data: {
                     widget_tag: body.tag,
                     app_id: body.app_id,
+                    enabled: body.enabled !== undefined ? body.enabled : true,
                     subscription_id: userSubscribedWidget.id,
                     widget_configs: {
                         public: body.public,
@@ -374,6 +393,7 @@ export class WidgetsService {
                         private: body.private,
                     },
                     subscription_id: userSubscribedWidget.id,
+                    enabled: body.enabled !== undefined ? body.enabled : existingAppBindWidget.enabled,
                 },
             })
         }
@@ -422,6 +442,45 @@ export class WidgetsService {
         })
         return {
             status: "success",
+        }
+    }
+
+    async getAccessToken(body: GetAccessTokenDto, user: UserInfoDTO): Promise<GetAccessTokenResponseDto> {
+        const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
+        if (!widget) {
+            throw new NotFoundException("Widget not found")
+        }
+
+        //user is subscribed to the widget
+        const userSubscribedWidget = await this.prisma.user_subscribed_widgets.findFirst({
+            where: { user: user.usernameShorted, widget_tag: body.tag },
+        })
+
+        const widgetInfo = await this.prisma.widgets.findUnique({
+            where: { tag: body.tag },
+        })
+        const userInfo = await this.userService.getProfile(user)
+        const userInfoForSign: UserInfoDTO = {
+            username: userInfo.username,
+            usernameShorted: userInfo.usernameShorted,
+            email: userInfo.email,
+            emailConfirmed: userInfo.emailConfirmed,
+            avatar: userInfo.avatar,
+            giggle_wallet_address: userInfo.giggle_wallet_address,
+            description: userInfo.description,
+            followers: userInfo.followers,
+            following: userInfo.following,
+            permissions: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
+            widget_info: {
+                user_subscribed: !!userSubscribedWidget,
+                widget_tag: body.tag,
+            },
+        }
+        const eccess_token = this.jwtService.sign(userInfoForSign, {
+            expiresIn: "1d",
+        })
+        return {
+            access_token: eccess_token,
         }
     }
 

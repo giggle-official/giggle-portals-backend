@@ -1,4 +1,4 @@
-import { Injectable, SetMetadata, CanActivate, ExecutionContext, UseGuards } from "@nestjs/common"
+import { Injectable, SetMetadata, CanActivate, ExecutionContext } from "@nestjs/common"
 import { AppAbility, CaslAbilityFactory } from "../casl/casl-ability.factory/casl-ability.factory"
 import { Reflector } from "@nestjs/core"
 

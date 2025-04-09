@@ -4,7 +4,7 @@ import { JwtService } from "@nestjs/jwt"
 import { PrismaService } from "src/common/prisma.service"
 import { UserService } from "src/user/user.service"
 import { EmailConfirmationDto, LoginResponseDTO } from "./auth.dto"
-import { Request } from "express"
+import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 @Injectable()
 export class AuthService {
     constructor(
@@ -25,7 +25,7 @@ export class AuthService {
         return user
     }
 
-    async login(userInfo: UserInfoDTO): Promise<LoginResponseDTO> {
+    async login(userInfo: UserInfoDTO, permissions?: JwtPermissions[]): Promise<LoginResponseDTO> {
         // Check if the user is blocked
         const user = await this.prismaService.users.findUnique({
             where: {
@@ -35,6 +35,11 @@ export class AuthService {
 
         if (!user || user.is_blocked) {
             throw new UnauthorizedException("User not exists")
+        }
+
+        //if permissions is not provided, use the default permissions
+        if (!permissions) {
+            userInfo.permissions = ["all"]
         }
 
         const access_token = this.jwtService.sign(userInfo)

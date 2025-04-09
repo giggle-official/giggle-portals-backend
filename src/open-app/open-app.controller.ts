@@ -34,7 +34,7 @@ import { Request, Response } from "express"
 import { PaginationDto } from "src/common/common.dto"
 import { Recaptcha } from "@nestlab/google-recaptcha"
 
-@ApiTags("Open App")
+@ApiTags("IP Portal")
 @Controller("/api/v1/app")
 export class OpenAppController {
     constructor(private readonly openAppService: OpenAppService) {}

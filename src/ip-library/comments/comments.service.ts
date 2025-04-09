@@ -37,7 +37,7 @@ export class CommentsService {
         }
         // Verify if IP exists and related to the app
         const ipExists = await this.prisma.ip_library.findUnique({
-            where: { id: Number(dto.ip_id) },
+            where: { id: parseInt(dto.ip_id.toString()) },
         })
 
         if (!ipExists) {

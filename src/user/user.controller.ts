@@ -46,7 +46,7 @@ import {
 import { SubscriptionPlanDto } from "src/payment/plans.config"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
-import { PaginationDto } from "src/common/common.dto"
+import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 
 export class nouceDto {
     @ApiProperty()
@@ -107,6 +107,15 @@ export class UserInfoDTO extends LoginDTO {
 
     @ApiProperty()
     can_create_ip?: boolean
+
+    @ApiProperty()
+    permissions?: JwtPermissions[]
+
+    @ApiProperty()
+    widget_info?: {
+        user_subscribed: boolean
+        widget_tag: string
+    }
 }
 
 export class EmailLoginDto extends PickType(UserInfoDTO, ["email", "password"]) {}

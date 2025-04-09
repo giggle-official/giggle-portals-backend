@@ -754,6 +754,7 @@ model app_bind_widgets {
   id               Int                      @id @default(autoincrement())
   app_id           String?                  @db.VarChar(32)
   subscription_id  Int?
+  enabled          Boolean?                 @default(true)
   widget_tag       String?                  @db.VarChar(255)
   widget_configs   Json?                    @db.Json
   created_at       DateTime?                @default(now()) @db.Timestamp(0)
