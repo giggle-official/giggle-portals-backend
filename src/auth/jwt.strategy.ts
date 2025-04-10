@@ -70,6 +70,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
             //no key exists
             return null
         }
+        if (!payload.permissions) {
+            return null
+        }
         return payload as UserInfoDTO
     }
 }

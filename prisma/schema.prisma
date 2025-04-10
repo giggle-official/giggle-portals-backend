@@ -28,6 +28,7 @@ model users {
   current_plan                   String?                       @default("none") @db.VarChar(32)
   is_admin                       Boolean?                      @default(false)
   can_create_ip                  Boolean?
+  is_developer                   Boolean?                      @default(false)
   plan_settings                  Json?
   current_credit_balance         Int?
   description                    String?                       @db.Text
@@ -55,6 +56,7 @@ model users {
   ip_token_trade_record          ip_token_trade_record[]
   token_send_history             token_send_history[]
   web3_orders                    web3_orders[]
+  widgets                        widgets[]
 }
 
 model user_request_log {
@@ -795,9 +797,13 @@ model widgets {
   created_at              DateTime?                 @default(now()) @db.Timestamp(0)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
   coming_soon             Boolean?                  @default(true)
+  is_private              Boolean?
+  is_developing           Boolean?
+  test_users              Json?
   priority                Int?                      @default(1)
   user_subscribed_widgets user_subscribed_widgets[]
   app_bind_widgets        app_bind_widgets[]
+  author_info             users?                    @relation(fields: [author], references: [username_in_be])
 }
 
 view view_ip_token_prices {

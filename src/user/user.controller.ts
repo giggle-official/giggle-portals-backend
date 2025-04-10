@@ -109,6 +109,9 @@ export class UserInfoDTO extends LoginDTO {
     can_create_ip?: boolean
 
     @ApiProperty()
+    is_developer?: boolean
+
+    @ApiProperty()
     permissions?: JwtPermissions[]
 
     @ApiProperty()

@@ -88,6 +88,10 @@ async function bootstrap() {
             name: "🧩 Widgets",
             tags: ["Widgets"],
         },
+        {
+            name: "Developer Center",
+            tags: ["Widgets-dev"],
+        },
     ]
 
     app.use(

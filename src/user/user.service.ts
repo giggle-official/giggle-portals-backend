@@ -161,6 +161,7 @@ export class UserService {
             can_create_ip: _userInfo.can_create_ip,
             permissions: userInfo?.permissions,
             widget_info: userInfo?.widget_info,
+            is_developer: _userInfo?.is_developer,
         }
     }
 
@@ -766,6 +767,7 @@ Message: ${contactInfo.message}
             followers: record.followers,
             following: record.following,
             can_create_ip: record?.can_create_ip || false,
+            is_developer: record?.is_developer || false,
         }
     }
 

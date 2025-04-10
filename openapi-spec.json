@@ -3395,6 +3395,155 @@
         ]
       }
     },
+    "/api/v1/developer/widgets/create": {
+      "post": {
+        "operationId": "DeveloperController_createWidget",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperWidgetCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "create a widget",
+        "tags": [
+          "Widgets-dev"
+        ]
+      }
+    },
+    "/api/v1/developer/widgets/update": {
+      "post": {
+        "operationId": "DeveloperController_updateWidget",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperWidgetUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "update a widget",
+        "tags": [
+          "Widgets-dev"
+        ]
+      }
+    },
+    "/api/v1/developer/widgets/delete": {
+      "post": {
+        "operationId": "DeveloperController_deleteWidget",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperWidgetDeleteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperWidgetDeleteResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "delete a widget",
+        "tags": [
+          "Widgets-dev"
+        ]
+      }
+    },
+    "/api/v1/developer/widgets": {
+      "get": {
+        "operationId": "DeveloperController_getWidgets",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "get all widgets",
+        "tags": [
+          "Widgets-dev"
+        ]
+      }
+    },
+    "/api/v1/developer/widgets/{tag}": {
+      "get": {
+        "operationId": "DeveloperController_getConfigs",
+        "parameters": [
+          {
+            "name": "tag",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "get configs for a widget",
+        "tags": [
+          "Widgets-dev"
+        ]
+      }
+    },
     "/api/v1/app/widgets": {
       "get": {
         "operationId": "WidgetsController_getWidgets",
@@ -4038,6 +4187,9 @@
           "can_create_ip": {
             "type": "boolean"
           },
+          "is_developer": {
+            "type": "boolean"
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -4066,6 +4218,7 @@
           "following",
           "app_id",
           "can_create_ip",
+          "is_developer",
           "permissions",
           "widget_info"
         ]
@@ -7382,6 +7535,73 @@
           "access_token"
         ]
       },
+      "DeveloperWidgetCreateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the widget",
+            "example": "My Widget"
+          },
+          "summary": {
+            "type": "string",
+            "description": "The summary of the widget",
+            "example": "This is a widget"
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the widget",
+            "example": "This is a widget"
+          },
+          "category": {
+            "type": "string",
+            "description": "The category of the widget",
+            "example": "My Widget"
+          },
+          "widget_url": {
+            "type": "string",
+            "description": "The URL of the widget",
+            "example": "http://localhost:4290/create"
+          },
+          "management_url": {
+            "type": "string",
+            "description": "The URL of the widget management",
+            "example": "http://localhost:4290/management"
+          },
+          "repository_url": {
+            "type": "string",
+            "description": "The URL of the widget repository",
+            "example": "https://github.com/my-widget"
+          },
+          "is_private": {
+            "type": "boolean",
+            "description": "Whether the widget is private",
+            "example": false
+          },
+          "test_users": {
+            "description": "The test users of the widget, max 10 users",
+            "example": [
+              "test1@giggle.pro",
+              "test2@giggle.pro"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "summary",
+          "description",
+          "category",
+          "widget_url",
+          "management_url",
+          "repository_url",
+          "is_private",
+          "test_users"
+        ]
+      },
       "WidgetSettingsDto": {
         "type": "object",
         "properties": {
@@ -7400,6 +7620,10 @@
           "metadata": {
             "type": "object",
             "description": "metadata"
+          },
+          "repository_url": {
+            "type": "string",
+            "description": "repository url"
           },
           "permissions": {
             "type": "string",
@@ -7427,8 +7651,229 @@
           "management_url",
           "widget_url",
           "metadata",
+          "repository_url",
           "permissions",
           "type"
+        ]
+      },
+      "AuthorInfoDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "widget author username"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "widget author avatar"
+          }
+        },
+        "required": [
+          "username",
+          "avatar"
+        ]
+      },
+      "WidgetDetailDto": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "widget tag"
+          },
+          "name": {
+            "type": "string",
+            "description": "widget name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "widget summary"
+          },
+          "pricing": {
+            "type": "object",
+            "description": "widget pricing"
+          },
+          "settings": {
+            "description": "widget settings",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WidgetSettingsDto"
+              }
+            ]
+          },
+          "is_featured": {
+            "type": "boolean",
+            "description": "widget is featured"
+          },
+          "is_new": {
+            "type": "boolean",
+            "description": "widget is new"
+          },
+          "is_official": {
+            "type": "boolean",
+            "description": "widget is official"
+          },
+          "category": {
+            "type": "string",
+            "description": "widget category"
+          },
+          "icon": {
+            "type": "string",
+            "description": "widget icon"
+          },
+          "description": {
+            "type": "string",
+            "description": "widget description"
+          },
+          "coming_soon": {
+            "type": "boolean",
+            "description": "widget coming soon"
+          },
+          "priority": {
+            "type": "number",
+            "description": "widget priority"
+          },
+          "subscribers": {
+            "type": "number",
+            "description": "widget subscribers"
+          },
+          "is_subscribed": {
+            "type": "boolean",
+            "description": "widget is subscribed"
+          },
+          "author_info": {
+            "description": "widget author info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthorInfoDto"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "widget created at"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "widget updated at"
+          },
+          "test_users": {
+            "description": "widget test users",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tag",
+          "name",
+          "settings",
+          "is_featured",
+          "is_new",
+          "is_official",
+          "category",
+          "icon",
+          "description",
+          "coming_soon",
+          "priority",
+          "subscribers",
+          "is_subscribed",
+          "author_info",
+          "created_at",
+          "updated_at",
+          "test_users"
+        ]
+      },
+      "DeveloperWidgetUpdateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the widget",
+            "example": "My Widget"
+          },
+          "summary": {
+            "type": "string",
+            "description": "The summary of the widget",
+            "example": "This is a widget"
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the widget",
+            "example": "This is a widget"
+          },
+          "category": {
+            "type": "string",
+            "description": "The category of the widget",
+            "example": "My Widget"
+          },
+          "widget_url": {
+            "type": "string",
+            "description": "The URL of the widget",
+            "example": "http://localhost:4290/create"
+          },
+          "management_url": {
+            "type": "string",
+            "description": "The URL of the widget management",
+            "example": "http://localhost:4290/management"
+          },
+          "repository_url": {
+            "type": "string",
+            "description": "The URL of the widget repository",
+            "example": "https://github.com/my-widget"
+          },
+          "is_private": {
+            "type": "boolean",
+            "description": "Whether the widget is private",
+            "example": false
+          },
+          "test_users": {
+            "description": "The test users of the widget, max 10 users",
+            "example": [
+              "test1@giggle.pro",
+              "test2@giggle.pro"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tag": {
+            "type": "string",
+            "description": "The tag of the widget",
+            "example": "my-widget"
+          }
+        },
+        "required": [
+          "name",
+          "summary",
+          "description",
+          "category",
+          "widget_url",
+          "management_url",
+          "repository_url",
+          "is_private",
+          "test_users",
+          "tag"
+        ]
+      },
+      "DeveloperWidgetDeleteDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DeveloperWidgetDeleteResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "The status of the widget deletion",
+            "example": "success"
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "WidgetSummaryDto": {
@@ -7474,10 +7919,6 @@
             "type": "string",
             "description": "widget category"
           },
-          "author": {
-            "type": "string",
-            "description": "widget author"
-          },
           "icon": {
             "type": "string",
             "description": "widget icon"
@@ -7501,6 +7942,14 @@
           "is_subscribed": {
             "type": "boolean",
             "description": "widget is subscribed"
+          },
+          "author_info": {
+            "description": "widget author info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthorInfoDto"
+              }
+            ]
           }
         },
         "required": [
@@ -7511,13 +7960,13 @@
           "is_new",
           "is_official",
           "category",
-          "author",
           "icon",
           "description",
           "coming_soon",
           "priority",
           "subscribers",
-          "is_subscribed"
+          "is_subscribed",
+          "author_info"
         ]
       },
       "CreateWidgetDto": {
@@ -7816,6 +8265,12 @@
       "name": "🧩 Widgets",
       "tags": [
         "Widgets"
+      ]
+    },
+    {
+      "name": "Developer Center",
+      "tags": [
+        "Widgets-dev"
       ]
     }
   ]

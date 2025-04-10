@@ -320,5 +320,34 @@ export class WidgetsController {
 }
 
 
+{
+  "tag": "giggle_createfi",
+  "name": "CreateFi",
+  "pricing": {
+    "model": "free"
+  },
+  "is_featured": true,
+  "is_new": true,
+  "is_official": true,
+  "category": "ai",
+  "author": "Giggle",
+  "icon": "sparkles",
+  "summary": "Generate AI videos and music based on IP holders' assets, earn token rewards, and establish a sustainable creative ecosystem through Web3 incentives.",
+  "description": "CreateFi connects IP holders with content creators through a unique reward system. IP holders create token-funded pools, while creators use AI tools to generate videos and music based on the IP, earning rewards locked in the pool. This creates a sustainable ecosystem where IP holders monetize assets while incentivizing high-quality content creation.",
+  "coming_soon": false,
+  "priority": 8,
+  "settings": {
+    "widget_tag": "giggle_createfi",
+    "management_url": "http://localhost:4290/management",
+    "widget_url": "http://localhost:4290/create",
+    "permissions": ["all"],
+    "type": "iframe",
+    "metadata": {
+      "content_types": ["video", "music"],
+      "reward_token": "TOKENS"
+    }
+  }
+}
+
      */
 }

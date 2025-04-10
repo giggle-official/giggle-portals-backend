@@ -11,6 +11,8 @@ import { AuthController } from "./auth/auth.controller"
 import { AuthService } from "./auth/auth.service"
 import { AuthModule as AuthUserModule } from "src/auth/auth.module"
 import { WidgetsModule } from "./widgets/widgets.module"
+import { DeveloperController } from './developer/developer.controller';
+import { DeveloperService } from './developer/developer.service';
 
 @Module({
     imports: [
@@ -22,7 +24,7 @@ import { WidgetsModule } from "./widgets/widgets.module"
         WidgetsModule,
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
-    controllers: [OpenAppController, AuthController],
-    providers: [OpenAppService, PrismaService, AuthService],
+    controllers: [OpenAppController, AuthController, DeveloperController],
+    providers: [OpenAppService, PrismaService, AuthService, DeveloperService],
 })
 export class OpenAppModule {}

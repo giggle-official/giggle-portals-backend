@@ -18,15 +18,14 @@ import {
 } from "./widget.dto"
 import { app_bind_widgets, Prisma, user_subscribed_widgets, widgets } from "@prisma/client"
 import { UserInfoDTO } from "src/user/user.controller"
-import { WidgetFactory } from "./widget.factory"
 import { UserService } from "src/user/user.service"
 import { JwtService } from "@nestjs/jwt"
 import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+
 @Injectable()
 export class WidgetsService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly widgetFactory: WidgetFactory,
         private readonly userService: UserService,
         private readonly jwtService: JwtService,
     ) {}
@@ -63,7 +62,7 @@ export class WidgetsService {
                     priority: body.priority,
                     author: body.author,
                     icon: body.icon,
-                    settings: this._parseSettings(body.settings, body) as any,
+                    settings: this.parseSettings(body.settings, body) as any,
                 },
             })
             return widget
@@ -71,7 +70,10 @@ export class WidgetsService {
     }
 
     async getWidgets(user: UserInfoDTO, query: GetWidgetsRequestDto): Promise<WidgetSummaryDto[]> {
-        const where: Prisma.widgetsWhereInput = {}
+        const where: Prisma.widgetsWhereInput = {
+            is_developing: false,
+            is_private: false,
+        }
 
         if (query.category) {
             where.category = query.category
@@ -91,6 +93,12 @@ export class WidgetsService {
                         user_subscribed_widgets: true,
                     },
                 },
+                author_info: {
+                    select: {
+                        username: true,
+                        avatar: true,
+                    },
+                },
             },
             take: limit,
             orderBy: {
@@ -107,10 +115,16 @@ export class WidgetsService {
 
     async getWidgetByTag(tag: string, user: UserInfoDTO): Promise<WidgetDetailDto> {
         const widget = await this.prisma.widgets.findUnique({
-            where: { tag },
+            where: { tag, is_private: false, is_developing: false },
             include: {
                 _count: {
                     select: { user_subscribed_widgets: true },
+                },
+                author_info: {
+                    select: {
+                        username: true,
+                        avatar: true,
+                    },
                 },
             },
         })
@@ -122,7 +136,7 @@ export class WidgetsService {
             where: { user: user.usernameShorted, widget_tag: widget.tag },
         })
 
-        return this._mapToDetailResponse(widget, subscribedWidgets)
+        return this.mapToDetailResponse(widget, subscribedWidgets)
     }
 
     async subscribeWidget(body: SubscribeWidgetDto, user: UserInfoDTO) {
@@ -141,12 +155,6 @@ export class WidgetsService {
         })
         if (alreadySubscribed) {
             throw new BadRequestException("You have already subscribed to this widget")
-        }
-
-        // Get the widget implementation
-        const widgetImpl = this.widgetFactory.getWidget(widget.tag)
-        if (widgetImpl) {
-            await widgetImpl.onSubscribe(user)
         }
 
         return await this.prisma.user_subscribed_widgets.create({
@@ -171,13 +179,6 @@ export class WidgetsService {
         })
         if (!notSubscribed) {
             throw new BadRequestException("You have not subscribed to this widget")
-        }
-
-        // Get the widget implementation
-        const widgetImpl = this.widgetFactory.getWidget(widget.tag)
-        if (widgetImpl) {
-            // Call onUnsubscribe with userInfo
-            await widgetImpl.onUnsubscribe(user)
         }
 
         await this.prisma.user_subscribed_widgets.delete({ where: { id: notSubscribed.id } })
@@ -226,6 +227,12 @@ export class WidgetsService {
                         _count: {
                             select: { user_subscribed_widgets: true },
                         },
+                        author_info: {
+                            select: {
+                                username: true,
+                                avatar: true,
+                            },
+                        },
                     },
                 },
             },
@@ -242,7 +249,10 @@ export class WidgetsService {
     }
 
     async _mapToSummaryResponse(
-        widgets: (widgets & { _count: { user_subscribed_widgets: number } })[],
+        widgets: (widgets & {
+            _count: { user_subscribed_widgets: number }
+            author_info: { username: string; avatar: string }
+        })[],
         subscribedWidgets: user_subscribed_widgets[],
     ): Promise<WidgetSummaryDto[]> {
         return widgets.map((widget) => ({
@@ -256,17 +266,26 @@ export class WidgetsService {
             category: widget.category,
             author: widget.author,
             icon: widget.icon,
+            author_info: {
+                username: widget.author_info.username,
+                avatar: widget.author_info.avatar,
+            },
             description: widget.description,
             subscribers: widget._count.user_subscribed_widgets,
+            is_private: widget.is_private,
+            is_developing: widget.is_developing,
             coming_soon: widget.coming_soon,
             priority: widget.priority,
             is_subscribed: !!subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
-            settings: this._parseSettings(widget.settings) as any,
+            settings: this.parseSettings(widget.settings) as any,
         }))
     }
 
-    async _mapToDetailResponse(
-        widget: widgets & { _count: { user_subscribed_widgets: number } },
+    async mapToDetailResponse(
+        widget: widgets & {
+            _count: { user_subscribed_widgets: number }
+            author_info: { username: string; avatar: string }
+        },
         subscribedWidgets: user_subscribed_widgets,
     ): Promise<WidgetDetailDto> {
         return {
@@ -278,7 +297,10 @@ export class WidgetsService {
             is_new: widget.is_new,
             is_official: widget.is_official,
             category: widget.category,
-            author: widget.author,
+            author_info: {
+                username: widget.author_info.username,
+                avatar: widget.author_info.avatar,
+            },
             icon: widget.icon,
             description: widget.description,
             coming_soon: widget.coming_soon,
@@ -287,15 +309,19 @@ export class WidgetsService {
             updated_at: widget.updated_at,
             subscribers: widget._count.user_subscribed_widgets,
             is_subscribed: !!subscribedWidgets,
-            settings: this._parseSettings(widget.settings) as any,
+            is_private: widget.is_private,
+            is_developing: widget.is_developing,
+            settings: this.parseSettings(widget.settings) as any,
+            test_users: widget.test_users as string[],
         }
     }
 
-    _parseSettings(settings: any, createDto?: CreateWidgetDto): WidgetSettingsDto {
+    parseSettings(settings: any, createDto?: CreateWidgetDto): WidgetSettingsDto {
         let settingsDto: WidgetSettingsDto = {
             widget_tag: createDto?.tag || settings?.widget_tag || "",
             management_url: settings?.management_url || "",
             widget_url: settings?.widget_url || "",
+            repository_url: settings?.repository_url || "",
             metadata: settings?.metadata || {},
             permissions: (createDto?.settings as any)?.permissions || [],
             type: (createDto?.settings as any)?.type || "iframe",
@@ -303,7 +329,7 @@ export class WidgetsService {
         return settingsDto
     }
 
-    _parseSettingsForUpdate(settings: any, originalSettings: any, tag: string): WidgetSettingsDto {
+    parseSettingsForUpdate(settings: any, originalSettings: any, tag: string): WidgetSettingsDto {
         return {
             widget_tag: tag,
             management_url: settings?.management_url || originalSettings?.management_url || "",
@@ -344,7 +370,7 @@ export class WidgetsService {
             where: bindWhere,
         })
 
-        return appBinds.map((appBind) => this._mapToApplyWidgetConfigToAppsDto(appBind))
+        return appBinds.map((appBind) => this.mapToApplyWidgetConfigToAppsDto(appBind))
     }
 
     async applyWidgetConfigToApps(body: ApplyWidgetConfigToAppsDto, user: UserInfoDTO): Promise<WidgetConfigDto> {
@@ -398,7 +424,7 @@ export class WidgetsService {
             })
         }
 
-        return this._mapToApplyWidgetConfigToAppsDto(existingAppBindWidget)
+        return this.mapToApplyWidgetConfigToAppsDto(existingAppBindWidget)
     }
 
     async updateWidget(body: UpdateWidgetDto, user: UserInfoDTO) {
@@ -420,7 +446,7 @@ export class WidgetsService {
             throw new ForbiddenException("You are not authorized to update a widget")
         }
 
-        const mappedBody = this._mapToUpdateWidgetDto(body, widget)
+        const mappedBody = this.mapToUpdateWidgetDto(body, widget)
         await this.prisma.widgets.update({
             where: { tag: body.tag },
             data: mappedBody,
@@ -484,7 +510,7 @@ export class WidgetsService {
         }
     }
 
-    _mapToUpdateWidgetDto(body: UpdateWidgetDto, originalWidget: widgets): Prisma.widgetsUpdateInput {
+    mapToUpdateWidgetDto(body: UpdateWidgetDto, originalWidget: widgets): Prisma.widgetsUpdateInput {
         return {
             name: body.name !== undefined ? body.name : originalWidget.name,
             summary: body.summary !== undefined ? body.summary : originalWidget.summary,
@@ -493,19 +519,18 @@ export class WidgetsService {
             is_new: body.is_new !== undefined ? body.is_new : originalWidget.is_new,
             is_official: body.is_official !== undefined ? body.is_official : originalWidget.is_official,
             category: body.category !== undefined ? body.category : originalWidget.category,
-            author: body.author !== undefined ? body.author : originalWidget.author,
             icon: body.icon !== undefined ? body.icon : originalWidget.icon,
             description: body.description !== undefined ? body.description : originalWidget.description,
             settings:
                 body.settings !== undefined
-                    ? (this._parseSettingsForUpdate(body.settings, originalWidget.settings, body.tag) as any)
+                    ? (this.parseSettingsForUpdate(body.settings, originalWidget.settings, body.tag) as any)
                     : originalWidget.settings,
             coming_soon: body.coming_soon !== undefined ? body.coming_soon : originalWidget.coming_soon,
             priority: body.priority !== undefined ? body.priority : originalWidget.priority,
         }
     }
 
-    _mapToApplyWidgetConfigToAppsDto(appBind: app_bind_widgets): ApplyWidgetConfigToAppsDto {
+    mapToApplyWidgetConfigToAppsDto(appBind: app_bind_widgets): ApplyWidgetConfigToAppsDto {
         return {
             public: (appBind.widget_configs as any).public as Record<string, any>,
             private: (appBind.widget_configs as any).private as Record<string, any>,

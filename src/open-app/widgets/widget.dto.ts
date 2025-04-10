@@ -18,6 +18,9 @@ export class WidgetSettingsDto {
     @ApiProperty({ description: "metadata" })
     metadata: Record<string, any>
 
+    @ApiProperty({ description: "repository url" })
+    repository_url?: string
+
     @ApiProperty({ description: "permissions", required: true, enum: ROLES })
     permissions: JwtPermissions[]
 
@@ -84,6 +87,10 @@ export class WidgetDto implements widgets {
 
     @ApiProperty({ description: "widget priority" })
     priority: number
+
+    is_private: boolean
+    is_developing: boolean
+    test_users: string[]
 }
 
 export class CreateWidgetDto extends PickType(WidgetDto, [
@@ -101,6 +108,9 @@ export class CreateWidgetDto extends PickType(WidgetDto, [
     "settings",
     "coming_soon",
     "priority",
+    "is_private",
+    "is_developing",
+    "test_users",
 ]) {}
 
 export class UpdateWidgetDto extends PartialType(CreateWidgetDto) {
@@ -112,6 +122,14 @@ export class UpdateWidgetDto extends PartialType(CreateWidgetDto) {
     tag: string
 }
 
+export class AuthorInfoDto {
+    @ApiProperty({ description: "widget author username" })
+    username: string
+
+    @ApiProperty({ description: "widget author avatar" })
+    avatar: string
+}
+
 export class WidgetSummaryDto extends PickType(WidgetDto, [
     "tag",
     "name",
@@ -121,11 +139,12 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
     "is_new",
     "is_official",
     "category",
-    "author",
     "icon",
     "description",
     "settings",
     "coming_soon",
+    "is_developing",
+    "is_private",
     "priority",
 ]) {
     @ApiProperty({ description: "widget subscribers" })
@@ -133,6 +152,9 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
 
     @ApiProperty({ description: "widget is subscribed" })
     is_subscribed: boolean
+
+    @ApiProperty({ description: "widget author info", type: AuthorInfoDto })
+    author_info: AuthorInfoDto
 }
 
 export class WidgetDetailDto extends WidgetSummaryDto {
@@ -140,6 +162,9 @@ export class WidgetDetailDto extends WidgetSummaryDto {
     created_at: Date
     @ApiProperty({ description: "widget updated at" })
     updated_at: Date
+
+    @ApiProperty({ description: "widget test users" })
+    test_users: string[]
 }
 
 export class DeleteWidgetDto extends PickType(WidgetDto, ["tag"]) {}
