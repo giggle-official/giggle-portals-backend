@@ -614,7 +614,7 @@ export class OpenAppService {
         // Update the user's permission to create IPs
         await this.prisma.users.update({
             where: { email: approveData.email },
-            data: { can_create_ip: true },
+            data: { can_create_ip: true, is_developer: true },
         })
 
         //remove creator application
