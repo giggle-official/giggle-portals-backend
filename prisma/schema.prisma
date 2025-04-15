@@ -504,7 +504,7 @@ model video_edit_subtasks {
 model asset_to_meme_record {
   id                    Int       @id @default(autoincrement())
   owner                 String?   @db.VarChar(32)
-  asset_id              Int
+  asset_id              Int?
   ip_id                 Json?
   mint_params           Json?
   status                String?   @db.VarChar(32)

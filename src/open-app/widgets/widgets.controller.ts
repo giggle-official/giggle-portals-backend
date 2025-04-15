@@ -33,7 +33,7 @@ export class WidgetsController {
     @ApiResponse({ type: WidgetSummaryDto, isArray: true })
     @UseGuards(OptionalJwtAuthGuard)
     async getWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
-        return this.widgetService.getWidgets(req?.user as UserInfoDTO, query)
+        return this.widgetService.getWidgets(query, req?.user as UserInfoDTO)
     }
 
     @Get("/my")

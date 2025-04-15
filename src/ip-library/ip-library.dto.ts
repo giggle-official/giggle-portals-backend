@@ -708,12 +708,13 @@ export class CreateIpDto {
     })
     image_id: number
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsNumber()
     @ApiProperty({
         description: "id of the video",
+        required: false,
     })
-    video_id: number
+    video_id?: number
 
     @IsNotEmpty()
     @IsBoolean()

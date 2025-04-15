@@ -786,17 +786,12 @@ export class IpLibraryService {
 
             const { imageAsset, videoAsset } = await this.processAssets(
                 user,
-                body.image_id.toString(),
-                body.video_id.toString(),
                 subscriber,
+                "edit",
+                parseInt(body.image_id.toString()),
+                parseInt(body.video_id?.toString() || "0"),
+                parseInt(body.id.toString()),
             )
-
-            const isRelatedToIp = videoAsset.related_ip_libraries.find(
-                (item) => item.id !== parseInt(body.id.toString()),
-            )
-            if (isRelatedToIp && videoAsset.related_ip_libraries.length > 0) {
-                throw new BadRequestException("Video asset is already related to an ip")
-            }
 
             const ipDetailBeforeUpdate = await this.detail(body.id.toString(), null)
 
@@ -834,27 +829,29 @@ export class IpLibraryService {
                 await tx.ip_signature_clips.deleteMany({
                     where: { ip_id: ipLibrary.id },
                 })
-
-                await tx.ip_signature_clips.create({
-                    data: {
-                        ip_id: ipLibrary.id,
-                        name: ipLibrary.name,
-                        description: ipLibrary.description,
-                        object_key: videoAsset.path,
-                        ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
-                        thumbnail: videoAsset.thumbnail,
-                        asset_id: videoAsset.id,
-                        video_info: (videoAsset.asset_info as any)?.videoInfo,
-                    },
-                })
-
                 //remove old related ip
                 await this.assetsService.clearRelatedIp(user, ipDetailBeforeUpdate.id)
-                //relate to new ip
-                await this.assetsService.relateToIp(user, {
-                    ip_id: ipDetailBeforeUpdate.id,
-                    asset_id: videoAsset.id,
-                })
+
+                if (videoAsset) {
+                    await tx.ip_signature_clips.create({
+                        data: {
+                            ip_id: ipLibrary.id,
+                            name: ipLibrary.name,
+                            description: ipLibrary.description,
+                            object_key: videoAsset.path,
+                            ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
+                            thumbnail: videoAsset.thumbnail,
+                            asset_id: videoAsset.id,
+                            video_info: (videoAsset.asset_info as any)?.videoInfo,
+                        },
+                    })
+
+                    //relate to new ip
+                    await this.assetsService.relateToIp(user, {
+                        ip_id: ipDetailBeforeUpdate.id,
+                        asset_id: videoAsset.id,
+                    })
+                }
 
                 return ipLibrary
             })
@@ -987,29 +984,42 @@ export class IpLibraryService {
 
     async processAssets(
         user: UserInfoDTO,
-        image_id: string,
-        video_id: string,
         subscriber: any,
+        type: "create" | "edit",
+        image_id: number,
+        video_id?: number,
+        ip_id?: number,
     ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
-        const imageAsset = await this.assetsService.getAsset(user, parseInt(image_id))
+        const imageAsset = await this.assetsService.getAsset(user, image_id)
         if (!imageAsset) {
             throw new NotFoundException("Image asset not found")
-        }
-
-        const videoAsset = await this.assetsService.getAsset(user, parseInt(video_id))
-        if (!videoAsset) {
-            throw new NotFoundException("Video asset not found")
         }
 
         if (imageAsset.type !== "image") {
             throw new BadRequestException("Image asset is not an image")
         }
+        let videoAsset: AssetDetailDto | null = null
+        if (video_id) {
+            videoAsset = await this.assetsService.getAsset(user, video_id)
+            if (!videoAsset) {
+                throw new NotFoundException("Video asset not found")
+            }
+            if (videoAsset.type !== "video") {
+                throw new BadRequestException("Video asset is not a video")
+            }
 
-        if (videoAsset.type !== "video") {
-            throw new BadRequestException("Video asset is not a video")
+            if (type === "create") {
+                if (videoAsset.related_ip_libraries.length > 0) {
+                    throw new BadRequestException("Video asset is already related to an ip")
+                }
+            } else {
+                const isRelatedToOtherIp = videoAsset.related_ip_libraries.find((item) => item.id !== ip_id)
+                if (isRelatedToOtherIp && videoAsset.related_ip_libraries.length > 0) {
+                    throw new BadRequestException("Video asset is already related to an ip")
+                }
+            }
         }
-
-        return await this.uploadAssetToIpfs(imageAsset, videoAsset, subscriber)
+        return await this.uploadAssetToIpfs(subscriber, imageAsset, videoAsset)
     }
 
     async processCreateIp(user: UserInfoDTO, body: CreateIpDto, subscriber: any): Promise<void> {
@@ -1033,7 +1043,6 @@ export class IpLibraryService {
         let ipPushedToChain: boolean = false
         let ipTokenCreated: boolean = false
         let ipTokenRegistered: boolean = false
-
         try {
             if (body.parent_ip_library_id) {
                 const parentIpInfo = await this.prismaService.ip_library.findUnique({
@@ -1062,7 +1071,6 @@ export class IpLibraryService {
                     }
                 }
             }
-
             //The period of a new ip without long term must be greater than now
             const authSettings = this.processAuthSettings(body.authorization_settings as any)
             if (!authSettings.long_term_license) {
@@ -1075,9 +1083,10 @@ export class IpLibraryService {
 
             const { imageAsset, videoAsset } = await this.processAssets(
                 user,
-                body.image_id.toString(),
-                body.video_id.toString(),
                 subscriber,
+                "create",
+                parseInt(body.image_id.toString()),
+                parseInt(body.video_id?.toString() || "0"),
             )
 
             if (videoAsset.related_ip_libraries.length > 0) {
@@ -1117,20 +1126,20 @@ export class IpLibraryService {
                         creation_guide_lines: body.creation_guide_lines || "",
                     },
                 })
-
-                await tx.ip_signature_clips.create({
-                    data: {
-                        ip_id: ipLibrary.id,
-                        name: body.name,
-                        description: body.description,
-                        object_key: videoAsset.path,
-                        ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
-                        thumbnail: videoAsset.thumbnail,
-                        asset_id: videoAsset.id,
-                        video_info: (videoAsset.asset_info as any)?.videoInfo,
-                    },
-                })
-
+                if (videoAsset) {
+                    await tx.ip_signature_clips.create({
+                        data: {
+                            ip_id: ipLibrary.id,
+                            name: body.name,
+                            description: body.description,
+                            object_key: videoAsset.path,
+                            ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
+                            thumbnail: videoAsset.thumbnail,
+                            asset_id: videoAsset.id,
+                            video_info: (videoAsset.asset_info as any)?.videoInfo,
+                        },
+                    })
+                }
                 if (body.parent_ip_library_id) {
                     await tx.ip_library_child.create({
                         data: {
@@ -1143,10 +1152,12 @@ export class IpLibraryService {
                 return ipLibrary
             })
 
-            await this.assetsService.relateToIp(user, {
-                ip_id: result.id,
-                asset_id: videoAsset.id,
-            })
+            if (videoAsset) {
+                await this.assetsService.relateToIp(user, {
+                    ip_id: result.id,
+                    asset_id: videoAsset.id,
+                })
+            }
 
             ipId = result.id
 
@@ -1158,10 +1169,10 @@ export class IpLibraryService {
                 },
             })
 
-            const onChainInfo = await this.ipOnChainService.pushIpToChain(user, ipId)
-            if (!onChainInfo.isSucc) {
-                throw new BadRequestException("Failed to push ip to chain")
-            }
+            //const onChainInfo = await this.ipOnChainService.pushIpToChain(user, ipId)
+            //if (!onChainInfo.isSucc) {
+            //    throw new BadRequestException("Failed to push ip to chain")
+            //}
             ipPushedToChain = true
 
             let shareWarning: string | null = null
@@ -1196,7 +1207,7 @@ export class IpLibraryService {
             }
             subscriber.complete()
         } catch (error) {
-            this.logger.error("Error creating ip:", error, `user: ${user.email}, body: ${JSON.stringify(body)}`)
+            this.logger.error("Error creating ip:" + error + " user: " + user.email + " body: " + JSON.stringify(body))
             if (ipId && !ipPushedToChain) {
                 //all block chain process failed, remove ip and refund parent ip license
                 this.logger.error("IP is not pushed to chain, remove it", `ip_id: ${ipId}`)
@@ -1282,10 +1293,6 @@ export class IpLibraryService {
                 throw new BadRequestException("IP already shared to giggle")
             }
 
-            if (ip.ip_signature_clips.length === 0) {
-                throw new BadRequestException("IP does not have signature clip")
-            }
-
             if (!ip.cover_hash) {
                 throw new BadRequestException("IP does not have cover image")
             }
@@ -1332,7 +1339,7 @@ export class IpLibraryService {
             }
 
             const mintParams: CreateIpTokenDto = {
-                asset_id: ip.ip_signature_clips[0].asset_id,
+                asset_id: ip.ip_signature_clips?.[0]?.asset_id || null,
                 name: ipDetail.name,
                 ticker: ipDetail.ticker,
                 description: ipDetail.description,
@@ -1350,6 +1357,7 @@ export class IpLibraryService {
 
             const tokenRes = await this.giggleService.processIpToken(
                 user,
+                ip.id,
                 mintParams,
                 subscriber,
                 false, //do not complete subscriber here
@@ -1654,9 +1662,9 @@ export class IpLibraryService {
     }
 
     async uploadAssetToIpfs(
-        imageAsset: AssetDetailDto,
-        videoAsset: AssetDetailDto,
         subscriber: any,
+        imageAsset: AssetDetailDto,
+        videoAsset?: AssetDetailDto,
     ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
         subscriber.next({
             event: "ip.asset_processing",
@@ -1682,7 +1690,11 @@ export class IpLibraryService {
             imageAsset.ipfs_key = uploadUrl.key
         }
 
-        if (!videoAsset.ipfs_key) {
+        if (!videoAsset) {
+            return { imageAsset, videoAsset }
+        }
+
+        if (videoAsset && !videoAsset.ipfs_key) {
             //upload video to ipfs
             try {
                 const pinata = new PinataSDK({

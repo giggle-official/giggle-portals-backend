@@ -152,9 +152,10 @@ export class AssetsService {
             thumbnail_url: asset.thumbnail
                 ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail, s3Info)
                 : null,
-            related_ip_libraries: await Promise.all(
-                ip_library_ids.map((item) => this.ipLibraryService.detail(item.toString(), null)),
-            ),
+            related_ip_libraries:
+                (await Promise.all(
+                    ip_library_ids.map((item) => this.ipLibraryService.detail(item.toString(), null)),
+                )) || [],
         }
     }
 

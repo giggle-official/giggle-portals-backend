@@ -274,44 +274,6 @@
         ]
       }
     },
-    "/api/v1/web3/giggle/create-ip-token": {
-      "post": {
-        "description": "Returns SSE stream with progress updates and final result",
-        "operationId": "GiggleController_createIpToken",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateIpTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SSEMessage"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create IP token",
-        "tags": [
-          "Web3 Giggle"
-        ]
-      }
-    },
     "/api/v1/web3/giggle/get-ip-token-list": {
       "get": {
         "operationId": "GiggleController_getIpTokenList",
@@ -4469,76 +4431,6 @@
           "key"
         ]
       },
-      "CreateIpTokenDto": {
-        "type": "object",
-        "properties": {
-          "asset_id": {
-            "type": "string",
-            "description": "asset id of the ip token"
-          },
-          "cover_s3_key": {
-            "type": "string",
-            "description": "cover image s3 key of the ip token, if provided, this asset will be uploaded to ipfs and used as cover image"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the ip token"
-          },
-          "ticker": {
-            "type": "string",
-            "description": "ticker of the ip token"
-          },
-          "cover_image": {
-            "type": "string",
-            "description": "cover image of the ip token, in ipfs format"
-          },
-          "description": {
-            "type": "string",
-            "description": "description of the ip token"
-          },
-          "twitter": {
-            "type": "string",
-            "description": "twitter of the ip token"
-          },
-          "telegram": {
-            "type": "string",
-            "description": "telegram of the ip token"
-          },
-          "website": {
-            "type": "string",
-            "description": "website of the ip token"
-          },
-          "buySol": {
-            "type": "number",
-            "description": "buy sol of the ip token"
-          },
-          "createAmount": {
-            "type": "number",
-            "description": "create amount of the ip token, minimum 0.3, in usdc"
-          },
-          "buyAmount": {
-            "type": "number",
-            "description": "buy amount of the ip token when create, in usdc"
-          }
-        },
-        "required": [
-          "asset_id",
-          "name",
-          "ticker",
-          "cover_image",
-          "description",
-          "twitter",
-          "telegram",
-          "website",
-          "buySol",
-          "createAmount",
-          "buyAmount"
-        ]
-      },
-      "SSEMessage": {
-        "type": "object",
-        "properties": {}
-      },
       "GetIpTokenListResponseDto": {
         "type": "object",
         "properties": {
@@ -6548,7 +6440,6 @@
           "ticker",
           "description",
           "image_id",
-          "video_id",
           "share_to_giggle",
           "authorization_settings"
         ]
@@ -6606,10 +6497,13 @@
         "required": [
           "description",
           "image_id",
-          "video_id",
           "authorization_settings",
           "id"
         ]
+      },
+      "SSEMessage": {
+        "type": "object",
+        "properties": {}
       },
       "ShareToGiggleDto": {
         "type": "object",

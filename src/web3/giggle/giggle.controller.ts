@@ -91,25 +91,6 @@ export class GiggleController {
         return this.giggleService.signTest(body)
     }
 
-    @Post("/create-ip-token")
-    @Sse("/create-ip-token")
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({
-        summary: "Create IP token",
-        description: "Returns SSE stream with progress updates and final result",
-    })
-    @ApiConsumes("multipart/form-data")
-    @ApiResponse({
-        type: SSEMessage,
-    })
-    @ApiBody({ type: CreateIpTokenDto })
-    @ApiBearerAuth()
-    @UseGuards(AuthGuard("jwt"))
-    @NologInterceptor()
-    createIpToken(@Req() req: Request, @Body() body: CreateIpTokenDto) {
-        return this.giggleService.createIpToken(req.user as UserInfoDTO, body)
-    }
-
     @Get("/get-ip-token-list")
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: "Get IP token list" })

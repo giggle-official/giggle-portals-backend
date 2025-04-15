@@ -31,12 +31,6 @@ export class GiggleApiResponseDto<T> {
 
 export class CreateIpTokenDto {
     @ApiProperty({
-        description: "asset id of the ip token",
-        type: "string",
-    })
-    asset_id: number | string
-
-    @ApiProperty({
         description:
             "cover image s3 key of the ip token, if provided, this asset will be uploaded to ipfs and used as cover image",
         type: "string",
@@ -99,6 +93,13 @@ export class CreateIpTokenDto {
         description: "buy amount of the ip token when create, in usdc",
     })
     buyAmount?: number
+
+    @ApiProperty({
+        description: "asset id of the ip token",
+        type: "string",
+        required: false,
+    })
+    asset_id?: number | string
 }
 
 export class CreateIpTokenResponseDto {

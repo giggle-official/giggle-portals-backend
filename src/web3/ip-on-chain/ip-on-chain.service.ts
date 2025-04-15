@@ -51,7 +51,7 @@ export class IpOnChainService {
             }
 
             //update ip metadata and authorization settings to ipfs
-            const ipMetadata = {
+            const ipMetadata: any = {
                 id: ip.id,
                 owner: user.email,
                 name: ip.name,
@@ -59,10 +59,13 @@ export class IpOnChainService {
                 description: ip.description,
                 cover_image: `${this.ipfsPrefix}${ip.cover_hash}`,
                 cover_hash: ip.cover_hash,
-                video_url: `${this.ipfsPrefix}${ip.ip_signature_clips[0].ipfs_hash}`,
-                video_hash: ip.ip_signature_clips[0].ipfs_hash,
                 type: ip.genre.map((g) => g.name).join(","),
                 extra_info: ip.extra_info,
+            }
+
+            if (ip.ip_signature_clips?.length > 0) {
+                ipMetadata.video_url = `${this.ipfsPrefix}${ip.ip_signature_clips[0].ipfs_hash}`
+                ipMetadata.video_hash = ip.ip_signature_clips[0].ipfs_hash
             }
 
             const authorizationSettings = ip.authorization_settings
@@ -80,7 +83,7 @@ export class IpOnChainService {
                     title: ip.name,
                     symbol: ip.ticker,
                     uri: `${this.ipfsPrefix}${ip.cover_hash}`,
-                    ipType: ip.genre.map((g) => g.name).join(","),
+                    ipType: ip.genre.map((g) => g.name).join(",") || "video",
                     metadataUri: `${this.ipfsPrefix}${metaUriResponse.IpfsHash}`,
                     metadataHash: metaUriResponse.IpfsHash,
                     licenseUri: `${this.ipfsPrefix}${authorizationUriResponse.IpfsHash}`,

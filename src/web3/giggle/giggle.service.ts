@@ -34,7 +34,7 @@ import { UserInfoDTO } from "src/user/user.controller"
 import { LogsService } from "src/user/logs/logs.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
-import { Prisma } from "@prisma/client"
+import { assets, Prisma } from "@prisma/client"
 import FormData from "form-data"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import axios from "axios"
@@ -193,9 +193,9 @@ export class GiggleService {
         return response.data
     }
 
-    createIpToken(userInfo: UserInfoDTO, params: CreateIpTokenDto): Observable<SSEMessage> {
+    createIpToken(userInfo: UserInfoDTO, ipId: number, params: CreateIpTokenDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
-            this.processIpToken(userInfo, params, subscriber).catch((error) => {
+            this.processIpToken(userInfo, ipId, params, subscriber).catch((error) => {
                 subscriber.error(error)
             })
         })
@@ -203,6 +203,7 @@ export class GiggleService {
 
     async processIpToken(
         userInfo: UserInfoDTO,
+        ipId: number,
         params: CreateIpTokenDto,
         subscriber: any,
         completeSubscriber: boolean = true,
@@ -210,20 +211,6 @@ export class GiggleService {
         let mintParams: CreateIpTokenGiggleRequestDto | null = null
         let mintRes: CreateIpTokenGiggleResponseDto | null = null
         try {
-            const asset = await this.prismaService.assets.findUnique({
-                where: { id: parseInt(params.asset_id.toString()) },
-                include: {
-                    asset_related_ips: true,
-                },
-            })
-            if (!asset) {
-                throw new BadRequestException("Asset not found")
-            }
-
-            if (asset.type !== "video") {
-                throw new BadRequestException("Asset is not a video")
-            }
-
             const user = await this.prismaService.users.findUnique({
                 where: { username_in_be: userInfo.usernameShorted },
             })
@@ -231,13 +218,29 @@ export class GiggleService {
                 throw new BadRequestException("User not found")
             }
 
-            const videoUrl = await this.uploadAsset(asset.path, subscriber)
+            let asset: assets | null = null
+            let videoUrl: string = ""
+            if (params.asset_id) {
+                asset = await this.prismaService.assets.findUnique({
+                    where: { id: parseInt(params.asset_id.toString()) },
+                    include: {
+                        asset_related_ips: true,
+                    },
+                })
+                if (!asset) {
+                    throw new BadRequestException("Asset not found")
+                }
+                if (asset.type !== "video") {
+                    throw new BadRequestException("Asset is not a video")
+                }
+                videoUrl = await this.uploadAsset(asset.path, subscriber)
+            }
 
             mintParams = {
                 email: user.email,
                 name: params.name,
                 coverUrl: params.cover_image,
-                fileUrl: videoUrl,
+                fileUrl: videoUrl || "",
                 symbol: params.ticker,
                 description: params.description,
                 twitter: params?.twitter,
@@ -280,10 +283,8 @@ export class GiggleService {
             //store meme info in db
             await this.prismaService.asset_to_meme_record.create({
                 data: {
-                    asset_id: asset.id,
-                    ip_id: asset.asset_related_ips.map((item) => {
-                        return { ip_id: item.ip_id }
-                    }),
+                    asset_id: asset ? asset.id : null,
+                    ip_id: [{ ip_id: ipId }],
                     owner: user.username_in_be,
                     mint_params: signaturedParams,
                     status: mintRes.status,

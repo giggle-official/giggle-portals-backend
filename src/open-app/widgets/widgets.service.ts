@@ -69,7 +69,7 @@ export class WidgetsService {
         })
     }
 
-    async getWidgets(user: UserInfoDTO, query: GetWidgetsRequestDto): Promise<WidgetSummaryDto[]> {
+    async getWidgets(query: GetWidgetsRequestDto, user?: UserInfoDTO): Promise<WidgetSummaryDto[]> {
         const where: Prisma.widgetsWhereInput = {
             is_developing: false,
             is_private: false,
@@ -106,9 +106,12 @@ export class WidgetsService {
             },
         })
 
-        const subscribedWidgets = await this.prisma.user_subscribed_widgets.findMany({
-            where: { user: user.usernameShorted },
-        })
+        let subscribedWidgets: user_subscribed_widgets[] = []
+        if (user) {
+            subscribedWidgets = await this.prisma.user_subscribed_widgets.findMany({
+                where: { user: user.usernameShorted },
+            })
+        }
 
         return this._mapToSummaryResponse(widgets, subscribedWidgets)
     }
