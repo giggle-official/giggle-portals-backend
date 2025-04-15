@@ -1089,10 +1089,6 @@ export class IpLibraryService {
                 parseInt(body.video_id?.toString() || "0"),
             )
 
-            if (videoAsset.related_ip_libraries.length > 0) {
-                throw new BadRequestException("Video asset is already related to an ip")
-            }
-
             subscriber.next({
                 event: "ip.ip_library_creating",
                 data: {
