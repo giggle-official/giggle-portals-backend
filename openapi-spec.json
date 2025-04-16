@@ -7013,6 +7013,13 @@
             "type": "object",
             "description": "App configs, you can pass any configs you want"
           },
+          "menus": {
+            "description": "App menus",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "kline_url": {
             "type": "string",
             "description": "Kline URL"
@@ -7034,6 +7041,7 @@
           "sub_domain",
           "style_name",
           "radius",
+          "menus",
           "kline_url",
           "widgets"
         ]
@@ -7079,6 +7087,13 @@
             "type": "object",
             "description": "App configs, you can pass any configs you want"
           },
+          "menus": {
+            "description": "App menus",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "widgets": {
             "description": "Widgets",
             "type": "array",
@@ -7095,6 +7110,7 @@
           "sub_domain",
           "style_name",
           "radius",
+          "menus",
           "widgets",
           "ip_id"
         ]
@@ -7130,6 +7146,13 @@
             "type": "object",
             "description": "App configs, you can pass any configs you want"
           },
+          "menus": {
+            "description": "App menus",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "widgets": {
             "description": "Widgets",
             "type": "array",
@@ -7150,6 +7173,7 @@
           "sub_domain",
           "style_name",
           "radius",
+          "menus",
           "widgets",
           "app_id",
           "ip_id"

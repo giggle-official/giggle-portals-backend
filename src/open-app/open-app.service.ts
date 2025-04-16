@@ -3,6 +3,7 @@ import { PrismaService } from "src/common/prisma.service"
 import {
     AppInfoDto,
     AppListDto,
+    AppMenuDto,
     ApproveCreatorDto,
     ApproveCreatorResponseDto,
     CreateAppDto,
@@ -53,6 +54,7 @@ export class OpenAppService {
                 style_name: true,
                 sub_domain: true,
                 configs: true,
+                menus: true,
                 app_bind_ips: {
                     select: {
                         ip: true,
@@ -64,6 +66,7 @@ export class OpenAppService {
                         widget_configs: true,
                         widget_detail: true,
                         enabled: true,
+                        order: true,
                     },
                 },
             },
@@ -99,12 +102,16 @@ export class OpenAppService {
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
             configs: this._processConfigs(app.configs),
             kline_url: process.env.GIGGLE_KLINE_URL,
-            widgets: app.app_bind_widgets.map((widget) => ({
-                tag: widget.widget_tag,
-                configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
-                widget_detail: widget.widget_detail,
-                enabled: widget.enabled,
-            })),
+            menus: this._mapAppMenus(app.menus),
+            widgets: await Promise.all(
+                app.app_bind_widgets.map(async (widget) => ({
+                    tag: widget.widget_tag,
+                    configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
+                    widget_detail: widget.widget_detail,
+                    order: widget.order,
+                    enabled: widget.enabled,
+                })),
+            ),
         }
     }
 
@@ -192,6 +199,7 @@ export class OpenAppService {
                     radius: createData.radius,
                     style_name: createData.style_name,
                     sub_domain: createData.sub_domain,
+                    menus: this._mapAppMenus(createData.menus) as any,
                     app_secret: app_secret,
                     creator: userInfo.usernameShorted,
                     configs: this._processConfigs(createData.configs) as any,
@@ -248,7 +256,8 @@ export class OpenAppService {
                             widget_tag: widget.tag,
                             widget_configs: widgetConfigs,
                             subscription_id: subscription.id,
-                            enabled: true,
+                            enabled: widget.enabled,
+                            order: widget.order || 999,
                         },
                     })
                 }),
@@ -358,6 +367,7 @@ export class OpenAppService {
                     style_name: updateData.style_name,
                     sub_domain: updateData.sub_domain,
                     configs: this._processConfigs(updateData.configs) as any,
+                    menus: this._mapAppMenus(updateData.menus) as any,
                 },
                 select: {
                     id: true,
@@ -368,6 +378,7 @@ export class OpenAppService {
                     style_name: true,
                     sub_domain: true,
                     created_at: true,
+                    menus: true,
                 },
             })
             await tx.app_bind_ips.deleteMany({
@@ -412,7 +423,6 @@ export class OpenAppService {
                         where: { app_id: updateData.app_id, widget_tag: widget.tag },
                     })
                     if (!isBind && widget.enabled) {
-                        console.log("create it")
                         // not bind, create it
                         await this.prisma.app_bind_widgets.create({
                             data: {
@@ -420,6 +430,7 @@ export class OpenAppService {
                                 widget_tag: widget.tag,
                                 widget_configs: widgetConfigs,
                                 subscription_id: subscription.id,
+                                order: widget.order,
                                 enabled: true,
                             },
                         })
@@ -431,6 +442,7 @@ export class OpenAppService {
                                 widget_configs: widgetConfigs,
                                 subscription_id: subscription.id,
                                 enabled: widget.enabled,
+                                order: widget.order,
                             },
                         })
                     }
@@ -650,5 +662,28 @@ export class OpenAppService {
             throw new NotFoundException("App not found")
         }
         return this.getAppDetail(app.app_id, "")
+    }
+
+    private _mapAppMenus(menus: any): AppMenuDto[] {
+        const STATIC_MENUS: AppMenuDto[] = [
+            { name: "IP Browser", path: "/ip-browser", order: 0, enabled: true },
+            { name: "Community", path: "/community", order: 1, enabled: true },
+        ]
+
+        if (!menus) {
+            return STATIC_MENUS
+        }
+        return menus.map((menu: any) => {
+            const menuItem = STATIC_MENUS.find((m) => m.name === menu.name)
+            if (!menuItem) {
+                return null
+            }
+            return {
+                name: menuItem.name,
+                path: menuItem.path,
+                order: menu.order || menuItem.order,
+                enabled: menu.enabled || menuItem.enabled,
+            }
+        })
     }
 }

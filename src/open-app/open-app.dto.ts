@@ -1,6 +1,27 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
 import { IpLibraryDetailDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
+export class AppMenuDto {
+    @ApiProperty({
+        description: "Menu ID",
+    })
+    name: string
+
+    @ApiProperty({
+        description: "Menu Path",
+    })
+    path: string
+
+    @ApiProperty({
+        description: "Menu Order",
+    })
+    order: number
+
+    @ApiProperty({
+        description: "Menu Enabled",
+    })
+    enabled: boolean
+}
 
 export class AppInfoDto {
     @ApiProperty({
@@ -65,6 +86,14 @@ export class AppInfoDto {
     configs: Record<string, any>
 
     @ApiProperty({
+        description: "App menus",
+        required: true,
+        type: Object,
+        isArray: true,
+    })
+    menus: AppMenuDto[]
+
+    @ApiProperty({
         description: "Kline URL",
     })
     kline_url: string
@@ -78,11 +107,19 @@ export class AppInfoDto {
         tag: string
         configs: Record<string, any>
         widget_detail: any
+        order: number
         enabled: boolean
     }[]
 }
 
-export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs", "widgets"]) {
+export class CreateAppDto extends PickType(AppInfoDto, [
+    "radius",
+    "style_name",
+    "sub_domain",
+    "configs",
+    "widgets",
+    "menus",
+]) {
     @ApiProperty({
         description:
             "IP ID, this ip must be shared to giggle and have no parent ip and ip owner is the same as the app owner",
@@ -90,7 +127,14 @@ export class CreateAppDto extends PickType(AppInfoDto, ["radius", "style_name", 
     ip_id: number
 }
 
-export class UpdateAppDto extends PickType(AppInfoDto, ["radius", "style_name", "sub_domain", "configs", "widgets"]) {
+export class UpdateAppDto extends PickType(AppInfoDto, [
+    "radius",
+    "style_name",
+    "sub_domain",
+    "configs",
+    "widgets",
+    "menus",
+]) {
     @ApiProperty({
         description: "App ID",
     })
