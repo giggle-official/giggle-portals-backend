@@ -543,14 +543,21 @@ export class OpenAppService {
                     where: { email: requestData.email },
                 })
                 if (result.success) {
-                    const isExists = await this.prisma.user_invited_record.findFirst({
+                    const isExists = await this.prisma.user_invited_record.findMany({
                         where: { user: invitedUser.username_in_be, invited_user: invitedUserInfo.username_in_be },
                     })
-                    if (!isExists) {
+                    if (isExists.length === 0) {
                         await this.prisma.user_invited_record.create({
                             data: {
                                 user: invitedUser.username_in_be,
                                 invited_user: invitedUserInfo.username_in_be,
+                            },
+                        })
+                    } else {
+                        await this.prisma.user_invited_record.updateMany({
+                            where: { id: { in: isExists.map((item) => item.id) } },
+                            data: {
+                                updated_at: new Date(),
                             },
                         })
                     }
