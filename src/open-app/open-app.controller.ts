@@ -28,6 +28,7 @@ import {
     TopIpSummaryDto,
     UpdateAppDto,
     AddInviteEmailDto,
+    RemoveInviteEmailDto,
 } from "./open-app.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -273,5 +274,23 @@ export class OpenAppController {
     @ApiBearerAuth()
     async addInviteEmail(@Body() addInviteEmailDto: AddInviteEmailDto, @Req() req: Request) {
         return this.openAppService.addInviteEmail(addInviteEmailDto, req.user as UserInfoDTO)
+    }
+
+    @Post("/remove-invite-email")
+    @ApiBody({
+        type: RemoveInviteEmailDto,
+    })
+    @ApiOperation({
+        summary: "Remove invite email",
+    })
+    @ApiResponse({
+        status: 200,
+        description: "Invite email removed successfully",
+    })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    async removeInviteEmail(@Body() removeInviteEmailDto: RemoveInviteEmailDto, @Req() req: Request) {
+        return this.openAppService.removeInviteEmail(removeInviteEmailDto, req.user as UserInfoDTO)
     }
 }

@@ -1052,12 +1052,17 @@ export class IpLibraryService {
                     throw new BadRequestException("Parent ip not found")
                 }
 
+                //is 3rd ip
+                const is3rdLevelIp = await this.prismaService.ip_library_child.findFirst({
+                    where: { ip_id: parentIpInfo.id },
+                })
+
                 /**
                  *
-                 * user can create ip with parent ip if user is the owner of the parent ip
+                 * all 3rd level ip need to consume license
                  *
                  */
-                if (parentIpInfo.owner !== user.usernameShorted) {
+                if (is3rdLevelIp) {
                     try {
                         consumeLicenseLogs = await this.licenseService.consume(
                             user,
@@ -1069,6 +1074,8 @@ export class IpLibraryService {
                     } catch (error) {
                         throw new BadRequestException("you have no license to use this parent ip")
                     }
+                } else if (parentIpInfo.owner !== user.usernameShorted) {
+                    throw new BadRequestException("you have no permission to use this parent ip")
                 }
             }
             //The period of a new ip without long term must be greater than now

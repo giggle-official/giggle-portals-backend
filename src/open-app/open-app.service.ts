@@ -531,6 +531,29 @@ export class OpenAppService {
         // Get admin email from environment or config
         const adminEmail = process.env.CONTACT_EMAIL || "admin@giggle.pro"
 
+        //check if invited user email is provided
+        if (requestData.invited_user_email) {
+            //check if the invited user exists
+            const invitedUser = await this.prisma.users.findUnique({
+                where: { email: requestData.invited_user_email, can_invite_user: true },
+            })
+            if (invitedUser) {
+                const result = await this._processApproveCreator({ email: requestData.invited_user_email })
+                const invitedUserInfo = await this.prisma.users.findUnique({
+                    where: { email: requestData.invited_user_email },
+                })
+                if (result.success) {
+                    await this.prisma.user_invited_record.create({
+                        data: {
+                            user: invitedUser.username_in_be,
+                            invited_user: invitedUserInfo.username_in_be,
+                        },
+                    })
+                }
+                return result
+            }
+        }
+
         //check application already exists
         const application = await this.prisma.creator_applications.findFirst({
             where: { email: requestData.email },
@@ -560,29 +583,6 @@ export class OpenAppService {
                 description: requestData.description,
             },
         })
-
-        //check if invited user email is provided
-        if (requestData.invited_user_email) {
-            //check if the invited user exists
-            const invitedUser = await this.prisma.users.findUnique({
-                where: { email: requestData.invited_user_email, can_invite_user: true },
-            })
-            if (invitedUser) {
-                const result = await this._processApproveCreator({ email: requestData.invited_user_email })
-                const invitedUserInfo = await this.prisma.users.findUnique({
-                    where: { email: requestData.invited_user_email },
-                })
-                if (result.success) {
-                    await this.prisma.user_invited_record.create({
-                        data: {
-                            user: invitedUser.username_in_be,
-                            invited_user: invitedUserInfo.username_in_be,
-                        },
-                    })
-                }
-                return result
-            }
-        }
 
         // Send email to admin
         await this.notificationService.sendNotification(

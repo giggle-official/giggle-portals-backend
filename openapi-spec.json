@@ -3246,6 +3246,36 @@
         ]
       }
     },
+    "/api/v1/app/remove-invite-email": {
+      "post": {
+        "operationId": "OpenAppController_removeInviteEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveInviteEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invite email removed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove invite email",
+        "tags": [
+          "IP Portal"
+        ]
+      }
+    },
     "/api/v1/app/auth/login": {
       "post": {
         "description": "this api is used to request login app",
@@ -7328,6 +7358,19 @@
         ]
       },
       "AddInviteEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Invite email, this email will be used to invite users to create app permission",
+            "example": "johndoe@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "RemoveInviteEmailDto": {
         "type": "object",
         "properties": {
           "email": {
