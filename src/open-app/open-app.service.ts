@@ -540,7 +540,7 @@ export class OpenAppService {
             if (invitedUser) {
                 const result = await this._processApproveCreator({ email: requestData.invited_user_email })
                 const invitedUserInfo = await this.prisma.users.findUnique({
-                    where: { email: requestData.invited_user_email },
+                    where: { email: requestData.email },
                 })
                 if (result.success) {
                     await this.prisma.user_invited_record.create({
