@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
+    AddInviteEmailDto,
     AppInfoDto,
     AppListDto,
     AppMenuDto,
@@ -9,6 +10,7 @@ import {
     CreateAppDto,
     DeleteAppDto,
     OpenAppSettingsDto,
+    RemoveInviteEmailDto,
     RequestCreatorDto,
     RequestCreatorResponseDto,
     TopIpSummaryDto,
@@ -559,6 +561,17 @@ export class OpenAppService {
             },
         })
 
+        //check if invited user email is provided
+        if (requestData.invited_user_email) {
+            //check if the invited user exists
+            const invitedUser = await this.prisma.users.findUnique({
+                where: { email: requestData.invited_user_email, can_invite_user: true },
+            })
+            if (invitedUser) {
+                return this._processApproveCreator({ email: requestData.invited_user_email })
+            }
+        }
+
         // Send email to admin
         await this.notificationService.sendNotification(
             "New Creator Application Request",
@@ -594,17 +607,7 @@ export class OpenAppService {
         }
     }
 
-    async approveCreator(approveData: ApproveCreatorDto, userInfo: UserInfoDTO): Promise<ApproveCreatorResponseDto> {
-        // Check if requester is admin
-        const adminUser = await this.prisma.users.findUnique({
-            where: { username_in_be: userInfo.usernameShorted },
-            select: { is_admin: true },
-        })
-
-        if (!adminUser || !adminUser.is_admin) {
-            throw new BadRequestException("Only admins can approve creator applications")
-        }
-
+    async _processApproveCreator(approveData: ApproveCreatorDto): Promise<ApproveCreatorResponseDto> {
         // Find the user account
         const user = await this.prisma.users.findFirst({
             where: { email: approveData.email },
@@ -620,7 +623,7 @@ export class OpenAppService {
                 usernameShorted: userNameShorted,
                 emailConfirmed: true,
             }
-            userInfo = await this.userService.createUser(newUserInfo)
+            await this.userService.createUser(newUserInfo)
         }
 
         // Update the user's permission to create IPs
@@ -654,6 +657,20 @@ export class OpenAppService {
         }
     }
 
+    async approveCreator(approveData: ApproveCreatorDto, userInfo: UserInfoDTO): Promise<ApproveCreatorResponseDto> {
+        // Check if requester is admin
+        const adminUser = await this.prisma.users.findUnique({
+            where: { username_in_be: userInfo.usernameShorted },
+            select: { is_admin: true },
+        })
+
+        if (!adminUser || !adminUser.is_admin) {
+            throw new BadRequestException("Only admins can approve creator applications")
+        }
+
+        return this._processApproveCreator(approveData)
+    }
+
     async lookupBySubdomain(subdomain: string): Promise<AppInfoDto> {
         const app = await this.prisma.apps.findFirst({
             where: { sub_domain: subdomain, is_temp: false },
@@ -681,9 +698,69 @@ export class OpenAppService {
             return {
                 name: menuItem.name,
                 path: menuItem.path,
-                order: menu.order || menuItem.order,
-                enabled: menu.enabled || menuItem.enabled,
+                order: menu.order < 0 ? menuItem.order : menu.order,
+                enabled: menu.enabled === undefined ? menuItem.enabled : menu.enabled,
             }
         })
+    }
+
+    async addInviteEmail(addInviteEmailDto: AddInviteEmailDto, userInfo: UserInfoDTO) {
+        //check if the user is admin
+        const adminUser = await this.prisma.users.findUnique({
+            where: { username_in_be: userInfo.usernameShorted },
+            select: { is_admin: true },
+        })
+        if (!adminUser || !adminUser.is_admin) {
+            throw new BadRequestException("Only admins can add invite emails")
+        }
+
+        //check user exists
+        const user = await this.prisma.users.findUnique({
+            where: { email: addInviteEmailDto.email },
+        })
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        //add the invite email
+        await this.prisma.users.update({
+            where: { email: addInviteEmailDto.email },
+            data: { can_invite_user: true },
+        })
+
+        return {
+            success: true,
+            message: "Invite email added successfully",
+        }
+    }
+
+    async removeInviteEmail(removeInviteEmailDto: RemoveInviteEmailDto, userInfo: UserInfoDTO) {
+        //check if the user is admin
+        const adminUser = await this.prisma.users.findUnique({
+            where: { username_in_be: userInfo.usernameShorted },
+            select: { is_admin: true },
+        })
+        if (!adminUser || !adminUser.is_admin) {
+            throw new BadRequestException("Only admins can remove invite emails")
+        }
+
+        //check user exists
+        const user = await this.prisma.users.findUnique({
+            where: { email: removeInviteEmailDto.email },
+        })
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        //remove the invite email
+        await this.prisma.users.update({
+            where: { email: removeInviteEmailDto.email },
+            data: { can_invite_user: false },
+        })
+
+        return {
+            success: true,
+            message: "Invite email removed successfully",
+        }
     }
 }

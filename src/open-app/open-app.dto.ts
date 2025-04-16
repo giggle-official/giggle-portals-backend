@@ -1,4 +1,5 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
+import { IsEmail, IsNotEmpty } from "class-validator"
 import { IpLibraryDetailDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 export class AppMenuDto {
@@ -192,6 +193,8 @@ export class RequestCreatorDto {
         description: "Email of the requester",
         example: "johndoe@example.com",
     })
+    @IsEmail()
+    @IsNotEmpty()
     email: string
 
     @ApiProperty({
@@ -220,6 +223,13 @@ export class RequestCreatorDto {
         example: "I would like to create apps related to digital art and NFTs...",
     })
     description: string
+
+    @ApiProperty({
+        description: "Invited user email",
+        example: "johndoe@example.com",
+        required: false,
+    })
+    invited_user_email?: string
 }
 
 export class RequestCreatorResponseDto {
@@ -257,3 +267,13 @@ export class ApproveCreatorResponseDto {
     })
     message: string
 }
+
+export class AddInviteEmailDto {
+    @ApiProperty({
+        description: "Invite email, this email will be used to invite users to create app permission",
+        example: "johndoe@example.com",
+    })
+    email: string
+}
+
+export class RemoveInviteEmailDto extends AddInviteEmailDto {}

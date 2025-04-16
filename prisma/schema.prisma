@@ -28,6 +28,7 @@ model users {
   current_plan                   String?                       @default("none") @db.VarChar(32)
   is_admin                       Boolean?                      @default(false)
   can_create_ip                  Boolean?
+  can_invite_user                Boolean?
   is_developer                   Boolean?                      @default(false)
   plan_settings                  Json?
   current_credit_balance         Int?

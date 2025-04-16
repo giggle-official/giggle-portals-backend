@@ -23,7 +23,6 @@ import { UserWalletDetailDto } from "./user.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
 import { PinataSDK } from "pinata-web3"
-import * as fs from "fs"
 import { Readable } from "stream"
 @Injectable()
 export class UserService {

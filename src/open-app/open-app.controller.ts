@@ -27,6 +27,7 @@ import {
     RequestCreatorResponseDto,
     TopIpSummaryDto,
     UpdateAppDto,
+    AddInviteEmailDto,
 } from "./open-app.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -254,5 +255,23 @@ export class OpenAppController {
     async getAppInfoByAppId(@Param("appId") appId: string, @Headers("authorization") authorization?: string) {
         const token = authorization?.split(" ")[1]
         return this.openAppService.getAppDetail(appId, token)
+    }
+
+    @Post("/add-invite-email")
+    @ApiBody({
+        type: AddInviteEmailDto,
+    })
+    @ApiOperation({
+        summary: "Add invite email",
+    })
+    @ApiResponse({
+        status: 200,
+        description: "Invite email added successfully",
+    })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    async addInviteEmail(@Body() addInviteEmailDto: AddInviteEmailDto, @Req() req: Request) {
+        return this.openAppService.addInviteEmail(addInviteEmailDto, req.user as UserInfoDTO)
     }
 }

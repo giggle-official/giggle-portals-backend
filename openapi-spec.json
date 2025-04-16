@@ -3216,6 +3216,36 @@
         ]
       }
     },
+    "/api/v1/app/add-invite-email": {
+      "post": {
+        "operationId": "OpenAppController_addInviteEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddInviteEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invite email added successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add invite email",
+        "tags": [
+          "IP Portal"
+        ]
+      }
+    },
     "/api/v1/app/auth/login": {
       "post": {
         "description": "this api is used to request login app",
@@ -7233,6 +7263,11 @@
             "type": "string",
             "description": "Description of the request or project ideas",
             "example": "I would like to create apps related to digital art and NFTs..."
+          },
+          "invited_user_email": {
+            "type": "string",
+            "description": "Invited user email",
+            "example": "johndoe@example.com"
           }
         },
         "required": [
@@ -7290,6 +7325,19 @@
         "required": [
           "success",
           "message"
+        ]
+      },
+      "AddInviteEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Invite email, this email will be used to invite users to create app permission",
+            "example": "johndoe@example.com"
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "LoginDto": {
