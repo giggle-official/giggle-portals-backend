@@ -809,6 +809,14 @@ model widgets {
   author_info             users?                    @relation(fields: [author], references: [username_in_be])
 }
 
+model user_invited_record {
+  id           Int       @id @default(autoincrement())
+  user         String?   @db.VarChar(32)
+  invited_user String?   @db.VarChar(32)
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?

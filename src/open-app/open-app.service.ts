@@ -568,7 +568,19 @@ export class OpenAppService {
                 where: { email: requestData.invited_user_email, can_invite_user: true },
             })
             if (invitedUser) {
-                return this._processApproveCreator({ email: requestData.invited_user_email })
+                const result = await this._processApproveCreator({ email: requestData.invited_user_email })
+                const invitedUserInfo = await this.prisma.users.findUnique({
+                    where: { email: requestData.invited_user_email },
+                })
+                if (result.success) {
+                    await this.prisma.user_invited_record.create({
+                        data: {
+                            user: invitedUser.username_in_be,
+                            invited_user: invitedUserInfo.username_in_be,
+                        },
+                    })
+                }
+                return result
             }
         }
 
@@ -609,7 +621,7 @@ export class OpenAppService {
 
     async _processApproveCreator(approveData: ApproveCreatorDto): Promise<ApproveCreatorResponseDto> {
         // Find the user account
-        const user = await this.prisma.users.findFirst({
+        let user = await this.prisma.users.findFirst({
             where: { email: approveData.email },
         })
 
@@ -624,6 +636,9 @@ export class OpenAppService {
                 emailConfirmed: true,
             }
             await this.userService.createUser(newUserInfo)
+            user = await this.prisma.users.findFirst({
+                where: { email: approveData.email },
+            })
         }
 
         // Update the user's permission to create IPs
