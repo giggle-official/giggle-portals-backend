@@ -19,13 +19,14 @@
         },
         "summary": "Get user profile",
         "tags": [
-          "Account"
+          "User",
+          "Profile"
         ]
       }
     },
     "/api/v1/user/web3-wallet": {
       "get": {
-        "description": "Get user web3 wallet detail, including total balance, ip total market cap, ip license incomes, etc...",
+        "description": "Get user web3 wallet info, including total balance, ip total market cap, ip license incomes, etc...",
         "operationId": "UserController_walletDetail",
         "parameters": [
           {
@@ -73,9 +74,10 @@
             "bearer": []
           }
         ],
-        "summary": "Get user web3 wallet detail",
+        "summary": "Get user web3 wallet info",
         "tags": [
-          "Account"
+          "User",
+          "User Wallet"
         ]
       }
     },
@@ -101,7 +103,8 @@
         },
         "summary": "Update user profile",
         "tags": [
-          "Account"
+          "User",
+          "Profile"
         ]
       }
     },
@@ -127,7 +130,8 @@
         },
         "summary": "Follow a user",
         "tags": [
-          "Account"
+          "User",
+          "Profile"
         ]
       }
     },
@@ -153,49 +157,8 @@
         },
         "summary": "Unfollow a user",
         "tags": [
-          "Account"
-        ]
-      }
-    },
-    "/api/v1/user/sendLoginCode": {
-      "post": {
-        "description": "Request a login code to login with code, the code will be sent to the user's email, the code will be valid for 5 minutes",
-        "operationId": "UserController_sendLoginCode",
-        "parameters": [
-          {
-            "name": "app-id",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginCodeReqDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginCodeResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Request a login code",
-        "tags": [
-          "Account"
+          "User",
+          "Profile"
         ]
       }
     },
@@ -228,49 +191,6 @@
         "summary": "Login with code",
         "tags": [
           "Auth"
-        ]
-      }
-    },
-    "/api/v1/web3/giggle/cover-image/upload": {
-      "post": {
-        "operationId": "GiggleController_uploadCoverImage",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UploadCoverImageResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Upload cover image",
-        "tags": [
-          "Web3 Giggle"
         ]
       }
     },
@@ -336,40 +256,10 @@
             }
           }
         },
-        "summary": "Get IP token list",
+        "summary": "Query IP tokens",
         "tags": [
-          "Web3 Giggle"
-        ]
-      }
-    },
-    "/api/v1/web3/giggle/user-market-cap/{user_id}": {
-      "get": {
-        "operationId": "GiggleController_getUserMarketCap",
-        "parameters": [
-          {
-            "name": "user_id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserMarketCapDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get user market cap",
-        "tags": [
-          "Web3 Giggle"
+          "Giggle",
+          "IP Tokens"
         ]
       }
     },
@@ -404,111 +294,16 @@
             "bearer": []
           }
         ],
-        "summary": "Trade ip token",
+        "summary": "Trade IP Token",
         "tags": [
-          "Web3 Giggle"
-        ]
-      }
-    },
-    "/api/v1/web3/giggle/top-up": {
-      "post": {
-        "operationId": "GiggleController_topUp",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "top up url",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Top up",
-        "tags": [
-          "Web3 Giggle"
-        ]
-      }
-    },
-    "/api/v1/web3/giggle/send": {
-      "post": {
-        "operationId": "GiggleController_send",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendTokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Send Tokens",
-        "tags": [
-          "Web3 Giggle"
-        ]
-      }
-    },
-    "/api/v1/web3/price/giggle-tokens/{credits}": {
-      "get": {
-        "description": "Convert credit numbers to solana and giggle token numbers",
-        "operationId": "PriceController_getGiggleTokens",
-        "parameters": [
-          {
-            "name": "credits",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The giggle token price",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GiggleTokenPriceDTO"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Credits to giggle tokens",
-        "tags": [
-          "Web3 Tools"
+          "Giggle",
+          "User Wallet"
         ]
       }
     },
     "/api/v1/web3/price/percentage-to-credits/{percentage}": {
       "get": {
-        "description": "Convert a percentage to the number of credits to be consumed and the corresponding number of giggle tokens, percentage must be between 1 and 98",
+        "description": "Convert a percentage to the price of the ip token when create ip token, percentage must be between 1 and 98",
         "operationId": "PriceController_getPercentageToCredits",
         "parameters": [
           {
@@ -522,7 +317,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The number of credits to be consumed and the corresponding number of giggle tokens",
+            "description": "The price of the ip token when create ip token",
             "content": {
               "application/json": {
                 "schema": {
@@ -532,9 +327,9 @@
             }
           }
         },
-        "summary": "Percentage to credits",
+        "summary": "Percentage to price",
         "tags": [
-          "Web3 Tools"
+          "IP Tokens"
         ]
       }
     },
@@ -4034,8 +3829,8 @@
     }
   },
   "info": {
-    "title": "3 Body Labs API Reference",
-    "description": "This is the API reference for 3 Body Labs",
+    "title": "Giggle.Pro API Reference",
+    "description": "This is the API reference for Giggle.Pro",
     "version": "1.0",
     "contact": {}
   },
@@ -4043,10 +3838,6 @@
     {
       "name": "Summary",
       "description": "This API provides endpoints for managing IP libraries, including creation, retrieval, and validation of IP data."
-    },
-    {
-      "name": "Key Concepts",
-      "description": "IP Library, Validation, Authentication, SSE, Swagger Documentation"
     }
   ],
   "servers": [],
@@ -4416,28 +4207,6 @@
           "user"
         ]
       },
-      "LoginCodeReqDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "LoginCodeResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ]
-      },
       "LoginWithCodeReqDto": {
         "type": "object",
         "properties": {
@@ -4464,33 +4233,6 @@
           "access_token"
         ]
       },
-      "UploadCoverImageResponseDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "name of the cover image"
-          },
-          "url": {
-            "type": "string",
-            "description": "url of the cover image"
-          },
-          "tag": {
-            "type": "string",
-            "description": "tag of the cover image"
-          },
-          "key": {
-            "type": "string",
-            "description": "key of the cover image"
-          }
-        },
-        "required": [
-          "name",
-          "url",
-          "tag",
-          "key"
-        ]
-      },
       "GetIpTokenListResponseDto": {
         "type": "object",
         "properties": {
@@ -4509,23 +4251,6 @@
         "required": [
           "count",
           "data"
-        ]
-      },
-      "UserMarketCapDto": {
-        "type": "object",
-        "properties": {
-          "ip_total_market_cap": {
-            "type": "number",
-            "description": "ip total market cap"
-          },
-          "formated_market_cap": {
-            "type": "string",
-            "description": "formated market cap"
-          }
-        },
-        "required": [
-          "ip_total_market_cap",
-          "formated_market_cap"
         ]
       },
       "TradeDto": {
@@ -4580,67 +4305,9 @@
           "sign"
         ]
       },
-      "SendTokenDto": {
-        "type": "object",
-        "properties": {
-          "mint": {
-            "type": "string",
-            "description": "token address of the trade"
-          },
-          "amount": {
-            "type": "number",
-            "description": "amount of the send"
-          },
-          "receipt": {
-            "type": "string",
-            "description": "address of the receiver"
-          }
-        },
-        "required": [
-          "mint",
-          "amount",
-          "receipt"
-        ]
-      },
-      "SendTokenResponseDto": {
-        "type": "object",
-        "properties": {
-          "sig": {
-            "type": "string",
-            "description": "transaction hash of the send"
-          }
-        },
-        "required": [
-          "sig"
-        ]
-      },
-      "GiggleTokenPriceDTO": {
-        "type": "object",
-        "properties": {
-          "sol": {
-            "type": "number",
-            "description": "credit to solana number",
-            "example": 0.0008
-          },
-          "tokens": {
-            "type": "number",
-            "description": "credit to giggle token number",
-            "example": 100
-          }
-        },
-        "required": [
-          "sol",
-          "tokens"
-        ]
-      },
       "PercentageToCreditsDTO": {
         "type": "object",
         "properties": {
-          "credits": {
-            "type": "number",
-            "description": "credits to be consumed",
-            "example": 100
-          },
           "usdc": {
             "type": "number",
             "description": "usdt to be consumed",
@@ -4658,7 +4325,6 @@
           }
         },
         "required": [
-          "credits",
           "usdc",
           "sols",
           "giggle_tokens"
@@ -8253,14 +7919,14 @@
     {
       "name": "🧑‍💼 Account",
       "tags": [
-        "Account",
+        "Profile",
         "Auth"
       ]
     },
     {
       "name": "🌐 Web3",
       "tags": [
-        "Web3 Giggle",
+        "IP Tokens",
         "Web3 Tools"
       ]
     },

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiHideProperty, ApiProperty } from "@nestjs/swagger"
 
 export class GiggleTokenPriceDTO {
     @ApiProperty({
@@ -14,10 +14,7 @@ export class GiggleTokenPriceDTO {
 }
 
 export class PercentageToCreditsDTO {
-    @ApiProperty({
-        description: "credits to be consumed",
-        example: 100,
-    })
+    @ApiHideProperty()
     credits: number
 
     @ApiProperty({

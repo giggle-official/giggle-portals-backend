@@ -13,9 +13,7 @@ import {
     FileTypeValidator,
     Get,
     Query,
-    Sse,
     Param,
-    ForbiddenException,
 } from "@nestjs/common"
 import { GiggleService } from "./giggle.service"
 import { Request } from "express"
@@ -31,26 +29,23 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express"
 import { AuthGuard } from "@nestjs/passport"
 import {
-    CreateIpTokenDto,
     GetIpTokenListQueryDto,
     GetIpTokenListResponseDto,
     SendTokenDto,
     SendTokenResponseDto,
-    SSEMessage,
     TradeDto,
     TradeResponseDto,
     UploadCoverImageResponseDto,
     UserMarketCapDto,
 } from "./giggle.dto"
 import { UserInfoDTO } from "src/user/user.controller"
-import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 
-@ApiTags("Web3 Giggle")
 @Controller("/api/v1/web3/giggle")
 export class GiggleController {
     constructor(private readonly giggleService: GiggleService) {}
 
     @Post("/cover-image/upload")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "Upload cover image" })
     @ApiConsumes("multipart/form-data")
     @HttpCode(HttpStatus.OK)
@@ -91,14 +86,16 @@ export class GiggleController {
         return this.giggleService.signTest(body)
     }
 
+    @ApiTags("IP Tokens")
     @Get("/get-ip-token-list")
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: "Get IP token list" })
+    @ApiOperation({ summary: "Query IP tokens" })
     @ApiResponse({ type: GetIpTokenListResponseDto, status: 200 })
     async getIpTokenList(@Query() query: GetIpTokenListQueryDto) {
         return this.giggleService.getIpTokenList(query)
     }
 
+    @ApiExcludeEndpoint()
     @Get("/user-market-cap/:user_id")
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: "Get user market cap" })
@@ -108,17 +105,19 @@ export class GiggleController {
     }
 
     @Post("/trade")
+    @ApiTags("User Wallet")
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     @ApiBody({ type: TradeDto })
-    @ApiOperation({ summary: "Trade ip token" })
+    @ApiOperation({ summary: "Trade IP Token" })
     @ApiResponse({ type: TradeResponseDto, status: 200 })
     async trade(@Req() req: Request, @Body() body: TradeDto) {
         return this.giggleService.trade(req.user as UserInfoDTO, body)
     }
 
     @Post("/top-up")
+    @ApiExcludeEndpoint()
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
@@ -132,6 +131,7 @@ export class GiggleController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
+    @ApiExcludeEndpoint()
     @ApiBody({ type: SendTokenDto })
     @ApiOperation({ summary: "Send Tokens" })
     @ApiResponse({ type: SendTokenResponseDto, status: 200 })
@@ -160,6 +160,8 @@ export class GiggleController {
     @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
+    @ApiOperation({ summary: "Get USDC balance" })
+    @ApiResponse({ type: String, status: 200, description: "USDC balance" })
     async usdcBalance(@Req() req: Request) {
         return this.giggleService.getUsdcBalance(req.user as UserInfoDTO)
     }

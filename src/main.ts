@@ -13,6 +13,7 @@ import { useContainer } from "class-validator"
 import { apiReference } from "@scalar/nestjs-api-reference"
 import * as fs from "fs"
 import { join } from "path"
+import { title } from "process"
 
 declare module "express-session" {
     interface Session {
@@ -48,14 +49,13 @@ async function bootstrap() {
     })
 
     const config = new DocumentBuilder()
-        .setTitle("3 Body Labs API Reference")
-        .setDescription("This is the API reference for 3 Body Labs")
+        .setTitle("Giggle.Pro API Reference")
+        .setDescription("This is the API reference for Giggle.Pro")
         .setVersion("1.0")
         .addTag(
             "Summary",
             "This API provides endpoints for managing IP libraries, including creation, retrieval, and validation of IP data.",
         )
-        .addTag("Key Concepts", "IP Library, Validation, Authentication, SSE, Swagger Documentation")
         .addBearerAuth({
             type: "http",
             bearerFormat: "JWT",
@@ -65,20 +65,123 @@ async function bootstrap() {
         })
         .setOpenAPIVersion("3.1.1")
         .build()
-    const document = SwaggerModule.createDocument(app, config)
 
-    document["x-tagGroups"] = [
+    const publicConfig = new DocumentBuilder()
+        .setTitle("Giggle.Pro Developer API Reference")
+        .setDescription(
+            `
+# Introduction
+
+The Giggle API provides essential services for digital identity and financial management for widget developers and all personal users to create their own IP libraries:
+
+- **IP Management**: IP library management, including creation, retrieval, and interaction with IP data
+- **Account Management**: User login, profile management, and activity tracking, following/unfollowing other users
+- **Wallet Functions**: Secure digital wallet management, balance query, and send/receive tokens
+- **Payment Processing(coming soon)**: Support user wallet payment with secure transaction handling
+
+---
+
+# Authentication
+
+Most protected endpoints require a valid JWT token in the Authorization header. 
+Public endpoints can be accessed without authentication. Each endpoint in the documentation is clearly marked to indicate whether authentication is required. To obtain a JWT token for accessing protected endpoints, please refer to our authentication widget documentation at [Widget Authentication](https://docs.giggle.pro/widget-development/authentication-and-security). The widget provides a streamlined authentication flow that handles token generation, refresh, and secure storage for your application.
+
+---
+
+# Response Format
+
+Most responses are in JSON format, the main schema is as follows:
+
+\`\`\`json
+{
+    "code": 200,
+    "msg": "some message",
+    "data": {}
+}
+ \`\`\`
+
+---
+
+# Error Response
+
+If request fails, api will will return http error code and the error response in the following format:
+
+\`\`\`json
+{
+    "code": 400,
+    "msg": "this is an error message",
+    "data": {}
+}
+ \`\`\`
+
+error codes examples:
+
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 500: Internal Server Error
+
+---
+
+# Event Stream Response
+
+Some endpoints return event stream response (SSE),   the response will be in the following format:
+
+\`\`\`json
+{
+    "event": "some event",
+    "data": {}
+}
+\`\`\`
+
+This approach is particularly used for long-running operations such as IP creation, token publishing, and other time-intensive processes that require real-time progress updates to the client.
+
+To see how to process the event stream response, please refer to the [Event Stream](https://docs.giggle.pro/api-reference/event-stream-response) documentation.
+
+---
+`,
+        )
+        .addServer("https://api.giggle.pro", "Production Environment")
+        .addServer("https://api-dev.ggltest.com", "Development Environment")
+        .addBearerAuth({
+            type: "http",
+            bearerFormat: "JWT",
+            in: "header",
+            name: "Authorization",
+            description: "JWT Authorization",
+        })
+        .build()
+    const privateDocument = SwaggerModule.createDocument(app, config)
+    const publicDocument = SwaggerModule.createDocument(app, publicConfig)
+
+    publicDocument["x-tagGroups"] = [
+        {
+            name: "IP Management",
+            tags: ["IP Library", "License", "Announcement", "Comments"],
+        },
+        {
+            name: "Account",
+            tags: ["Profile", "User Wallet"],
+        },
+        {
+            name: "Web3",
+            tags: ["IP Tokens", "Web3 Tools"],
+        },
+    ]
+
+    privateDocument["x-tagGroups"] = [
         {
             name: "📚 IP Management",
             tags: ["IP Library", "License", "Announcement", "Comments"],
         },
         {
             name: "🧑‍💼 Account",
-            tags: ["Account", "Auth"],
+            tags: ["Profile", "Auth"],
         },
         {
             name: "🌐 Web3",
-            tags: ["Web3 Giggle", "Web3 Tools"],
+            tags: ["IP Tokens", "Web3 Tools"],
         },
         {
             name: "🏠 Portals",
@@ -95,20 +198,42 @@ async function bootstrap() {
     ]
 
     app.use(
-        "/api/reference",
+        "/api/reference-private",
         apiReference({
             spec: {
-                content: document,
+                content: privateDocument,
             },
             hideClientButton: true,
             hideModels: true,
             hideDownloadButton: true,
         }),
     )
-    SwaggerModule.setup("/api/docs", app, document)
 
-    const outputPath = join(process.cwd(), "openapi-spec.json")
-    fs.writeFileSync(outputPath, JSON.stringify(document, null, 2))
+    app.use(
+        "/api/reference",
+        apiReference({
+            spec: {
+                content: publicDocument,
+            },
+            hideClientButton: true,
+            hideModels: true,
+            hideDownloadButton: true,
+            favicon: "https://app.giggle.pro/favicon.svg",
+            metaData: {
+                title: "Giggle.Pro Developer API Reference",
+                description: "This is the API reference for Giggle.Pro",
+                keywords: "Giggle.Pro, API, Reference, Developer, Documentation",
+                author: "Giggle.Pro",
+                ogImage: "https://app.giggle.pro/images/open-app/og-image.jpg",
+            },
+        }),
+    )
+
+    const privateOutputPath = join(process.cwd(), "openapi-private-spec.json")
+    fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
+
+    const publicOutputPath = join(process.cwd(), "openapi-public-spec.json")
+    fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
 
     await app.listen(process.env.RUN_PORT || 3000, "0.0.0.0")
 }

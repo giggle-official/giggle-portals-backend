@@ -278,7 +278,6 @@ export class SubmitResetPasswordDto extends EmailConfirmationDto {
     repeatPassword: string
 }
 
-@ApiTags("Account")
 @Controller({ path: "api/v1/user" })
 export class UserController {
     constructor(
@@ -286,6 +285,7 @@ export class UserController {
         private readonly apiKeysService: ApiKeysService,
     ) {}
     @Get("/profile")
+    @ApiTags("Profile")
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     @ApiResponse({
@@ -303,10 +303,11 @@ export class UserController {
     }
 
     @Get("/web3-wallet")
+    @ApiTags("User Wallet")
     @ApiOperation({
-        summary: "Get user web3 wallet detail",
+        summary: "Get user web3 wallet info",
         description:
-            "Get user web3 wallet detail, including total balance, ip total market cap, ip license incomes, etc...",
+            "Get user web3 wallet info, including total balance, ip total market cap, ip license incomes, etc...",
     })
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
@@ -388,6 +389,7 @@ export class UserController {
     })
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
+    @ApiTags("Profile")
     @ApiOperation({
         summary: "Update user profile",
         description: "update username and description",
@@ -402,6 +404,7 @@ export class UserController {
         type: UserFollowDto,
     })
     @UseGuards(AuthGuard("jwt"))
+    @ApiTags("Profile")
     @ApiOperation({
         summary: "Follow a user",
         description: "follow a user",
@@ -416,6 +419,7 @@ export class UserController {
     @ApiBody({
         type: UserUnFollowDto,
     })
+    @ApiTags("Profile")
     @ApiOperation({
         summary: "Unfollow a user",
         description: "unfollow a user",
@@ -496,6 +500,7 @@ export class UserController {
         status: 200,
         type: LoginCodeResponseDto,
     })
+    @ApiExcludeEndpoint()
     async sendLoginCode(
         @Body() loginCodeReqDto: LoginCodeReqDto,
         @Headers("app-id") appId: string,
