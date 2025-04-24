@@ -817,6 +817,80 @@ model user_invited_record {
   updated_at   DateTime? @default(now()) @db.Timestamp(0)
 }
 
+model orders {
+  id                       Int       @id @default(autoincrement())
+  order_id                 String    @unique(map: "order_id") @db.VarChar(36)
+  description              String?   @db.Text
+  amount                   Int?
+  owner                    String    @db.VarChar(32)
+  widget_tag               String?   @db.VarChar(32)
+  app_id                   String?   @db.VarChar(32)
+  current_status           String?   @db.VarChar(32)
+  paid_method              String?   @db.VarChar(32)
+  stripe_invoice_id        String?   @db.VarChar(32)
+  stripe_invoice_detail    Json?
+  wallet_paid_detail       Json?
+  related_reward_id        Int?
+  rewards_model_snapshot   Json?
+  supported_payment_method Json?
+  callback_url             String?   @db.VarChar(1024)
+  redirect_url             String?   @db.VarChar(4096)
+  paid_time                DateTime? @db.DateTime(0)
+  cancelled_time           DateTime? @db.DateTime(0)
+  expire_time              DateTime? @db.DateTime(0)
+  cancelled_detail         Json?
+  created_at               DateTime? @default(now()) @db.Timestamp(0)
+  updated_at               DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model reward_models {
+  id                        Int                         @id @default(autoincrement())
+  ratio_detail              Json?
+  created_at                DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at                DateTime?                   @default(now()) @db.Timestamp(0)
+  reward_pools_apply_models reward_pools_apply_models[]
+}
+
+model reward_pools {
+  id           Int                         @id @default(autoincrement())
+  token        String?                     @db.VarChar(1024)
+  address      String?                     @db.VarChar(1024)
+  created_at   DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?                   @default(now()) @db.Timestamp(0)
+  apply_models reward_pools_apply_models[]
+}
+
+model reward_pools_apply_models {
+  id            Int            @id @default(autoincrement())
+  pool_id       Int?
+  model_id      Int?
+  allow_widgets Json?
+  created_at    DateTime?      @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?      @default(now()) @db.Timestamp(0)
+  model_info    reward_models? @relation(fields: [model_id], references: [id])
+  reward_pools  reward_pools?  @relation(fields: [pool_id], references: [id])
+}
+
+model order_callback_record {
+  id           Int       @id @default(autoincrement())
+  order_id     String?   @db.VarChar(36)
+  callback_url String?   @db.VarChar(1024)
+  request      Json?
+  response     Json?
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model third_level_ip_orders {
+  id             Int       @id @default(autoincrement())
+  creation_data  Json?
+  order_id       String?   @db.VarChar(36)
+  current_status String?   @db.VarChar(16)
+  owner          String?   @db.VarChar(32)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?

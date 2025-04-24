@@ -152,7 +152,6 @@ export class UserService {
             credit: credit,
             avatar: _userInfo.avatar,
             agent_user: _userInfo.agent_user,
-            subscription_info: profilePlan,
             giggle_wallet_address: await GiggleService.getGiggleWalletAddress(_userInfo.usernameShorted),
             description: _userInfo.description,
             followers: _userInfo.followers,

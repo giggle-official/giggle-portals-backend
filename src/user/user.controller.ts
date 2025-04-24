@@ -118,6 +118,7 @@ export class UserInfoDTO extends LoginDTO {
     widget_info?: {
         user_subscribed: boolean
         widget_tag: string
+        app_id: string
     }
 }
 

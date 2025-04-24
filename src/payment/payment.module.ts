@@ -7,6 +7,11 @@ import { HttpModule } from "@nestjs/axios"
 import { StripeModule } from "nestjs-stripe"
 import { CreditService } from "src/credit/credit.service"
 import { CreditModule } from "src/credit/credit.module"
+import { OrderController } from "./order/order.controller"
+import { RewardsPoolController } from "./rewards-pool/rewards-pool.controller"
+import { OrderService } from "./order/order.service"
+import { UserModule } from "src/user/user.module"
+import { Web3Module } from "src/web3/web3.module"
 @Module({
     imports: [
         HttpModule,
@@ -14,9 +19,11 @@ import { CreditModule } from "src/credit/credit.module"
             apiKey: process.env.STRIPE_SECRET_KEY,
         }),
         forwardRef(() => CreditModule),
+        UserModule,
+        Web3Module,
     ],
-    controllers: [PaymentController],
-    providers: [PaymentService, PrismaService, ConfigService, CreditService],
+    controllers: [PaymentController, OrderController, RewardsPoolController],
+    providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService],
     exports: [PaymentService],
 })
 export class PaymentModule {}

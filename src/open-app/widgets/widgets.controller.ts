@@ -1,4 +1,16 @@
-import { Controller, Body, Post, HttpCode, HttpStatus, UseGuards, Req, Get, Param, Query } from "@nestjs/common"
+import {
+    Controller,
+    Body,
+    Post,
+    HttpCode,
+    HttpStatus,
+    UseGuards,
+    Req,
+    Get,
+    Param,
+    Query,
+    Headers,
+} from "@nestjs/common"
 import { WidgetsService } from "./widgets.service"
 import { ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
@@ -72,8 +84,8 @@ export class WidgetsController {
     @ApiResponse({ type: GetAccessTokenResponseDto })
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
-    async getAccessToken(@Body() body: GetAccessTokenDto, @Req() req: Request) {
-        return this.widgetService.getAccessToken(body, req.user as UserInfoDTO)
+    async getAccessToken(@Body() body: GetAccessTokenDto, @Req() req: Request, @Headers("app-id") appId: string) {
+        return this.widgetService.getAccessToken(body, req.user as UserInfoDTO, appId)
     }
 
     @Post("/update")

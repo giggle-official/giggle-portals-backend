@@ -474,7 +474,11 @@ export class WidgetsService {
         }
     }
 
-    async getAccessToken(body: GetAccessTokenDto, user: UserInfoDTO): Promise<GetAccessTokenResponseDto> {
+    async getAccessToken(
+        body: GetAccessTokenDto,
+        user: UserInfoDTO,
+        appId: string,
+    ): Promise<GetAccessTokenResponseDto> {
         const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
         if (!widget) {
             throw new NotFoundException("Widget not found")
@@ -488,6 +492,17 @@ export class WidgetsService {
         const widgetInfo = await this.prisma.widgets.findUnique({
             where: { tag: body.tag },
         })
+
+        //app is exists
+        if (appId) {
+            const app = await this.prisma.apps.findUnique({ where: { app_id: appId } })
+            if (!app) {
+                appId = ""
+            }
+        } else {
+            appId = ""
+        }
+
         const userInfo = await this.userService.getProfile(user)
         const userInfoForSign: UserInfoDTO = {
             username: userInfo.username,
@@ -503,6 +518,7 @@ export class WidgetsService {
             widget_info: {
                 user_subscribed: !!userSubscribedWidget,
                 widget_tag: body.tag,
+                app_id: appId,
             },
         }
         const eccess_token = this.jwtService.sign(userInfoForSign, {

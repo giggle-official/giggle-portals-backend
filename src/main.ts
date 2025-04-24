@@ -137,7 +137,7 @@ Some endpoints return event stream response (SSE),   the response will be in the
 
 This approach is particularly used for long-running operations such as IP creation, token publishing, and other time-intensive processes that require real-time progress updates to the client.
 
-To see how to process the event stream response, please refer to the [Event Stream](https://docs.giggle.pro/api-reference/event-stream-response) documentation.
+To see how to process the event stream response, please refer to the [Event Stream](https://docs.giggle.pro/widget-development/event-stream-response) documentation.
 
 ---
 `,
@@ -165,6 +165,10 @@ To see how to process the event stream response, please refer to the [Event Stre
             tags: ["Profile", "User Wallet"],
         },
         {
+            name: "Payment",
+            tags: ["Order"],
+        },
+        {
             name: "Web3",
             tags: ["IP Tokens", "Web3 Tools"],
         },
@@ -180,6 +184,10 @@ To see how to process the event stream response, please refer to the [Event Stre
             tags: ["Profile", "Auth"],
         },
         {
+            name: "💰 Payment",
+            tags: ["Order"],
+        },
+        {
             name: "🌐 Web3",
             tags: ["IP Tokens", "Web3 Tools"],
         },
@@ -192,7 +200,7 @@ To see how to process the event stream response, please refer to the [Event Stre
             tags: ["Widgets"],
         },
         {
-            name: "Developer Center",
+            name: "🔧 Developer Center",
             tags: ["Widgets-dev"],
         },
     ]
