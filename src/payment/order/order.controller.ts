@@ -54,6 +54,7 @@ export class OrderController {
     @Post("/create")
     @ApiOperation({ summary: "Create an order" })
     @ApiBody({ type: CreateOrderDto })
+    @ApiResponse({ type: OrderDetailDto })
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async createOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {

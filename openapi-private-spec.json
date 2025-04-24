@@ -2698,8 +2698,15 @@
           }
         },
         "responses": {
-          "200": {
-            "description": ""
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
           }
         },
         "summary": "Create an order",
@@ -6899,7 +6906,7 @@
           },
           "order_url": {
             "type": "string",
-            "description": "The url to pay with stripe"
+            "description": "The url of order to pay or check the order status"
           }
         },
         "required": [
@@ -6933,7 +6940,7 @@
           },
           "related_reward_id": {
             "type": "number",
-            "description": "The related reward pool id of the order"
+            "description": "The related reward pool id of the order, note: this field may be require if we finish our economic model"
           },
           "redirect_url": {
             "type": "string",

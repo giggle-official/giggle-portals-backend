@@ -140,7 +140,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
 ]) {
     rewards_model_snapshot: RewardModelDto
     @ApiProperty({
-        description: "The url to pay with stripe",
+        description: "The url of order to pay or check the order status",
     })
     order_url: string
 }
@@ -158,7 +158,8 @@ export class CreateOrderDto {
     description?: string
 
     @ApiProperty({
-        description: "The related reward pool id of the order",
+        description:
+            "The related reward pool id of the order, note: this field may be require if we finish our economic model",
         required: false,
     })
     related_reward_id?: number
