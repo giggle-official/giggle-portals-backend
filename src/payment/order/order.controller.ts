@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, UseGuards, Req, Query, BadRequestException, RawBodyRequest } from "@nestjs/common"
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    UseGuards,
+    Req,
+    Query,
+    BadRequestException,
+    RawBodyRequest,
+    HttpCode,
+    HttpStatus,
+} from "@nestjs/common"
 import {
     CreateOrderDto,
     OrderDetailDto,
@@ -43,14 +55,17 @@ export class OrderController {
     @ApiOperation({ summary: "Create an order" })
     @ApiBody({ type: CreateOrderDto })
     @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
     async createOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
         return this.orderService.createOrder(order, req.user as UserInfoDTO)
     }
 
     @Post("/payWithWallet")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "Pay an order with wallet" })
     @ApiBody({ type: PayWithWalletRequestDto })
     @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async payWithWallet(@Body() order: PayWithWalletRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
         return this.orderService.payWithWallet(order, req.user as UserInfoDTO)
@@ -58,8 +73,11 @@ export class OrderController {
 
     @Post("/payWithStripe")
     @ApiOperation({ summary: "Pay an order with stripe" })
+    @ApiExcludeEndpoint()
     @ApiBody({ type: PayWithStripeRequestDto })
     @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    @ApiResponse({ type: PayWithStripeResponseDto })
     async payOrderWithStripe(
         @Body() order: PayWithStripeRequestDto,
         @Req() req: Request,
@@ -69,6 +87,7 @@ export class OrderController {
 
     @ApiExcludeEndpoint()
     @Post("/stripe/webhook")
+    @HttpCode(HttpStatus.OK)
     async processStripeWebhook(@Req() req: RawBodyRequest<Request>) {
         const localRecord = await this.orderService.recordStripeEvent(req)
         const eventType = (localRecord.raw_data as unknown as Stripe.Event).type

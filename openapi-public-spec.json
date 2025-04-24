@@ -2698,68 +2698,11 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": ""
           }
         },
         "summary": "Create an order",
-        "tags": [
-          "Order"
-        ]
-      }
-    },
-    "/api/v1/order/payWithWallet": {
-      "post": {
-        "operationId": "OrderController_payWithWallet",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayWithWalletRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OrderDetailDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Pay an order with wallet",
-        "tags": [
-          "Order"
-        ]
-      }
-    },
-    "/api/v1/order/payWithStripe": {
-      "post": {
-        "operationId": "OrderController_payOrderWithStripe",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayWithStripeRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Pay an order with stripe",
         "tags": [
           "Order"
         ]
@@ -7007,30 +6950,6 @@
         },
         "required": [
           "amount"
-        ]
-      },
-      "PayWithWalletRequestDto": {
-        "type": "object",
-        "properties": {
-          "order_id": {
-            "type": "string",
-            "description": "The order id"
-          }
-        },
-        "required": [
-          "order_id"
-        ]
-      },
-      "PayWithStripeRequestDto": {
-        "type": "object",
-        "properties": {
-          "order_id": {
-            "type": "string",
-            "description": "The order id"
-          }
-        },
-        "required": [
-          "order_id"
         ]
       },
       "AppListDto": {
