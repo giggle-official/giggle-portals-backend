@@ -11,6 +11,7 @@ import { Cron, CronExpression } from "@nestjs/schedule"
 import { lastValueFrom, Observable, take, tap, toArray } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { UserService } from "src/user/user.service"
+import { third_level_ip_orders } from "@prisma/client"
 @Injectable()
 export class IpOrderService {
     constructor(
@@ -186,19 +187,35 @@ export class IpOrderService {
     //check ip order if order completed, but status pending
     @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
+        const maxRetryCount = 3
         //sleep a random time but less than 2 seconds
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
 
         //get order
-        const order = await this.prisma.third_level_ip_orders.findFirst({
+        let order: third_level_ip_orders | null = null
+
+        order = await this.prisma.third_level_ip_orders.findFirst({
             where: {
                 ip_create_status: IpCreateStatus.PENDING,
                 current_status: OrderStatus.COMPLETED,
             }, //the order is completed, but status is pending
         })
         if (!order) {
+            //pick a failed order
+            order = await this.prisma.third_level_ip_orders.findFirst({
+                where: {
+                    ip_create_status: IpCreateStatus.FAILED,
+                    retry_count: {
+                        lt: maxRetryCount,
+                    },
+                },
+            })
+        }
+
+        if (!order) {
             return
         }
+
         //create ip
         const user = await this.userService.getProfile({ usernameShorted: order.owner })
         if (!user) {
@@ -244,6 +261,7 @@ export class IpOrderService {
                 data: {
                     ip_create_status: IpCreateStatus.FAILED,
                     ip_create_response: JSON.stringify({ error: error }),
+                    retry_count: order.retry_count + 1,
                 },
             })
         }

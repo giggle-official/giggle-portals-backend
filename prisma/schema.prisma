@@ -888,6 +888,7 @@ model third_level_ip_orders {
   creation_data      Json?
   order_id           String?   @db.VarChar(36)
   current_status     String?   @db.VarChar(16)
+  retry_count        Int?      @default(0)
   ip_create_status   String?   @db.VarChar(32)
   ip_create_response String?   @db.Text
   owner              String?   @db.VarChar(32)
