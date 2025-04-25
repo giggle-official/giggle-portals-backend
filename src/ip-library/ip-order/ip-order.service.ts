@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common"
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { CreateIpDto, CreateIpOrderDto } from "../ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { PrismaService } from "src/common/prisma.service"
@@ -6,7 +6,7 @@ import { CreateOrderDto, OrderDetailDto, OrderStatus } from "src/payment/order/o
 import { OrderService } from "src/payment/order/order.service"
 import { IpLibraryService } from "../ip-library.service"
 import { AssetsService } from "src/assets/assets.service"
-import { IpCreateStatus } from "./ip-order.dto"
+import { CheckIpOrderDto, CheckIpOrderListDto, IpCreateStatus } from "./ip-order.dto"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { lastValueFrom, Observable } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
@@ -88,6 +88,61 @@ export class IpOrderService {
             },
         })
         return orderDetail
+    }
+
+    async ipOrderDetail(order_id: string, user: UserInfoDTO): Promise<CheckIpOrderDto> {
+        const order = await this.prisma.third_level_ip_orders.findFirst({
+            where: {
+                order_id: order_id,
+                owner: user.usernameShorted,
+            },
+        })
+        if (!order) {
+            throw new NotFoundException("Order not found")
+        }
+
+        const orderInfo = await this.orderService.getOrderDetail(order.order_id, user)
+        return {
+            order_id: order.id.toString(),
+            creation_data: order.creation_data as any as CreateIpDto,
+            ip_create_status: order.ip_create_status as IpCreateStatus,
+            order_info: orderInfo,
+        }
+    }
+
+    async getIpOrderList(user: UserInfoDTO, app_id: string): Promise<CheckIpOrderListDto> {
+        if (!app_id) {
+            throw new BadRequestException("app_id is required")
+        }
+        const orders = await this.prisma.third_level_ip_orders.findMany({
+            where: {
+                owner: user.usernameShorted,
+                current_status: {
+                    not: OrderStatus.PENDING,
+                },
+                order_info: {
+                    app_id: app_id,
+                },
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        return {
+            total: orders.length,
+            orders: await Promise.all(
+                orders.map(async (order) => {
+                    const orderInfo = await this.orderService.getOrderDetail(order.order_id, user)
+                    return {
+                        order_id: order.id.toString(),
+                        creation_data: order.creation_data as any as CreateIpDto,
+                        ip_create_status: order.ip_create_status as IpCreateStatus,
+                        order_info: orderInfo,
+                    }
+                }),
+            ),
+        }
     }
 
     async orderCallback(body: OrderDetailDto) {

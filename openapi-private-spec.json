@@ -2652,6 +2652,68 @@
         ]
       }
     },
+    "/api/v1/ip/order": {
+      "get": {
+        "operationId": "IpOrderController_getIpOrderList",
+        "parameters": [
+          {
+            "name": "app-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckIpOrderListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get ip order list",
+        "tags": [
+          "IP Order"
+        ]
+      }
+    },
+    "/api/v1/ip/order/{order_id}": {
+      "get": {
+        "operationId": "IpOrderController_checkIpOrder",
+        "parameters": [
+          {
+            "name": "order_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckIpOrderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check ip order",
+        "tags": [
+          "IP Order"
+        ]
+      }
+    },
     "/api/v1/order/list": {
       "get": {
         "operationId": "OrderController_getOrderList",
@@ -7159,6 +7221,67 @@
           "created_at",
           "updated_at",
           "order_url"
+        ]
+      },
+      "CheckIpOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "The id of the order"
+          },
+          "creation_data": {
+            "description": "The creation data of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreateIpDto"
+              }
+            ]
+          },
+          "ip_create_status": {
+            "type": "string",
+            "description": "The status of the order",
+            "enum": [
+              "pending",
+              "creating",
+              "created",
+              "failed"
+            ]
+          },
+          "order_info": {
+            "description": "The info of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderDetailDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "order_id",
+          "creation_data",
+          "ip_create_status",
+          "order_info"
+        ]
+      },
+      "CheckIpOrderListDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "The total number of the orders"
+          },
+          "orders": {
+            "description": "The list of the orders",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckIpOrderDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "orders"
         ]
       },
       "OrderListDto": {

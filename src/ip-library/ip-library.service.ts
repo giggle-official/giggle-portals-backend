@@ -1998,14 +1998,11 @@ export class IpLibraryService {
 
     async _checkCreateIpPermission(user: UserInfoDTO, ipInfo: CreateIpDto): Promise<boolean> {
         const userInfo = await this.userService.getProfile(user)
-        if (userInfo.can_create_ip) {
-            return true
-        }
-
-        //check user has license of parent ip
-        if (!ipInfo.parent_ip_library_id) {
+        if (!ipInfo.parent_ip_library_id && !userInfo.can_create_ip) {
+            //a top ip but user has no permission to create ip
             return false
         }
+        return true
     }
 
     async untokenize(user: UserInfoDTO, body: UntokenizeDto): Promise<IpLibraryDetailDto> {

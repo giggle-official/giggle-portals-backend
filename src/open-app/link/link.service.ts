@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common"
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { CreateLinkRequestDto, LinkDetailDto } from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
@@ -35,7 +35,7 @@ export class LinkService {
             throw new BadRequestException("Widget tag or link is required")
         }
         const uniqueStr = "gig" + Math.random().toString(36).substring(2, 16)
-        const url = `${process.env.FRONTEND_URL}/l/${uniqueStr}`
+        const url = this._generateLink(uniqueStr)
 
         const link = await this.prisma.app_links.create({
             data: {
@@ -64,9 +64,13 @@ export class LinkService {
             },
         })
 
+        if (!link) {
+            throw new NotFoundException("Link not found")
+        }
+
         return {
             link_id: link.unique_str,
-            link_url: link.link,
+            link_url: this._generateLink(link.unique_str),
             creator: {
                 username: link.creator_info.username,
                 avatar: link.creator_info.avatar,
@@ -77,5 +81,9 @@ export class LinkService {
             created_at: link.created_at,
             updated_at: link.updated_at,
         }
+    }
+
+    _generateLink(uniqueStr: string) {
+        return `${process.env.FRONTEND_URL}/l/${uniqueStr}`
     }
 }
