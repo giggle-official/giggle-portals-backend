@@ -60,7 +60,9 @@ export class IpOrderService {
             if (!asset || asset.type !== "video") {
                 throw new BadRequestException("asset not found or is not a video")
             }
-            amount = Math.ceil(asset?.asset_info?.videoInfo?.duration) * IpLibraryService.DEFAULT_LICENSE_PRICE
+            amount =
+                Math.max(Math.ceil(asset?.asset_info?.videoInfo?.duration / 60), 1) *
+                IpLibraryService.DEFAULT_LICENSE_PRICE
         }
 
         if (amount < parentIp.authorization_settings.license_price) {
