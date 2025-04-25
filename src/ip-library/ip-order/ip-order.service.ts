@@ -26,6 +26,21 @@ export class IpOrderService {
         if (!app_id) {
             throw new BadRequestException("app_id is required")
         }
+
+        //exists
+
+        const exists = await this.prisma.ip_library.findFirst({
+            where: {
+                name: body.name,
+                NOT: {
+                    owner: user.usernameShorted,
+                },
+            },
+        })
+        if (exists) {
+            throw new BadRequestException("ip name already exists")
+        }
+
         if (!(await this.isThirdLevelIp(body))) {
             throw new BadRequestException("request ip is not a 3rd level ip")
         }
@@ -186,14 +201,15 @@ export class IpOrderService {
             return
         }
 
+        //set status to creating
+        await this.prisma.third_level_ip_orders.update({
+            where: { id: order.id },
+            data: {
+                ip_create_status: IpCreateStatus.CREATING,
+            },
+        })
+
         try {
-            //set status to creating
-            await this.prisma.third_level_ip_orders.update({
-                where: { id: order.id },
-                data: {
-                    ip_create_status: IpCreateStatus.CREATING,
-                },
-            })
             const result = new Observable<SSEMessage>((subscriber) => {
                 this.ipLibraryService
                     .processCreateIp(user, order.creation_data as any as CreateIpDto, subscriber)

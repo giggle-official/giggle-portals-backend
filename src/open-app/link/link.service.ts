@@ -3,12 +3,14 @@ import { CreateLinkRequestDto, LinkDetailDto } from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
+import { OpenAppService } from "src/open-app/open-app.service"
 
 @Injectable()
 export class LinkService {
     constructor(
         private readonly userService: UserService,
         private readonly prisma: PrismaService,
+        private readonly appService: OpenAppService,
     ) {}
 
     async create(body: CreateLinkRequestDto, userInfo: UserInfoDTO, appId: string) {
@@ -75,11 +77,13 @@ export class LinkService {
                 username: link.creator_info.username,
                 avatar: link.creator_info.avatar,
             },
-            widget_tag: link.widget_tag,
+            redirect_to_widget: link.widget_tag,
             widget_message: link.widget_message,
-            link: link.link,
+            redirect_to_link: link.link,
+            app_id: link.app_id,
             created_at: link.created_at,
             updated_at: link.updated_at,
+            app_info: await this.appService.getAppDetail(link.app_id, null),
         }
     }
 

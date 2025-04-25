@@ -8261,7 +8261,7 @@
               }
             }
           },
-          "widget_tag": {
+          "redirect_to_widget": {
             "type": "string",
             "description": "The widget tag of the link"
           },
@@ -8269,9 +8269,21 @@
             "type": "object",
             "description": "The widget message of the link"
           },
-          "link": {
+          "redirect_to_link": {
             "type": "string",
             "description": "The link of the link"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "The app id of the link"
+          },
+          "app_info": {
+            "description": "The app info of the link",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppInfoDto"
+              }
+            ]
           },
           "created_at": {
             "format": "date-time",
@@ -8288,9 +8300,11 @@
           "link_id",
           "link_url",
           "creator",
-          "widget_tag",
+          "redirect_to_widget",
           "widget_message",
-          "link",
+          "redirect_to_link",
+          "app_id",
+          "app_info",
           "created_at",
           "updated_at"
         ]

@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
+import { AppInfoDto } from "../open-app.dto"
 
 export class CreateLinkRequestDto {
     @ApiProperty({
@@ -52,7 +53,7 @@ export class LinkDetailDto {
     @ApiProperty({
         description: "The widget tag of the link",
     })
-    widget_tag: string
+    redirect_to_widget: string
 
     @ApiProperty({
         description: "The widget message of the link",
@@ -62,7 +63,18 @@ export class LinkDetailDto {
     @ApiProperty({
         description: "The link of the link",
     })
-    link: string
+    redirect_to_link: string
+
+    @ApiProperty({
+        description: "The app id of the link",
+    })
+    app_id: string
+
+    @ApiProperty({
+        description: "The app info of the link",
+        type: AppInfoDto,
+    })
+    app_info: AppInfoDto
 
     @ApiProperty({
         description: "The created at of the link",
