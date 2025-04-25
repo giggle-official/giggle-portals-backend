@@ -184,7 +184,7 @@ export class IpOrderService {
     }
 
     //check ip order if order completed, but status pending
-    @Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
         const order = await this.prisma.third_level_ip_orders.findFirst({
             where: {
