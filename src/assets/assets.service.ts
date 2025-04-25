@@ -38,7 +38,6 @@ import {
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
-import { VideoToVideoService } from "src/universal-stimulator/video-to-video/video-to-video.service"
 
 @Injectable()
 export class AssetsService {
@@ -50,6 +49,7 @@ export class AssetsService {
         @Inject(forwardRef(() => TaskService))
         private readonly taskService: TaskService,
 
+        @Inject(forwardRef(() => IpLibraryService))
         private readonly ipLibraryService: IpLibraryService,
     ) {}
     async getAssets(user: UserInfoDTO, query: AssetListReqDto): Promise<AssetsListResDto> {
@@ -541,89 +541,6 @@ export class AssetsService {
         if (extension === "mp4" || extension === "mov" || extension === "mkv") return { fileType: "video", extension }
         if (extension === "jpg" || extension === "jpeg" || extension === "png") return { fileType: "image", extension }
         return { fileType: "unknown", extension }
-    }
-
-    public async editVideo(userInfo: UserInfoDTO, body: EditVideoAssetDto): Promise<AssetDetailDto> {
-        const jobId = await this._createEditJob(userInfo, body)
-        return await this.getAsset(userInfo, body.id)
-    }
-
-    private async _createEditJob(userInfo: UserInfoDTO, body: EditVideoAssetDto): Promise<number> {
-        const asset = await this.prismaService.assets.findUnique({
-            where: { id: body.id, user: userInfo.usernameShorted },
-        })
-
-        if (!asset) throw new NotFoundException("Asset not found")
-        if (asset.type !== "video") throw new BadRequestException("Asset is not a video")
-
-        const existsJob = await this.prismaService.video_edit_jobs.findFirst({
-            where: { asset_id: body.id, current_status: { notIn: ["completed", "failed"] } },
-        })
-        if (existsJob) throw new BadRequestException("another edit job is already running")
-
-        const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-
-        const job = await this.prismaService.$transaction(async (tx) => {
-            const job = await tx.video_edit_jobs.create({
-                data: {
-                    edit_params: body as any,
-                    asset_id: body.id,
-                    current_status: "created",
-                },
-            })
-            let needCreateJob = false
-
-            if (body.split && body.split.length > 0) {
-                const videoInfo = (asset.asset_info as any)?.videoInfo as VideoInfoTaskResponseDto
-                if (!videoInfo) throw new BadRequestException("can not get video info")
-                const start = body.split[0]?.start
-                const end = body.split[0]?.end
-                const time = end - start
-
-                if (time > videoInfo.duration || start < 0 || end > videoInfo.duration || time <= 0 || start >= end)
-                    throw new BadRequestException("Invalid start or end params")
-
-                const createSplitTaskParam: VideoSplitDto = {
-                    bucket: s3Info.s3_bucket,
-                    file_name: asset.path,
-                    format: "mp4",
-                    time: time,
-                    start: VideoToVideoService.formatTime(start),
-                    end: VideoToVideoService.formatTime(end),
-                }
-
-                const splitTaskId = await this.createSplitTask(createSplitTaskParam)
-                await tx.video_edit_subtasks.create({
-                    data: {
-                        job_id: job.id,
-                        asset_id: body.id,
-                        task_type: "split",
-                        task_id: splitTaskId,
-                        current_step: "pending",
-                        request_params: createSplitTaskParam as any,
-                    },
-                })
-
-                needCreateJob = true
-            }
-            if (!needCreateJob) {
-                throw new BadRequestException("no any edit action, create edit job failed")
-            }
-            return job
-        })
-        return job.id
-    }
-
-    private async createSplitTask(splitParams: VideoSplitDto): Promise<string> {
-        const result = await this.taskService.taskCreateRequest({
-            method: "VideoService.VideoSplit",
-            params: [splitParams],
-            id: v4(),
-        })
-        if (!result?.result?.task_id) {
-            throw new Error("Failed to create split task")
-        }
-        return result.result.task_id
     }
 
     async getAssetSize(assetId: number): Promise<number> {

@@ -7,6 +7,7 @@ import {
     SubmitResetPasswordDto,
     BindEmailReqDto,
     UpdateProfileReqDto,
+    RegisterInfoDTO,
 } from "./user.controller"
 import { PrismaService } from "src/common/prisma.service"
 import * as crypto from "crypto"
@@ -22,6 +23,8 @@ import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
 import { PinataSDK } from "pinata-web3"
 import { Readable } from "stream"
+import { LinkService } from "src/open-app/link/link.service"
+import { LinkDetailDto } from "src/open-app/link/link.dto"
 @Injectable()
 export class UserService {
     constructor(
@@ -33,6 +36,9 @@ export class UserService {
 
         @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
+
+        @Inject(forwardRef(() => LinkService))
+        private readonly linkService: LinkService,
     ) {}
 
     async getUserInfoByEmail(email: string, app_id?: string): Promise<UserInfoDTO> {
@@ -77,7 +83,6 @@ export class UserService {
             username: userInfo.username || userInfo.usernameShorted,
             password: UserService.cryptoString(userInfo.password),
             email: userInfo.email,
-            invited_by: userInfo.invited_by,
             username_in_be: userInfo.usernameShorted,
             email_confirmed: userInfo.emailConfirmed,
             current_plan: "Free",
@@ -97,34 +102,73 @@ export class UserService {
     }
 
     async getProfile(userInfo: UserInfoDTO): Promise<UserInfoDTO> {
-        const _userInfo = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
-        const credit = await this.creditService.getUserCredits(_userInfo.usernameShorted)
-
-        if (!_userInfo.agent_user) {
-            _userInfo.agent_user = UtilitiesService.generateRandomApiKey()
-            await this.prisma.users.update({
-                where: { username_in_be: _userInfo.usernameShorted },
-                data: { agent_user: _userInfo.agent_user },
-            })
-        }
+        const _userInfoFromDb = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
 
         return {
-            username: _userInfo.username,
-            usernameShorted: _userInfo.usernameShorted,
-            email: _userInfo.email,
-            emailConfirmed: _userInfo.emailConfirmed,
-            credit: credit,
-            avatar: _userInfo.avatar,
-            agent_user: _userInfo.agent_user,
-            giggle_wallet_address: await GiggleService.getGiggleWalletAddress(_userInfo.usernameShorted),
-            description: _userInfo.description,
-            followers: _userInfo.followers,
-            following: _userInfo.following,
-            can_create_ip: _userInfo.can_create_ip,
+            username: _userInfoFromDb.username,
+            usernameShorted: _userInfoFromDb.usernameShorted,
+            email: _userInfoFromDb.email,
+            emailConfirmed: _userInfoFromDb.emailConfirmed,
+            avatar: _userInfoFromDb.avatar,
+            giggle_wallet_address: await GiggleService.getGiggleWalletAddress(_userInfoFromDb.usernameShorted),
+            description: _userInfoFromDb.description,
+            followers: _userInfoFromDb.followers,
+            following: _userInfoFromDb.following,
+            can_create_ip: _userInfoFromDb.can_create_ip,
             permissions: userInfo?.permissions,
             widget_info: userInfo?.widget_info,
-            is_developer: _userInfo?.is_developer,
+            source_link: userInfo?.source_link, //this field is user from under current login
+            is_developer: _userInfoFromDb?.is_developer,
+            register_info: await this.getRegisterInfo(userInfo),
         }
+    }
+
+    async getRegisterInfo(userInfo: UserInfoDTO): Promise<RegisterInfoDTO> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        let sourceLinkDetail: LinkDetailDto | null = null
+        if (user.from_source_link) {
+            sourceLinkDetail = await this.linkService.getLink(user.from_source_link)
+        }
+
+        let registerInfo: RegisterInfoDTO = {
+            type: "direct",
+            source_link: null,
+            app_id: null,
+            from_widget_tag: null,
+            source_link_summary: null,
+        }
+
+        if (sourceLinkDetail) {
+            //if user register from source link
+            if (sourceLinkDetail.redirect_to_widget) {
+                registerInfo.type = "widget"
+                registerInfo.source_link_summary = {
+                    creator: sourceLinkDetail.creator,
+                    link_url: sourceLinkDetail.link_url,
+                }
+                registerInfo.source_link = user.from_source_link
+                registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
+            } else {
+                registerInfo.type = "link"
+                registerInfo.source_link_summary = {
+                    creator: sourceLinkDetail.creator,
+                    link_url: sourceLinkDetail.link_url,
+                }
+                registerInfo.source_link = user.from_source_link
+            }
+            return registerInfo
+        }
+
+        if (user.register_app_id) {
+            registerInfo.type = "app"
+            registerInfo.app_id = user.register_app_id
+        }
+
+        return registerInfo
     }
 
     //create email user
@@ -638,7 +682,7 @@ Message: ${contactInfo.message}
         return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
-    async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string) {
+    async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string, sourceLink?: string) {
         if (!userInfo.email || !isEmail(userInfo.email)) {
             throw new BadRequestException("email is invalid")
         }
@@ -662,6 +706,18 @@ Message: ${contactInfo.message}
                     },
                     data: {
                         register_app_id: appId,
+                    },
+                })
+            }
+
+            if (sourceLink) {
+                //update register source link
+                await this.prisma.users.update({
+                    where: {
+                        username_in_be: user.usernameShorted,
+                    },
+                    data: {
+                        from_source_link: sourceLink,
                     },
                 })
             }
@@ -722,9 +778,7 @@ Message: ${contactInfo.message}
             usernameShorted: record.username_in_be,
             email: record.email,
             emailConfirmed: record.email_confirmed,
-            credit: record.credit,
             avatar: record.avatar,
-            agent_user: record.agent_user,
             description: record.description,
             followers: record.followers,
             following: record.following,

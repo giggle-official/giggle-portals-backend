@@ -440,22 +440,4 @@ data: some error message
     async getSignatureClipDetail(@Param("id") id: string) {
         return await this.ipLibraryService.signatureClipDetail(id)
     }
-
-    @Post("/signature-clips/remix/video-to-video")
-    @ApiExcludeEndpoint()
-    @UseGuards(AuthGuard("jwt"))
-    @HttpCode(HttpStatus.OK)
-    @ApiBody({ type: RemixClipsDto })
-    async remixVideoToVideo(@Req() req: Request, @Body() body: RemixClipsDto) {
-        return await this.ipLibraryService.remixVideoToVideo(req.user as UserInfoDTO, body)
-    }
-
-    @Post("/signature-clips/remix/face-swap")
-    @ApiExcludeEndpoint()
-    @UseGuards(AuthGuard("jwt"))
-    @HttpCode(HttpStatus.OK)
-    @ApiBody({ type: RemixClipsDto })
-    async remixFaceSwap(@Req() req: Request, @Body() body: RemixClipsDto) {
-        return await this.ipLibraryService.remixFaceSwap(req.user as UserInfoDTO, body)
-    }
 }

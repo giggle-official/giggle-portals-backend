@@ -43,7 +43,7 @@ export class AppInfoDto {
 
     @ApiProperty({
         description: "User Info",
-        type: UserInfoDTO,
+        type: () => UserInfoDTO,
         nullable: true,
     })
     user_info: UserInfoDTO | null

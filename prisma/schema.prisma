@@ -23,6 +23,7 @@ model users {
   avatar                         String?                       @db.LongText
   invite_code                    String                        @default("") @db.VarChar(255)
   invited_by                     String                        @default("") @db.VarChar(255)
+  from_source_link               String?                       @db.VarChar(32)
   stripe_customer_id             String?                       @db.VarChar(255)
   current_pay_period             String?                       @db.VarChar(32)
   current_plan                   String?                       @default("none") @db.VarChar(32)
@@ -824,6 +825,7 @@ model orders {
   description              String?                 @db.Text
   amount                   Int?
   owner                    String                  @db.VarChar(32)
+  from_source_link         String?                 @db.VarChar(32)
   widget_tag               String?                 @db.VarChar(32)
   app_id                   String?                 @db.VarChar(32)
   current_status           String?                 @db.VarChar(32)

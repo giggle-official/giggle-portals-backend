@@ -19,6 +19,7 @@ import {
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
+    ResendCallbackRequestDto,
 } from "./order.dto"
 import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
@@ -27,13 +28,12 @@ import { UserInfoDTO } from "src/user/user.controller"
 import { Request } from "express"
 import Stripe from "stripe"
 
-@ApiTags("Order")
 @Controller({ path: "api/v1/order" })
 export class OrderController {
     constructor(private readonly orderService: OrderService) {}
 
     @Get("/list")
-    @ApiOperation({ summary: "List of user's orders" })
+    @ApiOperation({ summary: "List of user's orders", tags: ["Order"] })
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: OrderListDto })
     async getOrderList(@Query() query: OrderListQueryDto, @Req() req: Request): Promise<OrderListDto> {
@@ -41,7 +41,7 @@ export class OrderController {
     }
 
     @Get("/detail")
-    @ApiOperation({ summary: "Get an order by order id" })
+    @ApiOperation({ summary: "Get an order by order id", tags: ["Order"] })
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: OrderDetailDto })
     async getOrder(@Query("order_id") orderId: string, @Req() req: Request): Promise<OrderDetailDto> {
@@ -52,7 +52,7 @@ export class OrderController {
     }
 
     @Post("/create")
-    @ApiOperation({ summary: "Create an order" })
+    @ApiOperation({ summary: "Create an order", tags: ["Order"] })
     @ApiBody({ type: CreateOrderDto })
     @ApiResponse({ type: OrderDetailDto })
     @UseGuards(AuthGuard("jwt"))
@@ -63,7 +63,7 @@ export class OrderController {
 
     @Post("/payWithWallet")
     @ApiExcludeEndpoint()
-    @ApiOperation({ summary: "Pay an order with wallet" })
+    @ApiOperation({ summary: "Pay an order with wallet", tags: ["Order"] })
     @ApiBody({ type: PayWithWalletRequestDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
@@ -98,5 +98,15 @@ export class OrderController {
             default:
                 return {}
         }
+    }
+
+    @Post("/resend-callback")
+    @ApiOperation({ summary: "Resend callback for an order", tags: ["Admin"] })
+    @ApiBody({ type: ResendCallbackRequestDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async resendCallback(@Body() order: ResendCallbackRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return this.orderService.resendCallback(order, req.user as UserInfoDTO)
     }
 }

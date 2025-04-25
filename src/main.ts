@@ -185,7 +185,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "💰 Payment",
-            tags: ["Order"],
+            tags: ["Order", "Admin"],
         },
         {
             name: "🌐 Web3",
@@ -237,11 +237,11 @@ To see how to process the event stream response, please refer to the [Event Stre
         }),
     )
 
-    const privateOutputPath = join(process.cwd(), "openapi-private-spec.json")
-    fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
-
-    const publicOutputPath = join(process.cwd(), "openapi-public-spec.json")
-    fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
+    //const privateOutputPath = join(process.cwd(), "openapi-private-spec.json")
+    //fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
+    //
+    //const publicOutputPath = join(process.cwd(), "openapi-public-spec.json")
+    //fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
 
     await app.listen(process.env.RUN_PORT || 3000, "0.0.0.0")
 }

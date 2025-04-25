@@ -5,6 +5,7 @@ import {
     Logger,
     NotFoundException,
     InternalServerErrorException,
+    ForbiddenException,
 } from "@nestjs/common"
 import {
     OrderDetailDto,
@@ -15,6 +16,7 @@ import {
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
+    ResendCallbackRequestDto,
 } from "./order.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
@@ -32,6 +34,7 @@ import { InjectStripe } from "nestjs-stripe"
 import { Request } from "express"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom } from "rxjs"
+import { LinkService } from "src/open-app/link/link.service"
 
 @Injectable()
 export class OrderService {
@@ -42,6 +45,7 @@ export class OrderService {
         private readonly userService: UserService,
         private readonly giggleService: GiggleService,
         private readonly httpService: HttpService,
+        private readonly linkService: LinkService,
         @InjectStripe() private readonly stripe: Stripe,
     ) {}
 
@@ -92,12 +96,13 @@ export class OrderService {
                 redirect_url: order.redirect_url,
                 callback_url: order.callback_url,
                 expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
+                from_source_link: userProfile.source_link,
             },
         })
-        return this.mapOrderDetail(record)
+        return await this.mapOrderDetail(record)
     }
 
-    mapOrderDetail(data: orders): OrderDetailDto {
+    async mapOrderDetail(data: orders): Promise<OrderDetailDto> {
         const orderUrl = `${process.env.FRONTEND_URL}/order?orderId=${data.order_id}`
         return {
             order_id: data.order_id,
@@ -119,6 +124,8 @@ export class OrderService {
             cancelled_detail: data.cancelled_detail,
             rewards_model_snapshot: data.rewards_model_snapshot as unknown as RewardModelDto,
             order_url: orderUrl,
+            from_source_link: data.from_source_link,
+            source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
         }
     }
 
@@ -145,7 +152,7 @@ export class OrderService {
         if (!record) {
             throw new NotFoundException("Order not found")
         }
-        return this.mapOrderDetail(record)
+        return await this.mapOrderDetail(record)
     }
 
     async getOrderList(query: OrderListQueryDto, userInfo: UserInfoDTO): Promise<OrderListDto> {
@@ -178,7 +185,7 @@ export class OrderService {
             where,
         })
         return {
-            orders: orders.map((order) => this.mapOrderDetail(order)),
+            orders: await Promise.all(orders.map(async (order) => await this.mapOrderDetail(order))),
             total,
         }
     }
@@ -223,7 +230,7 @@ export class OrderService {
             },
         })
         await this.processCallback(orderRecord.order_id)
-        return this.mapOrderDetail(orderRecord)
+        return await this.mapOrderDetail(orderRecord)
     }
 
     async payOrderWithStripe(order: PayWithStripeRequestDto, userInfo: UserInfoDTO): Promise<PayWithStripeResponseDto> {
@@ -410,7 +417,7 @@ export class OrderService {
         if (!order || !order.callback_url) {
             return
         }
-        const orderDetail = this.mapOrderDetail(order)
+        const orderDetail = await this.mapOrderDetail(order)
         try {
             const request = await lastValueFrom(this.httpService.post(order.callback_url, orderDetail))
             await this.prisma.order_callback_record.create({
@@ -431,5 +438,23 @@ export class OrderService {
                 },
             })
         }
+    }
+
+    async resendCallback(order: ResendCallbackRequestDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+        const { order_id } = order
+        const orderRecord = await this.prisma.orders.findUnique({
+            where: { order_id: order_id },
+        })
+        const user = await this.prisma.users.findUnique({
+            where: { username_in_be: userInfo.usernameShorted },
+        })
+        if (!orderRecord || !orderRecord.callback_url) {
+            throw new NotFoundException("Order or callback url not found")
+        }
+        if (!user || !user.is_admin) {
+            throw new ForbiddenException("You are not allowed to resend callback")
+        }
+        await this.processCallback(orderRecord.order_id)
+        return await this.mapOrderDetail(orderRecord)
     }
 }

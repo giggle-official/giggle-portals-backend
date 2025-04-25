@@ -10,8 +10,15 @@ import { PaymentService } from "src/payment/payment.service"
 import { LogsService } from "./logs/logs.service"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { Web3Module } from "src/web3/web3.module"
+import { OpenAppModule } from "src/open-app/open-app.module"
 @Module({
-    imports: [forwardRef(() => AuthModule), NotificationModule, HttpModule, forwardRef(() => Web3Module)],
+    imports: [
+        forwardRef(() => AuthModule),
+        NotificationModule,
+        HttpModule,
+        forwardRef(() => Web3Module),
+        forwardRef(() => OpenAppModule),
+    ],
     controllers: [UserController],
     providers: [UserService, PrismaService, PaymentService, CreditService, LogsService, ApiKeysService],
     exports: [UserService, LogsService],

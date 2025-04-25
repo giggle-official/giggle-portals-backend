@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
-import { CreateLinkRequestDto, LinkDetailDto } from "./link.dto"
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { CreateLinkRequestDto, LinkDetailDto, LinkSummaryDto } from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
@@ -8,9 +8,13 @@ import { OpenAppService } from "src/open-app/open-app.service"
 @Injectable()
 export class LinkService {
     constructor(
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
-        private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => OpenAppService))
         private readonly appService: OpenAppService,
+
+        private readonly prisma: PrismaService,
     ) {}
 
     async create(body: CreateLinkRequestDto, userInfo: UserInfoDTO, appId: string) {
@@ -56,7 +60,7 @@ export class LinkService {
         }
     }
 
-    async getLink(uniqueStr: string): Promise<LinkDetailDto> {
+    async getLink(uniqueStr: string): Promise<LinkDetailDto | null> {
         const link = await this.prisma.app_links.findUnique({
             where: {
                 unique_str: uniqueStr,
@@ -67,7 +71,7 @@ export class LinkService {
         })
 
         if (!link) {
-            throw new NotFoundException("Link not found")
+            return null
         }
 
         return {
@@ -85,6 +89,14 @@ export class LinkService {
             updated_at: link.updated_at,
             app_info: await this.appService.getAppDetail(link.app_id, null),
         }
+    }
+
+    async getLinkSummary(uniqueStr: string): Promise<LinkSummaryDto> {
+        const link = await this.getLink(uniqueStr)
+        return new LinkSummaryDto({
+            creator: link?.creator,
+            link_url: link?.link_url,
+        })
     }
 
     _generateLink(uniqueStr: string) {

@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common"
+import {
+    BadRequestException,
+    ConflictException,
+    forwardRef,
+    Inject,
+    Injectable,
+    Logger,
+    NotFoundException,
+} from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     AddInviteEmailDto,
@@ -35,8 +43,14 @@ export class OpenAppService {
     private readonly logger = new Logger(OpenAppService.name)
     constructor(
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
+
+        @Inject(forwardRef(() => AuthService))
         private readonly authService: AuthService,
+
+        @Inject(forwardRef(() => IpLibraryService))
         private readonly ipLibraryService: IpLibraryService,
         private readonly notificationService: NotificationService,
     ) {}

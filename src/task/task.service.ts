@@ -3,14 +3,8 @@ import { lastValueFrom } from "rxjs"
 import { HttpService } from "@nestjs/axios"
 import { TaskCreateDto, TaskCreateResponseDto, TaskQueryDto, TaskQueryResponseDto } from "./task.dto"
 import { Logger } from "@nestjs/common"
-import { CronExpression } from "@nestjs/schedule"
-import { Cron } from "@nestjs/schedule"
 import { PrismaService } from "src/common/prisma.service"
-import { VideoToVideoService } from "src/universal-stimulator/video-to-video/video-to-video.service"
-import { FaceSwapService } from "src/universal-stimulator/face-swap/face-swap.service"
 import { CreditService } from "src/credit/credit.service"
-import { GenerateVideoService } from "src/universal-stimulator/generate-video/generate-video.service"
-import { GenerateImageService } from "src/universal-stimulator/generate-image/generate-image.service"
 
 @Injectable()
 export class TaskService {
@@ -22,18 +16,6 @@ export class TaskService {
         private readonly prismaService: PrismaService,
         @Inject(forwardRef(() => CreditService))
         private readonly creditService: CreditService,
-
-        @Inject(forwardRef(() => VideoToVideoService))
-        private readonly videoToVideoService: VideoToVideoService,
-
-        @Inject(forwardRef(() => FaceSwapService))
-        private readonly faceSwapService: FaceSwapService,
-
-        @Inject(forwardRef(() => GenerateVideoService))
-        private readonly generateVideoService: GenerateVideoService,
-
-        @Inject(forwardRef(() => GenerateImageService))
-        private readonly generateImageService: GenerateImageService,
     ) {
         this.taskUrl = process.env.UNIVERSAL_STIMULATOR_TASK_URL
         if (!this.taskUrl) {
@@ -115,20 +97,6 @@ export class TaskService {
             where: { id: processingId },
             data: { is_requesting: true, updated_at: new Date() },
         })
-        await this.videoToVideoService.checkVideoSplitStatus(100)
-        await this.videoToVideoService.checkVideoConvertStatus(100)
-        await this.videoToVideoService.checkVideoCombineStatus(100)
-        await this.videoToVideoService.checkPendingVideoQueuePosition(100)
-
-        //face swap
-        await this.faceSwapService.checkExtractTaskStatus(100)
-        await this.faceSwapService.checkSwapTaskStatus(100)
-
-        //generate video
-        await this.generateVideoService.checkGenerateTaskStatus()
-
-        //generate image
-        await this.generateImageService.checkImageGenerateTaskStatus()
 
         //credit
         await this.creditService.processCredits()

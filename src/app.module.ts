@@ -7,7 +7,6 @@ import { GoogleRecaptchaModule } from "@nestlab/google-recaptcha"
 import { UserModule } from "./user/user.module"
 import { AuthModule } from "./auth/auth.module"
 import { NotificationModule } from "./notification/notification.module"
-import { UniversalStimulatorModule } from "./universal-stimulator/universal-stimulator.module"
 import { PaymentModule } from "./payment/payment.module"
 import { CreditModule } from "./credit/credit.module"
 import { AssetsModule } from "./assets/assets.module"
@@ -15,7 +14,7 @@ import { TaskModule } from "./task/task.module"
 import { AdminModule } from "./admin/admin.module"
 import { IpLibraryModule } from "./ip-library/ip-library.module"
 import { Web3Module } from "./web3/web3.module"
-import { OpenAppModule } from './open-app/open-app.module';
+import { OpenAppModule } from "./open-app/open-app.module"
 
 @Module({
     imports: [
@@ -29,7 +28,6 @@ import { OpenAppModule } from './open-app/open-app.module';
         UserModule,
         AuthModule,
         NotificationModule,
-        UniversalStimulatorModule,
         PaymentModule,
         CreditModule,
         AssetsModule,

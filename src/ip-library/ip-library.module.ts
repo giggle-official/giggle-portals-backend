@@ -4,7 +4,6 @@ import { IpLibraryService } from "./ip-library.service"
 import { PrismaService } from "src/common/prisma.service"
 import { UtilitiesService } from "src/common/utilities.service"
 import { AssetsModule } from "src/assets/assets.module"
-import { UniversalStimulatorModule } from "src/universal-stimulator/universal-stimulator.module"
 import { UserModule } from "src/user/user.module"
 import { CreditModule } from "src/credit/credit.module"
 import { Web3Module } from "src/web3/web3.module"
@@ -23,7 +22,6 @@ import { PaymentModule } from "src/payment/payment.module"
 @Module({
     imports: [
         forwardRef(() => AssetsModule),
-        forwardRef(() => UniversalStimulatorModule),
         forwardRef(() => UserModule),
         forwardRef(() => CreditModule),
         forwardRef(() => Web3Module),

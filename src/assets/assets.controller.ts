@@ -13,7 +13,6 @@ import {
     DeleteAssetDto,
     AssetDetailDto,
     RelateToIpDto,
-    EditVideoAssetDto,
 } from "./assets.dto"
 import { Request } from "express"
 import { AuthGuard } from "@nestjs/passport"
@@ -50,16 +49,6 @@ export class AssetsController {
     @ApiOperation({ summary: "Relate an asset to an ip" })
     async relateToIp(@Req() req: Request, @Body() body: RelateToIpDto): Promise<AssetDetailDto> {
         return await this.assetsService.relateToIp(req.user as UserInfoDTO, body)
-    }
-
-    @ApiExcludeEndpoint()
-    @Post("/editVideo")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @ApiResponse({ type: AssetDetailDto })
-    @ApiOperation({ summary: "Edit a video, note: this should be need many times" })
-    async editVideoAsync(@Req() req: Request, @Body() body: EditVideoAssetDto): Promise<AssetDetailDto> {
-        return await this.assetsService.editVideo(req.user as UserInfoDTO, body)
     }
 
     @Post("/rename")

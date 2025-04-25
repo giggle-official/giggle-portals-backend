@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiProperty, PickType } from "@nestjs/swagger"
 import { AppInfoDto } from "../open-app.dto"
 
 export class CreateLinkRequestDto {
@@ -72,7 +72,6 @@ export class LinkDetailDto {
 
     @ApiProperty({
         description: "The app info of the link",
-        type: AppInfoDto,
     })
     app_info: AppInfoDto
 
@@ -86,3 +85,5 @@ export class LinkDetailDto {
     })
     updated_at: Date
 }
+
+export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "link_url"]) {}

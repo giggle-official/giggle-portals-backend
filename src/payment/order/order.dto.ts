@@ -4,6 +4,7 @@ import { JsonValue } from "@prisma/client/runtime/library"
 import { isArray, IsInt, IsNotEmpty, IsOptional, Min } from "class-validator"
 import { RewardModelDto } from "../rewards-pool/rewards-pool.dto"
 import { PaginationDto } from "src/common/common.dto"
+import { LinkDetailDto, LinkSummaryDto } from "src/open-app/link/link.dto"
 export enum OrderStatus {
     PENDING = "pending",
     REFUNDED = "refunded",
@@ -129,6 +130,11 @@ export class OrderDto implements orders {
         description: "The updated time of the order",
     })
     updated_at: Date
+
+    @ApiProperty({
+        description: "The source link of the order",
+    })
+    from_source_link: string
 }
 
 export class OrderDetailDto extends OmitType(OrderDto, [
@@ -143,6 +149,13 @@ export class OrderDetailDto extends OmitType(OrderDto, [
         description: "The url of order to pay or check the order status",
     })
     order_url: string
+
+    @ApiProperty({
+        description: "The source link summary of the order",
+        type: () => LinkSummaryDto,
+        required: false,
+    })
+    source_link_summary: LinkSummaryDto
 }
 
 export class ItemDto {
@@ -234,4 +247,11 @@ export class PayWithStripeResponseDto {
         description: "The url to pay with stripe",
     })
     url: string
+}
+
+export class ResendCallbackRequestDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
 }

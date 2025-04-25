@@ -43,10 +43,10 @@ import {
     LoginCodeResponseDto,
     UserWalletDetailQueryDto,
 } from "./user.dto"
-import { SubscriptionPlanDto } from "src/payment/plans.config"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
 import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+import { LinkSummaryDto } from "src/open-app/link/link.dto"
 
 export class nouceDto {
     @ApiProperty()
@@ -68,25 +68,47 @@ export class LoginDTO {
     password?: string
 }
 
+export class RegisterInfoDTO {
+    @ApiProperty({
+        description: "The type of the register info",
+        enum: ["link", "direct", "app", "widget", "other"],
+    })
+    type: "link" | "direct" | "app" | "widget" | "other"
+
+    @ApiProperty({
+        description: "The source link summary of the register info",
+        type: () => LinkSummaryDto,
+    })
+    source_link_summary?: LinkSummaryDto
+
+    @ApiProperty({
+        description: "The source link of the register info",
+    })
+    source_link?: string
+
+    @ApiProperty({
+        description: "The app id of the register info",
+    })
+    app_id?: string
+
+    @ApiProperty({
+        description: "The widget tag of the register info",
+    })
+    from_widget_tag?: string
+}
+
 export class UserInfoDTO extends LoginDTO {
     @ApiProperty()
     usernameShorted: string
     @ApiProperty()
     email?: string
-    @ApiProperty()
-    refreshToken?: string
-    @ApiProperty()
-    credit?: number
+
     @ApiProperty()
     emailConfirmed?: boolean
+
     @ApiProperty()
     avatar?: string
-    @ApiProperty()
-    invited_by?: string
-    @ApiProperty()
-    agent_user?: string
-    @ApiProperty()
-    subscription_info?: SubscriptionPlanDto
+
     @ApiProperty()
     giggle_wallet_address?: string
 
@@ -120,6 +142,14 @@ export class UserInfoDTO extends LoginDTO {
         widget_tag: string
         app_id: string
     }
+
+    @ApiProperty()
+    source_link?: string
+
+    @ApiProperty({
+        type: () => RegisterInfoDTO,
+    })
+    register_info?: RegisterInfoDTO
 }
 
 export class EmailLoginDto extends PickType(UserInfoDTO, ["email", "password"]) {}
@@ -505,7 +535,8 @@ export class UserController {
     async sendLoginCode(
         @Body() loginCodeReqDto: LoginCodeReqDto,
         @Headers("app-id") appId: string,
+        @Headers("x-source-link") sourceLink: string,
     ): Promise<LoginCodeResponseDto> {
-        return await this.userService.sendLoginCode(loginCodeReqDto, appId)
+        return await this.userService.sendLoginCode(loginCodeReqDto, appId, sourceLink)
     }
 }

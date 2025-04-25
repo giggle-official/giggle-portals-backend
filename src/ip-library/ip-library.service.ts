@@ -36,8 +36,6 @@ import { assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserInfoDTO } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
-import { VideoToVideoService } from "src/universal-stimulator/video-to-video/video-to-video.service"
-import { FaceSwapService } from "src/universal-stimulator/face-swap/face-swap.service"
 import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
@@ -70,12 +68,6 @@ export class IpLibraryService {
 
         @Inject(forwardRef(() => AssetsService))
         private readonly assetsService: AssetsService,
-
-        @Inject(forwardRef(() => VideoToVideoService))
-        private readonly video2videoService: VideoToVideoService,
-
-        @Inject(forwardRef(() => FaceSwapService))
-        private readonly faceSwapService: FaceSwapService,
 
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
@@ -911,34 +903,6 @@ export class IpLibraryService {
         return {
             ...data,
             signed_url: signedUrl,
-        }
-    }
-
-    async remixVideoToVideo(user: UserInfoDTO, body: RemixClipsDto) {
-        try {
-            const assetRecord = await this.checkRemixToAsset(user, body.id)
-            const result = await this.video2videoService.createFromAsset(user, assetRecord.id)
-            return result
-        } catch (error) {
-            this.logger.error(
-                "Error remixing video to video:",
-                error,
-                `user: ${user.email}, signature clip id: ${body.id}`,
-            )
-            throw new InternalServerErrorException("Failed to remix video to video")
-        }
-    }
-
-    async remixFaceSwap(user: UserInfoDTO, body: RemixClipsDto) {
-        try {
-            const assetRecord = await this.checkRemixToAsset(user, body.id)
-            const result = await this.faceSwapService.create(user, {
-                from_asset_id: assetRecord.id,
-            })
-            return result
-        } catch (error) {
-            this.logger.error("Error remixing face swap:", error, `user: ${user.email}, signature clip id: ${body.id}`)
-            throw new InternalServerErrorException("Failed to remix face swap")
         }
     }
 

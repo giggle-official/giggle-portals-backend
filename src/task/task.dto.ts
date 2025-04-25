@@ -1,6 +1,3 @@
-import { TaskFaceExtractDto, TaskFaceSwapDto } from "src/universal-stimulator/face-swap/face-swap.dto"
-import { TaskGenerateImageDto } from "src/universal-stimulator/generate-image/generate-image.dto"
-import { TaskGenerateVideoDto } from "src/universal-stimulator/generate-video/generate-video.dto"
 import { VideoFormatDto, VideoTranscodeDto } from "src/assets/assets.dto"
 export class TaskCreateDto {
     method:
@@ -26,10 +23,6 @@ export class TaskCreateDto {
         | VideoFinishDto[]
         | VideoTranscodeDto[]
         | VideoFormatDto[]
-        | TaskFaceExtractDto[]
-        | TaskFaceSwapDto[]
-        | TaskGenerateVideoDto[]
-        | TaskGenerateImageDto[]
     id: string
 }
 

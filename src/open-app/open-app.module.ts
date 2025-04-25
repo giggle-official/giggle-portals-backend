@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common"
+import { forwardRef, Module } from "@nestjs/common"
 import { OpenAppController } from "./open-app.controller"
 import { OpenAppService } from "./open-app.service"
 import { PrismaService } from "src/common/prisma.service"
@@ -15,18 +15,21 @@ import { DeveloperController } from "./developer/developer.controller"
 import { DeveloperService } from "./developer/developer.service"
 import { LinkController } from "./link/link.controller"
 import { LinkService } from "./link/link.service"
+import { PaymentModule } from "src/payment/payment.module"
 
 @Module({
     imports: [
-        UserModule,
-        AuthModule,
-        IpLibraryModule,
-        AuthUserModule,
-        NotificationModule,
-        WidgetsModule,
+        forwardRef(() => UserModule),
+        forwardRef(() => AuthModule),
+        forwardRef(() => IpLibraryModule),
+        forwardRef(() => AuthUserModule),
+        forwardRef(() => NotificationModule),
+        forwardRef(() => WidgetsModule),
+        forwardRef(() => PaymentModule),
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
     controllers: [OpenAppController, AuthController, DeveloperController, LinkController],
     providers: [OpenAppService, PrismaService, AuthService, DeveloperService, LinkService],
+    exports: [LinkService],
 })
 export class OpenAppModule {}

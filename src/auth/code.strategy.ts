@@ -31,6 +31,9 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
         if (userInfo.login_code !== code || userInfo.login_code_expired < new Date()) {
             throw new ForbiddenException("Invalid code or code expired")
         }
-        return this.userService.getUserInfoByEmail(email)
+        return {
+            ...(await this.userService.getUserInfoByEmail(email)),
+            source_link: (req.headers["x-source-link"] as string) || "",
+        }
     }
 }

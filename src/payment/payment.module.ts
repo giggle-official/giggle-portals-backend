@@ -12,6 +12,8 @@ import { RewardsPoolController } from "./rewards-pool/rewards-pool.controller"
 import { OrderService } from "./order/order.service"
 import { UserModule } from "src/user/user.module"
 import { Web3Module } from "src/web3/web3.module"
+import { OpenAppModule } from "src/open-app/open-app.module"
+
 @Module({
     imports: [
         HttpModule,
@@ -21,6 +23,7 @@ import { Web3Module } from "src/web3/web3.module"
         forwardRef(() => CreditModule),
         forwardRef(() => UserModule),
         forwardRef(() => Web3Module),
+        forwardRef(() => OpenAppModule),
     ],
     controllers: [PaymentController, OrderController, RewardsPoolController],
     providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService],

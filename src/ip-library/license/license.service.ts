@@ -14,6 +14,8 @@ export class LicenseService {
     private readonly logger = new Logger(LicenseService.name)
     constructor(
         private readonly prismaService: PrismaService,
+
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
 
         @Inject(forwardRef(() => IpLibraryService))
