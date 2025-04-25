@@ -15,8 +15,6 @@ import validator from "validator"
 import { NotificationService } from "src/notification/notification.service"
 import { ContactDTO, LoginCodeReqDto } from "./user.dto"
 import { CreditService } from "src/credit/credit.service"
-import { PaymentService } from "src/payment/payment.service"
-import { freePlan, SubscriptionPlanDto, SubscriptionPlanName, SubscriptionPlanPeriod } from "src/payment/plans.config"
 import { UtilitiesService } from "src/common/utilities.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
@@ -29,7 +27,7 @@ export class UserService {
     constructor(
         private prisma: PrismaService,
         private readonly notificationService: NotificationService,
-        private readonly paymentService: PaymentService,
+
         @Inject(forwardRef(() => CreditService))
         private readonly creditService: CreditService,
 
@@ -101,40 +99,6 @@ export class UserService {
     async getProfile(userInfo: UserInfoDTO): Promise<UserInfoDTO> {
         const _userInfo = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
         const credit = await this.creditService.getUserCredits(_userInfo.usernameShorted)
-        const userPlanInDB: any = await this.prisma.users.findFirst({
-            where: { username_in_be: _userInfo.usernameShorted },
-            select: { current_plan: true, current_pay_period: true, plan_settings: true },
-        })
-        let profilePlan: SubscriptionPlanDto = freePlan
-        let currentPlanName: SubscriptionPlanName = userPlanInDB.current_plan as SubscriptionPlanName
-
-        if (
-            [SubscriptionPlanName.Starter, SubscriptionPlanName.Basic, SubscriptionPlanName.Premium].includes(
-                currentPlanName,
-            )
-        ) {
-            profilePlan = await this.paymentService.getPlan({
-                name: userPlanInDB.current_plan,
-                period: userPlanInDB.current_pay_period as SubscriptionPlanPeriod,
-            })
-        } else {
-            profilePlan = {
-                ...freePlan,
-                video_convert_max_seconds:
-                    userPlanInDB.plan_settings?.video_convert_max_seconds || freePlan.video_convert_max_seconds,
-                credit_consume_every_second:
-                    userPlanInDB.plan_settings?.credit_consume_every_second || freePlan.credit_consume_every_second,
-                face_swap_consume_every_second:
-                    userPlanInDB.plan_settings?.face_swap_consume_every_second ||
-                    freePlan.face_swap_consume_every_second,
-                generate_video_consume_every_second:
-                    userPlanInDB.plan_settings?.generate_video_consume_every_second ||
-                    freePlan.generate_video_consume_every_second,
-                generate_image_consume_per_image:
-                    userPlanInDB.plan_settings?.generate_image_consume_per_image ||
-                    freePlan.generate_image_consume_per_image,
-            }
-        }
 
         if (!_userInfo.agent_user) {
             _userInfo.agent_user = UtilitiesService.generateRandomApiKey()

@@ -158,7 +158,7 @@ To see how to process the event stream response, please refer to the [Event Stre
     publicDocument["x-tagGroups"] = [
         {
             name: "IP Management",
-            tags: ["IP Library", "License", "Announcement", "Comments"],
+            tags: ["IP Library", "Announcement", "Comments"],
         },
         {
             name: "Account",
@@ -177,7 +177,7 @@ To see how to process the event stream response, please refer to the [Event Stre
     privateDocument["x-tagGroups"] = [
         {
             name: "📚 IP Management",
-            tags: ["IP Library", "License", "Announcement", "Comments"],
+            tags: ["IP Library", "IP Order", "Announcement", "Comments"],
         },
         {
             name: "🧑‍💼 Account",

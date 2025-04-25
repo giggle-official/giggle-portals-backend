@@ -16,6 +16,9 @@ import { AnnouncementService } from "./announcement/announcement.service"
 import { CommentsController } from "./comments/comments.controller"
 import { CommentsService } from "./comments/comments.service"
 import { JwtCaslAbilityFactory } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+import { IpOrderController } from "./ip-order/ip-order.controller"
+import { IpOrderService } from "./ip-order/ip-order.service"
+import { PaymentModule } from "src/payment/payment.module"
 
 @Module({
     imports: [
@@ -24,8 +27,15 @@ import { JwtCaslAbilityFactory } from "src/casl/casl-ability.factory/jwt-casl-ab
         forwardRef(() => UserModule),
         forwardRef(() => CreditModule),
         forwardRef(() => Web3Module),
+        forwardRef(() => PaymentModule),
     ],
-    controllers: [IpLibraryController, LicenseController, AnnouncementController, CommentsController],
+    controllers: [
+        IpLibraryController,
+        LicenseController,
+        AnnouncementController,
+        CommentsController,
+        IpOrderController,
+    ],
     providers: [
         IpLibraryService,
         PrismaService,
@@ -35,6 +45,7 @@ import { JwtCaslAbilityFactory } from "src/casl/casl-ability.factory/jwt-casl-ab
         AnnouncementService,
         CommentsService,
         JwtCaslAbilityFactory,
+        IpOrderService,
     ],
     exports: [IpLibraryService, LicenseService],
 })

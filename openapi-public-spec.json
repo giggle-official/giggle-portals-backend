@@ -2057,6 +2057,9 @@
           }
         ],
         "responses": {
+          "103": {
+            "description": ""
+          },
           "200": {
             "description": "",
             "content": {
@@ -2094,6 +2097,9 @@
           }
         },
         "responses": {
+          "103": {
+            "description": ""
+          },
           "200": {
             "description": "",
             "content": {
@@ -2131,6 +2137,9 @@
           }
         },
         "responses": {
+          "103": {
+            "description": ""
+          },
           "200": {
             "description": "",
             "content": {
@@ -2599,6 +2608,47 @@
         "summary": "Unlike a comment",
         "tags": [
           "Comments"
+        ]
+      }
+    },
+    "/api/v1/ip/order/create-ip-order": {
+      "post": {
+        "operationId": "IpOrderController_createIpOrder",
+        "parameters": [
+          {
+            "name": "app-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIpOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an ip order",
+        "tags": [
+          "IP Order"
         ]
       }
     },
@@ -3471,6 +3521,47 @@
         "summary": "get configs for a widget",
         "tags": [
           "Widgets-dev"
+        ]
+      }
+    },
+    "/api/v1/share/create": {
+      "post": {
+        "operationId": "ShareController_createLink",
+        "parameters": [
+          {
+            "name": "app-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLinkRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateLinkResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a link",
+        "tags": [
+          "Share"
         ]
       }
     },
@@ -5043,6 +5134,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -5092,6 +5192,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -5185,6 +5286,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -5263,6 +5373,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -6005,6 +6116,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -6061,6 +6181,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -6472,6 +6593,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -6533,6 +6663,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -6805,24 +6936,89 @@
           "id"
         ]
       },
-      "OrderListDto": {
+      "CreateIpOrderDto": {
         "type": "object",
         "properties": {
-          "orders": {
-            "description": "The list of orders",
+          "name": {
+            "type": "string",
+            "description": "name of the ip library"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "ticker of the ip library"
+          },
+          "description": {
+            "type": "string",
+            "description": "description of the ip library"
+          },
+          "genre": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/GenreDto"
             }
           },
-          "total": {
+          "image_id": {
             "type": "number",
-            "description": "The total number of orders"
+            "description": "asset id of the ip cover image"
+          },
+          "video_id": {
+            "type": "number",
+            "description": "id of the video"
+          },
+          "share_to_giggle": {
+            "type": "boolean",
+            "description": "share this ip to giggle"
+          },
+          "creation_guide_lines": {
+            "type": "string",
+            "description": "creation guide lines of the ip library"
+          },
+          "chain_name": {
+            "type": "string",
+            "description": "chain name of the ip library, currently only support solana",
+            "default": "solana"
+          },
+          "authorization_settings": {
+            "description": "authorization settings",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthorizationSettingsDto"
+              }
+            ]
+          },
+          "parent_ip_library_id": {
+            "type": "number",
+            "description": "id of the parent ip library"
+          },
+          "twitter": {
+            "type": "string",
+            "description": "more options"
+          },
+          "website": {
+            "type": "string",
+            "description": "website of the ip library"
+          },
+          "telegram": {
+            "type": "string",
+            "description": "telegram of the ip library"
+          },
+          "buy_amount": {
+            "type": "number",
+            "description": "buy **PERCENTAGE** of ip tokens to self using usdc when share to giggle"
+          },
+          "redirect_url": {
+            "type": "string",
+            "description": "redirect url if order is successful"
           }
         },
         "required": [
-          "orders",
-          "total"
+          "name",
+          "ticker",
+          "description",
+          "image_id",
+          "share_to_giggle",
+          "authorization_settings",
+          "redirect_url"
         ]
       },
       "OrderDetailDto": {
@@ -6929,6 +7125,26 @@
           "created_at",
           "updated_at",
           "order_url"
+        ]
+      },
+      "OrderListDto": {
+        "type": "object",
+        "properties": {
+          "orders": {
+            "description": "The list of orders",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "The total number of orders"
+          }
+        },
+        "required": [
+          "orders",
+          "total"
         ]
       },
       "CreateOrderDto": {
@@ -7831,6 +8047,86 @@
           "status"
         ]
       },
+      "LinkToWidgetDto": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "The tag of the widget"
+          },
+          "message": {
+            "type": "string",
+            "description": "When share to widget, you can add a message to the widget, this message will be send to the widget via postMessage"
+          }
+        },
+        "required": [
+          "tag",
+          "message"
+        ]
+      },
+      "LinkToDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "The target of the share",
+            "enum": [
+              "widget",
+              "link"
+            ]
+          },
+          "link": {
+            "type": "string",
+            "description": "The link of share, if you want to share to widget, you can leave it empty"
+          },
+          "widget_settings": {
+            "description": "The settings of the widget",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkToWidgetDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "target"
+        ]
+      },
+      "CreateLinkRequestDto": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "description": "The target of the share",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkToDto"
+              }
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of the share link, invite or share, currently only invite is supported, whatever you put here will be ignored",
+            "enum": [
+              "invite"
+            ]
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "CreateLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "description": "The link of the share"
+          }
+        },
+        "required": [
+          "link"
+        ]
+      },
       "WidgetSummaryDto": {
         "type": "object",
         "properties": {
@@ -8191,7 +8487,6 @@
       "name": "IP Management",
       "tags": [
         "IP Library",
-        "License",
         "Announcement",
         "Comments"
       ]

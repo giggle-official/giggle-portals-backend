@@ -49,6 +49,7 @@ import { LicenseService } from "./license/license.service"
 import { AssetDetailDto } from "src/assets/assets.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
+import { OrderStatus } from "src/payment/order/order.dto"
 
 @Injectable()
 export class IpLibraryService {
@@ -58,7 +59,7 @@ export class IpLibraryService {
     public static readonly DEFAULT_PLATFORM_RATIO = 5
     public static readonly DEFAULT_COMMUNITY_RATIO = 5
     public static readonly DEFAULT_TREASURY_RATIO = 45
-    public static readonly DEFAULT_LICENSE_PRICE = 10
+    public static readonly DEFAULT_LICENSE_PRICE = 1 // remix video price per minute
 
     constructor(
         private readonly prismaService: PrismaService,
@@ -557,6 +558,7 @@ export class IpLibraryService {
                     cover_hash,
                     creation_guide_lines: item.creation_guide_lines,
                     is_top: item.ip_library_child.length === 0,
+                    ip_level: await this.getIpLevel(item.id),
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -669,6 +671,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: item.ip_library_child.length === 0,
+                    ip_level: await this.getIpLevel(item.id),
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
@@ -711,6 +714,7 @@ export class IpLibraryService {
             comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
             is_top: data.ip_library_child === null,
+            ip_level: await this.getIpLevel(data.id),
             is_public: data.is_public,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
@@ -1029,7 +1033,6 @@ export class IpLibraryService {
                 message: "Validating data",
             },
         })
-
         if (body.buy_amount < 0 || body.buy_amount > 98) {
             throw new BadRequestException("buy_amount must be between 0 and 98")
         }
@@ -1059,34 +1062,38 @@ export class IpLibraryService {
 
                 /**
                  *
-                 * all 3rd level ip need to consume license
+                 * all 3rd level ip need to paid
                  *
                  */
                 if (is3rdLevelIp) {
-                    try {
-                        consumeLicenseLogs = await this.licenseService.consume(
-                            user,
-                            body.parent_ip_library_id,
-                            1,
-                            "create_ip",
-                            body,
-                        )
-                    } catch (error) {
-                        throw new BadRequestException("you have no license to use this parent ip")
+                    const ipOrder = await this.prismaService.third_level_ip_orders.findFirst({
+                        where: {
+                            creation_data: {
+                                path: "$.name",
+                                equals: body.name,
+                            },
+                        },
+                    })
+                    if (!ipOrder) {
+                        throw new BadRequestException("ip order not found")
+                    }
+                    if (ipOrder.current_status !== OrderStatus.COMPLETED) {
+                        throw new BadRequestException("ip order status error")
                     }
                 } else if (parentIpInfo.owner !== user.usernameShorted) {
                     throw new BadRequestException("you have no permission to use this parent ip")
                 }
             }
-            //The period of a new ip without long term must be greater than now
+            //The period of a new ip without long term must be greater than now, marked at 2025-04-25
             const authSettings = this.processAuthSettings(body.authorization_settings as any)
-            if (!authSettings.long_term_license) {
+
+            /*if (!authSettings.long_term_license) {
                 const startDate = new Date(authSettings.valid_date.start_date).toDateString()
                 const now = new Date().toDateString()
                 if (new Date(startDate) < new Date(now)) {
                     throw new BadRequestException("Start date must be greater than now")
                 }
-            }
+            }*/
 
             const { imageAsset, videoAsset } = await this.processAssets(
                 user,
@@ -1531,6 +1538,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: false,
+                    ip_level: await this.getIpLevel(item.id),
                     creation_guide_lines: item.creation_guide_lines,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
@@ -1574,6 +1582,22 @@ export class IpLibraryService {
         await this.prismaService.asset_related_ips.deleteMany({
             where: { ip_id: ip_id },
         })
+    }
+
+    async getIpLevel(ip_id: number): Promise<number> {
+        const parentIp = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: ip_id },
+        })
+        if (!parentIp) {
+            return 1
+        }
+        const parentParentIp = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: parentIp.parent_ip },
+        })
+        if (!parentParentIp) {
+            return 2
+        }
+        return 3
     }
 
     _generateCreateIpRelatedIp(ip_id: number): string {
@@ -1982,16 +2006,6 @@ export class IpLibraryService {
         if (!ipInfo.parent_ip_library_id) {
             return false
         }
-        const hasLicense = await this.prismaService.ip_license_orders.findFirst({
-            where: {
-                owner: user.usernameShorted,
-                ip_id: ipInfo.parent_ip_library_id,
-                remain_quantity: {
-                    gt: 0,
-                },
-            },
-        })
-        return !!hasLicense
     }
 
     async untokenize(user: UserInfoDTO, body: UntokenizeDto): Promise<IpLibraryDetailDto> {

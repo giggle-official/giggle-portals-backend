@@ -13,6 +13,8 @@ import { AuthModule as AuthUserModule } from "src/auth/auth.module"
 import { WidgetsModule } from "./widgets/widgets.module"
 import { DeveloperController } from './developer/developer.controller';
 import { DeveloperService } from './developer/developer.service';
+import { ShareController } from './share/share.controller';
+import { ShareService } from './share/share.service';
 
 @Module({
     imports: [
@@ -24,7 +26,7 @@ import { DeveloperService } from './developer/developer.service';
         WidgetsModule,
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
-    controllers: [OpenAppController, AuthController, DeveloperController],
-    providers: [OpenAppService, PrismaService, AuthService, DeveloperService],
+    controllers: [OpenAppController, AuthController, DeveloperController, ShareController],
+    providers: [OpenAppService, PrismaService, AuthService, DeveloperService, ShareService],
 })
 export class OpenAppModule {}

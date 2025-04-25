@@ -8,10 +8,7 @@ import { freePlan, SubscriptionPlanName, SubscriptionPlanPeriod } from "src/paym
 
 @Injectable()
 export class UsersService {
-    constructor(
-        private readonly prismaService: PrismaService,
-        private readonly paymentService: PaymentService,
-    ) {}
+    constructor(private readonly prismaService: PrismaService) {}
 
     private readonly logger = new Logger("UsersService-Admin")
 
@@ -43,22 +40,6 @@ export class UsersService {
         const userDetail = await this.prismaService.users.findUnique({
             where: { id },
         })
-
-        if (["none", "Free"].includes(userDetail.current_plan)) {
-            userDetail.plan_settings = {
-                video_convert_max_seconds: freePlan.video_convert_max_seconds,
-                credit_consume_every_second: freePlan.credit_consume_every_second,
-            }
-        } else if (userDetail.current_plan !== "Custom") {
-            const p = await this.paymentService.getPlan({
-                name: userDetail.current_plan as SubscriptionPlanName,
-                period: userDetail.current_pay_period as SubscriptionPlanPeriod,
-            })
-            userDetail.plan_settings = {
-                video_convert_max_seconds: p.video_convert_max_seconds,
-                credit_consume_every_second: p.credit_consume_every_second,
-            }
-        }
 
         return userDetail
     }

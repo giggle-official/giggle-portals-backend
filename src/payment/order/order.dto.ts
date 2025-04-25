@@ -1,7 +1,7 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
-import { IsInt, IsNotEmpty, Min } from "class-validator"
+import { isArray, IsInt, IsNotEmpty, IsOptional, Min } from "class-validator"
 import { RewardModelDto } from "../rewards-pool/rewards-pool.dto"
 import { PaginationDto } from "src/common/common.dto"
 export enum OrderStatus {
@@ -143,6 +143,23 @@ export class OrderDetailDto extends OmitType(OrderDto, [
         description: "The url of order to pay or check the order status",
     })
     order_url: string
+}
+
+export class ItemDto {
+    @ApiProperty({
+        description: "The name of the item",
+    })
+    name: string
+
+    @ApiProperty({
+        description: "The unit price of the item",
+    })
+    unit_price: number
+
+    @ApiProperty({
+        description: "The quantity of the item",
+    })
+    quantity: number
 }
 
 export class CreateOrderDto {

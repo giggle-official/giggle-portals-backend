@@ -19,11 +19,11 @@ import { Web3Module } from "src/web3/web3.module"
             apiKey: process.env.STRIPE_SECRET_KEY,
         }),
         forwardRef(() => CreditModule),
-        UserModule,
-        Web3Module,
+        forwardRef(() => UserModule),
+        forwardRef(() => Web3Module),
     ],
     controllers: [PaymentController, OrderController, RewardsPoolController],
     providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService],
-    exports: [PaymentService],
+    exports: [OrderService],
 })
 export class PaymentModule {}

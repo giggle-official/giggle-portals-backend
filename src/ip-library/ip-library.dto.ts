@@ -18,6 +18,7 @@ import {
     ArrayMinSize,
     ArrayMaxSize,
     Matches,
+    IsUrl,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { VideoInfoTaskResponseDto } from "src/task/task.dto"
@@ -589,6 +590,12 @@ export class IpSummaryDto {
     is_top: boolean
 
     @ApiProperty({
+        description: "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+        enum: [1, 2, 3],
+    })
+    ip_level: number
+
+    @ApiProperty({
         description: "creator followers of the ip library",
     })
     creator_followers: number
@@ -907,3 +914,14 @@ export class LikeIpDto {
 }
 
 export class UnlikeIpDto extends LikeIpDto {}
+
+export class CreateIpOrderDto extends CreateIpDto {
+    @IsNotEmpty()
+    @IsUrl({
+        require_tld: false,
+    })
+    @ApiProperty({
+        description: "redirect url if order is successful",
+    })
+    redirect_url: string
+}

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpStatus, HttpCode, Param, Post, Query, Req, UseGuards, Sse } from "@nestjs/common"
-import { ApiResponse, ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
+import { ApiResponse, ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiEarlyhintsResponse } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
 import { Request } from "express"
@@ -11,6 +11,7 @@ import { Observable } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 
 @Controller("/api/v1/ip/license")
+@ApiEarlyhintsResponse()
 @ApiTags("License")
 export class LicenseController {
     constructor(private readonly licenseService: LicenseService) {}

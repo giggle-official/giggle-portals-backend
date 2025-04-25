@@ -45,8 +45,13 @@ export class OrderService {
         @InjectStripe() private readonly stripe: Stripe,
     ) {}
 
-    async createOrder(order: CreateOrderDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+    async createOrder(
+        order: CreateOrderDto,
+        userInfo: UserInfoDTO,
+        app_id: string = "", // this value will replaced if app_id exists in the user's widget info
+    ): Promise<OrderDetailDto> {
         const userProfile = await this.userService.getProfile(userInfo)
+        let appId = app_id
         const orderId = uuidv4()
         if (order.related_reward_id) {
             const relatedRewardId = await this.prisma.reward_pools.findFirst({
@@ -59,13 +64,14 @@ export class OrderService {
             }
         }
 
-        if (userProfile.widget_info?.app_id) {
+        if (userProfile?.widget_info?.app_id) {
             const app = await this.prisma.apps.findUnique({
                 where: { app_id: userProfile.widget_info.app_id },
             })
             if (!app) {
                 throw new BadRequestException("App not found")
             }
+            appId = app.app_id
         }
 
         if (userProfile.widget_info?.widget_tag && order.related_reward_id) {
@@ -77,7 +83,7 @@ export class OrderService {
                 order_id: orderId,
                 owner: userProfile.usernameShorted,
                 widget_tag: userProfile.widget_info?.widget_tag || "",
-                app_id: userProfile.widget_info?.app_id || "",
+                app_id: appId,
                 amount: order.amount,
                 description: order.description,
                 current_status: OrderStatus.PENDING,
@@ -401,16 +407,16 @@ export class OrderService {
         const order = await this.prisma.orders.findUnique({
             where: { order_id: orderId },
         })
-        if (!order || !order.redirect_url) {
+        if (!order || !order.callback_url) {
             return
         }
         const orderDetail = this.mapOrderDetail(order)
         try {
-            const request = await lastValueFrom(this.httpService.post(order.redirect_url, orderDetail))
+            const request = await lastValueFrom(this.httpService.post(order.callback_url, orderDetail))
             await this.prisma.order_callback_record.create({
                 data: {
                     order_id: orderId,
-                    callback_url: order.redirect_url,
+                    callback_url: order.callback_url,
                     request: orderDetail as any,
                     response: request.data,
                 },
@@ -419,12 +425,11 @@ export class OrderService {
             await this.prisma.order_callback_record.create({
                 data: {
                     order_id: orderId,
-                    callback_url: order.redirect_url,
+                    callback_url: order.callback_url,
                     request: orderDetail as any,
                     response: error,
                 },
             })
-            return null
         }
     }
 }
