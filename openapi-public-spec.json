@@ -3524,14 +3524,16 @@
         ]
       }
     },
-    "/api/v1/share/create": {
+    "/api/v1/link/create": {
       "post": {
-        "operationId": "ShareController_createLink",
+        "description": "Create a short link you can share to anywhere, default is to a portal page.\n        The link redirect url is depends users token, if token is from a widget, the link will be to the widget in portal, you can specify the widget message when widget loaded.\n        ",
+        "operationId": "LinkController_createLink",
         "parameters": [
           {
             "name": "app-id",
-            "required": true,
+            "required": false,
             "in": "header",
+            "description": "The app id of the user",
             "schema": {
               "type": "string"
             }
@@ -3559,9 +3561,45 @@
             }
           }
         },
-        "summary": "Create a link",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a short link to share.",
         "tags": [
-          "Share"
+          "Link"
+        ]
+      }
+    },
+    "/api/v1/link/{uniqueStr}": {
+      "get": {
+        "operationId": "LinkController_getLink",
+        "parameters": [
+          {
+            "name": "uniqueStr",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a link by unique string.",
+        "tags": [
+          "Link"
         ]
       }
     },
@@ -8047,84 +8085,91 @@
           "status"
         ]
       },
-      "LinkToWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "The tag of the widget"
-          },
-          "message": {
-            "type": "string",
-            "description": "When share to widget, you can add a message to the widget, this message will be send to the widget via postMessage"
-          }
-        },
-        "required": [
-          "tag",
-          "message"
-        ]
-      },
-      "LinkToDto": {
-        "type": "object",
-        "properties": {
-          "target": {
-            "type": "string",
-            "description": "The target of the share",
-            "enum": [
-              "widget",
-              "link"
-            ]
-          },
-          "link": {
-            "type": "string",
-            "description": "The link of share, if you want to share to widget, you can leave it empty"
-          },
-          "widget_settings": {
-            "description": "The settings of the widget",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/LinkToWidgetDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "target"
-        ]
-      },
       "CreateLinkRequestDto": {
         "type": "object",
         "properties": {
-          "to": {
-            "description": "The target of the share",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/LinkToDto"
-              }
-            ]
-          },
-          "type": {
+          "link": {
             "type": "string",
-            "description": "The type of the share link, invite or share, currently only invite is supported, whatever you put here will be ignored",
-            "enum": [
-              "invite"
-            ]
+            "description": "The link of the share, if target is link"
+          },
+          "widget_message": {
+            "type": "object",
+            "description": "The message of the share, if target is widget"
           }
-        },
-        "required": [
-          "to"
-        ]
+        }
       },
       "CreateLinkResponseDto": {
         "type": "object",
         "properties": {
-          "link": {
+          "link_id": {
             "type": "string",
-            "description": "The link of the share"
+            "description": "The id of the link"
+          },
+          "link_url": {
+            "type": "string",
+            "description": "The url of the link"
           }
         },
         "required": [
-          "link"
+          "link_id",
+          "link_url"
+        ]
+      },
+      "LinkDetailDto": {
+        "type": "object",
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "description": "The id of the link"
+          },
+          "link_url": {
+            "type": "string",
+            "description": "The url of the link"
+          },
+          "creator": {
+            "type": "object",
+            "description": "The creator of the link",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "avatar": {
+                "type": "string"
+              }
+            }
+          },
+          "widget_tag": {
+            "type": "string",
+            "description": "The widget tag of the link"
+          },
+          "widget_message": {
+            "type": "object",
+            "description": "The widget message of the link"
+          },
+          "link": {
+            "type": "string",
+            "description": "The link of the link"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The created at of the link"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The updated at of the link"
+          }
+        },
+        "required": [
+          "link_id",
+          "link_url",
+          "creator",
+          "widget_tag",
+          "widget_message",
+          "link",
+          "created_at",
+          "updated_at"
         ]
       },
       "WidgetSummaryDto": {
@@ -8488,7 +8533,8 @@
       "tags": [
         "IP Library",
         "Announcement",
-        "Comments"
+        "Comments",
+        "Link"
       ]
     },
     {

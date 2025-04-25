@@ -1,0 +1,76 @@
+import { ApiProperty } from "@nestjs/swagger"
+
+export class CreateLinkRequestDto {
+    @ApiProperty({
+        description: "The link of the share, if target is link",
+        required: false,
+    })
+    link?: string
+
+    @ApiProperty({
+        description: "The message of the share, if target is widget",
+        required: false,
+    })
+    widget_message?: any
+}
+
+export class CreateLinkResponseDto {
+    @ApiProperty({
+        description: "The id of the link",
+    })
+    link_id: string
+
+    @ApiProperty({
+        description: "The url of the link",
+    })
+    link_url: string
+}
+
+export class LinkDetailDto {
+    @ApiProperty({
+        description: "The id of the link",
+    })
+    link_id: string
+
+    @ApiProperty({
+        description: "The url of the link",
+    })
+    link_url: string
+
+    @ApiProperty({
+        description: "The creator of the link",
+        properties: {
+            username: { type: "string" },
+            avatar: { type: "string" },
+        },
+    })
+    creator: {
+        username: string
+        avatar: string
+    }
+
+    @ApiProperty({
+        description: "The widget tag of the link",
+    })
+    widget_tag: string
+
+    @ApiProperty({
+        description: "The widget message of the link",
+    })
+    widget_message: any
+
+    @ApiProperty({
+        description: "The link of the link",
+    })
+    link: string
+
+    @ApiProperty({
+        description: "The created at of the link",
+    })
+    created_at: Date
+
+    @ApiProperty({
+        description: "The updated at of the link",
+    })
+    updated_at: Date
+}

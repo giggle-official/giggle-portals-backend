@@ -58,6 +58,7 @@ model users {
   token_send_history             token_send_history[]
   web3_orders                    web3_orders[]
   widgets                        widgets[]
+  app_links                      app_links[]
 }
 
 model user_request_log {
@@ -891,6 +892,19 @@ model third_level_ip_orders {
   owner              String?   @db.VarChar(32)
   created_at         DateTime? @default(now()) @db.Timestamp(0)
   updated_at         DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model app_links {
+  id             Int       @id @default(autoincrement())
+  unique_str     String?   @unique(map: "unique_str") @db.VarChar(32)
+  link           String?   @db.VarChar(1024)
+  app_id         String?   @db.VarChar(32)
+  widget_tag     String?   @db.VarChar(255)
+  widget_message Json?
+  creator        String?   @db.VarChar(32)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+  creator_info   users?    @relation(fields: [creator], references: [username_in_be])
 }
 
 view view_ip_token_prices {
