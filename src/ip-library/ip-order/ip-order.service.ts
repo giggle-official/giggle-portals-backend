@@ -8,7 +8,7 @@ import { IpLibraryService } from "../ip-library.service"
 import { AssetsService } from "src/assets/assets.service"
 import { CheckIpOrderDto, CheckIpOrderListDto, IpCreateStatus } from "./ip-order.dto"
 import { Cron, CronExpression } from "@nestjs/schedule"
-import { lastValueFrom, Observable } from "rxjs"
+import { lastValueFrom, Observable, take, tap, toArray } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { UserService } from "src/user/user.service"
 @Injectable()
@@ -186,6 +186,16 @@ export class IpOrderService {
     //check ip order if order completed, but status pending
     @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
+        //return if creating order
+        const creatingOrder = await this.prisma.third_level_ip_orders.findFirst({
+            where: {
+                ip_create_status: IpCreateStatus.CREATING,
+            },
+        })
+        if (creatingOrder) {
+            return
+        }
+        //get order
         const order = await this.prisma.third_level_ip_orders.findFirst({
             where: {
                 ip_create_status: IpCreateStatus.PENDING,
@@ -217,7 +227,15 @@ export class IpOrderService {
                         subscriber.error(error)
                     })
             })
-            const response = await lastValueFrom(result)
+            let allResponse = []
+            const response = await lastValueFrom(
+                result.pipe(
+                    tap((message) => {
+                        allResponse.push(message.data)
+                    }),
+                    toArray(),
+                ),
+            )
             //set status to created
             await this.prisma.third_level_ip_orders.update({
                 where: { id: order.id },
