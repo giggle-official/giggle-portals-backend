@@ -62,7 +62,7 @@ export class IpOrderService {
             }
             amount =
                 Math.max(Math.ceil(asset?.asset_info?.videoInfo?.duration / 60), 1) *
-                IpLibraryService.DEFAULT_LICENSE_PRICE
+                parentIp.authorization_settings.license_price
         }
 
         if (amount < parentIp.authorization_settings.license_price) {
