@@ -82,6 +82,8 @@ export class OrderService {
             //todo: check if the this pools is authorized for this widget
         }
 
+        const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
+
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
@@ -96,7 +98,7 @@ export class OrderService {
                 redirect_url: order.redirect_url,
                 callback_url: order.callback_url,
                 expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
-                from_source_link: userProfile.source_link,
+                from_source_link: sourceLink,
             },
         })
         return await this.mapOrderDetail(record)

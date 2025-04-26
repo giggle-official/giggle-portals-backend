@@ -117,7 +117,7 @@ export class UserService {
             can_create_ip: _userInfoFromDb.can_create_ip,
             permissions: userInfo?.permissions,
             widget_info: userInfo?.widget_info,
-            source_link: userInfo?.source_link, //this field is user from under current login
+            device_id: userInfo?.device_id,
             is_developer: _userInfoFromDb?.is_developer,
             register_info: await this.getRegisterInfo(userInfo),
         }
@@ -682,7 +682,7 @@ Message: ${contactInfo.message}
         return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
-    async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string, sourceLink?: string) {
+    async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string, deviceId?: string) {
         if (!userInfo.email || !isEmail(userInfo.email)) {
             throw new BadRequestException("email is invalid")
         }
@@ -709,15 +709,16 @@ Message: ${contactInfo.message}
                     },
                 })
             }
-
-            if (sourceLink) {
+            if (deviceId) {
                 //update register source link
+                const sourceLink = await this.linkService.getLinkByDeviceId(deviceId)
                 await this.prisma.users.update({
                     where: {
                         username_in_be: user.usernameShorted,
                     },
                     data: {
                         from_source_link: sourceLink,
+                        from_device_id: deviceId,
                     },
                 })
             }

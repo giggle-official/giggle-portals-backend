@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common"
+import { ForbiddenException, Injectable } from "@nestjs/common"
 import { PassportStrategy } from "@nestjs/passport"
 import { Strategy } from "passport-custom"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -33,7 +33,7 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
         }
         return {
             ...(await this.userService.getUserInfoByEmail(email)),
-            source_link: (req.headers["x-source-link"] as string) || "",
+            device_id: (req.headers["x-device-id"] as string) || "",
         }
     }
 }

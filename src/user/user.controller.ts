@@ -137,14 +137,14 @@ export class UserInfoDTO extends LoginDTO {
     permissions?: JwtPermissions[]
 
     @ApiProperty()
+    device_id?: string
+
+    @ApiProperty()
     widget_info?: {
         user_subscribed: boolean
         widget_tag: string
         app_id: string
     }
-
-    @ApiProperty()
-    source_link?: string
 
     @ApiProperty({
         type: () => RegisterInfoDTO,
@@ -535,8 +535,8 @@ export class UserController {
     async sendLoginCode(
         @Body() loginCodeReqDto: LoginCodeReqDto,
         @Headers("app-id") appId: string,
-        @Headers("x-source-link") sourceLink: string,
+        @Headers("X-Device-Id") deviceId: string,
     ): Promise<LoginCodeResponseDto> {
-        return await this.userService.sendLoginCode(loginCodeReqDto, appId, sourceLink)
+        return await this.userService.sendLoginCode(loginCodeReqDto, appId, deviceId)
     }
 }

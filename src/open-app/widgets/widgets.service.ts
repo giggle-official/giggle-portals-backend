@@ -514,7 +514,7 @@ export class WidgetsService {
             description: userInfo.description,
             followers: userInfo.followers,
             following: userInfo.following,
-            source_link: userInfo.source_link,
+            device_id: userInfo.device_id,
             permissions: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
             widget_info: {
                 user_subscribed: !!userSubscribedWidget,

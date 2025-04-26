@@ -1,6 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Headers, UseGuards, Req, Get, Param } from "@nestjs/common"
-import { CreateLinkRequestDto, CreateLinkResponseDto, LinkDetailDto } from "./link.dto"
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { BindDeviceRequestDto, CreateLinkRequestDto, CreateLinkResponseDto, LinkDetailDto } from "./link.dto"
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { LinkService } from "./link.service"
 import { AuthGuard } from "@nestjs/passport"
 import { UserInfoDTO } from "src/user/user.controller"
@@ -11,7 +11,7 @@ import { Request } from "express"
 export class LinkController {
     constructor(private readonly linkService: LinkService) {}
 
-    @Post("create")
+    @Post("/create")
     @ApiOperation({
         summary: "Create a short link to share.",
         description: `Create a short link you can share to anywhere, default is to a portal page.
@@ -31,7 +31,16 @@ export class LinkController {
         return this.linkService.create(body, req.user as UserInfoDTO, appId)
     }
 
-    @Get(":uniqueStr")
+    @Post("/bind-device")
+    @ApiOperation({
+        summary: "Bind a device to a link.",
+    })
+    @ApiBody({ type: BindDeviceRequestDto })
+    bindDevice(@Body() body: BindDeviceRequestDto) {
+        return this.linkService.bindDevice(body)
+    }
+
+    @Get("/:uniqueStr")
     @ApiOperation({
         summary: "Get a link by unique string.",
     })

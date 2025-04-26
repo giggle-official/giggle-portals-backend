@@ -1,5 +1,6 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
 import { AppInfoDto } from "../open-app.dto"
+import { IsOptional, IsString, MaxLength } from "class-validator"
 
 export class CreateLinkRequestDto {
     @ApiProperty({
@@ -11,8 +12,12 @@ export class CreateLinkRequestDto {
     @ApiProperty({
         description: "The message of the share, if target is widget",
         required: false,
+        maxLength: 2048,
     })
-    widget_message?: any
+    @MaxLength(2048)
+    @IsOptional()
+    @IsString()
+    widget_message?: string
 }
 
 export class CreateLinkResponseDto {
@@ -58,7 +63,7 @@ export class LinkDetailDto {
     @ApiProperty({
         description: "The widget message of the link",
     })
-    widget_message: any
+    widget_message: string
 
     @ApiProperty({
         description: "The link of the link",
@@ -87,3 +92,15 @@ export class LinkDetailDto {
 }
 
 export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "link_url"]) {}
+
+export class BindDeviceRequestDto {
+    @ApiProperty({
+        description: "The device id of the user",
+    })
+    device_id: string
+
+    @ApiProperty({
+        description: "The link id of the user",
+    })
+    link_id: string
+}

@@ -1,9 +1,11 @@
 import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common"
-import { CreateLinkRequestDto, LinkDetailDto, LinkSummaryDto } from "./link.dto"
+import { BindDeviceRequestDto, CreateLinkRequestDto, LinkDetailDto, LinkSummaryDto } from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
 import { OpenAppService } from "src/open-app/open-app.service"
+import { Cron } from "@nestjs/schedule"
+import { CronExpression } from "@nestjs/schedule"
 
 @Injectable()
 export class LinkService {
@@ -40,6 +42,40 @@ export class LinkService {
         if (!widgetTag && !body.link) {
             throw new BadRequestException("Widget tag or link is required")
         }
+
+        //find unique
+        if (!widgetTag) {
+            const existingLink = await this.prisma.app_links.findFirst({
+                where: {
+                    link: body.link,
+                    app_id: app_id,
+                    creator: userInfo.usernameShorted,
+                },
+            })
+            if (existingLink) {
+                return {
+                    link_id: existingLink.id,
+                    link_url: this._generateLink(existingLink.unique_str),
+                }
+            }
+        } else {
+            const existingLink = await this.prisma.app_links.findFirst({
+                where: {
+                    widget_tag: widgetTag,
+                    app_id: app_id,
+                    widget_message: body.widget_message,
+                    creator: userInfo.usernameShorted,
+                },
+            })
+            if (existingLink) {
+                return {
+                    link_id: existingLink.id,
+                    link_url: this._generateLink(existingLink.unique_str),
+                }
+            }
+        }
+
+        //create new link
         const uniqueStr = "gig" + Math.random().toString(36).substring(2, 16)
         const url = this._generateLink(uniqueStr)
 
@@ -91,15 +127,66 @@ export class LinkService {
         }
     }
 
+    async bindDevice(body: BindDeviceRequestDto) {
+        const existBind = await this.prisma.link_devices.findFirst({
+            where: {
+                device_id: body.device_id,
+                link_id: body.link_id,
+                expired: false,
+            },
+        })
+        if (existBind) {
+            return {}
+        }
+        await this.prisma.link_devices.create({
+            data: {
+                device_id: body.device_id,
+                link_id: body.link_id,
+                expired: false,
+            },
+        })
+        return {}
+    }
+
     async getLinkSummary(uniqueStr: string): Promise<LinkSummaryDto> {
         const link = await this.getLink(uniqueStr)
-        return new LinkSummaryDto({
+        console.log("link", link)
+        return {
             creator: link?.creator,
             link_url: link?.link_url,
+        }
+    }
+
+    async getLinkByDeviceId(deviceId: string): Promise<string> {
+        const link = await this.prisma.link_devices.findFirst({
+            where: {
+                device_id: deviceId,
+                expired: false,
+            },
         })
+        return link?.link_id || ""
     }
 
     _generateLink(uniqueStr: string) {
         return `${process.env.FRONTEND_URL}/l/${uniqueStr}`
+    }
+
+    //mark link as expired if create more than 7 days
+    @Cron(CronExpression.EVERY_HOUR)
+    async markLinkAsExpired() {
+        const links = await this.prisma.link_devices.findMany({
+            where: {
+                created_at: {
+                    lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                },
+                expired: false,
+            },
+        })
+        for (const link of links) {
+            await this.prisma.link_devices.update({
+                where: { id: link.id },
+                data: { expired: true, expired_at: new Date() },
+            })
+        }
     }
 }
