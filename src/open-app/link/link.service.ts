@@ -128,6 +128,9 @@ export class LinkService {
     }
 
     async bindDevice(body: BindDeviceRequestDto) {
+        if (!body.device_id || !body.link_id) {
+            return {}
+        }
         const existBind = await this.prisma.link_devices.findFirst({
             where: {
                 device_id: body.device_id,
