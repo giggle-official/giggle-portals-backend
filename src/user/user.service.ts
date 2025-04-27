@@ -111,8 +111,10 @@ export class UserService {
     }
 
     async getProfile(userInfo: UserJwtExtractDto): Promise<UserInfoDTO> {
+        if (!userInfo.usernameShorted) {
+            throw new UnauthorizedException("user not exists")
+        }
         const _userInfoFromDb = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
-
         const result: UserInfoDTO = {
             username: _userInfoFromDb.username,
             usernameShorted: _userInfoFromDb.usernameShorted,
