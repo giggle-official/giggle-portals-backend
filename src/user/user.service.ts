@@ -115,6 +115,9 @@ export class UserService {
             throw new UnauthorizedException("user not exists")
         }
         const _userInfoFromDb = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
+        if (!_userInfoFromDb) {
+            throw new UnauthorizedException("user not exists")
+        }
         const result: UserInfoDTO = {
             username: _userInfoFromDb.username,
             usernameShorted: _userInfoFromDb.usernameShorted,
