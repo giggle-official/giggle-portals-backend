@@ -17,9 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                 (req) => {
                     let authorization = req?.headers?.["authorization"]
                     const token = authorization?.split(" ")[1]
-                    const apiKey = req?.headers?.["x-api-key"]
                     if (token) return token
-                    if (apiKey) return this.jwtService.sign({ apiKey: req?.headers?.["x-api-key"] as string })
                     return null
                 },
             ]),
@@ -29,50 +27,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     }
 
     async validate(payload: UserInfoDTO & ApiKeyDTO): Promise<UserInfoDTO> {
-        if (payload.apiKey) {
-            //api key exists
-            const apiKey = await this.prismaService.user_api_keys.findFirst({
-                where: {
-                    api_key: payload.apiKey,
-                    discarded: false,
-                },
-                include: {
-                    user_info: {
-                        where: {
-                            is_blocked: false,
-                        },
-                    },
-                },
-            })
-            if (apiKey && apiKey?.user_info) {
-                return {
-                    username: apiKey.user_info.username,
-                    usernameShorted: apiKey.user_info.username_in_be,
-                    email: apiKey.user_info.email,
-                }
-            }
+        const userInfo = await this.prismaService.users.findFirst({
+            where: {
+                username_in_be: payload.usernameShorted,
+                is_blocked: false,
+            },
+        })
 
-            //agent key exists
-            const agentKey = await this.prismaService.users.findFirst({
-                where: {
-                    agent_user: payload.apiKey,
-                    is_blocked: false,
-                },
-            })
-            if (agentKey) {
-                return {
-                    username: agentKey.username,
-                    usernameShorted: agentKey.username_in_be,
-                    email: agentKey.email,
-                }
-            }
-
-            //no key exists
+        if (!userInfo) {
             return null
         }
-        if (!payload.permissions) {
-            return null
-        }
+
         return payload as UserInfoDTO
     }
 }
