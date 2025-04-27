@@ -1,7 +1,7 @@
 import { AbilityBuilder, PureAbility, createMongoAbility } from "@casl/ability"
 import { Injectable } from "@nestjs/common"
 import { z } from "zod"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 
 export const PERMISSIONS_LIST = [
     {
@@ -41,16 +41,16 @@ export type JwtAbility = PureAbility<JwtPermissions>
 
 @Injectable()
 export class JwtCaslAbilityFactory {
-    async createForUser(user: UserInfoDTO) {
+    async createForUser(user: UserJwtExtractDto) {
         const { can, build } = new AbilityBuilder<JwtAbility>(createMongoAbility)
         if (!user) return build()
-
         const permissionsList = permissionSchema._def.values
-        if (user.permissions.includes("all")) {
-            permissionsList.map((p) => p !== "all" && can(p))
+        //todo:
+        /*if (user.permissions.includes("all")) {
             return build()
         }
-        user.permissions.map((p) => can(p))
+        user.permissions.map((p) => can(p))*/
+        permissionsList.map((p) => p !== "all" && can(p))
         return build()
     }
 }

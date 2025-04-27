@@ -7,7 +7,7 @@ import {
     DeveloperWidgetDeleteResponseDto,
     DeveloperWidgetUpdateDto,
 } from "./developer.dto"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetDetailDto } from "../widgets/widget.dto"
 import { IsDeveloperGuard } from "src/auth/is_developer.guard"
 import { Request } from "express"
@@ -24,7 +24,7 @@ export class DeveloperController {
     @ApiBody({ type: DeveloperWidgetCreateDto })
     @ApiResponse({ type: WidgetDetailDto })
     async createWidget(@Body() body: DeveloperWidgetCreateDto, @Req() req: Request) {
-        return this.developerService.createWidget(body, req.user as UserInfoDTO)
+        return this.developerService.createWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/widgets/update")
@@ -33,7 +33,7 @@ export class DeveloperController {
     @ApiBody({ type: DeveloperWidgetUpdateDto })
     @ApiResponse({ type: WidgetDetailDto })
     async updateWidget(@Body() body: DeveloperWidgetUpdateDto, @Req() req: Request) {
-        return this.developerService.updateWidget(body, req.user as UserInfoDTO)
+        return this.developerService.updateWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/widgets/delete")
@@ -42,7 +42,7 @@ export class DeveloperController {
     @ApiBody({ type: DeveloperWidgetDeleteDto })
     @ApiResponse({ type: DeveloperWidgetDeleteResponseDto })
     async deleteWidget(@Body() body: DeveloperWidgetDeleteDto, @Req() req: Request) {
-        return this.developerService.deleteWidget(body.tag, req.user as UserInfoDTO)
+        return this.developerService.deleteWidget(body.tag, req.user as UserJwtExtractDto)
     }
 
     @Get("/widgets")
@@ -50,7 +50,7 @@ export class DeveloperController {
     @ApiOperation({ summary: "get all widgets" })
     @ApiResponse({ type: WidgetDetailDto })
     async getWidgets(@Req() req: Request) {
-        return this.developerService.getWidgets(req.user as UserInfoDTO)
+        return this.developerService.getWidgets(req.user as UserJwtExtractDto)
     }
 
     @Get("/widgets/:tag")
@@ -58,6 +58,6 @@ export class DeveloperController {
     @ApiOperation({ summary: "get configs for a widget" })
     @ApiResponse({ type: WidgetDetailDto })
     async getConfigs(@Param("tag") tag: string, @Req() req: Request) {
-        return this.developerService.getWidgetDetail(tag, req.user as UserInfoDTO)
+        return this.developerService.getWidgetDetail(tag, req.user as UserJwtExtractDto)
     }
 }

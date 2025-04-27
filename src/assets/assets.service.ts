@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import {
     AssetsListResDto,
     AssetListReqDto,
@@ -22,7 +22,6 @@ import {
     ASSETS_MAX_TAKE,
     UploadedByTaskDto,
     RelateToIpDto,
-    EditVideoAssetDto,
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -33,7 +32,6 @@ import {
     TaskQueryResponseDto,
     TaskQueryResponseResult,
     VideoInfoTaskResponseDto,
-    VideoSplitDto,
 } from "src/task/task.dto"
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
@@ -52,7 +50,7 @@ export class AssetsService {
         @Inject(forwardRef(() => IpLibraryService))
         private readonly ipLibraryService: IpLibraryService,
     ) {}
-    async getAssets(user: UserInfoDTO, query: AssetListReqDto): Promise<AssetsListResDto> {
+    async getAssets(user: UserJwtExtractDto, query: AssetListReqDto): Promise<AssetsListResDto> {
         const where: Prisma.assetsWhereInput = {
             user: user.usernameShorted,
             type: "video",
@@ -105,7 +103,7 @@ export class AssetsService {
         }
     }
 
-    async renameAsset(user: UserInfoDTO, body: AssetRenameReqDto): Promise<AssetDetailDto> {
+    async renameAsset(user: UserJwtExtractDto, body: AssetRenameReqDto): Promise<AssetDetailDto> {
         const asset = await this.prismaService.assets.findUnique({ where: { id: body.id, user: user.usernameShorted } })
         if (!asset) throw new NotFoundException("Asset not found")
 
@@ -116,7 +114,7 @@ export class AssetsService {
         return await this.getAsset(user, result.id)
     }
 
-    async getAsset(user: UserInfoDTO, id: number): Promise<AssetDetailDto> {
+    async getAsset(user: UserJwtExtractDto, id: number): Promise<AssetDetailDto> {
         const asset = await this.prismaService.assets.findUnique({
             where: { id, user: user.usernameShorted },
             include: {
@@ -159,7 +157,7 @@ export class AssetsService {
         }
     }
 
-    async deleteAsset(user: UserInfoDTO, id: number): Promise<AssetsDto> {
+    async deleteAsset(user: UserJwtExtractDto, id: number): Promise<AssetsDto> {
         const asset = await this.prismaService.assets.findUnique({ where: { id, user: user.usernameShorted } })
         if (!asset) throw new NotFoundException("Asset not found")
         const relatedIps = await this.prismaService.asset_related_ips.findMany({ where: { asset_id: id } })
@@ -174,7 +172,7 @@ export class AssetsService {
         return await this.prismaService.assets.delete({ where: { id } })
     }
 
-    async uploadToken(userInfo: UserInfoDTO, body: UploadTokenDto): Promise<UploadTokenResDto> {
+    async uploadToken(userInfo: UserJwtExtractDto, body: UploadTokenDto): Promise<UploadTokenResDto> {
         const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
         const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
         const object_key = await this.getAssetKey(userInfo, body.file_name)
@@ -195,7 +193,7 @@ export class AssetsService {
         }
     }
 
-    async uploadedByTask(userInfo: UserInfoDTO, body: UploadedByTaskDto): Promise<AssetsDto> {
+    async uploadedByTask(userInfo: UserJwtExtractDto, body: UploadedByTaskDto): Promise<AssetsDto> {
         const asset = await this.prismaService.assets.findFirst({
             where: { exported_by_task_id: body.task_id, path: body.object_key },
         })
@@ -207,7 +205,7 @@ export class AssetsService {
         return this.uploaded(userInfo, body)
     }
 
-    async uploaded(userInfo: UserInfoDTO, body: UploadedDto | UploadedByTaskDto): Promise<AssetsDto> {
+    async uploaded(userInfo: UserJwtExtractDto, body: UploadedDto | UploadedByTaskDto): Promise<AssetsDto> {
         try {
             const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
             const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
@@ -269,7 +267,7 @@ export class AssetsService {
         }
     }
 
-    async relateToIp(userInfo: UserInfoDTO, body: RelateToIpDto): Promise<AssetDetailDto> {
+    async relateToIp(userInfo: UserJwtExtractDto, body: RelateToIpDto): Promise<AssetDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({ where: { id: body.ip_id } })
         if (!ip) throw new NotFoundException("ip not found")
 
@@ -289,11 +287,11 @@ export class AssetsService {
         return await this.getAsset(userInfo, body.asset_id)
     }
 
-    async clearRelatedIp(userInfo: UserInfoDTO, ipId: number): Promise<void> {
+    async clearRelatedIp(userInfo: UserJwtExtractDto, ipId: number): Promise<void> {
         await this.prismaService.asset_related_ips.deleteMany({ where: { ip_id: ipId } })
     }
 
-    async processNewImage(userInfo: UserInfoDTO, objectKey: string): Promise<NewImageProcessResult> {
+    async processNewImage(userInfo: UserJwtExtractDto, objectKey: string): Promise<NewImageProcessResult> {
         const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
         const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
         const image = await s3Client
@@ -343,7 +341,7 @@ export class AssetsService {
     }
 
     public async processNewVideo(
-        userInfo: UserInfoDTO,
+        userInfo: UserJwtExtractDto,
         objectKey: string,
         optimize: boolean = false,
     ): Promise<NewVideoProcessResult> {
@@ -484,7 +482,7 @@ export class AssetsService {
         }
     }
 
-    public async convertVideoToMp4(userInfo: UserInfoDTO, objectKey: string): Promise<string> {
+    public async convertVideoToMp4(userInfo: UserJwtExtractDto, objectKey: string): Promise<string> {
         const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
         const videoConvertTask = await this.taskService.taskCreateRequest({
             method: "VideoService.VideoFormat",
@@ -527,7 +525,7 @@ export class AssetsService {
         } while (true)
     }
 
-    public async getAssetKey(userInfo: UserInfoDTO, filename: string) {
+    public async getAssetKey(userInfo: UserJwtExtractDto, filename: string) {
         const extension = filename.split(".").pop()
         const randomString = Math.random().toString(36).substring(2, 15)
         filename = `${randomString}.${extension}`

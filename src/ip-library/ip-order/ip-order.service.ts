@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { CreateIpDto, CreateIpOrderDto } from "../ip-library.dto"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto, OrderDetailDto, OrderStatus } from "src/payment/order/order.dto"
 import { OrderService } from "src/payment/order/order.service"
@@ -22,7 +22,7 @@ export class IpOrderService {
         private readonly userService: UserService,
     ) {}
 
-    async createIpOrder(user: UserInfoDTO, body: CreateIpOrderDto, app_id: string): Promise<OrderDetailDto> {
+    async createIpOrder(user: UserJwtExtractDto, body: CreateIpOrderDto, app_id: string): Promise<OrderDetailDto> {
         //name
         if (!app_id) {
             throw new BadRequestException("app_id is required")
@@ -106,7 +106,7 @@ export class IpOrderService {
         return orderDetail
     }
 
-    async ipOrderDetail(order_id: string, user: UserInfoDTO): Promise<CheckIpOrderDto> {
+    async ipOrderDetail(order_id: string, user: UserJwtExtractDto): Promise<CheckIpOrderDto> {
         const order = await this.prisma.third_level_ip_orders.findFirst({
             where: {
                 order_id: order_id,
@@ -126,7 +126,7 @@ export class IpOrderService {
         }
     }
 
-    async getIpOrderList(user: UserInfoDTO, app_id: string): Promise<CheckIpOrderListDto> {
+    async getIpOrderList(user: UserJwtExtractDto, app_id: string): Promise<CheckIpOrderListDto> {
         if (!app_id) {
             throw new BadRequestException("app_id is required")
         }

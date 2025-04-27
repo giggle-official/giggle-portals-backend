@@ -31,7 +31,7 @@ import {
     GetAccessTokenResponseDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import { OptionalJwtAuthGuard } from "src/auth/optional-jwt-auth.guard"
 
@@ -45,7 +45,7 @@ export class WidgetsController {
     @ApiResponse({ type: WidgetSummaryDto, isArray: true })
     @UseGuards(OptionalJwtAuthGuard)
     async getWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
-        return this.widgetService.getWidgets(query, req?.user as UserInfoDTO)
+        return this.widgetService.getWidgets(query, req?.user as UserJwtExtractDto)
     }
 
     @Get("/my")
@@ -53,7 +53,7 @@ export class WidgetsController {
     @ApiResponse({ type: WidgetSummaryDto, isArray: true })
     @UseGuards(AuthGuard("jwt"))
     async getMyWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
-        return this.widgetService.getMyWidgets(req.user as UserInfoDTO, query)
+        return this.widgetService.getMyWidgets(req.user as UserJwtExtractDto, query)
     }
 
     @Get("/getConfigs")
@@ -65,7 +65,7 @@ export class WidgetsController {
         @Query("app_id") appId: string,
         @Req() req: Request,
     ): Promise<ApplyWidgetConfigToAppsDto[]> {
-        return this.widgetService.getWidgetConfigs(tag, appId, req.user as UserInfoDTO)
+        return this.widgetService.getWidgetConfigs(tag, appId, req.user as UserJwtExtractDto)
     }
 
     @Post("/create")
@@ -75,7 +75,7 @@ export class WidgetsController {
     @HttpCode(HttpStatus.OK)
     @ApiResponse({ type: LoginResponseDto })
     async createWidget(@Body() body: CreateWidgetDto, @Req() req: Request) {
-        return this.widgetService.createWidget(body, req.user as UserInfoDTO)
+        return this.widgetService.createWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/getAccessToken")
@@ -85,7 +85,7 @@ export class WidgetsController {
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async getAccessToken(@Body() body: GetAccessTokenDto, @Req() req: Request, @Headers("app-id") appId: string) {
-        return this.widgetService.getAccessToken(body, req.user as UserInfoDTO, appId)
+        return this.widgetService.getAccessToken(body, req.user as UserJwtExtractDto, appId)
     }
 
     @Post("/update")
@@ -95,7 +95,7 @@ export class WidgetsController {
     @HttpCode(HttpStatus.OK)
     @ApiResponse({ type: LoginResponseDto })
     async updateWidget(@Body() body: UpdateWidgetDto, @Req() req: Request) {
-        return this.widgetService.updateWidget(body, req.user as UserInfoDTO)
+        return this.widgetService.updateWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/delete")
@@ -104,7 +104,7 @@ export class WidgetsController {
     @ApiBody({ type: DeleteWidgetDto })
     @ApiResponse({ type: LoginResponseDto })
     async deleteWidget(@Body() body: DeleteWidgetDto, @Req() req: Request) {
-        return this.widgetService.deleteWidget(body, req.user as UserInfoDTO)
+        return this.widgetService.deleteWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/applyConfigToApps")
@@ -116,7 +116,7 @@ export class WidgetsController {
         @Body() body: ApplyWidgetConfigToAppsDto,
         @Req() req: Request,
     ): Promise<WidgetConfigDto> {
-        return this.widgetService.applyWidgetConfigToApps(body, req.user as UserInfoDTO)
+        return this.widgetService.applyWidgetConfigToApps(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/unbindConfigFromApps")
@@ -128,7 +128,7 @@ export class WidgetsController {
         @Body() body: UnbindWidgetConfigFromAppsDto,
         @Req() req: Request,
     ): Promise<{ status: string }> {
-        return this.widgetService.unbindWidgetConfigFromApps(body, req.user as UserInfoDTO)
+        return this.widgetService.unbindWidgetConfigFromApps(body, req.user as UserJwtExtractDto)
     }
 
     @Get("/:tag")
@@ -136,7 +136,7 @@ export class WidgetsController {
     @ApiResponse({ type: LoginResponseDto })
     @UseGuards(OptionalJwtAuthGuard)
     async getWidgetByTag(@Param("tag") tag: string, @Req() req: Request) {
-        return this.widgetService.getWidgetByTag(tag, req?.user as UserInfoDTO)
+        return this.widgetService.getWidgetByTag(tag, req?.user as UserJwtExtractDto)
     }
 
     @Post("/subscribe")
@@ -146,7 +146,7 @@ export class WidgetsController {
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async subscribeWidget(@Body() body: SubscribeWidgetDto, @Req() req: Request) {
-        return this.widgetService.subscribeWidget(body, req.user as UserInfoDTO)
+        return this.widgetService.subscribeWidget(body, req.user as UserJwtExtractDto)
     }
 
     @Post("/unsubscribe")
@@ -156,7 +156,7 @@ export class WidgetsController {
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async unsubscribeWidget(@Body() body: UnsubscribeWidgetDto, @Req() req: Request) {
-        return this.widgetService.unsubscribeWidget(body, req.user as UserInfoDTO)
+        return this.widgetService.unsubscribeWidget(body, req.user as UserJwtExtractDto)
     }
 
     /**

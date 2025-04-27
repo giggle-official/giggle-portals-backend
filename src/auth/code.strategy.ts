@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common"
 import { PassportStrategy } from "@nestjs/passport"
 import { Strategy } from "passport-custom"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Request } from "express"
 import { PrismaService } from "src/common/prisma.service"
@@ -15,7 +15,7 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
         super()
     }
 
-    async validate(req: Request): Promise<UserInfoDTO> {
+    async validate(req: Request): Promise<UserJwtExtractDto> {
         const { email, code } = req.body
         const userInfo = await this.prismaService.users.findUnique({
             where: {

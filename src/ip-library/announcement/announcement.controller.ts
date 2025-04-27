@@ -11,7 +11,7 @@ import {
     DeleteAnnouncementResponseDto,
     DeleteAnnouncementDto,
 } from "./announcement.dto"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 
 @Controller("/api/v1/ip/announcement")
@@ -26,7 +26,7 @@ export class AnnouncementController {
     @ApiOperation({ summary: "Create an announcement" })
     @ApiResponse({ type: AnnouncementDetailDto, status: 200 })
     async create(@Req() req: Request, @Body() createAnnouncementDto: CreateAnnouncementDto) {
-        return this.announcementService.create(req.user as UserInfoDTO, createAnnouncementDto)
+        return this.announcementService.create(req.user as UserJwtExtractDto, createAnnouncementDto)
     }
 
     @Get("/")
@@ -58,7 +58,7 @@ export class AnnouncementController {
     @ApiOperation({ summary: "Update an announcement" })
     @ApiResponse({ type: AnnouncementDetailDto, status: 200 })
     async update(@Req() req: Request, @Body() updateAnnouncementDto: UpdateAnnouncementDto) {
-        return this.announcementService.update(req.user as UserInfoDTO, updateAnnouncementDto)
+        return this.announcementService.update(req.user as UserJwtExtractDto, updateAnnouncementDto)
     }
 
     @Post("/delete")
@@ -69,6 +69,6 @@ export class AnnouncementController {
     @ApiBody({ type: DeleteAnnouncementDto })
     @ApiResponse({ type: DeleteAnnouncementResponseDto, status: 200 })
     async delete(@Req() req: Request, @Body() deleteAnnouncementDto: DeleteAnnouncementDto) {
-        return this.announcementService.delete(req.user as UserInfoDTO, deleteAnnouncementDto)
+        return this.announcementService.delete(req.user as UserJwtExtractDto, deleteAnnouncementDto)
     }
 }

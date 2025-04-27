@@ -41,7 +41,7 @@ import {
     ApiHeaders,
 } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { NologInterceptor } from "src/common/bypass-nolog.decorator"
@@ -69,7 +69,7 @@ export class IpLibraryController {
         @Query() query: GetListParams,
         @Headers("app-id") app_id?: string,
     ): Promise<IpLibraryListDto> {
-        return await this.ipLibraryService.getList(query, true, null, null, app_id, req?.user as UserInfoDTO)
+        return await this.ipLibraryService.getList(query, true, null, null, app_id, req?.user as UserJwtExtractDto)
     }
 
     @Get("/my")
@@ -82,10 +82,10 @@ export class IpLibraryController {
         return await this.ipLibraryService.getList(
             query,
             query.is_public === "true" ? true : query.is_public === "false" ? false : null,
-            req.user as UserInfoDTO,
+            req.user as UserJwtExtractDto,
             null,
             null,
-            req.user as UserInfoDTO,
+            req.user as UserJwtExtractDto,
         )
     }
 
@@ -109,7 +109,7 @@ export class IpLibraryController {
     @ApiOperation({ summary: "Like an ip library" })
     @ApiBody({ type: LikeIpDto })
     async likeIp(@Body() dto: LikeIpDto, @Req() req: any): Promise<IpLibraryDetailDto> {
-        return this.ipLibraryService.likeIp(dto.id, req.user as UserInfoDTO)
+        return this.ipLibraryService.likeIp(dto.id, req.user as UserJwtExtractDto)
     }
 
     @Post("unlike")
@@ -118,7 +118,7 @@ export class IpLibraryController {
     @ApiOperation({ summary: "Unlike an ip library" })
     @ApiBody({ type: UnlikeIpDto })
     async unlikeIp(@Body() dto: UnlikeIpDto, @Req() req: any): Promise<IpLibraryDetailDto> {
-        return this.ipLibraryService.unlikeIp(dto.id, req.user as UserInfoDTO)
+        return this.ipLibraryService.unlikeIp(dto.id, req.user as UserJwtExtractDto)
     }
 
     @Get("/available-parent-ips")
@@ -128,7 +128,7 @@ export class IpLibraryController {
     //@ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     async getAvailableParentIps(@Req() req: Request) {
-        return await this.ipLibraryService.getAvailableParentIps(req.user as UserInfoDTO)
+        return await this.ipLibraryService.getAvailableParentIps(req.user as UserJwtExtractDto)
     }
 
     @Get("/my/:id")
@@ -138,7 +138,12 @@ export class IpLibraryController {
     @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
     @ApiParam({ name: "id", type: Number })
     async getMyDetail(@Req() req: Request, @Param("id") id: string): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.detail(id, null, req.user as UserInfoDTO, req.user as UserInfoDTO)
+        return await this.ipLibraryService.detail(
+            id,
+            null,
+            req.user as UserJwtExtractDto,
+            req.user as UserJwtExtractDto,
+        )
     }
 
     @Post("/set-visibility")
@@ -149,7 +154,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     async setIpVisibility(@Req() req: Request, @Body() body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.setIpVisibility(req.user as UserInfoDTO, body)
+        return await this.ipLibraryService.setIpVisibility(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/untokenize")
@@ -160,7 +165,7 @@ export class IpLibraryController {
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth()
     async untokenize(@Req() req: Request, @Body() body: UntokenizeDto): Promise<IpLibraryDetailDto> {
-        return await this.ipLibraryService.untokenize(req.user as UserInfoDTO, body)
+        return await this.ipLibraryService.untokenize(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/create-ip")
@@ -263,7 +268,7 @@ data: some error message
     @UseGuards(AuthGuard("jwt"))
     @NologInterceptor()
     createIp(@Req() req: Request, @ValidEventBody() body: CreateIpDto) {
-        return this.ipLibraryService.createIp(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.createIp(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/update-ip")
@@ -323,7 +328,7 @@ data: some error message
     @UseGuards(AuthGuard("jwt"))
     @NologInterceptor()
     editIp(@Req() req: Request, @ValidEventBody() body: EditIpDto) {
-        return this.ipLibraryService.editIp(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.editIp(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/share-to-giggle")
@@ -406,7 +411,7 @@ data: some error message
     @UseGuards(AuthGuard("jwt"))
     @NologInterceptor()
     shareToGiggle(@Req() req: Request, @ValidEventBody() body: ShareToGiggleDto) {
-        return this.ipLibraryService.shareToGiggle(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.shareToGiggle(req.user as UserJwtExtractDto, body)
     }
 
     @Get("/:id")
@@ -416,7 +421,7 @@ data: some error message
     @ApiParam({ name: "id", type: Number })
     async getDetail(@Param("id") id: string, @Req() req: Request): Promise<IpLibraryDetailDto> {
         if (req?.user) {
-            return await this.ipLibraryService.detail(id, null, null, req.user as UserInfoDTO)
+            return await this.ipLibraryService.detail(id, null, null, req.user as UserJwtExtractDto)
         } else {
             return await this.ipLibraryService.detail(id, true, null, null)
         }
@@ -431,7 +436,7 @@ data: some error message
     @UseGuards(AuthGuard("jwt"))
     //@ApiExcludeEndpoint()
     registerToken(@Req() req: Request, @Body() body: RegisterTokenDto) {
-        return this.ipLibraryService.registerToken(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.registerToken(req.user as UserJwtExtractDto, body)
     }
 
     @Get("/signature-clips/:id")

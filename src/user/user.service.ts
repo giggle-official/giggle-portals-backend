@@ -8,6 +8,7 @@ import {
     BindEmailReqDto,
     UpdateProfileReqDto,
     RegisterInfoDTO,
+    UserJwtExtractDto,
 } from "./user.controller"
 import { PrismaService } from "src/common/prisma.service"
 import * as crypto from "crypto"
@@ -129,10 +130,6 @@ export class UserService {
                 username_in_be: userInfo.usernameShorted,
             },
         })
-        let sourceLinkDetail: LinkDetailDto | null = null
-        if (user.from_source_link) {
-            sourceLinkDetail = await this.linkService.getLink(user.from_source_link)
-        }
 
         let registerInfo: RegisterInfoDTO = {
             type: "direct",
@@ -142,24 +139,13 @@ export class UserService {
             source_link_summary: null,
         }
 
-        if (sourceLinkDetail) {
-            //if user register from source link
-            if (sourceLinkDetail.redirect_to_widget) {
-                registerInfo.type = "widget"
-                registerInfo.source_link_summary = {
-                    creator: sourceLinkDetail.creator,
-                    link_url: sourceLinkDetail.link_url,
-                }
-                registerInfo.source_link = user.from_source_link
-                registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
-            } else {
-                registerInfo.type = "link"
-                registerInfo.source_link_summary = {
-                    creator: sourceLinkDetail.creator,
-                    link_url: sourceLinkDetail.link_url,
-                }
-                registerInfo.source_link = user.from_source_link
-            }
+        if (!user.from_source_link) {
+            return registerInfo
+        }
+
+        let sourceLinkDetail: LinkDetailDto | null = null
+        sourceLinkDetail = await this.linkService.getLink(user.from_source_link)
+        if (!sourceLinkDetail) {
             return registerInfo
         }
 
@@ -168,6 +154,23 @@ export class UserService {
             registerInfo.app_id = user.register_app_id
         }
 
+        //if user register from source link
+        if (sourceLinkDetail.redirect_to_widget) {
+            registerInfo.type = "widget"
+            registerInfo.source_link_summary = {
+                creator: sourceLinkDetail.creator,
+                link_url: sourceLinkDetail.link_url,
+            }
+            registerInfo.source_link = user.from_source_link
+            registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
+        } else {
+            registerInfo.type = "link"
+            registerInfo.source_link_summary = {
+                creator: sourceLinkDetail.creator,
+                link_url: sourceLinkDetail.link_url,
+            }
+            registerInfo.source_link = user.from_source_link
+        }
         return registerInfo
     }
 
@@ -792,7 +795,7 @@ Message: ${contactInfo.message}
         return crypto.createHash("md5").update(str).digest("hex")
     }
 
-    static cryptoStringWithSalt(user: UserInfoDTO, str: string): string {
+    static cryptoStringWithSalt(user: UserJwtExtractDto, str: string): string {
         const userSalt = user.usernameShorted
         return crypto
             .createHash("md5")

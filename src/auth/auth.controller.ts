@@ -1,6 +1,6 @@
 import { Controller, Get, Post, HttpCode, HttpStatus, UseGuards, Req, Res, Body } from "@nestjs/common"
 import { ApiResponse, ApiBody, ApiOperation, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger"
-import { LoginDTO, EmailLoginDto, UserInfoDTO } from "src/user/user.controller"
+import { LoginDTO, EmailLoginDto, UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { AuthService } from "./auth.service"
 import { AuthGuard } from "@nestjs/passport"
 import { Request, Response } from "express"
@@ -24,7 +24,7 @@ export class AuthController {
     })
     @HttpCode(HttpStatus.OK)
     async loginWithEmail(@Req() req: Request) {
-        return await this.authService.login(req.user as UserInfoDTO)
+        return await this.authService.login(req.user as UserJwtExtractDto)
     }
 
     @ApiExcludeEndpoint()
@@ -68,7 +68,7 @@ export class AuthController {
     @UseGuards(AuthGuard("google"))
     @BypassInterceptor()
     async googleAuthRedirect(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        const loginResponse = await this.authService.login(req.user as UserInfoDTO)
+        const loginResponse = await this.authService.login(req.user as UserJwtExtractDto)
         let to = process.env.FRONTEND_URL + "/user/login?token=" + loginResponse.access_token
         if (req.cookies.redirectUrl && req.cookies.redirectUrl !== "null") {
             const redirectUrl = req.cookies.redirectUrl
@@ -102,6 +102,6 @@ export class AuthController {
     @UseGuards(AuthGuard("code"))
     @HttpCode(HttpStatus.OK)
     async loginWithCode(@Req() req: Request) {
-        return this.authService.login(req.user as UserInfoDTO)
+        return this.authService.login(req.user as UserJwtExtractDto)
     }
 }

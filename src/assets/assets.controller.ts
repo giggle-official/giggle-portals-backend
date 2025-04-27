@@ -1,7 +1,7 @@
 import { Controller, HttpStatus, HttpCode, Req, Get, Query, UseGuards, Post, Body, Param } from "@nestjs/common"
 import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AssetsService } from "./assets.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import {
     AssetsListResDto,
     AssetListReqDto,
@@ -29,7 +29,7 @@ export class AssetsController {
     @ApiResponse({ type: AssetsListResDto })
     @ApiOperation({ summary: "Get all assets" })
     async getAssets(@Req() req: Request, @Query() query: AssetListReqDto) {
-        return await this.assetsService.getAssets(req.user as UserInfoDTO, query)
+        return await this.assetsService.getAssets(req.user as UserJwtExtractDto, query)
     }
 
     @Get("/:id")
@@ -39,7 +39,7 @@ export class AssetsController {
     @ApiResponse({ type: AssetDetailDto })
     @ApiOperation({ summary: "Get an asset" })
     async getAsset(@Req() req: Request, @Param("id") id: string) {
-        return await this.assetsService.getAsset(req.user as UserInfoDTO, parseInt(id))
+        return await this.assetsService.getAsset(req.user as UserJwtExtractDto, parseInt(id))
     }
 
     @Post("/relate-to-ip")
@@ -48,7 +48,7 @@ export class AssetsController {
     @ApiResponse({ type: AssetDetailDto })
     @ApiOperation({ summary: "Relate an asset to an ip" })
     async relateToIp(@Req() req: Request, @Body() body: RelateToIpDto): Promise<AssetDetailDto> {
-        return await this.assetsService.relateToIp(req.user as UserInfoDTO, body)
+        return await this.assetsService.relateToIp(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/rename")
@@ -57,7 +57,7 @@ export class AssetsController {
     @ApiResponse({ type: AssetsDto })
     @ApiOperation({ summary: "Rename an asset" })
     async renameAsset(@Req() req: Request, @Body() body: AssetRenameReqDto) {
-        return await this.assetsService.renameAsset(req.user as UserInfoDTO, body)
+        return await this.assetsService.renameAsset(req.user as UserJwtExtractDto, body)
     }
 
     @Post("uploadToken")
@@ -89,6 +89,6 @@ export class AssetsController {
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: "Delete an asset" })
     async deleteAsset(@Req() req: Request, @Body() body: DeleteAssetDto) {
-        return await this.assetsService.deleteAsset(req.user as UserInfoDTO, body.asset_id)
+        return await this.assetsService.deleteAsset(req.user as UserJwtExtractDto, body.asset_id)
     }
 }

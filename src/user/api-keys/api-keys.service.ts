@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { UserInfoDTO } from "../user.controller"
+import { UserJwtExtractDto } from "../user.controller"
 import { UtilitiesService } from "src/common/utilities.service"
 
 @Injectable()
 export class ApiKeysService {
     constructor(private readonly prismaService: PrismaService) {}
-    async list(user: UserInfoDTO) {
+    async list(user: UserJwtExtractDto) {
         const records = await this.prismaService.user_api_keys.findMany({
             where: { user: user.usernameShorted, discarded: false },
         })
@@ -18,7 +18,7 @@ export class ApiKeysService {
         })
     }
 
-    async generate(user: UserInfoDTO) {
+    async generate(user: UserJwtExtractDto) {
         const userInfo = await this.prismaService.users.findUnique({
             where: { username_in_be: user.usernameShorted },
             include: {
@@ -39,7 +39,7 @@ export class ApiKeysService {
         return this.list(user)
     }
 
-    async disable(user: UserInfoDTO, id: number) {
+    async disable(user: UserJwtExtractDto, id: number) {
         const apiKeyInfo = await this.prismaService.user_api_keys.findFirst({
             where: { user: user.usernameShorted, id },
         })

@@ -38,7 +38,7 @@ import {
     UploadCoverImageResponseDto,
     UserMarketCapDto,
 } from "./giggle.dto"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 
 @Controller("/api/v1/web3/giggle")
 export class GiggleController {
@@ -113,7 +113,7 @@ export class GiggleController {
     @ApiOperation({ summary: "Trade IP Token" })
     @ApiResponse({ type: TradeResponseDto, status: 200 })
     async trade(@Req() req: Request, @Body() body: TradeDto) {
-        return this.giggleService.trade(req.user as UserInfoDTO, body)
+        return this.giggleService.trade(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/top-up")
@@ -124,7 +124,7 @@ export class GiggleController {
     @ApiOperation({ summary: "Top up" })
     @ApiResponse({ type: String, status: 200, description: "top up url" })
     async topUp(@Req() req: Request) {
-        return await this.giggleService.topUp(req.user as UserInfoDTO)
+        return await this.giggleService.topUp(req.user as UserJwtExtractDto)
     }
 
     @Post("/send")
@@ -136,7 +136,7 @@ export class GiggleController {
     @ApiOperation({ summary: "Send Tokens" })
     @ApiResponse({ type: SendTokenResponseDto, status: 200 })
     async send(@Req() req: Request, @Body() body: SendTokenDto) {
-        return this.giggleService.sendToken(req.user as UserInfoDTO, body)
+        return this.giggleService.sendToken(req.user as UserJwtExtractDto, body)
     }
 
     @Get("/get-stripe-pkey")
@@ -152,7 +152,7 @@ export class GiggleController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     async createOnrampSession(@Req() req: Request) {
-        return this.giggleService.createOnrampSession(req.user as UserInfoDTO)
+        return this.giggleService.createOnrampSession(req.user as UserJwtExtractDto)
     }
 
     @Get("/usdc-balance")
@@ -163,7 +163,7 @@ export class GiggleController {
     @ApiOperation({ summary: "Get USDC balance" })
     @ApiResponse({ type: String, status: 200, description: "USDC balance" })
     async usdcBalance(@Req() req: Request) {
-        return this.giggleService.getUsdcBalance(req.user as UserInfoDTO)
+        return this.giggleService.getUsdcBalance(req.user as UserJwtExtractDto)
     }
     /*
     @Post("/payment-callback")

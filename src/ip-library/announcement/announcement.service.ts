@@ -9,7 +9,7 @@ import {
 } from "./announcement.dto"
 import { Prisma } from "@prisma/client"
 import { PrismaService } from "src/common/prisma.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { UtilitiesService } from "src/common/utilities.service"
 
 @Injectable()
@@ -19,7 +19,7 @@ export class AnnouncementService {
         private readonly utilsService: UtilitiesService,
     ) {}
 
-    async create(user: UserInfoDTO, createAnnouncementDto: CreateAnnouncementDto) {
+    async create(user: UserJwtExtractDto, createAnnouncementDto: CreateAnnouncementDto) {
         const ip = await this.prismaService.ip_library.findUnique({
             where: {
                 id: createAnnouncementDto.ip_id,
@@ -101,7 +101,7 @@ export class AnnouncementService {
         }
     }
 
-    async update(user: UserInfoDTO, updateAnnouncementDto: UpdateAnnouncementDto) {
+    async update(user: UserJwtExtractDto, updateAnnouncementDto: UpdateAnnouncementDto) {
         const announcement = await this.prismaService.ip_announcement.findUnique({
             where: { id: updateAnnouncementDto.id },
         })
@@ -238,7 +238,7 @@ export class AnnouncementService {
         }
     }
 
-    async delete(user: UserInfoDTO, deleteAnnouncementDto: DeleteAnnouncementDto) {
+    async delete(user: UserJwtExtractDto, deleteAnnouncementDto: DeleteAnnouncementDto) {
         const announcement = await this.prismaService.ip_announcement.findUnique({
             where: { id: deleteAnnouncementDto.id },
         })

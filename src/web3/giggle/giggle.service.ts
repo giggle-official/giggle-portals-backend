@@ -30,7 +30,7 @@ import { AxiosResponse } from "axios"
 import { PrismaService } from "src/common/prisma.service"
 import { UtilitiesService } from "src/common/utilities.service"
 import { PassThrough } from "stream"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { LogsService } from "src/user/logs/logs.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
@@ -193,7 +193,7 @@ export class GiggleService {
         return response.data
     }
 
-    createIpToken(userInfo: UserInfoDTO, ipId: number, params: CreateIpTokenDto): Observable<SSEMessage> {
+    createIpToken(userInfo: UserJwtExtractDto, ipId: number, params: CreateIpTokenDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processIpToken(userInfo, ipId, params, subscriber).catch((error) => {
                 subscriber.error(error)
@@ -202,7 +202,7 @@ export class GiggleService {
     }
 
     async processIpToken(
-        userInfo: UserInfoDTO,
+        userInfo: UserJwtExtractDto,
         ipId: number,
         params: CreateIpTokenDto,
         subscriber: any,
@@ -434,7 +434,7 @@ export class GiggleService {
     }
 
     async getUserWalletDetail(
-        userInfo: UserInfoDTO,
+        userInfo: UserJwtExtractDto,
         page: number = 1,
         pageSize: number = 10,
         mint?: string,
@@ -515,7 +515,7 @@ export class GiggleService {
         return res
     }
 
-    async getUsdcBalance(user: UserInfoDTO): Promise<{ address: string; balance: number }> {
+    async getUsdcBalance(user: UserJwtExtractDto): Promise<{ address: string; balance: number }> {
         const walletDetail = await this.getUserWalletDetail(user, 1, 1, GiggleService.GIGGLE_LEGAL_USDC)
         return {
             address: walletDetail.addr,
@@ -523,7 +523,7 @@ export class GiggleService {
         }
     }
 
-    async getUserMarketCap(user: UserInfoDTO): Promise<UserMarketCapDto> {
+    async getUserMarketCap(user: UserJwtExtractDto): Promise<UserMarketCapDto> {
         const walletDetail = await this.getUserWalletDetail(user, 1, 100)
         return {
             ip_total_market_cap: walletDetail.ip_total_market_cap,
@@ -565,7 +565,7 @@ export class GiggleService {
     }
 
     //trade ip token
-    async trade(user: UserInfoDTO, body: TradeDto) {
+    async trade(user: UserJwtExtractDto, body: TradeDto) {
         const { type, token, amount } = body
         if (amount <= 0) {
             throw new BadRequestException("Amount must be greater than 0")
@@ -612,7 +612,7 @@ export class GiggleService {
         }
     }
 
-    async sendToken(user: UserInfoDTO, body: SendTokenDto): Promise<SendTokenResponseDto> {
+    async sendToken(user: UserJwtExtractDto, body: SendTokenDto): Promise<SendTokenResponseDto> {
         if (body.amount <= 0) {
             throw new BadRequestException("Amount must be greater than 0")
         }
@@ -781,7 +781,7 @@ export class GiggleService {
         return response.data.data
     }
 
-    async topUp(user: UserInfoDTO): Promise<TopUpResponseDto> {
+    async topUp(user: UserJwtExtractDto): Promise<TopUpResponseDto> {
         const userInfo = await this.prismaService.users.findUnique({
             where: { username_in_be: user.usernameShorted },
         })
@@ -804,7 +804,7 @@ export class GiggleService {
         return response.data.data
     }
 
-    async createOnrampSession(user: UserInfoDTO): Promise<any> {
+    async createOnrampSession(user: UserJwtExtractDto): Promise<any> {
         const userInfo = await this.prismaService.users.findUnique({
             where: { username_in_be: user.usernameShorted },
         })

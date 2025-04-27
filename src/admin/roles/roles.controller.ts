@@ -5,7 +5,7 @@ import { RolesService } from "./roles.service"
 import { FindOneParam, ListParams } from "src/admin/request.dto"
 import { CreateRoleDto, DeleteRoleDto, UpdateRoleDto } from "./roles.dto"
 import { Request } from "express"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { ApiExcludeController } from "@nestjs/swagger"
 
 @ApiExcludeController()
@@ -41,20 +41,20 @@ export class RolesController {
     @HttpCode(HttpStatus.OK)
     @CheckPolicies((abilities) => abilities.can("manage_roles"))
     async update(@Req() req: Request, @Body() roleInfo: UpdateRoleDto) {
-        return this.rolesService.update(req.user as UserInfoDTO, roleInfo)
+        return this.rolesService.update(req.user as UserJwtExtractDto, roleInfo)
     }
 
     @Post("/create")
     @HttpCode(HttpStatus.OK)
     @CheckPolicies((abilities) => abilities.can("manage_roles"))
     async create(@Req() req: Request, @Body() roleInfo: CreateRoleDto) {
-        return this.rolesService.create(req.user as UserInfoDTO, roleInfo)
+        return this.rolesService.create(req.user as UserJwtExtractDto, roleInfo)
     }
 
     @Post("/delete")
     @HttpCode(HttpStatus.OK)
     @CheckPolicies((abilities) => abilities.can("manage_roles"))
     async delete(@Req() req: Request, @Body() roleInfo: DeleteRoleDto) {
-        return this.rolesService.delete(req.user as UserInfoDTO, roleInfo)
+        return this.rolesService.delete(req.user as UserJwtExtractDto, roleInfo)
     }
 }

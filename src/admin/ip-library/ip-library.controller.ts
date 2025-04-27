@@ -26,7 +26,7 @@ import {
 } from "src/ip-library/ip-library.dto"
 import { ApiExcludeController } from "@nestjs/swagger"
 import { Request } from "express"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 
 @ApiExcludeController()
 @Controller("/api/v2/admin/ip-library")
@@ -63,7 +63,7 @@ export class IpLibraryController {
         @Body() body: UpdateIpLibraryDto,
         @Body("id", ParseIntPipe) id: number,
     ) {
-        return this.ipLibraryService.updateSignatureClip(req.user as UserInfoDTO, { ...body, id }, id)
+        return this.ipLibraryService.updateSignatureClip(req.user as UserJwtExtractDto, { ...body, id }, id)
     }
 
     @Get("/getMany")
@@ -85,7 +85,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async update(@Req() req: Request, @Body() body: UpdateIpLibraryDto, @Body("id", ParseIntPipe) id: number) {
-        return this.ipLibraryService.update(req.user as UserInfoDTO, { ...body, id }, id)
+        return this.ipLibraryService.update(req.user as UserJwtExtractDto, { ...body, id }, id)
     }
 
     @Post("/create")
@@ -93,7 +93,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async create(@Req() req: Request, @Body() body: CreateIpLibraryDto) {
-        return this.ipLibraryService.create(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.create(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/createMany")
@@ -101,7 +101,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async createMany(@Req() req: Request, @Body() body: CreateIpLibraryDto[]) {
-        return this.ipLibraryService.createMany(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.createMany(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/updateManyArray")
@@ -109,7 +109,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async updateManyArray(@Req() req: Request, @Body() body: UpdateManyArrayDto) {
-        return this.ipLibraryService.updateManyArray(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.updateManyArray(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/getSignedUploadUrl")
@@ -125,7 +125,7 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async uploadSignatureClips(@Req() req: Request, @Body() body: UploadSignatureClipsDto) {
-        return this.ipLibraryService.uploadSignatureClips(req.user as UserInfoDTO, body)
+        return this.ipLibraryService.uploadSignatureClips(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/deleteSignatureClip")
@@ -133,6 +133,6 @@ export class IpLibraryController {
     @UseGuards(AuthGuard("jwt"))
     @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
     async deleteSignatureClip(@Req() req: Request, @Body() body: DeleteSignatureClipDto) {
-        return await this.ipLibraryService.deleteSignatureClip(req.user as UserInfoDTO, body)
+        return await this.ipLibraryService.deleteSignatureClip(req.user as UserJwtExtractDto, body)
     }
 }

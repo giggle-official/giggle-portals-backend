@@ -3,10 +3,9 @@ import { BindDeviceRequestDto, CreateLinkRequestDto, CreateLinkResponseDto, Link
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { LinkService } from "./link.service"
 import { AuthGuard } from "@nestjs/passport"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 
-@ApiTags("Link")
 @Controller("/api/v1/link")
 export class LinkController {
     constructor(private readonly linkService: LinkService) {}
@@ -17,6 +16,7 @@ export class LinkController {
         description: `Create a short link you can share to anywhere, default is to a portal page.
         The link redirect url is depends users token, if token is from a widget, the link will be to the widget in portal, you can specify the widget message when widget loaded.
         `,
+        tags: ["Link"],
     })
     @ApiHeader({
         name: "app-id",
@@ -28,12 +28,13 @@ export class LinkController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     createLink(@Body() body: CreateLinkRequestDto, @Req() req: Request, @Headers("app-id") appId: string) {
-        return this.linkService.create(body, req.user as UserInfoDTO, appId)
+        return this.linkService.create(body, req.user as UserJwtExtractDto, appId)
     }
 
     @Post("/bind-device")
     @ApiOperation({
         summary: "Bind a device to a link.",
+        tags: ["Admin"],
     })
     @ApiBody({ type: BindDeviceRequestDto })
     bindDevice(@Body() body: BindDeviceRequestDto) {
@@ -43,6 +44,7 @@ export class LinkController {
     @Get("/:uniqueStr")
     @ApiOperation({
         summary: "Get a link by unique string.",
+        tags: ["Link"],
     })
     @ApiResponse({ type: LinkDetailDto })
     getLink(@Param("uniqueStr") uniqueStr: string) {

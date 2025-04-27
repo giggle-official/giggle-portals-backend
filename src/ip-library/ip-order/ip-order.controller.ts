@@ -1,6 +1,6 @@
 import { Controller, HttpCode, HttpStatus, Post, Req, Body, UseGuards, Headers, Get, Param } from "@nestjs/common"
 import { AuthGuard } from "@nestjs/passport"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { CreateIpOrderDto } from "../ip-library.dto"
 import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { IpOrderService } from "./ip-order.service"
@@ -22,7 +22,7 @@ export class IpOrderController {
         summary: "Create an ip order",
     })
     async createIpOrder(@Req() req: Request, @Body() body: CreateIpOrderDto, @Headers("app-id") app_id?: string) {
-        return await this.ipOrderService.createIpOrder(req.user as UserInfoDTO, body, app_id)
+        return await this.ipOrderService.createIpOrder(req.user as UserJwtExtractDto, body, app_id)
     }
 
     @Post("/callback")
@@ -40,7 +40,7 @@ export class IpOrderController {
     })
     @ApiResponse({ type: CheckIpOrderListDto })
     async getIpOrderList(@Req() req: Request, @Headers("app-id") app_id: string) {
-        return await this.ipOrderService.getIpOrderList(req.user as UserInfoDTO, app_id)
+        return await this.ipOrderService.getIpOrderList(req.user as UserJwtExtractDto, app_id)
     }
 
     @Get("/:order_id")
@@ -51,6 +51,6 @@ export class IpOrderController {
     })
     @ApiResponse({ type: CheckIpOrderDto })
     async checkIpOrder(@Param("order_id") order_id: string, @Req() req: Request) {
-        return await this.ipOrderService.ipOrderDetail(order_id, req.user as UserInfoDTO)
+        return await this.ipOrderService.ipOrderDetail(order_id, req.user as UserJwtExtractDto)
     }
 }

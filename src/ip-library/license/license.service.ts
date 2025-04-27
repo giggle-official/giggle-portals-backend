@@ -1,10 +1,9 @@
 import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { LicenseOrderDetailDto, OrderCreateDto, LicenseIpListDto, LicenseIpListReqParams } from "./license.dto"
 import { UserService } from "src/user/user.service"
 import { IpLibraryService } from "../ip-library.service"
-import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { Prisma } from "@prisma/client"
 import { ConfirmStatus, SSEMessage } from "src/web3/giggle/giggle.dto"
@@ -24,7 +23,7 @@ export class LicenseService {
         private readonly giggleService: GiggleService,
     ) {}
 
-    async purchase(user: UserInfoDTO, body: OrderCreateDto): Promise<LicenseOrderDetailDto> {
+    async purchase(user: UserJwtExtractDto, body: OrderCreateDto): Promise<LicenseOrderDetailDto> {
         const userProfile = await this.userService.getProfile(user)
         const amount = (await this.getLicensePrice(parseInt(body.ip_id.toString()))) * body.quantity
 
@@ -108,7 +107,7 @@ export class LicenseService {
         }
     }
 
-    purchaseWithEvent(user: UserInfoDTO, body: OrderCreateDto): Observable<SSEMessage> {
+    purchaseWithEvent(user: UserJwtExtractDto, body: OrderCreateDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processPurchaseLicense(user, body, subscriber).catch((error) => {
                 subscriber.error(error)
@@ -116,7 +115,7 @@ export class LicenseService {
         })
     }
 
-    async processPurchaseLicense(user: UserInfoDTO, body: OrderCreateDto, subscriber: any): Promise<void> {
+    async processPurchaseLicense(user: UserJwtExtractDto, body: OrderCreateDto, subscriber: any): Promise<void> {
         subscriber.next({
             event: "ip.data_validating",
             data: {
@@ -237,7 +236,7 @@ export class LicenseService {
         }
     }
 
-    async detail(user: UserInfoDTO, orderId: number): Promise<LicenseOrderDetailDto> {
+    async detail(user: UserJwtExtractDto, orderId: number): Promise<LicenseOrderDetailDto> {
         const order = await this.prismaService.ip_license_orders.findUnique({
             where: { id: orderId, owner: user.usernameShorted },
             select: {
@@ -257,7 +256,7 @@ export class LicenseService {
     }
 
     /*
-    async list(user: UserInfoDTO, query: LicenseListReqParams): Promise<LicenseListResDto> {
+    async list(user: UserJwtExtractDto, query: LicenseListReqParams): Promise<LicenseListResDto> {
         const orders = await this.prismaService.ip_license_orders.findMany({
             where: { owner: user.usernameShorted },
             skip: (parseInt(query.page) - 1) * parseInt(query.page_size),
@@ -298,7 +297,7 @@ export class LicenseService {
     }
     */
 
-    async ipList(user: UserInfoDTO, query: LicenseIpListReqParams): Promise<LicenseIpListDto> {
+    async ipList(user: UserJwtExtractDto, query: LicenseIpListReqParams): Promise<LicenseIpListDto> {
         const where: Prisma.ip_license_ordersWhereInput = { owner: user.usernameShorted, remain_quantity: { gt: 0 } }
         if (query.search) {
             where.OR = [
@@ -352,7 +351,13 @@ export class LicenseService {
         }
     }
 
-    async consume(user: UserInfoDTO, ip_id: number, amount: number, type: string, detail: any): Promise<number[]> {
+    async consume(
+        user: UserJwtExtractDto,
+        ip_id: number,
+        amount: number,
+        type: string,
+        detail: any,
+    ): Promise<number[]> {
         const orders = await this.prismaService.ip_license_orders.findMany({
             where: { owner: user.usernameShorted, ip_id: ip_id, remain_quantity: { gt: 0 } },
         })

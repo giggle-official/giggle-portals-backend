@@ -1,12 +1,4 @@
-import {
-    BadRequestException,
-    forwardRef,
-    Inject,
-    Injectable,
-    InternalServerErrorException,
-    Logger,
-    NotFoundException,
-} from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     AuthorizationSettingsCanPurchase,
@@ -26,7 +18,6 @@ import {
     IpSummaryWithChildDto,
     PurchasedIpDto,
     RegisterTokenDto,
-    RemixClipsDto,
     SetVisibilityDto,
     ShareToGiggleDto,
     TerritoryDto,
@@ -34,7 +25,7 @@ import {
 } from "./ip-library.dto"
 import { assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
 import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
@@ -348,10 +339,10 @@ export class IpLibraryService {
     async getList(
         params: GetListParams,
         is_public: boolean | null,
-        user?: UserInfoDTO, // note: this is the user params to filter the ip
+        user?: UserJwtExtractDto, // note: this is the user params to filter the ip
         ids?: number[],
         app_id?: string,
-        request_user?: UserInfoDTO, // note: this is the user who is requesting the list
+        request_user?: UserJwtExtractDto, // note: this is the user who is requesting the list
     ): Promise<IpLibraryListDto> {
         const where: Prisma.ip_libraryWhereInput = {}
 
@@ -575,8 +566,8 @@ export class IpLibraryService {
     async detail(
         id: string,
         is_public: boolean | null,
-        user?: UserInfoDTO, // note: this is the user params to filter the ip
-        request_user?: UserInfoDTO, // note: this is the user who is requesting the detail
+        user?: UserJwtExtractDto, // note: this is the user params to filter the ip
+        request_user?: UserJwtExtractDto, // note: this is the user who is requesting the detail
     ): Promise<IpLibraryDetailDto> {
         const where: Prisma.ip_libraryWhereUniqueInput = { id: parseInt(id) }
 
@@ -752,7 +743,7 @@ export class IpLibraryService {
         }
     }
 
-    editIp(user: UserInfoDTO, body: EditIpDto): Observable<SSEMessage> {
+    editIp(user: UserJwtExtractDto, body: EditIpDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processEditIp(user, body, subscriber).catch((error) => {
                 subscriber.error(error)
@@ -760,7 +751,7 @@ export class IpLibraryService {
         })
     }
 
-    async processEditIp(user: UserInfoDTO, body: EditIpDto, subscriber: any): Promise<void> {
+    async processEditIp(user: UserJwtExtractDto, body: EditIpDto, subscriber: any): Promise<void> {
         try {
             subscriber.next({
                 event: "ip.data_validating",
@@ -906,7 +897,7 @@ export class IpLibraryService {
         }
     }
 
-    async checkRemixToAsset(user: UserInfoDTO, remixId: number): Promise<assets> {
+    async checkRemixToAsset(user: UserJwtExtractDto, remixId: number): Promise<assets> {
         const data = await this.prismaService.ip_signature_clips.findUnique({
             where: { id: remixId },
         })
@@ -942,7 +933,7 @@ export class IpLibraryService {
         return assetRecord
     }
 
-    createIp(user: UserInfoDTO, body: CreateIpDto): Observable<SSEMessage> {
+    createIp(user: UserJwtExtractDto, body: CreateIpDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processCreateIp(user, body, subscriber).catch((error) => {
                 subscriber.error(error)
@@ -951,7 +942,7 @@ export class IpLibraryService {
     }
 
     async processAssets(
-        user: UserInfoDTO,
+        user: UserJwtExtractDto,
         subscriber: any,
         type: "create" | "edit",
         image_id: number,
@@ -990,7 +981,7 @@ export class IpLibraryService {
         return await this.uploadAssetToIpfs(subscriber, imageAsset, videoAsset)
     }
 
-    async processCreateIp(user: UserInfoDTO, body: CreateIpDto, subscriber: any): Promise<void> {
+    async processCreateIp(user: UserJwtExtractDto, body: CreateIpDto, subscriber: any): Promise<void> {
         subscriber.next({
             event: "ip.data_validating",
             data: {
@@ -1218,7 +1209,7 @@ export class IpLibraryService {
         }
     }
 
-    shareToGiggle(user: UserInfoDTO, body: ShareToGiggleDto): Observable<SSEMessage> {
+    shareToGiggle(user: UserJwtExtractDto, body: ShareToGiggleDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processShareToGiggle(user, body, subscriber).catch((error) => {
                 subscriber.error(error)
@@ -1227,7 +1218,7 @@ export class IpLibraryService {
     }
 
     async processShareToGiggle(
-        user: UserInfoDTO,
+        user: UserJwtExtractDto,
         body: ShareToGiggleDto,
         subscriber: any,
         complete: boolean = true,
@@ -1433,8 +1424,8 @@ export class IpLibraryService {
         ip_id: number
         is_public: boolean | null
         take?: number
-        user?: UserInfoDTO
-        request_user?: UserInfoDTO
+        user?: UserJwtExtractDto
+        request_user?: UserJwtExtractDto
     }): Promise<IpSummaryDto[]> {
         let { ip_id, is_public, take, user, request_user } = params
         if (!take) {
@@ -1568,7 +1559,7 @@ export class IpLibraryService {
         return `create-ip-${ip_id}`
     }
 
-    async registerToken(user: UserInfoDTO, body: RegisterTokenDto) {
+    async registerToken(user: UserJwtExtractDto, body: RegisterTokenDto) {
         const ip = await this.prismaService.ip_library.findUnique({
             where: {
                 id: body.id,
@@ -1772,7 +1763,7 @@ export class IpLibraryService {
         }
     }
 
-    async getAvailableParentIps(user: UserInfoDTO) {
+    async getAvailableParentIps(user: UserJwtExtractDto) {
         // Get all IPs owned by the user
         const ownedIps = await this.prismaService.ip_library.findMany({
             where: {
@@ -1927,7 +1918,7 @@ export class IpLibraryService {
         return { create_amount: create_amount, buy_amount: buy_amount }
     }
 
-    async setIpVisibility(user: UserInfoDTO, body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
+    async setIpVisibility(user: UserJwtExtractDto, body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({
             where: { id: body.id, owner: user.usernameShorted },
         })
@@ -1960,7 +1951,7 @@ export class IpLibraryService {
         return await this.detail(body.id.toString(), null)
     }
 
-    async _checkCreateIpPermission(user: UserInfoDTO, ipInfo: CreateIpDto): Promise<boolean> {
+    async _checkCreateIpPermission(user: UserJwtExtractDto, ipInfo: CreateIpDto): Promise<boolean> {
         const userInfo = await this.userService.getProfile(user)
         if (!ipInfo.parent_ip_library_id && !userInfo.can_create_ip) {
             //a top ip but user has no permission to create ip
@@ -1969,7 +1960,7 @@ export class IpLibraryService {
         return true
     }
 
-    async untokenize(user: UserInfoDTO, body: UntokenizeDto): Promise<IpLibraryDetailDto> {
+    async untokenize(user: UserJwtExtractDto, body: UntokenizeDto): Promise<IpLibraryDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({
             where: { id: body.id, owner: user.usernameShorted },
         })
@@ -2012,7 +2003,7 @@ export class IpLibraryService {
         return await this.detail(body.id.toString(), null)
     }
 
-    async likeIp(ip_id: number, user: UserInfoDTO): Promise<IpLibraryDetailDto> {
+    async likeIp(ip_id: number, user: UserJwtExtractDto): Promise<IpLibraryDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({
             where: { id: ip_id },
         })
@@ -2040,7 +2031,7 @@ export class IpLibraryService {
         return await this.detail(likedIpId.toString(), null, null, user)
     }
 
-    async unlikeIp(ip_id: number, user: UserInfoDTO): Promise<IpLibraryDetailDto> {
+    async unlikeIp(ip_id: number, user: UserJwtExtractDto): Promise<IpLibraryDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({
             where: { id: ip_id },
         })
@@ -2097,7 +2088,7 @@ export class IpLibraryService {
         )
     }
 
-    async isUserLiked(ip_id: number, user: UserInfoDTO): Promise<boolean> {
+    async isUserLiked(ip_id: number, user: UserJwtExtractDto): Promise<boolean> {
         if (!user?.usernameShorted) {
             return false
         }

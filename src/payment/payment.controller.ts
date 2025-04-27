@@ -17,7 +17,7 @@ import { AuthGuard } from "@nestjs/passport"
 import { AddCreditsDto, CreateSubscriptionDto } from "./payment.dto"
 import { PaymentService } from "./payment.service"
 import { Request } from "express"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import Stripe from "stripe"
 import { CreditService } from "src/credit/credit.service"
 import { ApiExcludeController } from "@nestjs/swagger"
@@ -33,7 +33,7 @@ export class PaymentController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async subscription(@Req() req: Request, @Body() subscriptionInfo: CreateSubscriptionDto) {
-        return this.paymentService.subscription(req.user as UserInfoDTO, subscriptionInfo)
+        return this.paymentService.subscription(req.user as UserJwtExtractDto, subscriptionInfo)
     }
 
     @Get("/plans")
@@ -54,13 +54,13 @@ export class PaymentController {
     @Get("/manage")
     @UseGuards(AuthGuard("jwt"))
     async getSubscriptionManage(@Req() req: Request) {
-        return this.paymentService.getSubscriptionManage(req.user as UserInfoDTO)
+        return this.paymentService.getSubscriptionManage(req.user as UserJwtExtractDto)
     }
 
     @Get("/subscription")
     @UseGuards(AuthGuard("jwt"))
     async getUserSubscriptionStatus(@Req() req: Request) {
-        return this.paymentService.getSubscription(req.user as UserInfoDTO)
+        return this.paymentService.getSubscription(req.user as UserJwtExtractDto)
     }
 
     @Post("/stripe/webhook")
@@ -79,7 +79,7 @@ export class PaymentController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async addCredits(@Req() req: Request, @Body() body: AddCreditsDto) {
-        return this.paymentService.addCredit(req.user as UserInfoDTO, body.amount)
+        return this.paymentService.addCredit(req.user as UserJwtExtractDto, body.amount)
     }
 
     /*
@@ -96,7 +96,7 @@ export class PaymentController {
     @Get("/credit/pending/:amount")
     @UseGuards(AuthGuard("jwt"))
     async pendingCredit(@Req() req: Request, @Param("amount", new ParseIntPipe()) amount: number) {
-        return this.creditService.pendingCredit(req.user as UserInfoDTO, amount, "test")
+        return this.creditService.pendingCredit(req.user as UserJwtExtractDto, amount, "test")
     }
 
     @Get("/credit/complete/:relatedId")
@@ -114,6 +114,6 @@ export class PaymentController {
         @Query("take", new ParseIntPipe()) take: number,
         @Query("skip", new ParseIntPipe()) skip: number,
     ) {
-        return this.creditService.getCreditConsumeHistory(req.user as UserInfoDTO, take, skip, lastDays)
+        return this.creditService.getCreditConsumeHistory(req.user as UserJwtExtractDto, take, skip, lastDays)
     }
 }

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { JwtService } from "@nestjs/jwt"
 import { PrismaService } from "src/common/prisma.service"
 import { UserService } from "src/user/user.service"
@@ -12,7 +12,7 @@ export class AuthService {
         private prismaService: PrismaService,
     ) {}
 
-    async verifyUserInfo(user: UserInfoDTO, secretKey: string): Promise<UserInfoDTO> {
+    async verifyUserInfo(user: UserJwtExtractDto, secretKey: string): Promise<UserJwtExtractDto> {
         const userInfo = await this.prismaService.users.findFirst({
             where: {
                 username_in_be: user.usernameShorted,
@@ -25,7 +25,7 @@ export class AuthService {
         return user
     }
 
-    async login(userInfo: UserInfoDTO, permissions?: JwtPermissions[]): Promise<LoginResponseDTO> {
+    async login(userInfo: UserJwtExtractDto, permissions?: JwtPermissions[]): Promise<LoginResponseDTO> {
         // Check if the user is blocked
         const user = await this.prismaService.users.findUnique({
             where: {
@@ -37,17 +37,12 @@ export class AuthService {
             throw new UnauthorizedException("User not exists")
         }
 
-        //if permissions is not provided, use the default permissions
-        if (!permissions) {
-            userInfo.permissions = ["all"]
-        }
-
         const access_token = this.jwtService.sign(userInfo)
         return { access_token: access_token }
     }
 
-    async getUserInfoByToken(access_token: string): Promise<UserInfoDTO> {
-        return (this.jwtService.decode(access_token) as UserInfoDTO) || null
+    async getUserInfoByToken(access_token: string): Promise<UserJwtExtractDto> {
+        return (this.jwtService.decode(access_token) as UserJwtExtractDto) || null
     }
 
     async confirmEmail(confirmInfo: EmailConfirmationDto) {

@@ -24,7 +24,7 @@ import {
 import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import Stripe from "stripe"
 
@@ -37,7 +37,7 @@ export class OrderController {
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: OrderListDto })
     async getOrderList(@Query() query: OrderListQueryDto, @Req() req: Request): Promise<OrderListDto> {
-        return this.orderService.getOrderList(query, req.user as UserInfoDTO)
+        return this.orderService.getOrderList(query, req.user as UserJwtExtractDto)
     }
 
     @Get("/detail")
@@ -48,7 +48,7 @@ export class OrderController {
         if (!orderId) {
             throw new BadRequestException("Order id is required")
         }
-        return this.orderService.getOrderDetail(orderId, req.user as UserInfoDTO)
+        return this.orderService.getOrderDetail(orderId, req.user as UserJwtExtractDto)
     }
 
     @Post("/create")
@@ -58,7 +58,7 @@ export class OrderController {
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async createOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.createOrder(order, req.user as UserInfoDTO)
+        return this.orderService.createOrder(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payWithWallet")
@@ -69,7 +69,7 @@ export class OrderController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async payWithWallet(@Body() order: PayWithWalletRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.payWithWallet(order, req.user as UserInfoDTO)
+        return this.orderService.payWithWallet(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payWithStripe")
@@ -83,7 +83,7 @@ export class OrderController {
         @Body() order: PayWithStripeRequestDto,
         @Req() req: Request,
     ): Promise<PayWithStripeResponseDto> {
-        return this.orderService.payOrderWithStripe(order, req.user as UserInfoDTO)
+        return this.orderService.payOrderWithStripe(order, req.user as UserJwtExtractDto)
     }
 
     @ApiExcludeEndpoint()
@@ -107,6 +107,6 @@ export class OrderController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async resendCallback(@Body() order: ResendCallbackRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.resendCallback(order, req.user as UserInfoDTO)
+        return this.orderService.resendCallback(order, req.user as UserJwtExtractDto)
     }
 }

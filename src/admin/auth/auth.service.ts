@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/com
 import { PrismaService } from "src/common/prisma.service"
 import { Request, Response } from "express"
 import { JwtService } from "@nestjs/jwt"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { CaslAbilityFactory } from "src/casl/casl-ability.factory/casl-ability.factory"
 import { UserService } from "src/user/user.service"
 import { AdminUserInfoDto, SwitchRoleDto } from "./auth.dto"
@@ -16,11 +16,11 @@ export class AdminAuthService {
         private userService: UserService,
     ) {}
     async login(req: Request, res: Response, asRole: number | undefined = undefined) {
-        const userAbilities = await this.abilitiesFactory.createForUser(req.user as UserInfoDTO)
+        const userAbilities = await this.abilitiesFactory.createForUser(req.user as UserJwtExtractDto)
         if (!userAbilities.can("access_admin")) {
             throw new ForbiddenException("You don't have permission to this resource")
         }
-        const userInfo = req.user as UserInfoDTO
+        const userInfo = req.user as UserJwtExtractDto
         if (!asRole) {
             const userRoles = await this.prisma.user_roles.findMany({
                 where: {
@@ -43,11 +43,9 @@ export class AdminAuthService {
             if (!userRoleExists) throw new BadRequestException("you have no permission switch to this role")
         }
         const access_token = this.jwtService.sign({
-            address: userInfo.address,
             username: userInfo.username,
             usernameShorted: userInfo.usernameShorted,
             email: userInfo.email,
-            emailConfirmed: userInfo.emailConfirmed,
             avatar: userInfo.avatar,
             currentRole: asRole,
         })
@@ -75,7 +73,7 @@ export class AdminAuthService {
     }
 
     async profile(req: Request) {
-        return this.userService.getProfile(req.user as UserInfoDTO)
+        return this.userService.getProfile(req.user as UserJwtExtractDto)
     }
 
     async permissions(req: Request) {

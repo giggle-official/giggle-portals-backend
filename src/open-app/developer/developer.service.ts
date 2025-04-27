@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { DeveloperWidgetCreateDto, DeveloperWidgetUpdateDto } from "./developer.dto"
-import { UserInfoDTO } from "src/user/user.controller"
-import { CreateWidgetDto, WidgetSettingsDto } from "../widgets/widget.dto"
+import { UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
+import { WidgetSettingsDto } from "../widgets/widget.dto"
 import { WidgetsService } from "../widgets/widgets.service"
 import { widgets } from "@prisma/client"
 import { Prisma } from "@prisma/client"
@@ -17,7 +17,7 @@ export class DeveloperService {
         private readonly usersService: UserService,
     ) {}
 
-    async createWidget(body: DeveloperWidgetCreateDto, user: UserInfoDTO) {
+    async createWidget(body: DeveloperWidgetCreateDto, user: UserJwtExtractDto) {
         const tag = body.name.toLowerCase().replace(/ /g, "_")
         const widgetExists = await this.prisma.widgets.findFirst({
             where: {
@@ -84,7 +84,11 @@ export class DeveloperService {
         return this.getWidgetDetail(newWidget, user)
     }
 
-    _mapToCreateWidgetDto(body: DeveloperWidgetCreateDto, user: UserInfoDTO, tag: string): Prisma.widgetsCreateInput {
+    _mapToCreateWidgetDto(
+        body: DeveloperWidgetCreateDto,
+        user: UserJwtExtractDto,
+        tag: string,
+    ): Prisma.widgetsCreateInput {
         const settings: WidgetSettingsDto = {
             permissions: ["all"], //TODO: change to widget
             management_url: body.management_url,
@@ -145,7 +149,7 @@ export class DeveloperService {
             if (!isEmail(email)) {
                 continue
             }
-            let userInfo: UserInfoDTO
+            let userInfo: UserJwtExtractDto
             const userExists = await this.prisma.users.findFirst({
                 where: {
                     email: email,
@@ -166,11 +170,11 @@ export class DeveloperService {
         }
     }
 
-    private async _subscribeToWidget(tag: string, user: UserInfoDTO, testUsers: string[]): Promise<void> {
+    private async _subscribeToWidget(tag: string, user: UserJwtExtractDto, testUsers: string[]): Promise<void> {
         return
     }
 
-    async getWidgets(user: UserInfoDTO) {
+    async getWidgets(user: UserJwtExtractDto) {
         const widgets = await this.prisma.widgets.findMany({
             where: { author: user.usernameShorted },
             include: {
@@ -193,7 +197,7 @@ export class DeveloperService {
         return this.widgetsService._mapToSummaryResponse(widgets, subscribedWidgets)
     }
 
-    async getWidgetDetail(tag: string, user: UserInfoDTO) {
+    async getWidgetDetail(tag: string, user: UserJwtExtractDto) {
         const widget = await this.prisma.widgets.findUnique({
             where: { tag: tag, author: user.usernameShorted },
             include: {
@@ -224,7 +228,7 @@ export class DeveloperService {
         return this.widgetsService.mapToDetailResponse(widget, subscribedWidgets)
     }
 
-    async updateWidget(body: DeveloperWidgetUpdateDto, user: UserInfoDTO) {
+    async updateWidget(body: DeveloperWidgetUpdateDto, user: UserJwtExtractDto) {
         const widgetExists = await this.prisma.widgets.findUnique({
             where: { tag: body.tag, author: user.usernameShorted, is_developing: true },
         })
@@ -278,7 +282,7 @@ export class DeveloperService {
     }
 
     // danger operation
-    async deleteWidget(tag: string, user: UserInfoDTO) {
+    async deleteWidget(tag: string, user: UserJwtExtractDto) {
         try {
             const widget = await this.prisma.widgets.findUnique({
                 where: { tag: tag, author: user.usernameShorted, is_developing: true },

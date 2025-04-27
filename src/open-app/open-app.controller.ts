@@ -31,7 +31,7 @@ import {
     RemoveInviteEmailDto,
 } from "./open-app.dto"
 import { AuthGuard } from "@nestjs/passport"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request, Response } from "express"
 import { PaginationDto } from "src/common/common.dto"
 import { Recaptcha } from "@nestlab/google-recaptcha"
@@ -51,7 +51,7 @@ export class OpenAppController {
     @ApiBearerAuth()
     @UseGuards(AuthGuard("jwt"))
     async getAppList(@Req() req: Request, @Query() query: PaginationDto): Promise<AppListDto> {
-        return this.openAppService.getAppList(req.user as UserInfoDTO, query)
+        return this.openAppService.getAppList(req.user as UserJwtExtractDto, query)
     }
 
     @Get("/info")
@@ -107,7 +107,7 @@ export class OpenAppController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async createApp(@Body() createAppDto: CreateAppDto, @Req() req: Request) {
-        return this.openAppService.createApp(createAppDto, req.user as UserInfoDTO)
+        return this.openAppService.createApp(createAppDto, req.user as UserJwtExtractDto)
     }
 
     @Post("/preview")
@@ -129,7 +129,7 @@ export class OpenAppController {
         @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
     ): Promise<AppInfoDto> {
-        return this.openAppService.previewApp(createAppDto, req.user as UserInfoDTO, req.cookies, res)
+        return this.openAppService.previewApp(createAppDto, req.user as UserJwtExtractDto, req.cookies, res)
     }
 
     @Post("/delete")
@@ -146,7 +146,7 @@ export class OpenAppController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async deleteApp(@Body() deleteAppDto: DeleteAppDto, @Req() req: Request): Promise<DeleteAppResponseDto> {
-        return this.openAppService.deleteApp(deleteAppDto, req.user as UserInfoDTO)
+        return this.openAppService.deleteApp(deleteAppDto, req.user as UserJwtExtractDto)
     }
 
     @Post("/update-app")
@@ -163,7 +163,7 @@ export class OpenAppController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async updateApp(@Body() updateAppDto: UpdateAppDto, @Req() req: Request) {
-        return this.openAppService.updateApp(updateAppDto, req.user as UserInfoDTO)
+        return this.openAppService.updateApp(updateAppDto, req.user as UserJwtExtractDto)
     }
 
     @Get("/top-ip-list")
@@ -178,7 +178,7 @@ export class OpenAppController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     async getTopIpList(@Req() req: Request) {
-        return this.openAppService.getTopIpList(req.user as UserInfoDTO)
+        return this.openAppService.getTopIpList(req.user as UserJwtExtractDto)
     }
 
     @Post("/request-creator")
@@ -220,7 +220,7 @@ export class OpenAppController {
         @Body() approveCreatorDto: ApproveCreatorDto,
         @Req() req: Request,
     ): Promise<ApproveCreatorResponseDto> {
-        return this.openAppService.approveCreator(approveCreatorDto, req.user as UserInfoDTO)
+        return this.openAppService.approveCreator(approveCreatorDto, req.user as UserJwtExtractDto)
     }
 
     @Get("/lookup-by-subdomain/:subdomain")
@@ -273,7 +273,7 @@ export class OpenAppController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     async addInviteEmail(@Body() addInviteEmailDto: AddInviteEmailDto, @Req() req: Request) {
-        return this.openAppService.addInviteEmail(addInviteEmailDto, req.user as UserInfoDTO)
+        return this.openAppService.addInviteEmail(addInviteEmailDto, req.user as UserJwtExtractDto)
     }
 
     @Post("/remove-invite-email")
@@ -291,6 +291,6 @@ export class OpenAppController {
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     async removeInviteEmail(@Body() removeInviteEmailDto: RemoveInviteEmailDto, @Req() req: Request) {
-        return this.openAppService.removeInviteEmail(removeInviteEmailDto, req.user as UserInfoDTO)
+        return this.openAppService.removeInviteEmail(removeInviteEmailDto, req.user as UserJwtExtractDto)
     }
 }

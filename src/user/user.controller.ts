@@ -62,9 +62,7 @@ export class SignatureDTO {
 
 export class LoginDTO {
     address?: string
-    @ApiProperty()
     username?: string
-    @ApiProperty()
     password?: string
 }
 
@@ -159,6 +157,17 @@ export class EmailUserCreateDto extends EmailLoginDto {
     @IsOptional()
     invite_code?: string
 } //todo: verify email
+
+export class UserJwtExtractDto extends PickType(UserInfoDTO, [
+    "email",
+    "username",
+    "usernameShorted",
+    "device_id",
+    "avatar",
+]) {
+    @ApiProperty()
+    widget_session_id?: string
+}
 
 export class UserInfoExtraDTO {
     @ApiProperty()
@@ -348,7 +357,7 @@ export class UserController {
     })
     async walletDetail(@Req() req: Request, @Query() query: UserWalletDetailQueryDto) {
         return this.userService.getUserWalletDetail(
-            req.user as UserInfoDTO,
+            req.user as UserJwtExtractDto,
             parseInt(query.page),
             parseInt(query.page_size),
             query.mint,
@@ -370,7 +379,7 @@ export class UserController {
     @UseGuards(AuthGuard("jwt"))
     @ApiExcludeEndpoint()
     async resendConfirmationEmail(@Req() req: Request) {
-        return await this.userService.sendEmailConfirmation(req.user as UserInfoDTO)
+        return await this.userService.sendEmailConfirmation(req.user as UserJwtExtractDto)
     }
 
     @Post("/resetPassword")
@@ -411,7 +420,7 @@ export class UserController {
     @UseGuards(AuthGuard("jwt"))
     @ApiExcludeEndpoint()
     async bindEmail(@Body() emailInfo: BindEmailReqDto, @Req() req: Request) {
-        return this.userService.bindEmail(emailInfo, req.user as UserInfoDTO)
+        return this.userService.bindEmail(emailInfo, req.user as UserJwtExtractDto)
     }
 
     @Post("update")
@@ -426,7 +435,7 @@ export class UserController {
         description: "update username and description",
     })
     async updateProfile(@Body() userInfo: UpdateProfileReqDto, @Req() req: Request) {
-        return await this.userService.updateProfile(userInfo, req.user as UserInfoDTO)
+        return await this.userService.updateProfile(userInfo, req.user as UserJwtExtractDto)
     }
 
     @Post("follow")
@@ -441,7 +450,7 @@ export class UserController {
         description: "follow a user",
     })
     async follow(@Body() user: UserFollowDto, @Req() req: Request) {
-        return this.userService.follow(req.user as UserInfoDTO, user.user)
+        return this.userService.follow(req.user as UserJwtExtractDto, user.user)
     }
 
     @Post("unfollow")
@@ -456,7 +465,7 @@ export class UserController {
         description: "unfollow a user",
     })
     async unfollow(@Body() user: UserUnFollowDto, @Req() req: Request) {
-        return this.userService.unfollow(req.user as UserInfoDTO, user.user)
+        return this.userService.unfollow(req.user as UserJwtExtractDto, user.user)
     }
 
     @Post("uploadAvatar")
@@ -498,7 +507,7 @@ export class UserController {
     @UseGuards(AuthGuard("jwt"))
     @ApiExcludeEndpoint()
     async getApiKeys(@Req() req: Request) {
-        return this.apiKeysService.list(req.user as UserInfoDTO)
+        return this.apiKeysService.list(req.user as UserJwtExtractDto)
     }
 
     @Post("api-keys/disable")
@@ -506,7 +515,7 @@ export class UserController {
     @UseGuards(AuthGuard("jwt"))
     @ApiExcludeEndpoint()
     async disableApiKey(@Req() req: Request, @Body() apiKey: DisableApiKeyDTO) {
-        return await this.apiKeysService.disable(req.user as UserInfoDTO, apiKey.id)
+        return await this.apiKeysService.disable(req.user as UserJwtExtractDto, apiKey.id)
     }
 
     @Post("api-keys/generate")
@@ -514,7 +523,7 @@ export class UserController {
     @UseGuards(AuthGuard("jwt"))
     @ApiExcludeEndpoint()
     async generateApiKey(@Req() req: Request) {
-        return await this.apiKeysService.generate(req.user as UserInfoDTO)
+        return await this.apiKeysService.generate(req.user as UserJwtExtractDto)
     }
 
     @ApiOperation({
