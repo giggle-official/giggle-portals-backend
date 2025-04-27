@@ -98,16 +98,15 @@ export class LinkService {
         }
 
         const response = await lastValueFrom(
-            this.httpService.post(`${this.shortLinkServiceEndpoint}/links`, {
+            this.httpService.post(`${this.shortLinkServiceEndpoint}/links`, createShortLinkParams, {
                 headers: {
                     "Content-Type": "application/json",
-                    "X-API-KEY": this.shortLinkServiceApiKey,
+                    "x-api-key": this.shortLinkServiceApiKey,
                 },
-                data: createShortLinkParams,
             }),
         )
 
-        if (!response.data?.address) {
+        if (!response.data?.link) {
             throw new BadRequestException("Failed to create short link")
         }
 
@@ -119,13 +118,13 @@ export class LinkService {
                 link: widgetTag ? "" : body.link,
                 unique_str: uniqueStr,
                 creator: userInfo.usernameShorted,
-                full_short_link: response.data.address,
+                full_short_link: response.data.link,
             },
         })
 
         return {
             link_id: link.unique_str,
-            short_link: response.data.address,
+            short_link: response.data.link,
         }
     }
 
@@ -145,7 +144,7 @@ export class LinkService {
 
         return {
             link_id: link.unique_str,
-            link_url: this._generateLink(link.unique_str),
+            short_link: link.full_short_link,
             creator: {
                 username: link.creator_info.username,
                 avatar: link.creator_info.avatar,
@@ -188,7 +187,7 @@ export class LinkService {
         const link = await this.getLink(uniqueStr)
         return {
             creator: link?.creator,
-            link_url: link?.link_url,
+            short_link: link?.short_link,
         }
     }
 

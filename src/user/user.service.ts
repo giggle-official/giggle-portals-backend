@@ -185,7 +185,7 @@ export class UserService {
             registerInfo.type = "widget"
             registerInfo.source_link_summary = {
                 creator: sourceLinkDetail.creator,
-                link_url: sourceLinkDetail.link_url,
+                short_link: sourceLinkDetail.short_link,
             }
             registerInfo.source_link = user.from_source_link
             registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
@@ -193,7 +193,7 @@ export class UserService {
             registerInfo.type = "link"
             registerInfo.source_link_summary = {
                 creator: sourceLinkDetail.creator,
-                link_url: sourceLinkDetail.link_url,
+                short_link: sourceLinkDetail.short_link,
             }
             registerInfo.source_link = user.from_source_link
         }

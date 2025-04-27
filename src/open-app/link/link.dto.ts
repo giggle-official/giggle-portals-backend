@@ -39,9 +39,9 @@ export class LinkDetailDto {
     link_id: string
 
     @ApiProperty({
-        description: "The url of the link",
+        description: "short link",
     })
-    link_url: string
+    short_link: string
 
     @ApiProperty({
         description: "The creator of the link",
@@ -91,7 +91,7 @@ export class LinkDetailDto {
     updated_at: Date
 }
 
-export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "link_url"]) {}
+export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "short_link"]) {}
 
 export class BindDeviceRequestDto {
     @ApiProperty({
