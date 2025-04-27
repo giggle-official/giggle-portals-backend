@@ -110,6 +110,9 @@ export class UserService {
             throw new UnauthorizedException("user not exists")
         }
         const _userInfo = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
+        if (!_userInfo) {
+            throw new UnauthorizedException("user not exists")
+        }
         const credit = await this.creditService.getUserCredits(_userInfo.usernameShorted)
         const userPlanInDB: any = await this.prisma.users.findFirst({
             where: { username_in_be: _userInfo.usernameShorted },
