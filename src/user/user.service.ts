@@ -124,7 +124,6 @@ export class UserService {
             email: _userInfoFromDb.email,
             emailConfirmed: _userInfoFromDb.emailConfirmed,
             avatar: _userInfoFromDb.avatar,
-            giggle_wallet_address: await GiggleService.getGiggleWalletAddress(_userInfoFromDb.usernameShorted),
             description: _userInfoFromDb.description,
             followers: _userInfoFromDb.followers,
             following: _userInfoFromDb.following,

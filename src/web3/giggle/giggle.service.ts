@@ -531,16 +531,6 @@ export class GiggleService {
         }
     }
 
-    static async getGiggleWalletAddress(username_in_be: string): Promise<string> {
-        const prismaService = new PrismaService()
-        const user = await prismaService.asset_to_meme_record.findFirst({
-            where: { owner: username_in_be },
-            orderBy: { created_at: "desc" },
-        })
-        const tokenInfo = user?.token_info as any as CreateIpTokenGiggleResponseDto
-        return tokenInfo?.user_address || ""
-    }
-
     computeCreditPrice(marketCap: number): number {
         return Math.floor(
             Math.max(this.creditPriceMin, Math.min(this.creditPriceMax, marketCap * this.creditMarketCapPercentage)),

@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
+import {
+    BadRequestException,
+    ForbiddenException,
+    forwardRef,
+    Inject,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     ApplyWidgetConfigToAppsDto,
@@ -22,12 +29,17 @@ import { UserService } from "src/user/user.service"
 import { JwtService } from "@nestjs/jwt"
 import { v4 as uuidv4 } from "uuid"
 import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+import * as crypto from "crypto"
 
 @Injectable()
 export class WidgetsService {
     constructor(
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
+
+        @Inject(forwardRef(() => JwtService))
         private readonly jwtService: JwtService,
     ) {}
 
@@ -163,6 +175,7 @@ export class WidgetsService {
 
         return await this.prisma.user_subscribed_widgets.create({
             data: {
+                subscription_id: this.generateId(),
                 user: user.usernameShorted,
                 widget_tag: widget.tag,
                 started_at: new Date(),
@@ -259,31 +272,39 @@ export class WidgetsService {
         })[],
         subscribedWidgets: user_subscribed_widgets[],
     ): Promise<WidgetSummaryDto[]> {
-        return widgets.map((widget) => ({
-            tag: widget.tag,
-            name: widget.name,
-            summary: widget.summary,
-            pricing: widget.pricing,
-            is_featured: widget.is_featured,
-            is_new: widget.is_new,
-            is_official: widget.is_official,
-            category: widget.category,
-            author: widget.author,
-            icon: widget.icon,
-            author_info: {
-                username: widget.author_info.username,
-                avatar: widget.author_info.avatar,
-            },
-            description: widget.description,
-            subscribers: widget._count.user_subscribed_widgets,
-            is_private: widget.is_private,
-            is_developing: widget.is_developing,
-            coming_soon: widget.coming_soon,
-            priority: widget.priority,
-            is_subscribed: !!subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
-            subscribed_detail: subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
-            settings: this.parseSettings(widget.settings) as any,
-        }))
+        return widgets.map((widget) => {
+            const subscribedDetail = subscribedWidgets.find(
+                (subscribedWidget) => subscribedWidget.widget_tag === widget.tag,
+            )
+            if (subscribedDetail) {
+                delete subscribedDetail.id
+            }
+            return {
+                tag: widget.tag,
+                name: widget.name,
+                summary: widget.summary,
+                pricing: widget.pricing,
+                is_featured: widget.is_featured,
+                is_new: widget.is_new,
+                is_official: widget.is_official,
+                category: widget.category,
+                author: widget.author,
+                icon: widget.icon,
+                author_info: {
+                    username: widget.author_info.username,
+                    avatar: widget.author_info.avatar,
+                },
+                description: widget.description,
+                subscribers: widget._count.user_subscribed_widgets,
+                is_private: widget.is_private,
+                is_developing: widget.is_developing,
+                coming_soon: widget.coming_soon,
+                priority: widget.priority,
+                is_subscribed: !!subscribedDetail,
+                subscribed_detail: subscribedDetail,
+                settings: this.parseSettings(widget.settings) as any,
+            }
+        })
     }
 
     async mapToDetailResponse(
@@ -592,5 +613,9 @@ export class WidgetsService {
             tag: appBind.widget_tag,
             app_id: appBind.app_id,
         }
+    }
+
+    generateId(prefix = "sub_"): string {
+        return prefix + crypto.randomBytes(10).toString("hex")
     }
 }

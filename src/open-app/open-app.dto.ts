@@ -3,6 +3,7 @@ import { user_subscribed_widgets } from "@prisma/client"
 import { IsEmail, IsNotEmpty } from "class-validator"
 import { IpLibraryDetailDto, IpLibraryDetailNoChildDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
+import { UserWidgetSubscribedDetailDto, WidgetDetailDto } from "./widgets/widget.dto"
 export class AppMenuDto {
     @ApiProperty({
         description: "Menu ID",
@@ -23,6 +24,40 @@ export class AppMenuDto {
         description: "Menu Enabled",
     })
     enabled: boolean
+}
+
+export class AppWidgetsDto {
+    @ApiProperty({
+        description: "Widget Tag",
+    })
+    tag: string
+
+    @ApiProperty({
+        description: "Widget Configs",
+    })
+    configs: Record<string, any>
+
+    @ApiProperty({
+        description: "Widget Detail",
+        type: Object,
+    })
+    widget_detail: any
+
+    @ApiProperty({
+        description: "Widget Order",
+    })
+    order: number
+
+    @ApiProperty({
+        description: "Widget Enabled",
+    })
+    enabled: boolean
+
+    @ApiProperty({
+        description: "Widget Subscribed Detail",
+        type: () => UserWidgetSubscribedDetailDto,
+    })
+    subscribed_detail: UserWidgetSubscribedDetailDto
 }
 
 export class AppInfoDto {
@@ -102,17 +137,10 @@ export class AppInfoDto {
 
     @ApiProperty({
         description: "Widgets",
-        type: Object,
+        type: () => AppWidgetsDto,
         isArray: true,
     })
-    widgets: {
-        tag: string
-        configs: Record<string, any>
-        widget_detail: any
-        order: number
-        enabled: boolean
-        subscribed_detail: user_subscribed_widgets
-    }[]
+    widgets: AppWidgetsDto[]
 }
 
 export class CreateAppDto extends PickType(AppInfoDto, [

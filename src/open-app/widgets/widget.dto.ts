@@ -1,4 +1,4 @@
-import { ApiProperty, PartialType } from "@nestjs/swagger"
+import { ApiExcludeEndpoint, ApiProperty, OmitType, PartialType } from "@nestjs/swagger"
 import { user_subscribed_widgets, widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
@@ -27,6 +27,40 @@ export class WidgetSettingsDto {
     @ApiProperty({ description: "type", required: true, enum: ["iframe", "system"] })
     type: "iframe" | "system"
 }
+
+export class UserWidgetSubscribedDetailDto implements user_subscribed_widgets {
+    @ApiProperty({ description: "id" })
+    id: number
+
+    @ApiProperty({ description: "user id" })
+    user: string
+
+    @ApiProperty({ description: "widget tag" })
+    widget_tag: string
+
+    @ApiProperty({ description: "public config" })
+    public_config: JsonValue
+
+    @ApiProperty({ description: "private config" })
+    private_config: JsonValue
+
+    @ApiProperty({ description: "subscription started at" })
+    started_at: Date
+
+    @ApiProperty({ description: "subscription expired at" })
+    expired_at: Date
+
+    @ApiProperty({ description: "subscription created at" })
+    created_at: Date
+
+    @ApiProperty({ description: "subscription updated at" })
+    updated_at: Date
+
+    @ApiProperty({ description: "subscription id" })
+    subscription_id: string
+}
+
+export class UserWidgetSubscribedResponseDto extends OmitType(UserWidgetSubscribedDetailDto, ["id"]) {}
 
 export class WidgetDto implements widgets {
     @ApiProperty({ description: "widget id" })
@@ -157,7 +191,7 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
     author_info: AuthorInfoDto
 
     @ApiProperty({ description: "widget subscribed detail" })
-    subscribed_detail: user_subscribed_widgets
+    subscribed_detail: UserWidgetSubscribedResponseDto
 }
 
 export class WidgetDetailDto extends WidgetSummaryDto {

@@ -782,6 +782,7 @@ model user_subscribed_widgets {
   expired_at       DateTime?          @db.DateTime(0)
   created_at       DateTime?          @default(now()) @db.Timestamp(0)
   updated_at       DateTime?          @default(now()) @db.Timestamp(0)
+  subscription_id  String             @unique(map: "subscription_id") @db.VarChar(32)
   widget_info      widgets?           @relation(fields: [widget_tag], references: [tag])
   app_bind_widgets app_bind_widgets[]
 }
@@ -916,7 +917,7 @@ model app_links {
 
 model link_devices {
   id         Int       @id @default(autoincrement())
-  device_id  String?   @unique(map: "device_id") @db.VarChar(64)
+  device_id  String?   @db.VarChar(64)
   link_id    String?   @db.VarChar(32)
   expired    Boolean?  @default(false)
   expired_at DateTime? @db.DateTime(0)

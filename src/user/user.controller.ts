@@ -109,9 +109,6 @@ export class UserInfoDTO extends LoginDTO {
     avatar?: string
 
     @ApiProperty()
-    giggle_wallet_address?: string
-
-    @ApiProperty()
     username?: string
 
     @ApiProperty()

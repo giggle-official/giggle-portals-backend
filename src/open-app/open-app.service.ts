@@ -37,7 +37,8 @@ import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
 import { NotificationService } from "src/notification/notification.service"
 import { WidgetConfigDto } from "./widgets/widget.dto"
-import { IpLibraryDetailDto, IpLibraryDetailNoChildDto } from "src/ip-library/ip-library.dto"
+import { IpLibraryDetailDto } from "src/ip-library/ip-library.dto"
+import { WidgetsService } from "./widgets/widgets.service"
 
 @Injectable()
 export class OpenAppService {
@@ -53,6 +54,11 @@ export class OpenAppService {
 
         @Inject(forwardRef(() => IpLibraryService))
         private readonly ipLibraryService: IpLibraryService,
+
+        @Inject(forwardRef(() => WidgetsService))
+        private readonly widgetsService: WidgetsService,
+
+        @Inject(forwardRef(() => NotificationService))
         private readonly notificationService: NotificationService,
     ) {}
 
@@ -125,14 +131,20 @@ export class OpenAppService {
             kline_url: process.env.GIGGLE_KLINE_URL,
             menus: this._mapAppMenus(app.menus),
             widgets: await Promise.all(
-                app.app_bind_widgets.map(async (widget) => ({
-                    tag: widget.widget_tag,
-                    configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
-                    widget_detail: widget.widget_detail,
-                    order: widget.order,
-                    enabled: widget.enabled,
-                    subscribed_detail: widget.subscribe_detail,
-                })),
+                app.app_bind_widgets.map(async (widget) => {
+                    const subscribedDetail = widget.subscribe_detail
+                    if (subscribedDetail) {
+                        delete subscribedDetail.id
+                    }
+                    return {
+                        tag: widget.widget_tag,
+                        configs: (widget.widget_configs as unknown as WidgetConfigDto)?.public,
+                        widget_detail: widget.widget_detail,
+                        order: widget.order,
+                        enabled: widget.enabled,
+                        subscribed_detail: subscribedDetail,
+                    }
+                }),
             ),
         }
     }

@@ -59,6 +59,7 @@ export class DeveloperService {
             //sub for author
             await tx.user_subscribed_widgets.create({
                 data: {
+                    subscription_id: this.widgetsService.generateId(),
                     user: user.usernameShorted,
                     widget_tag: tag,
                 },
@@ -75,6 +76,7 @@ export class DeveloperService {
                 data: users
                     .filter((u) => u.username_in_be !== user.usernameShorted)
                     .map((u) => ({
+                        subscription_id: this.widgetsService.generateId(),
                         user: u.username_in_be,
                         widget_tag: tag,
                     })),
@@ -265,6 +267,7 @@ export class DeveloperService {
                 data: users
                     .filter((u) => u.username_in_be !== user.usernameShorted)
                     .map((u) => ({
+                        subscription_id: this.widgetsService.generateId(),
                         user: u.username_in_be,
                         widget_tag: body.tag,
                     })),
@@ -273,6 +276,7 @@ export class DeveloperService {
             //sub for author
             await tx.user_subscribed_widgets.create({
                 data: {
+                    subscription_id: this.widgetsService.generateId(),
                     user: user.usernameShorted,
                     widget_tag: body.tag,
                 },

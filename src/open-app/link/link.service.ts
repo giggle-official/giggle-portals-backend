@@ -13,7 +13,7 @@ import { OpenAppService } from "src/open-app/open-app.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
 import { HttpService } from "@nestjs/axios"
-import { lastValueFrom } from "rxjs"
+import { async, lastValueFrom } from "rxjs"
 @Injectable()
 export class LinkService {
     public shortLinkServiceEndpoint = ""
@@ -163,23 +163,36 @@ export class LinkService {
         if (!body.device_id || !body.link_id) {
             return {}
         }
-        const existBind = await this.prisma.link_devices.findFirst({
+        const bindExist = await this.prisma.link_devices.findFirst({
             where: {
                 device_id: body.device_id,
                 link_id: body.link_id,
                 expired: false,
             },
         })
-        if (existBind) {
+        if (bindExist) {
             return {}
         }
-        await this.prisma.link_devices.create({
-            data: {
-                device_id: body.device_id,
-                link_id: body.link_id,
-                expired: false,
-            },
+
+        await this.prisma.$transaction(async (tx) => {
+            //expire all the bind
+            await tx.link_devices.updateMany({
+                where: {
+                    device_id: body.device_id,
+                    expired: false,
+                },
+                data: { expired: true },
+            })
+            //create new bind
+            await tx.link_devices.create({
+                data: {
+                    device_id: body.device_id,
+                    link_id: body.link_id,
+                    expired: false,
+                },
+            })
         })
+
         return {}
     }
 
@@ -206,7 +219,8 @@ export class LinkService {
     }
 
     //mark link as expired if create more than 7 days
-    @Cron(CronExpression.EVERY_HOUR)
+    //@Cron(CronExpression.EVERY_HOUR)
+    //TODO: remove this cron job
     async markLinkAsExpired() {
         const links = await this.prisma.link_devices.findMany({
             where: {
