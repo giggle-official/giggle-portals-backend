@@ -27,9 +27,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     }
 
     async validate(payload: any): Promise<UserJwtExtractDto> {
-        if (payload?.follower) {
+        if (!payload?.usernameShorted) {
             return null
         }
+
+        if (payload?.followers) {
+            return null
+        }
+        const userInfo = await this.prismaService.users.findFirst({
+            where: {
+                username_in_be: payload.usernameShorted,
+                is_blocked: false,
+            },
+        })
+
+        if (!userInfo) {
+            return null
+        }
+
         return {
             username: payload?.username,
             usernameShorted: payload?.usernameShorted,

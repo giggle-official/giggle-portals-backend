@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common"
 import { PassportStrategy } from "@nestjs/passport"
 import { Strategy } from "passport-custom"
-import { UserJwtExtractDto } from "src/user/user.controller"
+import { UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Request } from "express"
 import { PrismaService } from "src/common/prisma.service"
@@ -31,9 +31,13 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
         if (userInfo.login_code !== code || userInfo.login_code_expired < new Date()) {
             throw new ForbiddenException("Invalid code or code expired")
         }
-        return {
-            ...(await this.userService.getUserInfoByEmail(email)),
+        const result: UserJwtExtractDto = {
+            username: userInfo.username,
+            usernameShorted: userInfo.username_in_be,
+            email: userInfo.email,
+            avatar: userInfo.avatar,
             device_id: (req.headers["x-device-id"] as string) || "",
         }
+        return result
     }
 }
