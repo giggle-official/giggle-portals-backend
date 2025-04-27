@@ -363,6 +363,64 @@ export class TerritoryDto {
     children?: TerritoryDto[]
 }
 
+export class ChildIpExtraAuthSettingsDto {
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    on_chain_revenue_creator?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    on_chain_revenue_ip_holder?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    on_chain_revenue_platform?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    commercial_pass_threshold?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    license_duration?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    external_revenue_creator?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    external_revenue_ip_holder?: number
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    external_revenue_platform?: number
+}
+
 export class AuthorizationSettingsDto {
     @IsEnum(AuthorizationSettingsCanPurchase)
     @ApiProperty({
@@ -436,6 +494,15 @@ export class AuthorizationSettingsDto {
         required: false,
     })
     notes?: string
+
+    @IsOptional()
+    @IsObject()
+    @ApiProperty({
+        description: "extra settings of the authorization settings, this field is only used for child ip",
+        required: false,
+        type: () => ChildIpExtraAuthSettingsDto,
+    })
+    child_ip_extra_settings?: ChildIpExtraAuthSettingsDto
 }
 
 //uses for get detail of frontend

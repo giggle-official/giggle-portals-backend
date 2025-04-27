@@ -4747,6 +4747,35 @@
           }
         }
       },
+      "ChildIpExtraAuthSettingsDto": {
+        "type": "object",
+        "properties": {
+          "on_chain_revenue_creator": {
+            "type": "number"
+          },
+          "on_chain_revenue_ip_holder": {
+            "type": "number"
+          },
+          "on_chain_revenue_platform": {
+            "type": "number"
+          },
+          "commercial_pass_threshold": {
+            "type": "number"
+          },
+          "license_duration": {
+            "type": "number"
+          },
+          "external_revenue_creator": {
+            "type": "number"
+          },
+          "external_revenue_ip_holder": {
+            "type": "number"
+          },
+          "external_revenue_platform": {
+            "type": "number"
+          }
+        }
+      },
       "AuthorizationSettingsDto": {
         "type": "object",
         "properties": {
@@ -4806,6 +4835,14 @@
           "notes": {
             "type": "string",
             "description": "notes of the authorization settings"
+          },
+          "child_ip_extra_settings": {
+            "description": "extra settings of the authorization settings, this field is only used for child ip",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChildIpExtraAuthSettingsDto"
+              }
+            ]
           }
         },
         "required": [
