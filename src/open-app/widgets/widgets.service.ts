@@ -20,6 +20,7 @@ import { app_bind_widgets, Prisma, user_subscribed_widgets, widgets } from "@pri
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { JwtService } from "@nestjs/jwt"
+import { v4 as uuidv4 } from "uuid"
 import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 
 @Injectable()
@@ -502,28 +503,60 @@ export class WidgetsService {
         } else {
             appId = ""
         }
-        //todo:
+
+        //find exists widget session
+        const existsWidgetSession = await this.prisma.widget_sessions.findFirst({
+            where: {
+                user: user.usernameShorted,
+                widget_tag: body.tag,
+                app_id: appId,
+                expired_at: {
+                    gt: new Date(),
+                },
+            },
+        })
+
+        if (existsWidgetSession) {
+            return {
+                access_token: existsWidgetSession.jwt_string,
+            }
+        }
+
+        //create a widget session
+        const widgetSessionId = uuidv4()
+        const widgetSession = await this.prisma.widget_sessions.create({
+            data: {
+                session_id: widgetSessionId,
+                device_id: user.device_id,
+                user: user.usernameShorted,
+                widget_tag: body.tag,
+                app_id: appId,
+                permission: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
+                user_subscribed_widget: userSubscribedWidget ? true : false,
+            },
+        })
+        if (!widgetSession) {
+            throw new BadRequestException("Failed to create widget session")
+        }
         const userInfo = await this.userService.getProfile(user)
         const userInfoForSign: UserJwtExtractDto = {
             username: userInfo.username,
             usernameShorted: userInfo.usernameShorted,
             email: userInfo.email,
-            //emailConfirmed: userInfo.emailConfirmed,
             avatar: userInfo.avatar,
-            // giggle_wallet_address: userInfo.giggle_wallet_address,
-            // description: userInfo.description,
-            // followers: userInfo.followers,
-            // following: userInfo.following,
-            // device_id: userInfo.device_id,
-            //permissions: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
-            //widget_info: {
-            //    user_subscribed: !!userSubscribedWidget,
-            //    widget_tag: body.tag,
-            //    app_id: appId,
-            //},
+            widget_session_id: widgetSession.session_id,
         }
         const eccess_token = this.jwtService.sign(userInfoForSign, {
             expiresIn: "1d",
+        })
+
+        //update the widget session
+        await this.prisma.widget_sessions.update({
+            where: { session_id: widgetSession.session_id },
+            data: {
+                jwt_string: eccess_token,
+                expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+            },
         })
         return {
             access_token: eccess_token,

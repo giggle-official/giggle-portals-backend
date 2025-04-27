@@ -27,6 +27,7 @@ export class AuthController {
         return await this.authService.login(req.user as UserJwtExtractDto)
     }
 
+    /*
     @ApiExcludeEndpoint()
     @Post("/app-token")
     @ApiBody({
@@ -49,6 +50,7 @@ export class AuthController {
     async loginWithAppToken(@Req() req: Request) {
         return {}
     }
+    */
 
     @ApiExcludeEndpoint()
     @Get("google/login")

@@ -47,6 +47,7 @@ import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
 import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
+import { userInfo } from "os"
 
 export class nouceDto {
     @ApiProperty()
@@ -167,6 +168,16 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
 ]) {
     @ApiProperty()
     widget_session_id?: string
+}
+
+export class CreateUserDto {
+    username: string
+    password: string
+    email: string
+    usernameShorted: string
+    app_id: string
+    from_source_link: string
+    from_device_id: string
 }
 
 export class UserInfoExtraDTO {
@@ -336,7 +347,7 @@ export class UserController {
     })
     async profile(@Req() req: Request) {
         try {
-            return this.userService.getProfile(req.user as any)
+            return this.userService.getProfile(req.user as UserJwtExtractDto)
         } catch (error) {
             throw new BadRequestException(error)
         }
@@ -364,6 +375,7 @@ export class UserController {
         )
     }
 
+    /*
     @Post("/create")
     @HttpCode(HttpStatus.OK)
     @ApiBody({
@@ -373,6 +385,7 @@ export class UserController {
     async createUser(@Body() user: EmailUserCreateDto) {
         return await this.userService.newEmailUser(user)
     }
+    */
 
     @Post("/resendConfirmationEmail")
     @HttpCode(HttpStatus.OK)

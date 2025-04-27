@@ -27,9 +27,9 @@ export class CreateLinkResponseDto {
     link_id: string
 
     @ApiProperty({
-        description: "The url of the link",
+        description: "Short link of url",
     })
-    link_url: string
+    short_link: string
 }
 
 export class LinkDetailDto {

@@ -16,9 +16,11 @@ import { DeveloperService } from "./developer/developer.service"
 import { LinkController } from "./link/link.controller"
 import { LinkService } from "./link/link.service"
 import { PaymentModule } from "src/payment/payment.module"
+import { HttpModule } from "@nestjs/axios"
 
 @Module({
     imports: [
+        HttpModule,
         forwardRef(() => UserModule),
         forwardRef(() => AuthModule),
         forwardRef(() => IpLibraryModule),

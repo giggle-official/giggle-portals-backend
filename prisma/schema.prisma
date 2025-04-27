@@ -901,16 +901,17 @@ model third_level_ip_orders {
 }
 
 model app_links {
-  id             Int       @id @default(autoincrement())
-  unique_str     String?   @unique(map: "unique_str") @db.VarChar(32)
-  link           String?   @db.VarChar(1024)
-  app_id         String?   @db.VarChar(32)
-  widget_tag     String?   @db.VarChar(255)
-  widget_message String?   @db.VarChar(2048)
-  creator        String?   @db.VarChar(32)
-  created_at     DateTime? @default(now()) @db.Timestamp(0)
-  updated_at     DateTime? @default(now()) @db.Timestamp(0)
-  creator_info   users?    @relation(fields: [creator], references: [username_in_be])
+  id              Int       @id @default(autoincrement())
+  unique_str      String?   @unique(map: "unique_str") @db.VarChar(32)
+  link            String?   @db.VarChar(1024)
+  full_short_link String?   @db.VarChar(1024)
+  app_id          String?   @db.VarChar(32)
+  widget_tag      String?   @db.VarChar(255)
+  widget_message  String?   @db.VarChar(2048)
+  creator         String?   @db.VarChar(32)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+  creator_info    users?    @relation(fields: [creator], references: [username_in_be])
 }
 
 model link_devices {
@@ -921,6 +922,21 @@ model link_devices {
   expired_at DateTime? @db.DateTime(0)
   created_at DateTime? @default(now()) @db.Timestamp(0)
   updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model widget_sessions {
+  id                     Int       @id @default(autoincrement())
+  session_id             String?   @unique(map: "session_id") @db.VarChar(36)
+  device_id              String?   @db.VarChar(32)
+  widget_tag             String?   @db.VarChar(32)
+  app_id                 String?   @db.VarChar(32)
+  permission             Json?
+  user                   String?   @db.VarChar(32)
+  user_subscribed_widget Boolean   @default(false)
+  jwt_string             String?   @db.Text
+  expired_at             DateTime? @db.DateTime(0)
+  created_at             DateTime? @default(now()) @db.Timestamp(0)
+  updated_at             DateTime? @default(now()) @db.Timestamp(0)
 }
 
 view view_ip_token_prices {

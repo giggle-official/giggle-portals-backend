@@ -1,14 +1,23 @@
-import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common"
-import { BindDeviceRequestDto, CreateLinkRequestDto, LinkDetailDto, LinkSummaryDto } from "./link.dto"
+import { BadRequestException, forwardRef, Inject, Injectable } from "@nestjs/common"
+import {
+    BindDeviceRequestDto,
+    CreateLinkRequestDto,
+    CreateLinkResponseDto,
+    LinkDetailDto,
+    LinkSummaryDto,
+} from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
 import { OpenAppService } from "src/open-app/open-app.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
-
+import { HttpService } from "@nestjs/axios"
+import { lastValueFrom } from "rxjs"
 @Injectable()
 export class LinkService {
+    public shortLinkServiceEndpoint = ""
+    public shortLinkServiceApiKey = ""
     constructor(
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
@@ -17,9 +26,15 @@ export class LinkService {
         private readonly appService: OpenAppService,
 
         private readonly prisma: PrismaService,
-    ) {}
+        private readonly httpService: HttpService,
+    ) {
+        this.shortLinkServiceEndpoint = process.env.SHORTLINK_API_ENDPOINT
+        this.shortLinkServiceApiKey = process.env.SHORTLINK_API_KEY
+        if (!this.shortLinkServiceEndpoint) throw Error("SHORTLINK_API_ENDPOINT not set")
+        if (!this.shortLinkServiceApiKey) throw Error("SHORTLINK_API_KEY not set")
+    }
 
-    async create(body: CreateLinkRequestDto, userInfo: UserInfoDTO, appId: string) {
+    async create(body: CreateLinkRequestDto, userInfo: UserInfoDTO, appId: string): Promise<CreateLinkResponseDto> {
         //throw if we not found the app_id
         const userProfile = await this.userService.getProfile(userInfo)
         let app_id = userProfile?.widget_info?.app_id ?? appId
@@ -54,8 +69,8 @@ export class LinkService {
             })
             if (existingLink) {
                 return {
-                    link_id: existingLink.id,
-                    link_url: this._generateLink(existingLink.unique_str),
+                    link_id: existingLink.unique_str,
+                    short_link: existingLink.full_short_link,
                 }
             }
         } else {
@@ -69,8 +84,8 @@ export class LinkService {
             })
             if (existingLink) {
                 return {
-                    link_id: existingLink.id,
-                    link_url: this._generateLink(existingLink.unique_str),
+                    link_id: existingLink.unique_str,
+                    short_link: existingLink.full_short_link,
                 }
             }
         }
@@ -78,6 +93,23 @@ export class LinkService {
         //create new link
         const uniqueStr = "gig" + Math.random().toString(36).substring(2, 16)
         const url = this._generateLink(uniqueStr)
+        const createShortLinkParams = {
+            target: url,
+        }
+
+        const response = await lastValueFrom(
+            this.httpService.post(`${this.shortLinkServiceEndpoint}/links`, {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-API-KEY": this.shortLinkServiceApiKey,
+                },
+                data: createShortLinkParams,
+            }),
+        )
+
+        if (!response.data?.address) {
+            throw new BadRequestException("Failed to create short link")
+        }
 
         const link = await this.prisma.app_links.create({
             data: {
@@ -87,12 +119,13 @@ export class LinkService {
                 link: widgetTag ? "" : body.link,
                 unique_str: uniqueStr,
                 creator: userInfo.usernameShorted,
+                full_short_link: response.data.address,
             },
         })
 
         return {
-            link_id: link.id,
-            link_url: url,
+            link_id: link.unique_str,
+            short_link: response.data.address,
         }
     }
 
@@ -153,7 +186,6 @@ export class LinkService {
 
     async getLinkSummary(uniqueStr: string): Promise<LinkSummaryDto> {
         const link = await this.getLink(uniqueStr)
-        console.log("link", link)
         return {
             creator: link?.creator,
             link_url: link?.link_url,

@@ -24,7 +24,7 @@ import {
     TopIpSummaryDto,
     UpdateAppDto,
 } from "./open-app.dto"
-import { UserInfoDTO } from "src/user/user.controller"
+import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { ip_library, Prisma } from "@prisma/client"
 import { AuthService } from "src/auth/auth.service"
@@ -654,12 +654,14 @@ export class OpenAppService {
         if (!user) {
             const userNameShorted = this.userService.generateShortName()
             const username = approveData.email.split("@")[0]
-            const newUserInfo: UserInfoDTO = {
+            const newUserInfo: CreateUserDto = {
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: approveData.email,
                 usernameShorted: userNameShorted,
-                emailConfirmed: true,
+                app_id: "",
+                from_source_link: "",
+                from_device_id: "",
             }
             await this.userService.createUser(newUserInfo)
             user = await this.prisma.users.findFirst({

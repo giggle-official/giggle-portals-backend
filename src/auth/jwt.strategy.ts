@@ -2,7 +2,7 @@
 import { ExtractJwt, Strategy } from "passport-jwt"
 import { PassportStrategy } from "@nestjs/passport"
 import { Injectable } from "@nestjs/common"
-import { ApiKeyDTO, UserInfoDTO } from "src/user/user.controller"
+import { ApiKeyDTO, UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { JwtService } from "@nestjs/jwt"
 import { PrismaService } from "src/common/prisma.service"
 
@@ -17,9 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                 (req) => {
                     let authorization = req?.headers?.["authorization"]
                     const token = authorization?.split(" ")[1]
-                    const apiKey = req?.headers?.["x-api-key"]
                     if (token) return token
-                    if (apiKey) return this.jwtService.sign({ apiKey: req?.headers?.["x-api-key"] as string })
                     return null
                 },
             ]),
@@ -28,51 +26,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         })
     }
 
-    async validate(payload: UserInfoDTO & ApiKeyDTO): Promise<UserInfoDTO> {
-        if (payload.apiKey) {
-            //api key exists
-            const apiKey = await this.prismaService.user_api_keys.findFirst({
-                where: {
-                    api_key: payload.apiKey,
-                    discarded: false,
-                },
-                include: {
-                    user_info: {
-                        where: {
-                            is_blocked: false,
-                        },
-                    },
-                },
-            })
-            if (apiKey && apiKey?.user_info) {
-                return {
-                    username: apiKey.user_info.username,
-                    usernameShorted: apiKey.user_info.username_in_be,
-                    email: apiKey.user_info.email,
-                }
-            }
-
-            //agent key exists
-            const agentKey = await this.prismaService.users.findFirst({
-                where: {
-                    agent_user: payload.apiKey,
-                    is_blocked: false,
-                },
-            })
-            if (agentKey) {
-                return {
-                    username: agentKey.username,
-                    usernameShorted: agentKey.username_in_be,
-                    email: agentKey.email,
-                }
-            }
-
-            //no key exists
+    async validate(payload: any): Promise<UserJwtExtractDto> {
+        if (payload?.follower) {
             return null
         }
-        if (!payload.permissions) {
-            return null
+        return {
+            username: payload?.username,
+            usernameShorted: payload?.usernameShorted,
+            email: payload?.email,
+            avatar: payload?.avatar,
+            device_id: payload?.device_id,
+            widget_session_id: payload?.widget_session_id,
         }
-        return payload as UserInfoDTO
     }
 }

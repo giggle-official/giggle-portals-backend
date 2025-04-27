@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common"
 import { Strategy } from "passport-custom"
 import { PassportStrategy } from "@nestjs/passport"
 import { isEmail } from "class-validator"
-import { UserInfoDTO } from "src/user/user.controller"
+import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import { PrismaService } from "src/common/prisma.service"
 import * as crypto from "crypto"
@@ -16,7 +16,7 @@ export class AppStrategy extends PassportStrategy(Strategy, "app") {
         super()
     }
 
-    async validate(req: Request): Promise<UserInfoDTO> {
+    async validate(req: Request): Promise<UserJwtExtractDto> {
         const { app_id, signature, timestamp, expires_in, email } = req.body
         const app = await this.prismaService.apps.findUnique({
             where: {
@@ -52,13 +52,14 @@ export class AppStrategy extends PassportStrategy(Strategy, "app") {
         if (!userInfo) {
             const userNameShorted = this.userService.generateShortName()
             const username = email.split("@")[0]
-            const newUserInfo: UserInfoDTO = {
+            const newUserInfo: CreateUserDto = {
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: email,
                 usernameShorted: userNameShorted,
-                emailConfirmed: false,
                 app_id: app_id,
+                from_source_link: "",
+                from_device_id: "",
             }
             userInfo = await this.userService.createUser(newUserInfo)
         }

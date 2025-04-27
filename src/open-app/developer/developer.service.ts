@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { DeveloperWidgetCreateDto, DeveloperWidgetUpdateDto } from "./developer.dto"
-import { UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
+import { CreateUserDto, UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetSettingsDto } from "../widgets/widget.dto"
 import { WidgetsService } from "../widgets/widgets.service"
 import { widgets } from "@prisma/client"
@@ -158,12 +158,14 @@ export class DeveloperService {
             if (!userExists) {
                 const userNameShorted = this.usersService.generateShortName()
                 const username = email.split("@")[0]
-                const newUserInfo: UserInfoDTO = {
+                const newUserInfo: CreateUserDto = {
                     username: username,
                     password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                     email: email,
                     usernameShorted: userNameShorted,
-                    emailConfirmed: false,
+                    app_id: "",
+                    from_source_link: "",
+                    from_device_id: "",
                 }
                 userInfo = await this.usersService.createUser(newUserInfo)
             }

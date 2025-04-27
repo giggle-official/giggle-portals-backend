@@ -1,4 +1,11 @@
-import { BadRequestException, forwardRef, Inject, Injectable, InternalServerErrorException } from "@nestjs/common"
+import {
+    BadRequestException,
+    forwardRef,
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    UnauthorizedException,
+} from "@nestjs/common"
 import {
     UserInfoDTO,
     EmailUserCreateDto,
@@ -9,6 +16,7 @@ import {
     UpdateProfileReqDto,
     RegisterInfoDTO,
     UserJwtExtractDto,
+    CreateUserDto,
 } from "./user.controller"
 import { PrismaService } from "src/common/prisma.service"
 import * as crypto from "crypto"
@@ -70,7 +78,7 @@ export class UserService {
         return this.processUserInfo(record)
     }
 
-    async createUser(userInfo: UserInfoDTO): Promise<UserInfoDTO> {
+    async createUser(userInfo: CreateUserDto): Promise<CreateUserDto> {
         const record = await this.prisma.users.findFirst({
             where: {
                 username_in_be: userInfo.usernameShorted,
@@ -81,13 +89,16 @@ export class UserService {
         }
 
         const data: Prisma.usersCreateInput = {
-            username: userInfo.username || userInfo.usernameShorted,
+            username: userInfo.username,
             password: UserService.cryptoString(userInfo.password),
             email: userInfo.email,
             username_in_be: userInfo.usernameShorted,
-            email_confirmed: userInfo.emailConfirmed,
+            email_confirmed: false,
             current_plan: "Free",
             agent_user: UtilitiesService.generateRandomApiKey(),
+            from_source_link: userInfo.from_source_link,
+            from_device_id: userInfo.from_device_id,
+            register_app_id: userInfo.app_id,
         }
 
         await this.prisma.users.create({
@@ -96,16 +107,13 @@ export class UserService {
 
         //bind giggle wallet
         await this.giggleService.bindGiggleWallet(userInfo.email)
-
-        //issue free credit
-        await this.creditService.issueFreeCredits(userInfo.usernameShorted)
         return userInfo
     }
 
-    async getProfile(userInfo: UserInfoDTO): Promise<UserInfoDTO> {
+    async getProfile(userInfo: UserJwtExtractDto): Promise<UserInfoDTO> {
         const _userInfoFromDb = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
 
-        return {
+        const result: UserInfoDTO = {
             username: _userInfoFromDb.username,
             usernameShorted: _userInfoFromDb.usernameShorted,
             email: _userInfoFromDb.email,
@@ -116,15 +124,33 @@ export class UserService {
             followers: _userInfoFromDb.followers,
             following: _userInfoFromDb.following,
             can_create_ip: _userInfoFromDb.can_create_ip,
-            permissions: userInfo?.permissions,
-            widget_info: userInfo?.widget_info,
+            permissions: ["all"],
+            widget_info: null,
             device_id: userInfo?.device_id,
             is_developer: _userInfoFromDb?.is_developer,
             register_info: await this.getRegisterInfo(userInfo),
         }
+
+        //if widget session is setting, we need to get the widget info
+        if (userInfo?.widget_session_id) {
+            const widgetSession = await this.prisma.widget_sessions.findUnique({
+                where: { session_id: userInfo.widget_session_id },
+            })
+            if (!widgetSession) {
+                throw new UnauthorizedException("invalid widget session")
+            }
+            result.widget_info = {
+                widget_tag: widgetSession.widget_tag,
+                app_id: widgetSession.app_id,
+                user_subscribed: widgetSession.user_subscribed_widget,
+            }
+            result.permissions = widgetSession.permission as any
+        }
+
+        return result
     }
 
-    async getRegisterInfo(userInfo: UserInfoDTO): Promise<RegisterInfoDTO> {
+    async getRegisterInfo(userInfo: UserJwtExtractDto): Promise<RegisterInfoDTO> {
         const user = await this.prisma.users.findUnique({
             where: {
                 username_in_be: userInfo.usernameShorted,
@@ -174,61 +200,9 @@ export class UserService {
         return registerInfo
     }
 
-    //create email user
-    async newEmailUser(user: EmailUserCreateDto) {
-        if (!isEmail(user.email)) {
-            throw new BadRequestException("invalid email")
-        }
-        if (!UserService.isStrongPassword(user.password)) {
-            throw new BadRequestException(
-                "password must be at least 8 characters long and contain at least 1 lowercase, 1 uppercase and 1 numeric",
-            )
-        }
-
-        const record = await this.getUserInfoByEmail(user.email)
-        if (record) {
-            throw new BadRequestException("user exists, login directly or reset your password")
-        }
-
-        const usernameShorted = this.generateShortName()
-        const username = user.email.split("@")[0]
-        const userInfo: UserInfoDTO = {
-            username: username,
-            password: user.password,
-            email: user.email,
-            usernameShorted: usernameShorted,
-            emailConfirmed: false,
-        }
-        await this.createUser(userInfo)
-
-        // process invite
-        if (user.invite_code && user.invite_code !== "") {
-            const inviteUser = await this.prisma.users.findFirst({
-                where: {
-                    invite_code: user.invite_code,
-                },
-            })
-            if (inviteUser) {
-                await this.prisma.users.update({
-                    data: {
-                        invited_by: inviteUser.username_in_be,
-                    },
-                    where: {
-                        username_in_be: userInfo.usernameShorted,
-                    },
-                })
-                //await this.processRewards(inviteUser, userInfo)
-            }
-        }
-
-        //send confirmation email
-        this.sendEmailConfirmation(userInfo)
-        return {}
-    }
-
     //get user wallet detail
     async getUserWalletDetail(
-        userInfo: UserInfoDTO,
+        userInfo: UserJwtExtractDto,
         page: number = 1,
         pageSize: number = 10,
         mint?: string,
@@ -260,7 +234,7 @@ export class UserService {
     }
 
     //follow
-    async follow(userInfo: UserInfoDTO, user: string) {
+    async follow(userInfo: UserJwtExtractDto, user: string) {
         if (userInfo.usernameShorted === user) {
             throw new BadRequestException("cannot follow yourself")
         }
@@ -321,7 +295,7 @@ export class UserService {
     }
 
     //unfollow
-    async unfollow(userInfo: UserInfoDTO, user: string) {
+    async unfollow(userInfo: UserJwtExtractDto, user: string) {
         const targetUser = await this.prisma.users.findUnique({
             where: {
                 username_in_be: user,
@@ -492,7 +466,7 @@ export class UserService {
         }
     }
 
-    async sendEmailConfirmation(userInfo: UserInfoDTO) {
+    async sendEmailConfirmation(userInfo: UserJwtExtractDto) {
         if (!userInfo.email || !isEmail(userInfo.email)) {
             throw new BadRequestException("email is empty")
         }
@@ -541,7 +515,7 @@ export class UserService {
         return {}
     }
 
-    async bindEmail(emailInfo: BindEmailReqDto, userInfo: UserInfoDTO) {
+    async bindEmail(emailInfo: BindEmailReqDto, userInfo: UserJwtExtractDto) {
         if (!emailInfo.email || !isEmail(emailInfo.email)) {
             throw new BadRequestException("email is invalid")
         }
@@ -569,7 +543,7 @@ export class UserService {
         return {}
     }
 
-    async updateAvatar(userInfo: UserInfoDTO, avatar: Express.Multer.File) {
+    async updateAvatar(userInfo: UserJwtExtractDto, avatar: Express.Multer.File) {
         try {
             const result = await this._processAvatar(avatar)
             await this.prisma.users.update({
@@ -615,7 +589,7 @@ Message: ${contactInfo.message}
         return {}
     }
 
-    async inviteCode(userInfo: UserInfoDTO) {
+    async inviteCode(userInfo: UserJwtExtractDto) {
         const record = await this.prisma.users.findUnique({
             where: {
                 username_in_be: userInfo.usernameShorted,
@@ -637,7 +611,7 @@ Message: ${contactInfo.message}
         return { code: record.invite_code }
     }
 
-    async updateProfile(updatedInfo: UpdateProfileReqDto, userInfo: UserInfoDTO) {
+    async updateProfile(updatedInfo: UpdateProfileReqDto, userInfo: UserJwtExtractDto) {
         const user = await this.prisma.users.findUnique({
             where: {
                 username_in_be: userInfo.usernameShorted,
@@ -694,37 +668,21 @@ Message: ${contactInfo.message}
             //create user
             const userNameShorted = this.generateShortName()
             const username = userInfo.email.split("@")[0]
-            const newUserInfo: UserInfoDTO = {
+            const newUserInfo: CreateUserDto = {
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: userInfo.email,
                 usernameShorted: userNameShorted,
-                emailConfirmed: true,
-            }
-            user = await this.createUser(newUserInfo)
-            if (appId) {
-                await this.prisma.users.update({
-                    where: {
-                        username_in_be: user.usernameShorted,
-                    },
-                    data: {
-                        register_app_id: appId,
-                    },
-                })
+                app_id: appId,
+                from_source_link: "",
+                from_device_id: deviceId,
             }
             if (deviceId) {
                 //update register source link
                 const sourceLink = await this.linkService.getLinkByDeviceId(deviceId)
-                await this.prisma.users.update({
-                    where: {
-                        username_in_be: user.usernameShorted,
-                    },
-                    data: {
-                        from_source_link: sourceLink,
-                        from_device_id: deviceId,
-                    },
-                })
+                newUserInfo.from_source_link = sourceLink
             }
+            user = await this.createUser(newUserInfo)
         }
 
         const userRecord = await this.prisma.users.findUnique({

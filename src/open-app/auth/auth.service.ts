@@ -13,7 +13,7 @@ import { PrismaService } from "src/common/prisma.service"
 import crypto from "crypto"
 import { JwtService } from "@nestjs/jwt"
 import { UserService } from "src/user/user.service"
-import { UserInfoDTO } from "src/user/user.controller"
+import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
 import { AuthService as AuthUserService } from "src/auth/auth.service"
 import { NotificationService } from "src/notification/notification.service"
 import { WidgetConfigDto } from "../widgets/widget.dto"
@@ -132,13 +132,14 @@ export class AuthService {
         if (!user) {
             const userNameShorted = this.userService.generateShortName()
             const username = body.email.split("@")[0]
-            const newUserInfo: UserInfoDTO = {
+            const newUserInfo: CreateUserDto = {
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: body.email,
                 usernameShorted: userNameShorted,
-                emailConfirmed: false,
                 app_id: body.app_id,
+                from_source_link: "",
+                from_device_id: "",
             }
             await this.userService.createUser(newUserInfo)
         }
@@ -194,8 +195,6 @@ export class AuthService {
             username: user.username,
             email: user.email,
             usernameShorted: user.username_in_be,
-            emailConfirmed: user.email_confirmed,
-            app_id: decoded.app_id,
         })
         const accessToken = await this.authUserService.login(userProfile)
         return {
@@ -349,16 +348,11 @@ export class AuthService {
                 },
             })
 
-            // Generate an access token
-            const userProfile = await this.userService.getProfile({
+            const accessToken = await this.authUserService.login({
                 username: user.username,
                 email: user.email,
                 usernameShorted: user.username_in_be,
-                emailConfirmed: user.email_confirmed,
-                app_id: body.app_id,
             })
-
-            const accessToken = await this.authUserService.login(userProfile)
 
             return {
                 success: true,
