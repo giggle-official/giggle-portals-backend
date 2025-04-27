@@ -13,7 +13,15 @@ import {
     UseGuards,
 } from "@nestjs/common"
 import { OpenAppService } from "./open-app.service"
-import { ApiTags, ApiOperation, ApiResponse, ApiHeaders, ApiBody, ApiBearerAuth } from "@nestjs/swagger"
+import {
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+    ApiHeaders,
+    ApiBody,
+    ApiBearerAuth,
+    ApiExcludeEndpoint,
+} from "@nestjs/swagger"
 import {
     AppInfoDto,
     AppListDto,
@@ -36,7 +44,6 @@ import { Request, Response } from "express"
 import { PaginationDto } from "src/common/common.dto"
 import { Recaptcha } from "@nestlab/google-recaptcha"
 
-@ApiTags("IP Portal")
 @Controller("/api/v1/app")
 export class OpenAppController {
     constructor(private readonly openAppService: OpenAppService) {}
@@ -44,6 +51,7 @@ export class OpenAppController {
     @Get("/list")
     @ApiOperation({
         summary: "Get app list",
+        tags: ["Admin"],
     })
     @ApiResponse({
         type: AppListDto,
@@ -56,7 +64,8 @@ export class OpenAppController {
 
     @Get("/info")
     @ApiOperation({
-        summary: "Get app info",
+        summary: "Get portal info",
+        tags: ["IP Portal"],
     })
     @ApiHeaders([
         {
@@ -89,11 +98,13 @@ export class OpenAppController {
         description: "Open-app settings",
         type: OpenAppSettingsDto,
     })
+    @ApiExcludeEndpoint()
     async getOpenAppSettings() {
         return this.openAppService.getOpenAppSettings()
     }
 
     @Post("/create")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: CreateAppDto,
     })
@@ -111,6 +122,7 @@ export class OpenAppController {
     }
 
     @Post("/preview")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: CreateAppDto,
     })
@@ -133,6 +145,7 @@ export class OpenAppController {
     }
 
     @Post("/delete")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: DeleteAppDto,
     })
@@ -150,6 +163,7 @@ export class OpenAppController {
     }
 
     @Post("/update-app")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: UpdateAppDto,
     })
@@ -167,6 +181,7 @@ export class OpenAppController {
     }
 
     @Get("/top-ip-list")
+    @ApiExcludeEndpoint()
     @ApiOperation({
         summary: "Get top IP list",
     })
@@ -182,6 +197,7 @@ export class OpenAppController {
     }
 
     @Post("/request-creator")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: RequestCreatorDto,
     })
@@ -201,6 +217,7 @@ export class OpenAppController {
     }
 
     @Post("/approve-creator")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: ApproveCreatorDto,
     })
@@ -224,6 +241,7 @@ export class OpenAppController {
     }
 
     @Get("/lookup-by-subdomain/:subdomain")
+    @ApiExcludeEndpoint()
     @ApiOperation({
         summary: "Lookup app by subdomain",
     })
@@ -238,8 +256,9 @@ export class OpenAppController {
 
     @Get("/info/:appId")
     @ApiOperation({
-        summary: "Get app info by app id",
-        description: "Get app info by app id",
+        summary: "Get portal info by app id",
+        description: "Get portal info by app id",
+        tags: ["IP Portal"],
     })
     @ApiHeaders([
         {
@@ -259,6 +278,7 @@ export class OpenAppController {
     }
 
     @Post("/add-invite-email")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: AddInviteEmailDto,
     })
@@ -277,6 +297,7 @@ export class OpenAppController {
     }
 
     @Post("/remove-invite-email")
+    @ApiExcludeEndpoint()
     @ApiBody({
         type: RemoveInviteEmailDto,
     })

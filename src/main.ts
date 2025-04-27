@@ -157,6 +157,10 @@ To see how to process the event stream response, please refer to the [Event Stre
 
     publicDocument["x-tagGroups"] = [
         {
+            name: "Portals",
+            tags: ["IP Portal"],
+        },
+        {
             name: "IP Management",
             tags: ["IP Library", "Announcement", "Comments", "Link"],
         },
