@@ -27,6 +27,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     }
 
     async validate(payload: UserInfoDTO & ApiKeyDTO): Promise<UserInfoDTO> {
+        if (!payload?.usernameShorted) {
+            return null
+        }
         const userInfo = await this.prismaService.users.findFirst({
             where: {
                 username_in_be: payload.usernameShorted,
