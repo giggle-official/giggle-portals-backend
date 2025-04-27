@@ -1,4 +1,11 @@
-import { BadRequestException, forwardRef, Inject, Injectable, InternalServerErrorException } from "@nestjs/common"
+import {
+    BadRequestException,
+    forwardRef,
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    UnauthorizedException,
+} from "@nestjs/common"
 import {
     UserInfoDTO,
     EmailUserCreateDto,
@@ -99,6 +106,9 @@ export class UserService {
     }
 
     async getProfile(userInfo: UserInfoDTO): Promise<UserInfoDTO> {
+        if (!userInfo.usernameShorted) {
+            throw new UnauthorizedException("user not exists")
+        }
         const _userInfo = await this.getUserInfoByUsernameShorted(userInfo.usernameShorted)
         const credit = await this.creditService.getUserCredits(_userInfo.usernameShorted)
         const userPlanInDB: any = await this.prisma.users.findFirst({

@@ -1512,6 +1512,7 @@ export class IpLibraryService {
 
         const childIpsDetail = await this.prismaService.ip_library.findMany({
             where: detailWhere,
+            orderBy: { created_at: "desc" },
             include: {
                 ip_signature_clips: true,
                 user_info: true,
