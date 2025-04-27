@@ -740,6 +740,17 @@ export class IpLibraryService {
             },
             license_price: authSettings?.license_price || IpLibraryService.DEFAULT_LICENSE_PRICE,
             notes: authSettings?.notes || "",
+
+            child_ip_extra_settings: authSettings?.child_ip_extra_settings || {
+                on_chain_revenue_creator: 50,
+                on_chain_revenue_ip_holder: 40,
+                on_chain_revenue_platform: 10,
+                commercial_pass_threshold: 10000,
+                license_duration: 24,
+                external_revenue_creator: 50,
+                external_revenue_ip_holder: 40,
+                external_revenue_platform: 10,
+            },
         }
     }
 
