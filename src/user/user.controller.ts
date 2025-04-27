@@ -161,6 +161,7 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
     "username",
     "usernameShorted",
     "device_id",
+    "is_developer",
     "avatar",
 ]) {
     @ApiProperty()
