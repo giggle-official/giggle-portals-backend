@@ -557,6 +557,7 @@ export class IpLibraryService {
                     cover_hash,
                     creation_guide_lines: item.creation_guide_lines,
                     is_top: item.ip_library_child.length === 0,
+                    ip_level: await this.getIpLevel(item.id),
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -669,6 +670,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: item.ip_library_child.length === 0,
+                    ip_level: await this.getIpLevel(item.id),
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
@@ -711,6 +713,7 @@ export class IpLibraryService {
             comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
             is_top: data.ip_library_child === null,
+            ip_level: await this.getIpLevel(data.id),
             is_public: data.is_public,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
@@ -1542,6 +1545,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_top: false,
+                    ip_level: await this.getIpLevel(item.id),
                     creation_guide_lines: item.creation_guide_lines,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
@@ -1585,6 +1589,22 @@ export class IpLibraryService {
         await this.prismaService.asset_related_ips.deleteMany({
             where: { ip_id: ip_id },
         })
+    }
+
+    async getIpLevel(ip_id: number): Promise<number> {
+        const parentIp = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: ip_id },
+        })
+        if (!parentIp) {
+            return 1
+        }
+        const parentParentIp = await this.prismaService.ip_library_child.findFirst({
+            where: { ip_id: parentIp.parent_ip },
+        })
+        if (!parentParentIp) {
+            return 2
+        }
+        return 3
     }
 
     _generateCreateIpRelatedIp(ip_id: number): string {

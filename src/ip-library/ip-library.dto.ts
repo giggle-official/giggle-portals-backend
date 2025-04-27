@@ -656,6 +656,12 @@ export class IpSummaryDto {
     is_top: boolean
 
     @ApiProperty({
+        description: "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+        enum: [1, 2, 3],
+    })
+    ip_level: number
+
+    @ApiProperty({
         description: "creator followers of the ip library",
     })
     creator_followers: number

@@ -4958,6 +4958,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -5007,6 +5016,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -5100,6 +5110,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -5178,6 +5197,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -5920,6 +5940,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -5976,6 +6005,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
@@ -6387,6 +6417,15 @@
             "type": "boolean",
             "description": "is top"
           },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
           "creator_followers": {
             "type": "number",
             "description": "creator followers of the ip library"
@@ -6448,6 +6487,7 @@
           "creator_avatar",
           "is_public",
           "is_top",
+          "ip_level",
           "creator_followers",
           "token_info",
           "ip_signature_clips",
