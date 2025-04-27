@@ -166,7 +166,7 @@ export class WidgetsService {
                 user: user.usernameShorted,
                 widget_tag: widget.tag,
                 started_at: new Date(),
-                expired_at: new Date("-12-31"), //TODO: change to the actual expired time
+                expired_at: new Date("2099-12-31"), //TODO: change to the actual expired time
             },
         })
     }
@@ -281,6 +281,7 @@ export class WidgetsService {
             coming_soon: widget.coming_soon,
             priority: widget.priority,
             is_subscribed: !!subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
+            subscribed_detail: subscribedWidgets.find((subscribedWidget) => subscribedWidget.widget_tag === widget.tag),
             settings: this.parseSettings(widget.settings) as any,
         }))
     }
@@ -317,6 +318,7 @@ export class WidgetsService {
             is_developing: widget.is_developing,
             settings: this.parseSettings(widget.settings) as any,
             test_users: widget.test_users as string[],
+            subscribed_detail: subscribedWidgets,
         }
     }
 

@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from "@nestjs/swagger"
-import { widgets } from "@prisma/client"
+import { user_subscribed_widgets, widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
@@ -155,6 +155,9 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
 
     @ApiProperty({ description: "widget author info", type: AuthorInfoDto })
     author_info: AuthorInfoDto
+
+    @ApiProperty({ description: "widget subscribed detail" })
+    subscribed_detail: user_subscribed_widgets
 }
 
 export class WidgetDetailDto extends WidgetSummaryDto {

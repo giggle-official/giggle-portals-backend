@@ -1,6 +1,7 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
+import { user_subscribed_widgets } from "@prisma/client"
 import { IsEmail, IsNotEmpty } from "class-validator"
-import { IpLibraryDetailDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
+import { IpLibraryDetailDto, IpLibraryDetailNoChildDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 export class AppMenuDto {
     @ApiProperty({
@@ -50,9 +51,9 @@ export class AppInfoDto {
 
     @ApiProperty({
         description: "IP Info",
-        type: IpLibraryDetailDto,
+        type: IpLibraryDetailNoChildDto,
     })
-    ip_info: IpLibraryDetailDto
+    ip_info: IpLibraryDetailNoChildDto
 
     @ApiProperty({
         description: "Is Admin",
@@ -110,6 +111,7 @@ export class AppInfoDto {
         widget_detail: any
         order: number
         enabled: boolean
+        subscribed_detail: user_subscribed_widgets
     }[]
 }
 

@@ -726,6 +726,8 @@ export class IpSummaryWithChildDto extends IntersectionType(
     PickType(IpLibraryDetailDto, ["child_ip_info"]),
 ) {}
 
+export class IpLibraryDetailNoChildDto extends OmitType(IpLibraryDetailDto, ["child_ip_info"]) {}
+
 export class IpLibraryListDto {
     @ApiProperty({
         description: "ip libraries",

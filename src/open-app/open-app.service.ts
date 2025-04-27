@@ -37,6 +37,7 @@ import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
 import { NotificationService } from "src/notification/notification.service"
 import { WidgetConfigDto } from "./widgets/widget.dto"
+import { IpLibraryDetailDto, IpLibraryDetailNoChildDto } from "src/ip-library/ip-library.dto"
 
 @Injectable()
 export class OpenAppService {
@@ -83,6 +84,7 @@ export class OpenAppService {
                         widget_detail: true,
                         enabled: true,
                         order: true,
+                        subscribe_detail: true,
                     },
                 },
             },
@@ -105,6 +107,9 @@ export class OpenAppService {
             }
         }
 
+        const ipDetail: IpLibraryDetailDto = await this.ipLibraryService.detail(ipInfo.id.toString(), null)
+        delete ipDetail.child_ip_info
+
         return {
             app_id: app.app_id,
             app_name: app.name,
@@ -113,7 +118,7 @@ export class OpenAppService {
             radius: app.radius,
             style_name: app.style_name,
             sub_domain: app.sub_domain,
-            ip_info: await this.ipLibraryService.detail(ipInfo.id.toString(), null),
+            ip_info: ipDetail,
             is_admin: userInfo?.usernameShorted === ipInfo.owner,
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
             configs: this._processConfigs(app.configs),
@@ -126,6 +131,7 @@ export class OpenAppService {
                     widget_detail: widget.widget_detail,
                     order: widget.order,
                     enabled: widget.enabled,
+                    subscribed_detail: widget.subscribe_detail,
                 })),
             ),
         }
