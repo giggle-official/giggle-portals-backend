@@ -1441,6 +1441,38 @@
         ]
       }
     },
+    "/api/v1/ip-library/ip-name-check": {
+      "post": {
+        "operationId": "IpLibraryController_ipNameCheck",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IpNameCheckDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check if ip name is available",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/ip-library/my": {
       "get": {
         "operationId": "IpLibraryController_getMy",
@@ -4839,6 +4871,10 @@
                 "$ref": "#/components/schemas/ChildIpExtraAuthSettingsDto"
               }
             ]
+          },
+          "customization_settings": {
+            "type": "object",
+            "description": "customization settings of the authorization settings"
           }
         },
         "required": [
@@ -6027,6 +6063,18 @@
         "required": [
           "data",
           "count"
+        ]
+      },
+      "IpNameCheckDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "name of the ip library"
+          }
+        },
+        "required": [
+          "name"
         ]
       },
       "LikeIpDto": {
