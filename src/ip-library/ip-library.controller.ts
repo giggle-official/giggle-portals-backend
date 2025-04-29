@@ -14,6 +14,7 @@ import {
 } from "@nestjs/common"
 import { IpLibraryService } from "./ip-library.service"
 import {
+    AddShareCountDto,
     AvailableParentIpsDto,
     CreateIpDto,
     EditIpDto,
@@ -77,8 +78,8 @@ export class IpLibraryController {
     @ApiOperation({ summary: "Check if ip name is available" })
     @ApiBody({ type: IpNameCheckDto })
     @ApiResponse({ type: Boolean })
-    async ipNameCheck() {
-        return {}
+    async ipNameCheck(@Body() dto: IpNameCheckDto) {
+        return this.ipLibraryService.ipNameCheck(dto)
     }
 
     @Get("/my")
@@ -110,6 +111,16 @@ export class IpLibraryController {
     @ApiResponse({ type: [TerritoryDto], status: 200 })
     async getTerritories(): Promise<TerritoryDto[]> {
         return this.ipLibraryService.getTerritories()
+    }
+
+    @Post("/add-share-count")
+    @ApiOperation({ summary: "Add share count to an ip library" })
+    @ApiBody({ type: AddShareCountDto })
+    @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    async addShareCount(@Body() dto: AddShareCountDto, @Req() req: any): Promise<IpLibraryDetailDto> {
+        return this.ipLibraryService.addShareCount(dto, req.user as UserJwtExtractDto)
     }
 
     @Post("like")

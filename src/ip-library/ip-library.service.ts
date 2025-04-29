@@ -1,6 +1,7 @@
 import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
+    AddShareCountDto,
     AuthorizationSettingsCanPurchase,
     AuthorizationSettingsDto,
     AvailableParentIpDto,
@@ -11,6 +12,7 @@ import {
     GovernanceType,
     IpLibraryDetailDto,
     IpLibraryListDto,
+    IpNameCheckDto,
     IpProcessStepsDto,
     IpSignatureClipDto,
     IpSignatureClipMetadataDto,
@@ -533,6 +535,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
+                    share_count: item.ip_share_count?.share_count || 0,
                     cover_asset_id,
                     can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
                     on_chain_detail: item.on_chain_detail as any,
@@ -584,6 +587,7 @@ export class IpLibraryService {
             include: {
                 user_info: true,
                 ip_signature_clips: true,
+                ip_share_count: true,
                 ip_library_child: true,
                 _count: {
                     select: {
@@ -624,6 +628,7 @@ export class IpLibraryService {
                 include: {
                     ip_signature_clips: true,
                     ip_library_child: true,
+                    ip_share_count: true,
                     user_info: true,
                     _count: {
                         select: {
@@ -653,6 +658,7 @@ export class IpLibraryService {
                     creation_guide_lines: item.creation_guide_lines,
                     likes: item.likes,
                     comments: item._count.ip_comments,
+                    share_count: item.ip_share_count?.share_count || 0,
                     is_top: item.ip_library_child.length === 0,
                     ip_level: await this.getIpLevel(item.id),
                     is_user_liked: await this.isUserLiked(item.id, request_user),
@@ -699,6 +705,7 @@ export class IpLibraryService {
             is_top: data.ip_library_child === null,
             ip_level: await this.getIpLevel(data.id),
             is_public: data.is_public,
+            share_count: data.ip_share_count?.share_count || 0,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
             creator_description: data.user_info?.description || "",
@@ -1230,6 +1237,38 @@ export class IpLibraryService {
         })
     }
 
+    async ipNameCheck(dto: IpNameCheckDto) {
+        const ip = await this.prismaService.ip_library.findFirst({
+            where: { name: dto.name },
+        })
+        if (ip) {
+            throw new BadRequestException("IP name already exists")
+        }
+        return {}
+    }
+
+    async addShareCount(dto: AddShareCountDto, user: UserJwtExtractDto): Promise<IpLibraryDetailDto> {
+        const ip = await this.prismaService.ip_library.findFirst({
+            where: { id: dto.id },
+        })
+        if (!ip) {
+            throw new NotFoundException("IP not found")
+        }
+        const currentShareCount = await this.prismaService.ip_share_count.findFirst({
+            where: { ip_id: dto.id },
+        })
+
+        await this.prismaService.ip_share_count.upsert({
+            where: { ip_id: dto.id },
+            update: {
+                share_count: currentShareCount?.share_count + 1,
+            },
+            create: { ip_id: dto.id, share_count: 1 },
+        })
+
+        return await this.detail(dto.id.toString(), null, null, user)
+    }
+
     async processShareToGiggle(
         user: UserJwtExtractDto,
         body: ShareToGiggleDto,
@@ -1482,6 +1521,7 @@ export class IpLibraryService {
             orderBy: { created_at: "desc" },
             include: {
                 ip_signature_clips: true,
+                ip_share_count: true,
                 user_info: true,
                 _count: {
                     select: {
@@ -1512,6 +1552,7 @@ export class IpLibraryService {
                     cover_hash: item?.cover_images?.[0]?.hash,
                     likes: item.likes,
                     comments: item._count.ip_comments,
+                    share_count: item.ip_share_count?.share_count || 0,
                     is_top: false,
                     ip_level: await this.getIpLevel(item.id),
                     creation_guide_lines: item.creation_guide_lines,

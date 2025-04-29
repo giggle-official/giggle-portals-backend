@@ -594,6 +594,11 @@ export class IpSummaryDto {
     comments: number
 
     @ApiProperty({
+        description: "share count of the ip library",
+    })
+    share_count: number
+
+    @ApiProperty({
         description: "is liked by the user",
     })
     is_user_liked: boolean
@@ -1008,4 +1013,13 @@ export class CreateIpOrderDto extends CreateIpDto {
         description: "redirect url if order is successful",
     })
     redirect_url: string
+}
+
+export class AddShareCountDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
 }
