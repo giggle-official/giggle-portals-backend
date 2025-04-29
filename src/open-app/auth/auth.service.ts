@@ -13,10 +13,9 @@ import { PrismaService } from "src/common/prisma.service"
 import crypto from "crypto"
 import { JwtService } from "@nestjs/jwt"
 import { UserService } from "src/user/user.service"
-import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
+import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import { AuthService as AuthUserService } from "src/auth/auth.service"
 import { NotificationService } from "src/notification/notification.service"
-import { WidgetConfigDto } from "../widgets/widget.dto"
 
 @Injectable()
 export class AuthService {
@@ -191,12 +190,13 @@ export class AuthService {
             }
         }
 
-        const userProfile = await this.userService.getProfile({
+        const userJwtInfo: UserJwtExtractDto = {
             username: user.username,
-            email: user.email,
             usernameShorted: user.username_in_be,
-        })
-        const accessToken = await this.authUserService.login(userProfile)
+            email: user.email,
+            device_id: body.device_id,
+        }
+        const accessToken = await this.authUserService.login(userJwtInfo)
         return {
             is_bind: true,
             access_token: accessToken.access_token,
@@ -352,6 +352,7 @@ export class AuthService {
                 username: user.username,
                 email: user.email,
                 usernameShorted: user.username_in_be,
+                device_id: body.device_id,
             })
 
             return {

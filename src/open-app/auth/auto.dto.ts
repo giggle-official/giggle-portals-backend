@@ -1,5 +1,5 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
-import { IsEmail, IsNotEmpty, IsNumber, IsString } from "class-validator"
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator"
 
 export class LoginDto {
     @ApiProperty({
@@ -49,6 +49,11 @@ export class CheckTokenDto {
         required: true,
     })
     token: string
+
+    @ApiProperty({
+        description: "Device id",
+    })
+    device_id: string
 }
 
 export class CheckTokenResponseDto {
@@ -133,6 +138,12 @@ export class ConfirmBindDto {
     @IsNotEmpty()
     @IsString()
     host: string
+
+    @ApiProperty({
+        description: "Device id",
+    })
+    @IsString()
+    device_id: string
 }
 
 export class ConfirmBindResponseDto {

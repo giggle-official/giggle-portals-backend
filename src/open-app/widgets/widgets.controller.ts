@@ -84,8 +84,13 @@ export class WidgetsController {
     @ApiResponse({ type: GetAccessTokenResponseDto })
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
-    async getAccessToken(@Body() body: GetAccessTokenDto, @Req() req: Request, @Headers("app-id") appId: string) {
-        return this.widgetService.getAccessToken(body, req.user as UserJwtExtractDto, appId)
+    async getAccessToken(
+        @Body() body: GetAccessTokenDto,
+        @Req() req: Request,
+        @Headers("app-id") appId: string,
+        @Headers("x-device-id") deviceId: string,
+    ) {
+        return this.widgetService.getAccessToken(body, req.user as UserJwtExtractDto, appId, deviceId || "")
     }
 
     @Post("/update")

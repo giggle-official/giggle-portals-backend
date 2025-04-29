@@ -502,6 +502,7 @@ export class WidgetsService {
         body: GetAccessTokenDto,
         user: UserJwtExtractDto,
         appId: string,
+        deviceId: string,
     ): Promise<GetAccessTokenResponseDto> {
         const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
         if (!widget) {
@@ -550,7 +551,7 @@ export class WidgetsService {
         const widgetSession = await this.prisma.widget_sessions.create({
             data: {
                 session_id: widgetSessionId,
-                device_id: user.device_id,
+                device_id: deviceId,
                 user: user.usernameShorted,
                 widget_tag: body.tag,
                 app_id: appId,
@@ -568,6 +569,7 @@ export class WidgetsService {
             email: userInfo.email,
             avatar: userInfo.avatar,
             widget_session_id: widgetSession.session_id,
+            device_id: deviceId,
         }
         const eccess_token = this.jwtService.sign(userInfoForSign, {
             expiresIn: "1d",
