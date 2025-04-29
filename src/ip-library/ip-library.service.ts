@@ -751,6 +751,8 @@ export class IpLibraryService {
                 external_revenue_ip_holder: 40,
                 external_revenue_platform: 10,
             },
+
+            customization_settings: authSettings?.customization_settings || {},
         }
     }
 
@@ -861,11 +863,11 @@ export class IpLibraryService {
                 },
             })
 
-            let onChainUpdated = false
-            const onChainInfo = await this.ipOnChainService.pushIpToChain(user, result.id)
+            let onChainUpdated = true
+            /*const onChainInfo = await this.ipOnChainService.pushIpToChain(user, result.id)
             if (onChainInfo?.isSucc) {
                 onChainUpdated = true
-            }
+            }*/
 
             subscriber.next({
                 event: "ip.updated",
@@ -1285,6 +1287,8 @@ export class IpLibraryService {
             const ipDetail = await this.detail(body.id.toString(), null)
 
             //step1 > push ip to chain if not on chain
+            ipProcessStepsDto.ipPushedToChain = true
+            /*
             if (ipDetail.on_chain_status === "onChain" && ipDetail.on_chain_detail) {
                 ipProcessStepsDto.ipPushedToChain = true
             } else {
@@ -1295,6 +1299,7 @@ export class IpLibraryService {
                 }
                 ipProcessStepsDto.ipPushedToChain = true
             }
+            */
 
             //step2 > share to giggle
             subscriber.next({
@@ -1369,6 +1374,8 @@ export class IpLibraryService {
                     message: "Registering token on chain",
                 },
             })
+
+            /*
             const registerTokenResponse = await this.ipOnChainService.registerToken({
                 ip_id: ip.id,
                 record_id: tokenInfo?.id,
@@ -1377,6 +1384,7 @@ export class IpLibraryService {
             if (!registerTokenResponse.isSucc) {
                 throw new BadRequestException("Failed to register token" + registerTokenResponse.err.message)
             }
+            */
 
             ipProcessStepsDto.ipTokenRegistered = true
 

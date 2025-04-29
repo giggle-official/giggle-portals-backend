@@ -21,6 +21,7 @@ import {
     GetListParams,
     IpLibraryDetailDto,
     IpLibraryListDto,
+    IpNameCheckDto,
     LikeIpDto,
     RegisterTokenDto,
     RemixClipsDto,
@@ -70,6 +71,14 @@ export class IpLibraryController {
         @Headers("app-id") app_id?: string,
     ): Promise<IpLibraryListDto> {
         return await this.ipLibraryService.getList(query, true, null, null, app_id, req?.user as UserJwtExtractDto)
+    }
+
+    @Post("/ip-name-check")
+    @ApiOperation({ summary: "Check if ip name is available" })
+    @ApiBody({ type: IpNameCheckDto })
+    @ApiResponse({ type: Boolean })
+    async ipNameCheck() {
+        return {}
     }
 
     @Get("/my")

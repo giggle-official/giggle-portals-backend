@@ -504,6 +504,14 @@ export class AuthorizationSettingsDto {
         type: () => ChildIpExtraAuthSettingsDto,
     })
     child_ip_extra_settings?: ChildIpExtraAuthSettingsDto
+
+    @IsOptional()
+    @IsObject()
+    @ApiProperty({
+        description: "customization settings of the authorization settings",
+        required: false,
+    })
+    customization_settings?: Record<string, any>
 }
 
 //uses for get detail of frontend
@@ -982,6 +990,13 @@ export class LikeIpDto {
     id: number
 }
 
+export class IpNameCheckDto {
+    @ApiProperty({
+        description: "name of the ip library",
+    })
+    @Validate(IpNameValidator)
+    name: string
+}
 export class UnlikeIpDto extends LikeIpDto {}
 
 export class CreateIpOrderDto extends CreateIpDto {

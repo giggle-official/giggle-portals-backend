@@ -56,6 +56,7 @@ export class IpNameValidator implements ValidatorConstraintInterface {
                 name: req.name,
             },
         })
+        //todo: add order check
         return !ip && req.name.length >= 1 && req.name.length <= 32
     }
 
