@@ -189,7 +189,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "💰 Payment",
-            tags: ["Order", "Admin"],
+            tags: ["Order"],
         },
         {
             name: "🌐 Web3",
@@ -206,6 +206,10 @@ To see how to process the event stream response, please refer to the [Event Stre
         {
             name: "🔧 Developer Center",
             tags: ["Widgets-dev"],
+        },
+        {
+            name: "🔑 Admin",
+            tags: ["Admin"],
         },
     ]
 

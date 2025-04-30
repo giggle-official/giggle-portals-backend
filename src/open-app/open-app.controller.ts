@@ -51,7 +51,7 @@ export class OpenAppController {
     @Get("/list")
     @ApiOperation({
         summary: "Get app list",
-        tags: ["Admin"],
+        tags: ["IP Portal"],
     })
     @ApiResponse({
         type: AppListDto,
@@ -217,11 +217,11 @@ export class OpenAppController {
     }
 
     @Post("/approve-creator")
-    @ApiExcludeEndpoint()
     @ApiBody({
         type: ApproveCreatorDto,
     })
     @ApiOperation({
+        tags: ["Admin"],
         summary: "Approve a creator application",
         description: "Approves a creator application, enables IP creation permissions, and sends a confirmation email",
     })
@@ -278,12 +278,12 @@ export class OpenAppController {
     }
 
     @Post("/add-invite-email")
-    @ApiExcludeEndpoint()
     @ApiBody({
         type: AddInviteEmailDto,
     })
     @ApiOperation({
         summary: "Add invite email",
+        tags: ["Admin"],
     })
     @ApiResponse({
         status: 200,
@@ -297,12 +297,12 @@ export class OpenAppController {
     }
 
     @Post("/remove-invite-email")
-    @ApiExcludeEndpoint()
     @ApiBody({
         type: RemoveInviteEmailDto,
     })
     @ApiOperation({
         summary: "Remove invite email",
+        tags: ["Admin"],
     })
     @ApiResponse({
         status: 200,
