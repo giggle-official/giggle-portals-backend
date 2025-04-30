@@ -351,15 +351,17 @@ export class GiggleService {
         const signedUrl = signedUrlResponse.data.data.preSignedUrl
 
         const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
-        const fileStream = s3Client.getObject({ Bucket: s3Info.s3_bucket, Key: path }).createReadStream()
         const headObject = await s3Client.headObject({ Bucket: s3Info.s3_bucket, Key: path }).promise()
-        const contentLength = headObject.ContentLength
-        const uploadReq = this.web3HttpService.put(signedUrl, fileStream.pipe(new PassThrough()), {
-            headers: { "Content-Type": contentType, "Content-Length": contentLength.toString() },
-        })
-
-        const totalSize = contentLength
+        const totalSize = headObject.ContentLength
         let uploadedSize = 0
+
+        //sleep 500ms to wait for the file to be uploaded to s3
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        const fileStream = s3Client.getObject({ Bucket: s3Info.s3_bucket, Key: path }).createReadStream()
+        const uploadReq = this.web3HttpService.put(signedUrl, fileStream.pipe(new PassThrough()), {
+            headers: { "Content-Type": contentType, "Content-Length": totalSize.toString() },
+        })
 
         fileStream.on("data", (chunk) => {
             uploadedSize += chunk.length
