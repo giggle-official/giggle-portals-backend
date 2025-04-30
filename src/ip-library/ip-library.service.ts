@@ -1748,15 +1748,18 @@ export class IpLibraryService {
                 const s3Info = await this.utilitiesService.getIpLibraryS3Info()
                 const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
 
-                const fileStream = s3Client
-                    .getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
-                    .createReadStream()
                 const headObject = await s3Client
                     .headObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
                     .promise()
-                const contentLength = headObject.ContentLength
-                const totalSize = contentLength
+                const totalSize = headObject.ContentLength
                 let uploadedSize = 0
+
+                //sleep 500ms to wait for the file to be uploaded to s3
+                await new Promise((resolve) => setTimeout(resolve, 500))
+                const fileStream = s3Client
+                    .getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
+                    .createReadStream()
+
                 fileStream.on("data", (chunk) => {
                     uploadedSize += chunk.length
                     const progress = (uploadedSize / totalSize) * 100
