@@ -251,37 +251,65 @@ export class DeveloperService {
             })
 
             //resubscribe to widget for test users and author
-            //remove first
-            await tx.user_subscribed_widgets.deleteMany({
-                where: { widget_tag: body.tag },
-            })
-
             //sub for test users
-            const users = await tx.users.findMany({
+            //find exists subscriptions
+            let needProcessUsers = await tx.users.findMany({
                 where: {
                     email: { in: body.test_users },
+
+                    username_in_be: { not: user.usernameShorted },
+                },
+                select: {
+                    username_in_be: true,
                 },
             })
 
-            await tx.user_subscribed_widgets.createMany({
-                data: users
-                    .filter((u) => u.username_in_be !== user.usernameShorted)
-                    .map((u) => ({
-                        subscription_id: this.widgetsService.generateId(),
-                        user: u.username_in_be,
-                        widget_tag: body.tag,
-                    })),
-            })
+            needProcessUsers = [...needProcessUsers, { username_in_be: user.usernameShorted }]
 
-            //sub for author
-            await tx.user_subscribed_widgets.create({
-                data: {
-                    subscription_id: this.widgetsService.generateId(),
-                    user: user.usernameShorted,
+            //find need delete subscriptions
+            const needDeleteSubscriptions = await tx.user_subscribed_widgets.findMany({
+                where: {
+                    user: { notIn: needProcessUsers.map((u) => u.username_in_be) },
                     widget_tag: body.tag,
                 },
             })
 
+            //delete app_bind_widgets
+            await tx.app_bind_widgets.deleteMany({
+                where: {
+                    subscription_id: { in: needDeleteSubscriptions.map((d) => d.id) },
+                },
+            })
+
+            //delete exists subscriptions
+            await tx.user_subscribed_widgets.deleteMany({
+                where: {
+                    id: { in: needDeleteSubscriptions.map((d) => d.id) },
+                },
+            })
+
+            for (const user of needProcessUsers) {
+                //if subscrption exists, continue
+                const isExists = await tx.user_subscribed_widgets.findFirst({
+                    where: {
+                        user: user.username_in_be,
+                        widget_tag: body.tag,
+                    },
+                })
+                if (isExists) {
+                    continue
+                }
+                //else create
+                await tx.user_subscribed_widgets.create({
+                    data: {
+                        subscription_id: this.widgetsService.generateId(),
+                        user: user.username_in_be,
+                        widget_tag: body.tag,
+                    },
+                })
+            }
+
+            //finally, if exists subscribed. remove
             return widget.tag
         })
         return this.getWidgetDetail(updatedWidgetTag, user)

@@ -61,6 +61,7 @@ model users {
   web3_orders                    web3_orders[]
   widgets                        widgets[]
   app_links                      app_links[]
+  user_subscribed_widgets        user_subscribed_widgets[]
 }
 
 model user_request_log {
@@ -786,6 +787,7 @@ model user_subscribed_widgets {
   subscription_id  String             @unique(map: "subscription_id") @db.VarChar(32)
   widget_info      widgets?           @relation(fields: [widget_tag], references: [tag])
   app_bind_widgets app_bind_widgets[]
+  user_info        users?             @relation(fields: [user], references: [username_in_be])
 }
 
 model widgets {
