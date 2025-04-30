@@ -126,22 +126,6 @@ export class AuthService {
 
     async login(body: LoginDto, origin: string) {
         const { host, app_id } = await this.checkSignature(body, origin)
-        const user = await this.prisma.users.findUnique({ where: { email: body.email } })
-        //create user if not exists
-        if (!user) {
-            const userNameShorted = this.userService.generateShortName()
-            const username = body.email.split("@")[0]
-            const newUserInfo: CreateUserDto = {
-                username: username,
-                password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
-                email: body.email,
-                usernameShorted: userNameShorted,
-                app_id: body.app_id,
-                from_source_link: "",
-                from_device_id: "",
-            }
-            await this.userService.createUser(newUserInfo)
-        }
         return {
             token: this.jwtService.sign(
                 {
@@ -170,9 +154,29 @@ export class AuthService {
             throw new UnauthorizedException("Invalid token")
         }
 
-        const user = await this.prisma.users.findUnique({ where: { email: decoded.email } })
+        let user = await this.prisma.users.findUnique({ where: { email: decoded.email } })
+        //create user if not exists
         if (!user) {
-            throw new UnauthorizedException("User not found")
+            //find source link
+            const sourceLink = await this.prisma.link_devices.findFirst({
+                where: {
+                    device_id: body.device_id,
+                },
+            })
+
+            const userNameShorted = this.userService.generateShortName()
+            const username = decoded.email.split("@")[0]
+            const newUserInfo: CreateUserDto = {
+                username: username,
+                password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
+                email: decoded.email,
+                usernameShorted: userNameShorted,
+                app_id: decoded.app_id,
+                from_source_link: sourceLink?.link_id || "",
+                from_device_id: body.device_id,
+            }
+            await this.userService.createUser(newUserInfo)
+            user = await this.prisma.users.findUnique({ where: { email: decoded.email } })
         }
 
         //remove port from host
