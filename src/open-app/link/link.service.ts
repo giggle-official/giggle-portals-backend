@@ -142,6 +142,19 @@ export class LinkService {
             return null
         }
 
+        const statistics = await this.prisma.link_devices.count({
+            where: {
+                link_id: link.unique_str,
+                expired: false,
+            },
+        })
+
+        const invitedNewUserCount = await this.prisma.users.count({
+            where: {
+                from_source_link: link.unique_str,
+            },
+        })
+
         return {
             link_id: link.unique_str,
             short_link: link.full_short_link,
@@ -153,6 +166,10 @@ export class LinkService {
             widget_message: link.widget_message,
             redirect_to_link: link.link,
             app_id: link.app_id,
+            statistics: {
+                bind_device_count: statistics,
+                invited_new_user_count: invitedNewUserCount,
+            },
             created_at: link.created_at,
             updated_at: link.updated_at,
             app_info: await this.appService.getAppDetail(link.app_id, null),

@@ -20,6 +20,18 @@ export class CreateLinkRequestDto {
     widget_message?: string
 }
 
+export class LinkStatisticsDto {
+    @ApiProperty({
+        description: "bind device count",
+    })
+    bind_device_count: number
+
+    @ApiProperty({
+        description: "invited new user count",
+    })
+    invited_new_user_count: number
+}
+
 export class CreateLinkResponseDto {
     @ApiProperty({
         description: "The id of the link",
@@ -79,6 +91,11 @@ export class LinkDetailDto {
         description: "The app info of the link",
     })
     app_info: AppInfoDto
+
+    @ApiProperty({
+        description: "The statistics of the link",
+    })
+    statistics: LinkStatisticsDto
 
     @ApiProperty({
         description: "The created at of the link",
