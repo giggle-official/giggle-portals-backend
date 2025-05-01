@@ -1229,6 +1229,15 @@ export class IpLibraryService {
         }
     }
 
+    async clearIpWhenConnectionClosed(ipId: number) {
+        const ip = await this.prismaService.ip_library.findFirst({
+            where: { id: ipId },
+        })
+        if (ip) {
+            await this.prismaService.ip_library.delete({ where: { id: ipId } })
+        }
+    }
+
     shareToGiggle(user: UserJwtExtractDto, body: ShareToGiggleDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
             this.processShareToGiggle(user, body, subscriber).catch((error) => {

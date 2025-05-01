@@ -5,6 +5,7 @@ import {
     CreateLinkResponseDto,
     LinkDetailDto,
     LinkSummaryDto,
+    UserLinkStatisticsDto,
 } from "./link.dto"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
@@ -142,6 +143,19 @@ export class LinkService {
             return null
         }
 
+        const statistics = await this.prisma.link_devices.count({
+            where: {
+                link_id: link.unique_str,
+                expired: false,
+            },
+        })
+
+        const invitedNewUserCount = await this.prisma.users.count({
+            where: {
+                from_source_link: link.unique_str,
+            },
+        })
+
         return {
             link_id: link.unique_str,
             short_link: link.full_short_link,
@@ -153,6 +167,10 @@ export class LinkService {
             widget_message: link.widget_message,
             redirect_to_link: link.link,
             app_id: link.app_id,
+            statistics: {
+                bind_device_count: statistics,
+                invited_new_user_count: invitedNewUserCount,
+            },
             created_at: link.created_at,
             updated_at: link.updated_at,
             app_info: await this.appService.getAppDetail(link.app_id, null),
@@ -216,6 +234,37 @@ export class LinkService {
 
     _generateLink(uniqueStr: string) {
         return `${process.env.FRONTEND_URL}/l/${uniqueStr}`
+    }
+
+    async getMyLinkStatistics(userInfo: UserInfoDTO): Promise<UserLinkStatisticsDto> {
+        const links = await this.prisma.app_links.findMany({
+            where: {
+                creator: userInfo.usernameShorted,
+            },
+        })
+        if (links.length === 0) {
+            return {
+                link_count: 0,
+                bind_device_count: 0,
+                invited_new_user_count: 0,
+            }
+        }
+        const bindDeviceCount = await this.prisma.link_devices.count({
+            where: {
+                link_id: { in: links.map((link) => link.unique_str) },
+                expired: false,
+            },
+        })
+        const invitedNewUserCount = await this.prisma.users.count({
+            where: {
+                from_source_link: { in: links.map((link) => link.unique_str) },
+            },
+        })
+        return {
+            link_count: links.length,
+            bind_device_count: bindDeviceCount,
+            invited_new_user_count: invitedNewUserCount,
+        }
     }
 
     //mark link as expired if create more than 7 days

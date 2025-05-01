@@ -1,5 +1,11 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Headers, UseGuards, Req, Get, Param } from "@nestjs/common"
-import { BindDeviceRequestDto, CreateLinkRequestDto, CreateLinkResponseDto, LinkDetailDto } from "./link.dto"
+import {
+    BindDeviceRequestDto,
+    CreateLinkRequestDto,
+    CreateLinkResponseDto,
+    LinkDetailDto,
+    UserLinkStatisticsDto,
+} from "./link.dto"
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { LinkService } from "./link.service"
 import { AuthGuard } from "@nestjs/passport"
@@ -49,5 +55,17 @@ export class LinkController {
     @ApiResponse({ type: LinkDetailDto })
     getLink(@Param("uniqueStr") uniqueStr: string) {
         return this.linkService.getLink(uniqueStr)
+    }
+
+    @Get("/my/statistics")
+    @ApiOperation({
+        summary: "Get my link statistics.",
+        tags: ["Link"],
+    })
+    @UseGuards(AuthGuard("jwt"))
+    @ApiResponse({ type: UserLinkStatisticsDto })
+    @ApiBearerAuth()
+    getMyLinkStatistics(@Req() req: Request) {
+        return this.linkService.getMyLinkStatistics(req.user as UserJwtExtractDto)
     }
 }
