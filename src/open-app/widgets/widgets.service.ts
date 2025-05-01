@@ -519,11 +519,13 @@ export class WidgetsService {
         })
 
         //app is exists
+        let appIsUsers = false
         if (appId) {
             const app = await this.prisma.apps.findUnique({ where: { app_id: appId } })
             if (!app) {
                 appId = ""
             }
+            appIsUsers = app.creator === user.usernameShorted
         } else {
             appId = ""
         }
@@ -556,7 +558,7 @@ export class WidgetsService {
                 widget_tag: body.tag,
                 app_id: appId,
                 permission: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
-                user_subscribed_widget: userSubscribedWidget ? true : false,
+                user_subscribed_widget: userSubscribedWidget && appIsUsers ? true : false,
             },
         })
         if (!widgetSession) {
