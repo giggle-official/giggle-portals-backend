@@ -32,6 +32,13 @@ export class LinkStatisticsDto {
     invited_new_user_count: number
 }
 
+export class UserLinkStatisticsDto extends LinkStatisticsDto {
+    @ApiProperty({
+        description: "link count",
+    })
+    link_count: number
+}
+
 export class CreateLinkResponseDto {
     @ApiProperty({
         description: "The id of the link",
