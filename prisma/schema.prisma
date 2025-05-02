@@ -62,6 +62,7 @@ model users {
   widgets                        widgets[]
   app_links                      app_links[]
   user_subscribed_widgets        user_subscribed_widgets[]
+  user_rewards                   user_rewards[]
 }
 
 model user_request_log {
@@ -850,34 +851,8 @@ model orders {
   created_at               DateTime?               @default(now()) @db.Timestamp(0)
   updated_at               DateTime?               @default(now()) @db.Timestamp(0)
   third_level_ip_orders    third_level_ip_orders[]
-}
-
-model reward_models {
-  id                        Int                         @id @default(autoincrement())
-  ratio_detail              Json?
-  created_at                DateTime?                   @default(now()) @db.Timestamp(0)
-  updated_at                DateTime?                   @default(now()) @db.Timestamp(0)
-  reward_pools_apply_models reward_pools_apply_models[]
-}
-
-model reward_pools {
-  id           Int                         @id @default(autoincrement())
-  token        String?                     @db.VarChar(1024)
-  address      String?                     @db.VarChar(1024)
-  created_at   DateTime?                   @default(now()) @db.Timestamp(0)
-  updated_at   DateTime?                   @default(now()) @db.Timestamp(0)
-  apply_models reward_pools_apply_models[]
-}
-
-model reward_pools_apply_models {
-  id            Int            @id @default(autoincrement())
-  pool_id       Int?
-  model_id      Int?
-  allow_widgets Json?
-  created_at    DateTime?      @default(now()) @db.Timestamp(0)
-  updated_at    DateTime?      @default(now()) @db.Timestamp(0)
-  model_info    reward_models? @relation(fields: [model_id], references: [id])
-  reward_pools  reward_pools?  @relation(fields: [pool_id], references: [id])
+  reward_pool_statement    reward_pool_statement[]
+  user_rewards             user_rewards[]
 }
 
 model order_callback_record {
@@ -950,6 +925,60 @@ model ip_share_count {
   created_at  DateTime?   @default(now()) @db.Timestamp(0)
   updated_at  DateTime?   @default(now()) @db.Timestamp(0)
   ip_info     ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+model reward_pools {
+  id              Int                     @id @default(autoincrement())
+  token           String?                 @unique(map: "token") @db.VarChar(64)
+  owner           String?                 @db.VarChar(32)
+  revenue_ratio   Json?
+  address         String?                 @db.VarChar(1024)
+  injected_amount Int?
+  released_amount Int?
+  current_balance Int?
+  unit_price      Decimal?                @db.Decimal(65, 12)
+  created_at      DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at      DateTime?               @default(now()) @db.Timestamp(0)
+  statement       reward_pool_statement[]
+}
+
+model reward_pool_statement {
+  id               Int               @id @default(autoincrement())
+  token            String?           @db.VarChar(64)
+  usd_revenue      Decimal?          @db.Decimal(65, 12)
+  unit_price       Decimal?          @db.Decimal(65, 12)
+  amount           Int?
+  related_order_id String?           @db.VarChar(36)
+  type             reward_pool_type?
+  current_balance  Int?
+  created_at       DateTime?         @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?         @default(now()) @db.Timestamp(0)
+  reward_pools     reward_pools?     @relation(fields: [token], references: [token])
+  order_info       orders?           @relation(fields: [related_order_id], references: [order_id])
+}
+
+enum reward_pool_type {
+  released
+  injected
+}
+
+model user_rewards {
+  id                Int       @id @default(autoincrement())
+  order_id          String?   @db.VarChar(36)
+  user              String?   @db.VarChar(32)
+  rewards           Int?
+  token             String?   @db.VarChar(64)
+  ticker            String?   @db.VarChar(32)
+  start_allocate    DateTime? @db.DateTime(0)
+  end_allocate      DateTime? @db.DateTime(0)
+  released_rewards  Int?
+  locked_rewards    Int?
+  withdraw_rewards  Int?
+  allocate_snapshot Json?
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+  updated_at        DateTime? @default(now()) @db.Timestamp(0)
+  order_info        orders?   @relation(fields: [order_id], references: [order_id])
+  user_info         users?    @relation(fields: [user], references: [username_in_be])
 }
 
 view view_ip_token_prices {

@@ -13,7 +13,7 @@ export class AppController {
     }
 
     @Post("/timeoutTest")
-    @ApiOperation({ summary: "Timeout test", tags: ["Admin"] })
+    @ApiOperation({ summary: "Timeout test", tags: ["Test Tools"] })
     @ApiResponse({
         status: 200,
         description: "Timeout test success",

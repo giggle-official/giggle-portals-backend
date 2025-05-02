@@ -221,7 +221,7 @@ export class OpenAppController {
         type: ApproveCreatorDto,
     })
     @ApiOperation({
-        tags: ["Admin"],
+        tags: ["App Management"],
         summary: "Approve a creator application",
         description: "Approves a creator application, enables IP creation permissions, and sends a confirmation email",
     })
@@ -283,7 +283,7 @@ export class OpenAppController {
     })
     @ApiOperation({
         summary: "Add invite email",
-        tags: ["Admin"],
+        tags: ["App Management"],
     })
     @ApiResponse({
         status: 200,
@@ -302,7 +302,7 @@ export class OpenAppController {
     })
     @ApiOperation({
         summary: "Remove invite email",
-        tags: ["Admin"],
+        tags: ["App Management"],
     })
     @ApiResponse({
         status: 200,

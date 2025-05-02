@@ -24,7 +24,6 @@ import { v4 as uuidv4 } from "uuid"
 import { orders } from "@prisma/client"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
-import { RewardModelDto } from "../rewards-pool/rewards-pool.dto"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
 import { GiggleService } from "src/web3/giggle/giggle.service"
@@ -124,7 +123,7 @@ export class OrderService {
             expire_time: data.expire_time,
             cancelled_time: data.cancelled_time,
             cancelled_detail: data.cancelled_detail,
-            rewards_model_snapshot: data.rewards_model_snapshot as unknown as RewardModelDto,
+            rewards_model_snapshot: data.rewards_model_snapshot as unknown as any,
             order_url: orderUrl,
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),

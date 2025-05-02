@@ -40,7 +40,7 @@ export class LinkController {
     @Post("/bind-device")
     @ApiOperation({
         summary: "Bind a device to a link.",
-        tags: ["Admin"],
+        tags: ["Link Management"],
     })
     @ApiBody({ type: BindDeviceRequestDto })
     bindDevice(@Body() body: BindDeviceRequestDto) {

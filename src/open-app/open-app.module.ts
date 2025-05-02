@@ -32,6 +32,6 @@ import { HttpModule } from "@nestjs/axios"
     ],
     controllers: [OpenAppController, AuthController, DeveloperController, LinkController],
     providers: [OpenAppService, PrismaService, AuthService, DeveloperService, LinkService],
-    exports: [LinkService],
+    exports: [LinkService, OpenAppService],
 })
 export class OpenAppModule {}

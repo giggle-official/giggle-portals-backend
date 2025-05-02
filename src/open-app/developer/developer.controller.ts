@@ -13,7 +13,7 @@ import { IsDeveloperGuard } from "src/auth/is_developer.guard"
 import { Request } from "express"
 
 @Controller("/api/v1/developer")
-@ApiTags("Widgets-dev")
+@ApiTags("Widgets Management")
 export class DeveloperController {
     constructor(private readonly developerService: DeveloperService) {}
 

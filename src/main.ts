@@ -204,12 +204,8 @@ To see how to process the event stream response, please refer to the [Event Stre
             tags: ["Widgets"],
         },
         {
-            name: "🔧 Developer Center",
-            tags: ["Widgets-dev"],
-        },
-        {
             name: "🔑 Admin",
-            tags: ["Admin"],
+            tags: ["App Management", "Widgets Management", "Rewards Pool Management", "Order Management", "Test Tools"],
         },
     ]
 

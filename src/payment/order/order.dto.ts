@@ -1,8 +1,7 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
-import { isArray, IsInt, IsNotEmpty, IsOptional, Min } from "class-validator"
-import { RewardModelDto } from "../rewards-pool/rewards-pool.dto"
+import { IsInt, IsNotEmpty, Min } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkDetailDto, LinkSummaryDto } from "src/open-app/link/link.dto"
 export enum OrderStatus {
@@ -144,7 +143,10 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "wallet_paid_detail",
     "callback_url",
 ]) {
-    rewards_model_snapshot: RewardModelDto
+    @ApiProperty({
+        description: "The rewards model snapshot of the order",
+    })
+    rewards_model_snapshot: any
     @ApiProperty({
         description: "The url of order to pay or check the order status",
     })

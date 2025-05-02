@@ -101,7 +101,7 @@ export class OrderController {
     }
 
     @Post("/resend-callback")
-    @ApiOperation({ summary: "Resend callback for an order", tags: ["Admin"] })
+    @ApiOperation({ summary: "Resend callback for an order", tags: ["Order Management"] })
     @ApiBody({ type: ResendCallbackRequestDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
