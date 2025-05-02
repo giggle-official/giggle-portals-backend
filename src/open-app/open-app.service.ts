@@ -113,7 +113,12 @@ export class OpenAppService {
             }
         }
 
-        const ipDetail: IpLibraryDetailDto = await this.ipLibraryService.detail(ipInfo.id.toString(), null)
+        const ipDetail: IpLibraryDetailDto = await this.ipLibraryService.detail(
+            ipInfo.id.toString(),
+            null,
+            null,
+            userInfo,
+        )
         delete ipDetail.child_ip_info
 
         return {
