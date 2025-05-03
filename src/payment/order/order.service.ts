@@ -349,7 +349,6 @@ export class OrderService {
             token: reward.token,
             ticker: reward.ticker,
             role: reward.role as RewardAllocateRoles,
-            allocate_snapshot: reward.allocate_snapshot as any,
             created_at: reward.created_at,
             updated_at: reward.updated_at,
             start_allocate: reward.start_allocate,
