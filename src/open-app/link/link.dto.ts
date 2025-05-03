@@ -18,6 +18,13 @@ export class CreateLinkRequestDto {
     @IsOptional()
     @IsString()
     widget_message?: string
+
+    @ApiProperty({
+        description:
+            "enable login on the portal, when you set this to true, the portal will enable login whatever the login_from_external is enabled or not",
+        required: false,
+    })
+    enable_login?: boolean
 }
 
 export class LinkStatisticsDto {
@@ -49,6 +56,11 @@ export class CreateLinkResponseDto {
         description: "Short link of url",
     })
     short_link: string
+
+    @ApiProperty({
+        description: "The enable login of the link",
+    })
+    enable_login: boolean
 }
 
 export class LinkDetailDto {
@@ -61,6 +73,11 @@ export class LinkDetailDto {
         description: "short link",
     })
     short_link: string
+
+    @ApiProperty({
+        description: "The enable login of the link",
+    })
+    enable_login: boolean
 
     @ApiProperty({
         description: "The creator of the link",

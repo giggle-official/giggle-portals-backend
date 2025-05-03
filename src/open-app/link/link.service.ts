@@ -66,12 +66,14 @@ export class LinkService {
                     link: body.link,
                     app_id: app_id,
                     creator: userInfo.usernameShorted,
+                    enable_login: body.enable_login,
                 },
             })
             if (existingLink) {
                 return {
                     link_id: existingLink.unique_str,
                     short_link: existingLink.full_short_link,
+                    enable_login: existingLink.enable_login,
                 }
             }
         } else {
@@ -81,12 +83,14 @@ export class LinkService {
                     app_id: app_id,
                     widget_message: body.widget_message,
                     creator: userInfo.usernameShorted,
+                    enable_login: body.enable_login,
                 },
             })
             if (existingLink) {
                 return {
                     link_id: existingLink.unique_str,
                     short_link: existingLink.full_short_link,
+                    enable_login: existingLink.enable_login,
                 }
             }
         }
@@ -120,12 +124,14 @@ export class LinkService {
                 unique_str: uniqueStr,
                 creator: userInfo.usernameShorted,
                 full_short_link: response.data.link,
+                enable_login: body.enable_login,
             },
         })
 
         return {
             link_id: link.unique_str,
             short_link: response.data.link,
+            enable_login: body.enable_login,
         }
     }
 
@@ -159,6 +165,7 @@ export class LinkService {
         return {
             link_id: link.unique_str,
             short_link: link.full_short_link,
+            enable_login: link.enable_login,
             creator: {
                 username: link.creator_info.username,
                 avatar: link.creator_info.avatar,
