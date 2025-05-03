@@ -12,21 +12,26 @@ import {
     HttpStatus,
 } from "@nestjs/common"
 import {
+    BindRewardPoolDto,
     CreateOrderDto,
     OrderDetailDto,
     OrderListDto,
     OrderListQueryDto,
+    OrderRewardsDto,
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
+    ReleaseRewardsDto,
     ResendCallbackRequestDto,
+    UnbindRewardPoolDto,
 } from "./order.dto"
-import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import Stripe from "stripe"
+import { IsAdminGuard } from "src/auth/is_admin.guard"
 
 @Controller({ path: "api/v1/order" })
 export class OrderController {
@@ -37,7 +42,7 @@ export class OrderController {
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: OrderListDto })
     async getOrderList(@Query() query: OrderListQueryDto, @Req() req: Request): Promise<OrderListDto> {
-        return this.orderService.getOrderList(query, req.user as UserJwtExtractDto)
+        return await this.orderService.getOrderList(query, req.user as UserJwtExtractDto)
     }
 
     @Get("/detail")
@@ -48,7 +53,7 @@ export class OrderController {
         if (!orderId) {
             throw new BadRequestException("Order id is required")
         }
-        return this.orderService.getOrderDetail(orderId, req.user as UserJwtExtractDto)
+        return await this.orderService.getOrderDetail(orderId, req.user as UserJwtExtractDto)
     }
 
     @Post("/create")
@@ -58,7 +63,7 @@ export class OrderController {
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
     async createOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.createOrder(order, req.user as UserJwtExtractDto)
+        return await this.orderService.createOrder(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payWithWallet")
@@ -69,7 +74,7 @@ export class OrderController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     async payWithWallet(@Body() order: PayWithWalletRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.payWithWallet(order, req.user as UserJwtExtractDto)
+        return await this.orderService.payWithWallet(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payWithStripe")
@@ -83,7 +88,18 @@ export class OrderController {
         @Body() order: PayWithStripeRequestDto,
         @Req() req: Request,
     ): Promise<PayWithStripeResponseDto> {
-        return this.orderService.payOrderWithStripe(order, req.user as UserJwtExtractDto)
+        return await this.orderService.payOrderWithStripe(order, req.user as UserJwtExtractDto)
+    }
+
+    @Get("/rewards-detail")
+    @ApiOperation({ summary: "Get rewards detail for an order", tags: ["Order"] })
+    @ApiResponse({ type: OrderRewardsDto, isArray: true })
+    @UseGuards(AuthGuard("jwt"))
+    async getRewardsDetail(@Query("order_id") orderId: string, @Req() req: Request): Promise<OrderRewardsDto[]> {
+        if (!orderId) {
+            throw new BadRequestException("Order id is required")
+        }
+        return await this.orderService.getRewardsDetail(orderId, req.user as UserJwtExtractDto)
     }
 
     @ApiExcludeEndpoint()
@@ -94,7 +110,7 @@ export class OrderController {
         const eventType = (localRecord.raw_data as unknown as Stripe.Event).type
         switch (eventType) {
             case "invoice.paid":
-                return this.orderService.stripeInvoicePaid(localRecord.id)
+                return await this.orderService.stripeInvoicePaid(localRecord.id)
             default:
                 return {}
         }
@@ -105,8 +121,35 @@ export class OrderController {
     @ApiBody({ type: ResendCallbackRequestDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
+    @UseGuards(IsAdminGuard)
     async resendCallback(@Body() order: ResendCallbackRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return this.orderService.resendCallback(order, req.user as UserJwtExtractDto)
+        return await this.orderService.resendCallback(order, req.user as UserJwtExtractDto)
+    }
+
+    @UseGuards(IsAdminGuard)
+    @Post("/bind-reward-pool")
+    @ApiOperation({ summary: "Bind a reward pool to an order", tags: ["Order Management"] })
+    @ApiBody({ type: BindRewardPoolDto })
+    @ApiResponse({ type: OrderDetailDto })
+    async bindRewardPool(@Body() body: BindRewardPoolDto) {
+        return await this.orderService.bindRewardPool(body)
+    }
+
+    @Post("/unbind-reward-pool")
+    @UseGuards(IsAdminGuard)
+    @ApiOperation({ summary: "Unbind a reward pool from an order", tags: ["Order Management"] })
+    @ApiBody({ type: UnbindRewardPoolDto })
+    @ApiResponse({ type: OrderDetailDto })
+    async unbindRewardPool(@Body() body: UnbindRewardPoolDto) {
+        return await this.orderService.unbindRewardPool(body)
+    }
+
+    @Post("/release-rewards")
+    @UseGuards(IsAdminGuard)
+    @ApiOperation({ summary: "Release rewards for an order", tags: ["Order Management"] })
+    @ApiBody({ type: ReleaseRewardsDto })
+    @ApiResponse({ type: OrderDetailDto })
+    async releaseRewards(@Body() body: ReleaseRewardsDto) {
+        return await this.orderService.releaseRewards(body)
     }
 }

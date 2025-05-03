@@ -166,6 +166,8 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
 ]) {
     @ApiProperty()
     widget_session_id?: string
+
+    is_admin?: boolean
 }
 
 export class CreateUserDto {

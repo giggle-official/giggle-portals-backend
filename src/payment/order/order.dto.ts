@@ -1,14 +1,17 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
-import { orders } from "@prisma/client"
-import { JsonValue } from "@prisma/client/runtime/library"
+import { orders, user_rewards } from "@prisma/client"
+import { Decimal, JsonValue } from "@prisma/client/runtime/library"
 import { IsInt, IsNotEmpty, Min } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
-import { LinkDetailDto, LinkSummaryDto } from "src/open-app/link/link.dto"
+import { LinkSummaryDto } from "src/open-app/link/link.dto"
+import { RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
 export enum OrderStatus {
     PENDING = "pending",
+    REFUNDING = "refunding",
     REFUNDED = "refunded",
     COMPLETED = "completed",
     CANCELLED = "cancelled",
+    REWARDS_RELEASED = "rewards_released",
 }
 
 export enum PaymentMethod {
@@ -190,13 +193,6 @@ export class CreateOrderDto {
     description?: string
 
     @ApiProperty({
-        description:
-            "The related reward pool id of the order, note: this field may be require if we finish our economic model",
-        required: false,
-    })
-    related_reward_id?: number
-
-    @ApiProperty({
         description: "The redirect url after order is paid",
         required: false,
     })
@@ -256,4 +252,147 @@ export class ResendCallbackRequestDto {
         description: "The order id",
     })
     order_id: string
+}
+
+export class BindRewardPoolDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+}
+
+export class UnbindRewardPoolDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+}
+
+export class ReleaseRewardsDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+}
+
+export class UserRewards implements user_rewards {
+    @ApiProperty({
+        description: "The id of the order rewards",
+    })
+    id: number
+
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+
+    @ApiProperty({
+        description: "The user of the order rewards",
+    })
+    user: string
+
+    @ApiProperty({
+        description: "The role of the order rewards",
+    })
+    role: RewardAllocateRoles
+
+    @ApiProperty({
+        description: "The wallet address of the order rewards",
+    })
+    wallet_address: string
+
+    @ApiProperty({
+        description: "The rewards of the order rewards",
+    })
+    rewards: Decimal
+
+    @ApiProperty({
+        description: "The token of the order rewards",
+    })
+    token: string
+
+    @ApiProperty({
+        description: "The ticker of the order rewards",
+    })
+    ticker: string
+
+    @ApiProperty({
+        description: "The start allocate of the order rewards",
+    })
+    start_allocate: Date
+
+    @ApiProperty({
+        description: "The end allocate of the order rewards",
+    })
+    end_allocate: Date
+
+    @ApiProperty({
+        description: "The released per day of the order rewards",
+    })
+    released_per_day: Decimal
+
+    @ApiProperty({
+        description: "The released rewards of the order rewards",
+    })
+    released_rewards: Decimal
+
+    @ApiProperty({
+        description: "The locked rewards of the order rewards",
+    })
+    locked_rewards: Decimal
+
+    @ApiProperty({
+        description: "The withdraw rewards of the order rewards",
+    })
+    withdraw_rewards: Decimal
+
+    @ApiProperty({
+        description: "The allocate snapshot of the order rewards",
+    })
+    allocate_snapshot: JsonValue
+
+    @ApiProperty({
+        description: "The created at of the order rewards",
+    })
+    created_at: Date
+
+    @ApiProperty({
+        description: "The updated at of the order rewards",
+    })
+    updated_at: Date
+}
+
+export class OrderRewardsDto extends OmitType(UserRewards, [
+    "id",
+    "rewards",
+    "released_per_day",
+    "released_rewards",
+    "locked_rewards",
+    "withdraw_rewards",
+    "allocate_snapshot",
+]) {
+    @ApiProperty({
+        description: "The rewards of the order rewards",
+    })
+    rewards: string
+
+    @ApiProperty({
+        description: "The released per day of the order rewards",
+    })
+    released_per_day: string
+
+    @ApiProperty({
+        description: "The released rewards of the order rewards",
+    })
+    released_rewards: string
+
+    @ApiProperty({
+        description: "The locked rewards of the order rewards",
+    })
+    locked_rewards: string
+
+    @ApiProperty({
+        description: "The withdraw rewards of the order rewards",
+    })
+    withdraw_rewards: string
 }

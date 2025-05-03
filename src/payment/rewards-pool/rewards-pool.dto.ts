@@ -14,6 +14,7 @@ export enum RewardAllocateRoles {
     INVITER = "inviter",
     DEVELOPER = "developer",
     CUSTOMIZED = "customized",
+    PLATFORM = "platform",
 }
 
 export class Pool implements reward_pools {
@@ -22,6 +23,9 @@ export class Pool implements reward_pools {
 
     @ApiProperty({ description: "Token of the pool" })
     token: string
+
+    @ApiProperty({ description: "Ticker of the pool" })
+    ticker: string
 
     @ApiProperty({ description: "Owner of the pool" })
     owner: string
@@ -36,13 +40,13 @@ export class Pool implements reward_pools {
     address: string
 
     @ApiProperty({ description: "Injected token amount of the pool" })
-    injected_amount: number
+    injected_amount: Decimal
 
-    @ApiProperty({ description: "Released token amount of the pool" })
-    released_amount: number
+    @ApiProperty({ description: "Rewarded token amount of the pool" })
+    rewarded_amount: Decimal
 
     @ApiProperty({ description: "Current token balance of the pool" })
-    current_balance: number
+    current_balance: Decimal
 
     @ApiProperty({ description: "Created at" })
     created_at: Date
@@ -51,9 +55,23 @@ export class Pool implements reward_pools {
     updated_at: Date
 }
 
-export class PoolResponseDto extends OmitType(Pool, ["id", "unit_price"]) {
+export class PoolResponseDto extends OmitType(Pool, [
+    "unit_price",
+    "injected_amount",
+    "rewarded_amount",
+    "current_balance",
+]) {
     @ApiProperty({ description: "Unit price of the token" })
     unit_price: string
+
+    @ApiProperty({ description: "Injected amount of the pool" })
+    injected_amount: string
+
+    @ApiProperty({ description: "Rewarded amount of the pool" })
+    rewarded_amount: string
+
+    @ApiProperty({ description: "Current balance of the pool" })
+    current_balance: string
 }
 
 export class RewardAllocateRatio {
@@ -139,7 +157,7 @@ export class CreateRewardsPoolDto {
 
 export class UpdateRewardsPoolDto extends PickType(CreateRewardsPoolDto, ["unit_price", "revenue_ratio", "token"]) {}
 
-export class AppendTokenDto {
+export class InjectTokensDto {
     @ApiProperty({ description: "Token address" })
     @IsString()
     @IsNotEmpty()
@@ -174,4 +192,27 @@ export class PoolsResponseListDto {
     @IsNumber()
     @IsPositive()
     total: number
+}
+
+export class RewardSnapshotDto {
+    @ApiProperty({ description: "Token of the pool" })
+    token: string
+
+    @ApiProperty({ description: "Ticker of the pool" })
+    ticker: string
+
+    @ApiProperty({ description: "Unit price of the token" })
+    unit_price: string
+
+    @ApiProperty({ description: "Revenue ratio of the pool" })
+    revenue_ratio: RewardAllocateRatio[]
+
+    @ApiProperty({ description: "Updated at" })
+    updated_at: Date
+
+    @ApiProperty({ description: "Created at" })
+    created_at: Date
+
+    @ApiProperty({ description: "Snapshot date" })
+    snapshot_date: Date
 }

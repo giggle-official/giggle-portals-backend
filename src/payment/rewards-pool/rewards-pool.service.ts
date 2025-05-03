@@ -5,9 +5,11 @@ import {
     Pool,
     PoolResponseDto,
     UpdateRewardsPoolDto,
-    AppendTokenDto,
+    InjectTokensDto,
     PoolsQueryDto,
     PoolsResponseListDto,
+    RewardSnapshotDto,
+    RewardAllocateRoles,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -56,8 +58,9 @@ export class RewardsPoolService {
                     owner: user.usernameShorted,
                     unit_price: body.unit_price,
                     injected_amount: body.amount,
-                    released_amount: 0,
+                    rewarded_amount: 0,
                     current_balance: body.amount,
+                    ticker: ipInfo.ticker,
                     revenue_ratio: this.mapRewardsRatioToPercentage(body.revenue_ratio),
                 },
             })
@@ -98,7 +101,7 @@ export class RewardsPoolService {
         })
     }
 
-    async appendToken(body: AppendTokenDto, user: UserJwtExtractDto): Promise<PoolResponseDto> {
+    async injectTokens(body: InjectTokensDto, user: UserJwtExtractDto): Promise<PoolResponseDto> {
         const poolExists = await this.prisma.reward_pools.findFirst({
             where: { token: body.token, owner: user.usernameShorted },
         })
@@ -106,8 +109,8 @@ export class RewardsPoolService {
             throw new BadRequestException("Pool does not exist or you are not the owner of the pool")
         }
 
-        const newBalance = poolExists.current_balance + body.append_amount
-        const newInjectedAmount = poolExists.injected_amount + body.append_amount
+        const newBalance = poolExists.current_balance.plus(body.append_amount)
+        const newInjectedAmount = poolExists.injected_amount.plus(body.append_amount)
         return await this.prisma.$transaction(async (tx) => {
             const poolUpdated = await tx.reward_pools.update({
                 where: { token: body.token },
@@ -166,7 +169,38 @@ export class RewardsPoolService {
         }
     }
 
+    async getRewardSnapshot(token: string): Promise<RewardSnapshotDto> {
+        const pool = await this.prisma.reward_pools.findFirst({
+            where: { token },
+        })
+        if (!pool) {
+            throw new BadRequestException("Pool does not exist")
+        }
+        return {
+            token: pool.token,
+            ticker: pool.ticker,
+            unit_price: pool.unit_price.toString(),
+            revenue_ratio: pool.revenue_ratio as unknown as RewardAllocateRatio[],
+            updated_at: pool.updated_at,
+            created_at: pool.created_at,
+            snapshot_date: new Date(),
+        }
+    }
+
     checkRewardsRatio(ratio: RewardAllocateRatio[]): boolean {
+        //user can only use customized, buyback, developer, inviter role
+        ratio.map((r) => {
+            if (
+                ![
+                    RewardAllocateRoles.CUSTOMIZED,
+                    RewardAllocateRoles.BUYBACK,
+                    RewardAllocateRoles.DEVELOPER,
+                    RewardAllocateRoles.INVITER,
+                ].includes(r.role)
+            ) {
+                throw new BadRequestException("unknown role")
+            }
+        })
         const totalRatio = ratio.reduce((acc, curr) => acc + curr.ratio, 0)
         return totalRatio === 90
     }
@@ -185,14 +219,16 @@ export class RewardsPoolService {
 
     mapToPoolData(data: Pool): PoolResponseDto {
         return {
+            id: data.id,
             token: data.token,
+            ticker: data.ticker,
             owner: data.owner,
             unit_price: data.unit_price.toString(),
             revenue_ratio: data.revenue_ratio,
             address: data.address,
-            injected_amount: data.injected_amount,
-            released_amount: data.released_amount,
-            current_balance: data.current_balance,
+            injected_amount: data.injected_amount.toString(),
+            rewarded_amount: data.rewarded_amount.toString(),
+            current_balance: data.current_balance.toString(),
             created_at: data.created_at,
             updated_at: data.updated_at,
         }

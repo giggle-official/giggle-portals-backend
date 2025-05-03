@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Req, UseGuards, Query } from "@nestjs/common"
 import {
-    AppendTokenDto,
     CreateRewardsPoolDto,
+    InjectTokensDto,
     PoolResponseDto,
     PoolsQueryDto,
     PoolsResponseListDto,
@@ -27,7 +27,7 @@ export class RewardsPoolController {
     @Post("/create")
     @UseGuards(AuthGuard("jwt"))
     async createPool(@Body() body: CreateRewardsPoolDto, @Req() req: Request) {
-        return this.rewardsPoolService.createPool(body, req.user as UserJwtExtractDto)
+        return await this.rewardsPoolService.createPool(body, req.user as UserJwtExtractDto)
     }
 
     @ApiOperation({
@@ -40,20 +40,20 @@ export class RewardsPoolController {
     @Post("/update")
     @UseGuards(AuthGuard("jwt"))
     async updatePool(@Body() body: UpdateRewardsPoolDto, @Req() req: Request) {
-        return this.rewardsPoolService.updatePool(body, req.user as UserJwtExtractDto)
+        return await this.rewardsPoolService.updatePool(body, req.user as UserJwtExtractDto)
     }
 
     @ApiOperation({
-        summary: "Append a token to a rewards pool",
+        summary: "Inject tokens to a rewards pool",
         tags: ["Rewards Pool Management"],
-        description: "Append a token to a rewards pool",
+        description: "Inject tokens to a rewards pool",
     })
-    @ApiBody({ type: AppendTokenDto })
+    @ApiBody({ type: InjectTokensDto })
     @ApiResponse({ type: PoolResponseDto })
-    @Post("/append-token")
+    @Post("/inject-tokens")
     @UseGuards(AuthGuard("jwt"))
-    async appendToken(@Body() body: AppendTokenDto, @Req() req: Request) {
-        return this.rewardsPoolService.appendToken(body, req.user as UserJwtExtractDto)
+    async injectTokens(@Body() body: InjectTokensDto, @Req() req: Request) {
+        return await this.rewardsPoolService.injectTokens(body, req.user as UserJwtExtractDto)
     }
 
     @Get("/")
@@ -64,6 +64,6 @@ export class RewardsPoolController {
         description: "Get all rewards pools",
     })
     async getPools(@Query() query: PoolsQueryDto) {
-        return this.rewardsPoolService.getPools(query)
+        return await this.rewardsPoolService.getPools(query)
     }
 }

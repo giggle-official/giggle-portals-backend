@@ -930,12 +930,13 @@ model ip_share_count {
 model reward_pools {
   id              Int                     @id @default(autoincrement())
   token           String?                 @unique(map: "token") @db.VarChar(64)
+  ticker          String?                 @db.VarChar(32)
   owner           String?                 @db.VarChar(32)
   revenue_ratio   Json?
   address         String?                 @db.VarChar(1024)
-  injected_amount Int?
-  released_amount Int?
-  current_balance Int?
+  injected_amount Decimal?                @db.Decimal(65, 12)
+  rewarded_amount Decimal?                @db.Decimal(65, 12)
+  current_balance Decimal?                @db.Decimal(65, 12)
   unit_price      Decimal?                @db.Decimal(65, 12)
   created_at      DateTime?               @default(now()) @db.Timestamp(0)
   updated_at      DateTime?               @default(now()) @db.Timestamp(0)
@@ -947,10 +948,10 @@ model reward_pool_statement {
   token            String?           @db.VarChar(64)
   usd_revenue      Decimal?          @db.Decimal(65, 12)
   unit_price       Decimal?          @db.Decimal(65, 12)
-  amount           Int?
+  amount           Decimal?          @db.Decimal(65, 12)
   related_order_id String?           @db.VarChar(36)
   type             reward_pool_type?
-  current_balance  Int?
+  current_balance  Decimal?          @db.Decimal(65, 12)
   created_at       DateTime?         @default(now()) @db.Timestamp(0)
   updated_at       DateTime?         @default(now()) @db.Timestamp(0)
   reward_pools     reward_pools?     @relation(fields: [token], references: [token])
@@ -966,14 +967,17 @@ model user_rewards {
   id                Int       @id @default(autoincrement())
   order_id          String?   @db.VarChar(36)
   user              String?   @db.VarChar(32)
-  rewards           Int?
+  role              String?   @db.VarChar(32)
+  wallet_address    String?   @db.VarChar(64)
+  rewards           Decimal?  @db.Decimal(65, 12)
   token             String?   @db.VarChar(64)
   ticker            String?   @db.VarChar(32)
+  released_per_day  Decimal?  @db.Decimal(65, 12)
   start_allocate    DateTime? @db.DateTime(0)
   end_allocate      DateTime? @db.DateTime(0)
-  released_rewards  Int?
-  locked_rewards    Int?
-  withdraw_rewards  Int?
+  released_rewards  Decimal?  @db.Decimal(65, 12)
+  locked_rewards    Decimal?  @db.Decimal(65, 12)
+  withdraw_rewards  Decimal?  @db.Decimal(65, 12)
   allocate_snapshot Json?
   created_at        DateTime? @default(now()) @db.Timestamp(0)
   updated_at        DateTime? @default(now()) @db.Timestamp(0)
