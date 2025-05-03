@@ -797,4 +797,26 @@ export class OrderService {
                 return defaultAddress
         }
     }
+
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    async settleUserRewards() {
+        try {
+            this.logger.log("Settling user rewards")
+            const result = await this.prisma.$queryRaw`
+update user_rewards r join (select id,
+                                   least(datediff(current_date, start_allocate) *
+                                         (rewards / datediff(end_allocate, start_allocate)), rewards) as r_amount
+                            from user_rewards) u
+    on r.id = u.id
+set r.released_rewards=u.r_amount,
+    r.locked_rewards=r.rewards - u.r_amount
+where r.ticker != 'usdc'
+  and r.end_allocate > r.start_allocate
+  and r.end_allocate >= current_date;
+            `
+            this.logger.log(`Settled result: ${result}`)
+        } catch (error) {
+            this.logger.error(`Error settling user rewards: ${error}`)
+        }
+    }
 }
