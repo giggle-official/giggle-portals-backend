@@ -103,7 +103,7 @@ export class CreateRewardsPoolDto {
 
     @ApiProperty({ description: "Amount of tokens to be allocated to the pool" })
     @IsNumber()
-    @IsPositive()
+    @Min(0)
     amount: number
 
     @ApiProperty({

@@ -47,9 +47,7 @@ export class RewardsPoolService {
         if (!ipInfo) {
             throw new BadRequestException("You are not the owner of the ip")
         }
-        if (!this.checkRewardsRatio(body.revenue_ratio)) {
-            throw new BadRequestException("The sum of the ratio must be 90")
-        }
+        this.checkRewardsRatio(body.revenue_ratio)
         //create pool
         return await this.prisma.$transaction(async (tx) => {
             const poolCreated = await tx.reward_pools.create({
@@ -89,6 +87,9 @@ export class RewardsPoolService {
         if (poolExists.owner !== user.usernameShorted) {
             throw new BadRequestException("You are not the owner of the pool")
         }
+
+        this.checkRewardsRatio(body.revenue_ratio)
+
         return await this.prisma.$transaction(async (tx) => {
             const poolUpdated = await tx.reward_pools.update({
                 where: { token: body.token },
@@ -187,7 +188,7 @@ export class RewardsPoolService {
         }
     }
 
-    checkRewardsRatio(ratio: RewardAllocateRatio[]): boolean {
+    checkRewardsRatio(ratio: RewardAllocateRatio[]): void {
         //user can only use customized, buyback, developer, inviter role
         ratio.map((r) => {
             if (
@@ -202,7 +203,9 @@ export class RewardsPoolService {
             }
         })
         const totalRatio = ratio.reduce((acc, curr) => acc + curr.ratio, 0)
-        return totalRatio === 90
+        if (totalRatio !== 90) {
+            throw new BadRequestException("The sum of the ratio must be 90")
+        }
     }
 
     mapRewardsRatioToPercentage(ratio: RewardAllocateRatio[]): any[] {
@@ -223,9 +226,9 @@ export class RewardsPoolService {
             token: data.token,
             ticker: data.ticker,
             owner: data.owner,
-            unit_price: data.unit_price.toString(),
-            revenue_ratio: data.revenue_ratio,
             address: data.address,
+            unit_price: data.unit_price.toString(),
+            revenue_ratio: data.revenue_ratio.filter((r: RewardAllocateRatio) => r.role !== "platform"),
             injected_amount: data.injected_amount.toString(),
             rewarded_amount: data.rewarded_amount.toString(),
             current_balance: data.current_balance.toString(),

@@ -736,7 +736,7 @@ export class OrderService {
             await tx.reward_pool_statement.create({
                 data: {
                     token: modelSnapshot.token,
-                    amount: allocatedTokenAmount,
+                    amount: allocatedTokenAmount.mul(new Decimal(-1)),
                     usd_revenue: new Decimal(orderRecord.amount).div(100),
                     unit_price: modelSnapshot.unit_price,
                     related_order_id: orderRecord.order_id,
