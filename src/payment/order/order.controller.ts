@@ -110,7 +110,7 @@ export class OrderController {
         const eventType = (localRecord.raw_data as unknown as Stripe.Event).type
         switch (eventType) {
             case "invoice.paid":
-                return await this.orderService.stripeInvoicePaid(localRecord.id)
+                return this.orderService.stripeInvoicePaid(localRecord.id)
             default:
                 return {}
         }
@@ -151,5 +151,17 @@ export class OrderController {
     @ApiResponse({ type: OrderDetailDto })
     async releaseRewards(@Body() body: ReleaseRewardsDto) {
         return await this.orderService.releaseRewards(body)
+    }
+
+    @Get("/get-stripe-pkey")
+    @ApiExcludeEndpoint()
+    async getStripePkey(): Promise<{ pkey: string }> {
+        return { pkey: process.env.STRIPE_PUBLISHABLE_KEY }
+    }
+
+    @Get("/get-stripe-session-status")
+    @ApiExcludeEndpoint()
+    async getStripeSessionStatus(@Query("session_id") sessionId: string): Promise<{ status: string }> {
+        return this.orderService.getStripeSessionStatus(sessionId)
     }
 }

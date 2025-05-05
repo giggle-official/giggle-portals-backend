@@ -36,7 +36,7 @@ import Stripe from "stripe"
 import { InjectStripe } from "nestjs-stripe"
 import { Request } from "express"
 import { HttpService } from "@nestjs/axios"
-import { lastValueFrom } from "rxjs"
+import { async, lastValueFrom } from "rxjs"
 import { LinkService } from "src/open-app/link/link.service"
 import { RewardsPoolService } from "../rewards-pool/rewards-pool.service"
 import {
@@ -281,8 +281,8 @@ export class OrderService {
             customer.stripe_customer_id = customerCreated.id
         }
 
-        const cancelUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}`
-        const successUrl = cancelUrl
+        const returnUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}&session_id={CHECKOUT_SESSION_ID}`
+        const successUrl = returnUrl
 
         const metadata = {
             id: orderId,
@@ -307,6 +307,7 @@ export class OrderService {
                 },
             ],
             mode: "payment",
+            ui_mode: "embedded",
             invoice_creation: {
                 enabled: true,
                 invoice_data: {
@@ -314,14 +315,37 @@ export class OrderService {
                 },
             },
             metadata: metadata,
-            cancel_url: cancelUrl,
-            success_url: successUrl,
+            //cancel_url: cancelUrl,
+            //success_url: successUrl,
+            return_url: returnUrl,
             expires_at: Math.floor(orderRecord.expire_time.getTime() / 1000 + 30 * 60),
         }
 
         const stripeSession = await this.stripe.checkout.sessions.create(stripeSessionParams)
         return {
-            url: stripeSession.url,
+            clientSecret: stripeSession.client_secret,
+        }
+    }
+
+    //stripe session status
+    async getStripeSessionStatus(sessionId: string) {
+        const session = await this.stripe.checkout.sessions.retrieve(sessionId)
+        const orderId = session.client_reference_id
+        const order = await this.prisma.orders.findUnique({
+            where: { order_id: orderId },
+        })
+        if (order && order.current_status === OrderStatus.PENDING && session.status === "complete") {
+            await this.prisma.orders.update({
+                where: { id: order.id },
+                data: {
+                    current_status: OrderStatus.COMPLETED,
+                    paid_method: PaymentMethod.STRIPE,
+                    paid_time: new Date(),
+                },
+            })
+        }
+        return {
+            status: session.status,
         }
     }
 
@@ -458,6 +482,30 @@ export class OrderService {
             },
         })
         await this.processCallback(order.order_id)
+    }
+
+    async stripeSessionCompleted(localRecordId: number) {
+        const localRecord = await this.prisma.stripe_webhook_log.findUnique({
+            where: { id: localRecordId },
+        })
+        const session = (localRecord.raw_data as any).data.object as Stripe.Checkout.Session
+        const orderId = session.client_reference_id
+        const order = await this.prisma.orders.findUnique({
+            where: { order_id: orderId },
+        })
+        if (!order) {
+            this.logger.error(`Order not found for session ${session.id}`)
+            return
+        }
+        await this.prisma.orders.update({
+            where: { id: order.id },
+            data: {
+                current_status: OrderStatus.COMPLETED,
+                paid_method: PaymentMethod.STRIPE,
+                paid_time: new Date(),
+            },
+        })
+        //await this.processCallback(order.order_id)
     }
 
     async processCallback(orderId: string) {
