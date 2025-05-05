@@ -21,7 +21,7 @@ import {
     PayWithWalletRequestDto,
     ResendCallbackRequestDto,
 } from "./order.dto"
-import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -95,6 +95,8 @@ export class OrderController {
         switch (eventType) {
             case "invoice.paid":
                 return this.orderService.stripeInvoicePaid(localRecord.id)
+            //case "checkout.session.completed":
+            //    return this.orderService.stripeSessionCompleted(localRecord.id)
             default:
                 return {}
         }
@@ -111,11 +113,13 @@ export class OrderController {
     }
 
     @Get("/get-stripe-pkey")
+    @ApiExcludeEndpoint()
     async getStripePkey(): Promise<{ pkey: string }> {
         return { pkey: process.env.STRIPE_PUBLISHABLE_KEY }
     }
 
     @Get("/get-stripe-session-status")
+    @ApiExcludeEndpoint()
     async getStripeSessionStatus(@Query("session_id") sessionId: string): Promise<{ status: string }> {
         return this.orderService.getStripeSessionStatus(sessionId)
     }
