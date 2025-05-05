@@ -268,8 +268,8 @@ export class OrderService {
             customer.stripe_customer_id = customerCreated.id
         }
 
-        const cancelUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}`
-        const successUrl = cancelUrl
+        const returnUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}&session_id={CHECKOUT_SESSION_ID}`
+        const successUrl = returnUrl
 
         const metadata = {
             id: orderId,
@@ -294,6 +294,7 @@ export class OrderService {
                 },
             ],
             mode: "payment",
+            ui_mode: "embedded",
             invoice_creation: {
                 enabled: true,
                 invoice_data: {
@@ -301,14 +302,24 @@ export class OrderService {
                 },
             },
             metadata: metadata,
-            cancel_url: cancelUrl,
-            success_url: successUrl,
+            //cancel_url: cancelUrl,
+            //success_url: successUrl,
+            return_url: returnUrl,
             expires_at: Math.floor(orderRecord.expire_time.getTime() / 1000 + 30 * 60),
         }
 
         const stripeSession = await this.stripe.checkout.sessions.create(stripeSessionParams)
+        console.log(stripeSession)
         return {
-            url: stripeSession.url,
+            clientSecret: stripeSession.client_secret,
+        }
+    }
+
+    //stripe session status
+    async getStripeSessionStatus(sessionId: string) {
+        const session = await this.stripe.checkout.sessions.retrieve(sessionId)
+        return {
+            status: session.status,
         }
     }
 

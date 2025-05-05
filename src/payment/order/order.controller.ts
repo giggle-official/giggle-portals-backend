@@ -109,4 +109,14 @@ export class OrderController {
     async resendCallback(@Body() order: ResendCallbackRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
         return this.orderService.resendCallback(order, req.user as UserJwtExtractDto)
     }
+
+    @Get("/get-stripe-pkey")
+    async getStripePkey(): Promise<{ pkey: string }> {
+        return { pkey: process.env.STRIPE_PUBLISHABLE_KEY }
+    }
+
+    @Get("/get-stripe-session-status")
+    async getStripeSessionStatus(@Query("session_id") sessionId: string): Promise<{ status: string }> {
+        return this.orderService.getStripeSessionStatus(sessionId)
+    }
 }

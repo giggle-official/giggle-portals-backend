@@ -244,9 +244,9 @@ export class PayWithStripeRequestDto {
 
 export class PayWithStripeResponseDto {
     @ApiProperty({
-        description: "The url to pay with stripe",
+        description: "The client secret of the stripe",
     })
-    url: string
+    clientSecret: string
 }
 
 export class ResendCallbackRequestDto {
