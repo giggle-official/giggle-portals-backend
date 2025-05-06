@@ -25,7 +25,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
-import { orders, Prisma, user_rewards } from "@prisma/client"
+import { orders, Prisma, user_rewards, users } from "@prisma/client"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
@@ -36,7 +36,7 @@ import Stripe from "stripe"
 import { InjectStripe } from "nestjs-stripe"
 import { Request } from "express"
 import { HttpService } from "@nestjs/axios"
-import { async, lastValueFrom } from "rxjs"
+import { lastValueFrom } from "rxjs"
 import { LinkService } from "src/open-app/link/link.service"
 import { RewardsPoolService } from "../rewards-pool/rewards-pool.service"
 import {
@@ -71,19 +71,6 @@ export class OrderService {
         let relatedRewardId = null
         let rewardsModelSnapshot = null
 
-        if (app_id) {
-            const rewardPool = await this.rewardsPoolService.getPools({
-                app_id: app_id,
-                page: "1",
-                page_size: "1",
-            })
-            if (!rewardPool.pools.length) {
-                throw new BadRequestException("No reward pool found")
-            }
-            relatedRewardId = rewardPool.pools[0].id
-            rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool.pools[0].token)
-        }
-
         if (userProfile?.widget_info?.app_id) {
             const app = await this.prisma.apps.findUnique({
                 where: { app_id: userProfile.widget_info.app_id },
@@ -92,6 +79,19 @@ export class OrderService {
                 throw new BadRequestException("App not found")
             }
             appId = app.app_id
+        }
+
+        if (appId) {
+            const rewardPool = await this.rewardsPoolService.getPools({
+                app_id: appId,
+                page: "1",
+                page_size: "1",
+            })
+            if (!rewardPool.pools.length) {
+                throw new BadRequestException("No reward pool found")
+            }
+            relatedRewardId = rewardPool.pools[0].id
+            rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool.pools[0].token)
         }
 
         const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
@@ -349,9 +349,9 @@ export class OrderService {
         }
     }
 
-    async getRewardsDetail(orderId: string, userInfo: UserInfoDTO): Promise<OrderRewardsDto[]> {
+    async getRewardsDetail(orderId: string): Promise<OrderRewardsDto[]> {
         const order = await this.prisma.orders.findUnique({
-            where: { order_id: orderId, owner: userInfo.usernameShorted },
+            where: { order_id: orderId },
         })
         if (!order) {
             throw new NotFoundException("Order not found")
@@ -359,20 +359,28 @@ export class OrderService {
         return this.mapRewardsDetail(
             await this.prisma.user_rewards.findMany({
                 where: { order_id: orderId },
+                include: {
+                    user_info: true,
+                },
             }),
         )
     }
 
-    mapRewardsDetail(rewards: user_rewards[]): OrderRewardsDto[] {
+    mapRewardsDetail(rewards: (user_rewards & { user_info: users })[]): OrderRewardsDto[] {
         return rewards.map((reward) => ({
             id: reward.id,
             order_id: reward.order_id,
-            user: reward.user,
+            user_info: {
+                username: reward?.user_info?.username,
+                avatar: reward?.user_info?.avatar,
+                email: reward?.user_info?.email,
+            },
             wallet_address: reward.wallet_address,
             rewards: reward.rewards.toString(),
             token: reward.token,
             ticker: reward.ticker,
             role: reward.role as RewardAllocateRoles,
+            note: reward.note,
             created_at: reward.created_at,
             updated_at: reward.updated_at,
             start_allocate: reward.start_allocate,
@@ -676,13 +684,13 @@ export class OrderService {
             const rewardUSDAmount = this._calculateUSDCRewards(reward, orderRecord)
             const rewardTokenAmount = rewardUSDAmount.div(new Decimal(modelSnapshot.unit_price))
             const rewwardType = reward.allocate_type as unknown as RewardAllocateType
-            const { user, address } = await this.getUser(orderRecord, reward)
+            const { user, address, role, note } = await this.getUser(orderRecord, reward)
             if (rewwardType === RewardAllocateType.USDC) {
                 const currentDate = new Date()
                 rewards.push({
                     order_id: orderRecord.order_id,
                     user: user,
-                    role: reward.role,
+                    role: role,
                     token: process.env.GIGGLE_LEGAL_USDC,
                     ticker: "usdc",
                     wallet_address: address,
@@ -694,24 +702,29 @@ export class OrderService {
                     locked_rewards: 0,
                     allocate_snapshot: modelSnapshot as any,
                     withdraw_rewards: 0,
+                    note: note,
                 })
             } else {
-                rewards.push({
-                    order_id: orderRecord.order_id,
-                    user: user,
-                    role: reward.role,
-                    token: modelSnapshot.token,
-                    ticker: modelSnapshot.ticker,
-                    wallet_address: address,
-                    rewards: rewardTokenAmount,
-                    start_allocate: currentDate,
-                    end_allocate: releaseEndTime,
-                    released_per_day: rewardTokenAmount.div(180), //token rewards is released in 180 days
-                    released_rewards: 0,
-                    locked_rewards: rewardTokenAmount,
-                    allocate_snapshot: modelSnapshot as any,
-                    withdraw_rewards: 0,
-                })
+                //we only allocate token to user not buyback
+                if (role !== RewardAllocateRoles.BUYBACK) {
+                    rewards.push({
+                        order_id: orderRecord.order_id,
+                        user: user,
+                        role: role,
+                        token: modelSnapshot.token,
+                        ticker: modelSnapshot.ticker,
+                        wallet_address: address,
+                        rewards: rewardTokenAmount,
+                        start_allocate: currentDate,
+                        end_allocate: releaseEndTime,
+                        released_per_day: rewardTokenAmount.div(180), //token rewards is released in 180 days
+                        released_rewards: 0,
+                        locked_rewards: rewardTokenAmount,
+                        allocate_snapshot: modelSnapshot as any,
+                        withdraw_rewards: 0,
+                        note: note,
+                    })
+                }
 
                 //usdc rewards to buy back account
                 rewards.push({
@@ -729,6 +742,7 @@ export class OrderService {
                     locked_rewards: 0,
                     allocate_snapshot: modelSnapshot as any,
                     withdraw_rewards: 0,
+                    note: note,
                 })
                 allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
             }
@@ -752,6 +766,7 @@ export class OrderService {
             locked_rewards: 0,
             allocate_snapshot: modelSnapshot as any,
             withdraw_rewards: 0,
+            note: "",
         })
 
         //check pool balance
@@ -800,6 +815,9 @@ export class OrderService {
                 where: {
                     order_id: orderRecord.order_id,
                 },
+                include: {
+                    user_info: true,
+                },
             }),
         )
     }
@@ -808,14 +826,22 @@ export class OrderService {
         return new Decimal(orderRecord.amount).mul(new Decimal(reward.ratio)).div(100).div(100)
     }
 
-    async getUser(orderRecord: orders, allocateRatio: RewardAllocateRatio): Promise<{ user: string; address: string }> {
-        const defaultAddress = { user: "", address: process.env.BUYBACK_WALLET }
+    async getUser(
+        orderRecord: orders,
+        allocateRatio: RewardAllocateRatio,
+    ): Promise<{ user: string; address: string; role: RewardAllocateRoles; note: string }> {
+        const defaultAddress = {
+            user: "",
+            address: process.env.BUYBACK_WALLET,
+            role: RewardAllocateRoles.BUYBACK,
+            note: "",
+        }
         switch (allocateRatio.role) {
             case RewardAllocateRoles.BUYBACK:
                 return defaultAddress
             case RewardAllocateRoles.INVITER:
                 if (!orderRecord.from_source_link) {
-                    return defaultAddress
+                    return { ...defaultAddress, note: "Inviter not found, reward to buyback wallet" }
                 }
                 const link = await this.prisma.app_links.findFirst({
                     where: {
@@ -823,12 +849,12 @@ export class OrderService {
                     },
                 })
                 if (!link) {
-                    return defaultAddress
+                    return { ...defaultAddress, note: "Inviter not found, reward to buyback wallet" }
                 }
-                return { user: link.creator, address: "" }
+                return { user: link.creator, address: "", role: RewardAllocateRoles.INVITER, note: "" }
             case RewardAllocateRoles.DEVELOPER:
                 if (!orderRecord.widget_tag) {
-                    return defaultAddress
+                    return { ...defaultAddress, note: "Widget tag not found, reward to buyback wallet" }
                 }
                 const widget = await this.prisma.widgets.findFirst({
                     where: {
@@ -836,13 +862,50 @@ export class OrderService {
                     },
                 })
                 if (!widget) {
-                    return defaultAddress
+                    return { ...defaultAddress, note: "Widget not found, reward to buyback wallet" }
                 }
-                return { user: widget.author, address: "" }
+                return { user: widget.author, address: "", role: RewardAllocateRoles.DEVELOPER, note: "" }
             case RewardAllocateRoles.CUSTOMIZED:
-                return { user: "", address: allocateRatio.address }
+                return { user: "", address: allocateRatio.address, role: RewardAllocateRoles.CUSTOMIZED, note: "" }
             default:
                 return defaultAddress
+        }
+    }
+
+    //@Cron(CronExpression.EVERY_MINUTE)
+    async bindAllOrdersToRewardPool() {
+        console.log("Binding all orders to reward pool")
+        const orders = await this.prisma.orders.findMany({
+            where: {
+                current_status: OrderStatus.COMPLETED,
+                related_reward_id: null,
+            },
+        })
+        for (const order of orders) {
+            try {
+                await this.bindRewardPool({ order_id: order.order_id })
+            } catch (error) {
+                this.logger.error(`Error binding order ${order.order_id} to reward pool: ${error}`)
+                continue
+            }
+        }
+    }
+
+    //@Cron(CronExpression.EVERY_MINUTE)
+    async releaseAllOrders() {
+        const orders = await this.prisma.orders.findMany({
+            where: {
+                current_status: OrderStatus.COMPLETED,
+                related_reward_id: { not: null },
+            },
+        })
+        for (const order of orders) {
+            try {
+                await this.releaseRewards({ order_id: order.order_id })
+            } catch (error) {
+                this.logger.error(`Error releasing rewards for order ${order.order_id}: ${error}`)
+                continue
+            }
         }
     }
 
@@ -867,4 +930,7 @@ where r.ticker != 'usdc'
             this.logger.error(`Error settling user rewards: ${error}`)
         }
     }
+
+    //update user_rewards_withdraw
+    async updateUserRewardsWithdraw() {}
 }

@@ -57,10 +57,16 @@ export class IpNameValidator implements ValidatorConstraintInterface {
             },
         })
         //todo: add order check
-        return !ip && req.name.length >= 1 && req.name.length <= 32
+        return (
+            !ip &&
+            req.name.length >= 1 &&
+            req.name.length <= 32 &&
+            req.ticker.toLowerCase() !== "usdc" &&
+            req.ticker.toLowerCase() !== "usdt"
+        )
     }
 
     defaultMessage(args: ValidationArguments) {
-        return "IP name already exists"
+        return "IP name already exists, ticker must not be USDC or USDT"
     }
 }

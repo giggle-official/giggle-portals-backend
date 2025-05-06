@@ -10,11 +10,19 @@ import {
     PoolsResponseListDto,
     RewardSnapshotDto,
     RewardAllocateRoles,
+    StatisticsSummaryDto,
+    StatisticsQueryDto,
+    StatisticsRolesDto,
+    StatisticsIncomesDto,
+    StatementQueryDto,
+    StatementResponseListDto,
+    StatementType,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { Prisma } from "@prisma/client"
 import { OpenAppService } from "src/open-app/open-app.service"
+import { Decimal } from "@prisma/client/runtime/library"
 
 @Injectable()
 export class RewardsPoolService {
@@ -205,6 +213,182 @@ export class RewardsPoolService {
         const totalRatio = ratio.reduce((acc, curr) => acc + curr.ratio, 0)
         if (totalRatio !== 90) {
             throw new BadRequestException("The sum of the ratio must be 90")
+        }
+    }
+
+    async getStatisticsSummary(query: StatisticsQueryDto): Promise<StatisticsSummaryDto> {
+        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
+            where: { token: query.token },
+            include: {
+                statement: {
+                    where: {
+                        type: "released",
+                    },
+                },
+            },
+        })
+
+        const roleIncomes = await this.prisma.user_rewards.groupBy({
+            by: ["role"],
+            _sum: {
+                rewards: true,
+            },
+            where: {
+                ticker: "usdc",
+                role: {
+                    not: { in: ["platform", "order_creator"] },
+                },
+                order_id: {
+                    in: pool.statement.map((s) => s.related_order_id),
+                },
+            },
+        })
+        //total income expect platform
+        const totalIncomeWithoutPlatform = await this.prisma.user_rewards.aggregate({
+            _sum: {
+                rewards: true,
+            },
+            where: {
+                ticker: "usdc",
+                role: {
+                    not: { in: ["platform", "order_creator"] },
+                },
+                order_id: {
+                    in: pool.statement.map((s) => s.related_order_id),
+                },
+            },
+        })
+
+        return {
+            incomes: totalIncomeWithoutPlatform._sum.rewards?.toNumber() || 0,
+            incomes_total: pool.statement.reduce((acc, curr) => acc.plus(curr.usd_revenue), new Decimal(0)).toNumber(),
+            orders: pool.statement.length,
+            unit_price: pool.unit_price.toNumber(),
+            current_balance: pool.current_balance.toNumber(),
+            injected_amount: pool.injected_amount.toNumber(),
+            rewarded_amount: pool.rewarded_amount.toNumber(),
+            roles_income: roleIncomes.map((r) => ({
+                role: r.role as RewardAllocateRoles,
+                income: r._sum.rewards.toNumber(),
+            })),
+        }
+    }
+
+    async getStatisticsIncomes(query: StatisticsQueryDto): Promise<StatisticsIncomesDto[]> {
+        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
+            where: { token: query.token },
+        })
+
+        const oneMonthIncomes = await this.prisma.$queryRaw<
+            {
+                date: Date
+                order_amount: Decimal
+                orders: number
+            }[]
+        >`
+WITH RECURSIVE date_range AS (
+  SELECT DATE(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) AS date
+  UNION ALL
+  SELECT DATE_ADD(date, INTERVAL 1 DAY)
+  FROM date_range
+  WHERE date < CURRENT_DATE()
+)
+SELECT
+  d.date,
+  IFNULL(COUNT(DISTINCT ur.order_id), 0) AS orders,
+  IFNULL(SUM(ur.rewards), 0) AS order_amount
+FROM date_range d
+CROSS JOIN roles r
+LEFT JOIN orders o ON DATE(o.paid_time) = d.date and o.related_reward_id=${pool.id}
+LEFT JOIN user_rewards ur ON o.order_id = ur.order_id
+  AND ur.ticker = 'usdc'
+  AND ur.role NOT IN ('platform', 'order_creator')
+GROUP BY d.date
+ORDER BY d.date;
+`
+
+        const oneMonthRolesIncomes = await this.prisma.$queryRaw<
+            {
+                date: Date
+                role: string
+                income: Decimal
+            }[]
+        >`WITH RECURSIVE date_range AS (
+  SELECT DATE(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) AS date
+  UNION ALL
+  SELECT DATE_ADD(date, INTERVAL 1 DAY)
+  FROM date_range
+  WHERE date < CURRENT_DATE()
+),
+roles AS (
+  SELECT 'buyback' AS role UNION ALL
+  SELECT 'developer' UNION ALL
+  SELECT 'inviter' UNION ALL
+  SELECT 'customized'
+)
+SELECT
+  d.date,
+  r.role,
+  IFNULL(SUM(ur.rewards), 0) AS income
+FROM date_range d
+CROSS JOIN roles r
+LEFT JOIN orders o ON DATE(o.paid_time) = d.date and o.related_reward_id=${pool.id}
+LEFT JOIN user_rewards ur ON o.order_id = ur.order_id
+  AND ur.role = r.role
+  AND ur.ticker = 'usdc'
+GROUP BY d.date, r.role
+ORDER BY d.date;`
+        return oneMonthIncomes.map((r) => ({
+            date: r.date,
+            orders: Number(r.orders),
+            order_amount: Number(r.order_amount),
+            role_detail: oneMonthRolesIncomes
+                .filter((x) => {
+                    return r.date.toISOString() == x.date.toISOString()
+                })
+                .map((x) => ({
+                    role: x.role as RewardAllocateRoles,
+                    income: Number(x.income),
+                })),
+        }))
+    }
+
+    async getStatement(query: StatementQueryDto): Promise<StatementResponseListDto> {
+        if (!query.token) {
+            throw new BadRequestException("Token is required")
+        }
+        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
+            where: { token: query.token },
+        })
+        const statement = await this.prisma.reward_pool_statement.findMany({
+            where: { token: query.token },
+            include: {
+                order_info: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip: Math.max(parseInt(query.page) - 1, 0) * parseInt(query.page_size),
+            take: parseInt(query.page_size),
+        })
+
+        const count = await this.prisma.reward_pool_statement.count({
+            where: {
+                token: query.token,
+            },
+        })
+
+        return {
+            statements: statement.map((s) => ({
+                date: s.created_at,
+                order_id: s.related_order_id,
+                widget_tag: s.order_info?.widget_tag,
+                usd_revenue: s.usd_revenue,
+                rewarded_amount: s.amount,
+                balance: s.current_balance,
+                type: s.type as StatementType,
+            })),
+            total: count,
         }
     }
 

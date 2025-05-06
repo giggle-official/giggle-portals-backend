@@ -2,7 +2,17 @@ import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
 import { reward_pools } from "@prisma/client"
 import { Decimal } from "@prisma/client/runtime/library"
 import { Type } from "class-transformer"
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsPositive, IsString, Min, ValidateNested } from "class-validator"
+import {
+    IsArray,
+    IsDate,
+    IsEnum,
+    IsNotEmpty,
+    IsNumber,
+    IsPositive,
+    IsString,
+    Min,
+    ValidateNested,
+} from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 export enum RewardAllocateType {
     TOKEN = "token",
@@ -215,4 +225,111 @@ export class RewardSnapshotDto {
 
     @ApiProperty({ description: "Snapshot date" })
     snapshot_date: Date
+}
+
+export class StatisticsQueryDto {
+    @ApiProperty({ description: "token address", required: false })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+}
+
+export class StatisticsRolesDto {
+    @ApiProperty({ description: "roles income", enum: RewardAllocateRoles })
+    @IsEnum(RewardAllocateRoles)
+    role: RewardAllocateRoles
+
+    @ApiProperty({ description: "income" })
+    @IsNumber()
+    income: number
+}
+
+export class StatisticsIncomesDto {
+    @ApiProperty({ description: "date" })
+    @IsDate()
+    date: Date
+
+    @ApiProperty({ description: "orders" })
+    orders: number
+
+    @ApiProperty({ description: "amount" })
+    order_amount: number
+
+    @ApiProperty({ description: "role summary" })
+    role_detail: StatisticsRolesDto[]
+}
+
+export class StatisticsSummaryDto {
+    @ApiProperty({ description: "total income without platform" })
+    incomes: number
+
+    @ApiProperty({ description: "total income with platform" })
+    incomes_total: number
+
+    @ApiProperty({ description: "total orders" })
+    orders: number
+
+    @ApiProperty({ description: "unit price" })
+    unit_price: number
+
+    @ApiProperty({ description: "current balance" })
+    current_balance: number
+
+    @ApiProperty({ description: "injected amount" })
+    injected_amount: number
+
+    @ApiProperty({ description: "rewarded amount" })
+    rewarded_amount: number
+
+    @ApiProperty({ description: "roles income", isArray: true, type: StatisticsRolesDto })
+    roles_income: StatisticsRolesDto[]
+}
+
+export class StatementQueryDto extends PaginationDto {
+    @ApiProperty({ description: "token address", required: false })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+}
+
+export enum StatementType {
+    RELEASED = "released",
+    INJECTED = "injected",
+}
+
+export class StatementResponseDto {
+    @ApiProperty({ description: "date" })
+    date: Date
+
+    @ApiProperty({ description: "usd revenue" })
+    usd_revenue: Decimal
+
+    @ApiProperty({ description: "order id" })
+    order_id: string
+
+    @ApiProperty({ description: "widget id" })
+    widget_tag: string
+
+    @ApiProperty({ description: "rewarded amount" })
+    rewarded_amount: Decimal
+
+    @ApiProperty({ description: "balance" })
+    balance: Decimal
+
+    @ApiProperty({ description: "type", enum: StatementType })
+    @IsEnum(StatementType)
+    type: StatementType
+}
+
+export class StatementResponseListDto {
+    @ApiProperty({ description: "list of statement" })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => StatementResponseDto)
+    statements: StatementResponseDto[]
+
+    @ApiProperty({ description: "total" })
+    @IsNumber()
+    @IsPositive()
+    total: number
 }

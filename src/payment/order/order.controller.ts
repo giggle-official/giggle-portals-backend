@@ -33,7 +33,7 @@ import { Request } from "express"
 import Stripe from "stripe"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
 
-@Controller({ path: "api/v1/order" })
+@Controller({ path: "/api/v1/order" })
 export class OrderController {
     constructor(private readonly orderService: OrderService) {}
 
@@ -94,12 +94,11 @@ export class OrderController {
     @Get("/rewards-detail")
     @ApiOperation({ summary: "Get rewards detail for an order", tags: ["Order"] })
     @ApiResponse({ type: OrderRewardsDto, isArray: true })
-    @UseGuards(AuthGuard("jwt"))
-    async getRewardsDetail(@Query("order_id") orderId: string, @Req() req: Request): Promise<OrderRewardsDto[]> {
+    async getRewardsDetail(@Query("order_id") orderId: string): Promise<OrderRewardsDto[]> {
         if (!orderId) {
             throw new BadRequestException("Order id is required")
         }
-        return await this.orderService.getRewardsDetail(orderId, req.user as UserJwtExtractDto)
+        return await this.orderService.getRewardsDetail(orderId)
     }
 
     @ApiExcludeEndpoint()

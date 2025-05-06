@@ -70,3 +70,54 @@ export class UserWalletDetailQueryDto extends PaginationDto {
     @IsOptional()
     mint?: string
 }
+
+export class UserTokenRewardsQueryDto extends PaginationDto {
+    @ApiProperty({
+        description: "The token to query",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    token?: string
+}
+
+export class UserTokenRewardsDto {
+    @ApiProperty({
+        description: "The token rewards",
+    })
+    token: number
+
+    @ApiProperty({
+        description: "The token ticker",
+    })
+    ticker: string
+
+    @ApiProperty({
+        description: "The token rewards",
+    })
+    rewards: number
+
+    @ApiProperty({
+        description: "The token locked",
+    })
+    locked: number
+
+    @ApiProperty({
+        description: "The token released",
+    })
+    released: number
+}
+
+export class UserTokenRewardsListDto {
+    @ApiProperty({
+        description: "The token rewards",
+        isArray: true,
+        type: () => UserTokenRewardsDto,
+    })
+    rewards: UserTokenRewardsDto[]
+
+    @ApiProperty({
+        description: "The total token rewards of user",
+    })
+    total: number
+}

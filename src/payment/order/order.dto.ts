@@ -352,6 +352,11 @@ export class UserRewards implements user_rewards {
     allocate_snapshot: JsonValue
 
     @ApiProperty({
+        description: "The note of the order rewards",
+    })
+    note: string
+
+    @ApiProperty({
         description: "The created at of the order rewards",
     })
     created_at: Date
@@ -365,6 +370,7 @@ export class UserRewards implements user_rewards {
 export class OrderRewardsDto extends OmitType(UserRewards, [
     "id",
     "rewards",
+    "user",
     "released_per_day",
     "released_rewards",
     "locked_rewards",
@@ -395,4 +401,13 @@ export class OrderRewardsDto extends OmitType(UserRewards, [
         description: "The withdraw rewards of the order rewards",
     })
     withdraw_rewards: string
+
+    @ApiProperty({
+        description: "The user info of the order rewards",
+    })
+    user_info: {
+        username: string
+        avatar: string
+        email: string
+    }
 }

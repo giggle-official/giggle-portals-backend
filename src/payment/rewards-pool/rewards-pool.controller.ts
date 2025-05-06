@@ -5,6 +5,11 @@ import {
     PoolResponseDto,
     PoolsQueryDto,
     PoolsResponseListDto,
+    StatementQueryDto,
+    StatementResponseListDto,
+    StatisticsIncomesDto,
+    StatisticsQueryDto,
+    StatisticsSummaryDto,
     UpdateRewardsPoolDto,
 } from "./rewards-pool.dto"
 import { RewardsPoolService } from "./rewards-pool.service"
@@ -65,5 +70,38 @@ export class RewardsPoolController {
     })
     async getPools(@Query() query: PoolsQueryDto) {
         return await this.rewardsPoolService.getPools(query)
+    }
+
+    @Get("/statistics/summary")
+    @ApiResponse({ type: StatisticsSummaryDto })
+    @ApiOperation({
+        summary: "Get statistics summary",
+        tags: ["Rewards Pool Management"],
+        description: "Get statistics summary",
+    })
+    async getStatisticsSummary(@Query() query: StatisticsQueryDto): Promise<StatisticsSummaryDto> {
+        return await this.rewardsPoolService.getStatisticsSummary(query)
+    }
+
+    @Get("/statistics/incomes")
+    @ApiResponse({ type: StatisticsIncomesDto, isArray: true })
+    @ApiOperation({
+        summary: "Get statistics incomes",
+        tags: ["Rewards Pool Management"],
+        description: "Get statistics incomes",
+    })
+    async getStatisticsIncomes(@Query() query: StatisticsQueryDto): Promise<StatisticsIncomesDto[]> {
+        return await this.rewardsPoolService.getStatisticsIncomes(query)
+    }
+
+    @Get("/statements")
+    @ApiResponse({ type: StatementResponseListDto, isArray: true })
+    @ApiOperation({
+        summary: "Get statements",
+        tags: ["Rewards Pool Management"],
+        description: "Get statements",
+    })
+    async getStatement(@Query() query: StatementQueryDto): Promise<StatementResponseListDto> {
+        return await this.rewardsPoolService.getStatement(query)
     }
 }

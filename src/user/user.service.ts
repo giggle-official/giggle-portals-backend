@@ -23,7 +23,13 @@ import * as crypto from "crypto"
 import { isEmail } from "class-validator"
 import validator from "validator"
 import { NotificationService } from "src/notification/notification.service"
-import { ContactDTO, LoginCodeReqDto } from "./user.dto"
+import {
+    ContactDTO,
+    LoginCodeReqDto,
+    UserTokenRewardsDto,
+    UserTokenRewardsListDto,
+    UserTokenRewardsQueryDto,
+} from "./user.dto"
 import { CreditService } from "src/credit/credit.service"
 import { UtilitiesService } from "src/common/utilities.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
@@ -152,6 +158,54 @@ export class UserService {
         }
 
         return result
+    }
+
+    async getTokenRewards(
+        userInfo: UserJwtExtractDto,
+        query: UserTokenRewardsQueryDto,
+    ): Promise<UserTokenRewardsListDto> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not found")
+        }
+
+        const tokenRewards = await this.prisma.$queryRaw<UserTokenRewardsDto[]>`
+            SELECT 
+                token,
+                ticker,
+                SUM(rewards) as rewards,
+                SUM(locked_rewards) as locked_rewards,
+                SUM(released_rewards) as released_rewards
+            FROM user_rewards
+            WHERE user = ${user.username_in_be} and ticker != 'usdc' ${query.token ? Prisma.sql` and token = ${query.token}` : Prisma.sql``}
+            GROUP BY token,ticker
+            LIMIT ${parseInt(query.page_size)}
+            OFFSET ${Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size))}
+        `
+
+        const total = await this.prisma.user_rewards.findMany({
+            where: {
+                user: user.username_in_be,
+                ticker: {
+                    not: "usdc",
+                },
+                ...(query.token ? { token: query.token } : {}),
+            },
+            distinct: ["user", "token"],
+            select: {
+                user: true,
+                token: true,
+            },
+        })
+
+        return {
+            rewards: tokenRewards,
+            total: total.length,
+        }
     }
 
     async getRegisterInfo(userInfo: UserJwtExtractDto): Promise<RegisterInfoDTO> {

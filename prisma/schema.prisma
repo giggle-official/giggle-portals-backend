@@ -980,10 +980,20 @@ model user_rewards {
   locked_rewards    Decimal?  @db.Decimal(65, 12)
   withdraw_rewards  Decimal?  @db.Decimal(65, 12)
   allocate_snapshot Json?
+  note              String?   @db.Text
   created_at        DateTime? @default(now()) @db.Timestamp(0)
   updated_at        DateTime? @default(now()) @db.Timestamp(0)
   order_info        orders?   @relation(fields: [order_id], references: [order_id])
   user_info         users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model user_rewards_withdraw {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(32)
+  token      String?   @db.VarChar(64)
+  withdrawn  Decimal?  @db.Decimal(65, 12)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
 }
 
 view view_ip_token_prices {

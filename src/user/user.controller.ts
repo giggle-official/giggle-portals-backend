@@ -42,6 +42,8 @@ import {
     LoginCodeReqDto,
     LoginCodeResponseDto,
     UserWalletDetailQueryDto,
+    UserTokenRewardsQueryDto,
+    UserTokenRewardsListDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -560,5 +562,20 @@ export class UserController {
         @Headers("X-Device-Id") deviceId: string,
     ): Promise<LoginCodeResponseDto> {
         return await this.userService.sendLoginCode(loginCodeReqDto, appId, deviceId)
+    }
+
+    @Get("/token-rewards")
+    @ApiTags("User Wallet")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({
+        summary: "Get user token rewards",
+        description: "Get user token rewards",
+    })
+    @ApiResponse({
+        type: UserTokenRewardsListDto,
+    })
+    async getTokenRewards(@Req() req: Request, @Query() query: UserTokenRewardsQueryDto) {
+        return await this.userService.getTokenRewards(req.user as UserJwtExtractDto, query)
     }
 }
