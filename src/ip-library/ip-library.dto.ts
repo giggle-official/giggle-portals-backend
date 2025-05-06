@@ -25,7 +25,12 @@ import { VideoInfoTaskResponseDto } from "src/task/task.dto"
 import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
 import { Type } from "class-transformer"
-import { IpNameValidator, IpPeriodValidator, RevenueDistributionValidator } from "./ip-library.validator"
+import {
+    IpNameValidator,
+    IpPeriodValidator,
+    RevenueDistributionValidator,
+    TickerValidator,
+} from "./ip-library.validator"
 
 export class CreateIpLibraryDto {
     @IsOptional()
@@ -768,7 +773,7 @@ export class CreateIpDto {
     @ApiProperty({
         description: "ticker of the ip library",
     })
-    @Matches(/^[A-Za-z0-9]+$/)
+    @Validate(TickerValidator)
     ticker: string
 
     @IsNotEmpty()
@@ -1001,6 +1006,12 @@ export class IpNameCheckDto {
     })
     @Validate(IpNameValidator)
     name: string
+
+    @ApiProperty({
+        description: "ticker of the ip library",
+    })
+    @Validate(TickerValidator)
+    ticker: string
 }
 export class UnlikeIpDto extends LikeIpDto {}
 

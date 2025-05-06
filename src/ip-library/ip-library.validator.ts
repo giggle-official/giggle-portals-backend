@@ -57,16 +57,24 @@ export class IpNameValidator implements ValidatorConstraintInterface {
             },
         })
         //todo: add order check
-        return (
-            !ip &&
-            req.name.length >= 1 &&
-            req.name.length <= 32 &&
-            req.ticker.toLowerCase() !== "usdc" &&
-            req.ticker.toLowerCase() !== "usdt"
-        )
+        return !ip && req.name.length >= 1 && req.name.length <= 32
     }
 
     defaultMessage(args: ValidationArguments) {
         return "IP name already exists, ticker must not be USDC or USDT"
+    }
+}
+
+@ValidatorConstraint({ async: true })
+@Injectable()
+export class TickerValidator implements ValidatorConstraintInterface {
+    validate(obj: string, args: ValidationArguments) {
+        console.log(obj)
+        const regex = /^[A-Za-z0-9]+$/
+        return obj.toUpperCase() !== "USDC" && obj.toUpperCase() !== "USDT" && regex.test(obj)
+    }
+
+    defaultMessage(args: ValidationArguments) {
+        return "Ticker must not be USDC or USDT and must contain only letters and numbers"
     }
 }
