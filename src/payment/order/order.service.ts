@@ -564,6 +564,17 @@ export class OrderService {
         return await this.mapOrderDetail(orderRecord)
     }
 
+    async bindRewardPoolByUser(order: BindRewardPoolDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+        const { order_id } = order
+        const orderRecord = await this.prisma.orders.findUnique({
+            where: { order_id: order_id, owner: userInfo.usernameShorted },
+        })
+        if (!orderRecord) {
+            throw new NotFoundException("Order not found")
+        }
+        return await this.bindRewardPool(order)
+    }
+
     async bindRewardPool(order: BindRewardPoolDto): Promise<OrderDetailDto> {
         const { order_id } = order
         const orderRecord = await this.prisma.orders.findUnique({

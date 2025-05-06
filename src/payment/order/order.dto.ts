@@ -148,8 +148,9 @@ export class OrderDetailDto extends OmitType(OrderDto, [
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",
+        type: () => RewardSnapshotDto,
     })
-    rewards_model_snapshot: any
+    rewards_model_snapshot: RewardSnapshotDto
     @ApiProperty({
         description: "The url of order to pay or check the order status",
     })

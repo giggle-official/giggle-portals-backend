@@ -214,7 +214,7 @@ export class RewardSnapshotDto {
     @ApiProperty({ description: "Unit price of the token" })
     unit_price: string
 
-    @ApiProperty({ description: "Revenue ratio of the pool" })
+    @ApiProperty({ description: "Revenue ratio of the pool", isArray: true, type: RewardAllocateRatio })
     revenue_ratio: RewardAllocateRatio[]
 
     @ApiProperty({ description: "Updated at" })

@@ -79,6 +79,16 @@ export class OrderController {
         return await this.orderService.releaseRewardsByUser(body, req.user as UserJwtExtractDto)
     }
 
+    @Post("/bind-reward-pool")
+    @ApiOperation({ summary: "Bind a reward pool to an order", tags: ["Order"] })
+    @ApiBody({ type: BindRewardPoolDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    async bindRewardPoolByUser(@Body() body: BindRewardPoolDto, @Req() req: Request) {
+        return await this.orderService.bindRewardPoolByUser(body, req.user as UserJwtExtractDto)
+    }
+
     @Post("/payWithWallet")
     @ApiExcludeEndpoint()
     @ApiOperation({ summary: "Pay an order with wallet", tags: ["Order"] })
