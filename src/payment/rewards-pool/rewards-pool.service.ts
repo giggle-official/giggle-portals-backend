@@ -298,7 +298,6 @@ SELECT
   IFNULL(COUNT(DISTINCT ur.order_id), 0) AS orders,
   IFNULL(SUM(ur.rewards), 0) AS order_amount
 FROM date_range d
-CROSS JOIN roles r
 LEFT JOIN orders o ON DATE(o.paid_time) = d.date and o.related_reward_id=${pool.id}
 LEFT JOIN user_rewards ur ON o.order_id = ur.order_id
   AND ur.ticker = 'usdc'
