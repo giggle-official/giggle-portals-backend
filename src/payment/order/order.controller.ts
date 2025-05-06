@@ -66,6 +66,19 @@ export class OrderController {
         return await this.orderService.createOrder(order, req.user as UserJwtExtractDto)
     }
 
+    @Post("/release-rewards")
+    @ApiOperation({
+        summary: "Release rewards for an order",
+        description: "Release rewards for an order, after the released, order can not be refunded",
+    })
+    @ApiBody({ type: ReleaseRewardsDto })
+    @ApiResponse({ type: OrderRewardsDto, isArray: true })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    async releaseRewardsByUser(@Body() body: ReleaseRewardsDto, @Req() req: Request) {
+        return await this.orderService.releaseRewardsByUser(body, req.user as UserJwtExtractDto)
+    }
+
     @Post("/payWithWallet")
     @ApiExcludeEndpoint()
     @ApiOperation({ summary: "Pay an order with wallet", tags: ["Order"] })
@@ -115,7 +128,7 @@ export class OrderController {
         }
     }
 
-    @Post("/resend-callback")
+    @Post("/admin-resend-callback")
     @ApiOperation({ summary: "Resend callback for an order", tags: ["Order Management"] })
     @ApiBody({ type: ResendCallbackRequestDto })
     @ApiResponse({ type: OrderDetailDto })
@@ -126,7 +139,7 @@ export class OrderController {
     }
 
     @UseGuards(IsAdminGuard)
-    @Post("/bind-reward-pool")
+    @Post("/admin-bind-reward-pool")
     @ApiOperation({ summary: "Bind a reward pool to an order", tags: ["Order Management"] })
     @ApiBody({ type: BindRewardPoolDto })
     @ApiResponse({ type: OrderDetailDto })
@@ -134,7 +147,7 @@ export class OrderController {
         return await this.orderService.bindRewardPool(body)
     }
 
-    @Post("/unbind-reward-pool")
+    @Post("/admin-unbind-reward-pool")
     @UseGuards(IsAdminGuard)
     @ApiOperation({ summary: "Unbind a reward pool from an order", tags: ["Order Management"] })
     @ApiBody({ type: UnbindRewardPoolDto })
@@ -143,7 +156,7 @@ export class OrderController {
         return await this.orderService.unbindRewardPool(body)
     }
 
-    @Post("/release-rewards")
+    @Post("/admin-release-rewards")
     @UseGuards(IsAdminGuard)
     @ApiOperation({ summary: "Release rewards for an order", tags: ["Order Management"] })
     @ApiBody({ type: ReleaseRewardsDto })

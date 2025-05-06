@@ -624,6 +624,16 @@ export class OrderService {
         )
     }
 
+    async releaseRewardsByUser(order: ReleaseRewardsDto, userInfo: UserInfoDTO): Promise<OrderRewardsDto[]> {
+        const orderRecord = await this.prisma.orders.findFirst({
+            where: { owner: userInfo.usernameShorted, order_id: order.order_id },
+        })
+        if (!orderRecord) {
+            throw new NotFoundException("Order not found")
+        }
+        return await this.releaseRewards(order)
+    }
+
     async releaseRewards(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
         const { order_id } = order
         const orderRecord = await this.prisma.orders.findUnique({
