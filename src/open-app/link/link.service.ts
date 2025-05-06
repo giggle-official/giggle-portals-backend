@@ -136,6 +136,9 @@ export class LinkService {
     }
 
     async getLink(uniqueStr: string): Promise<LinkDetailDto | null> {
+        if (!uniqueStr) {
+            return null
+        }
         const link = await this.prisma.app_links.findUnique({
             where: {
                 unique_str: uniqueStr,
