@@ -246,6 +246,11 @@ export class OrderService {
                 },
             },
         })
+
+        if (orderRecord.release_rewards_after_paid) {
+            await this.releaseRewards(orderRecord)
+        }
+
         await this.processCallback(orderRecord.order_id)
         return await this.mapOrderDetail(orderRecord)
     }
@@ -769,7 +774,7 @@ export class OrderService {
                     locked_rewards: 0,
                     allocate_snapshot: modelSnapshot as any,
                     withdraw_rewards: 0,
-                    note: note,
+                    note: `The ${role} got token rewards, so we need usdc to buyback`,
                 })
                 allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
             }
