@@ -106,6 +106,7 @@ export class OrderService {
                 description: order.description,
                 related_reward_id: relatedRewardId,
                 rewards_model_snapshot: rewardsModelSnapshot as any,
+                release_rewards_after_paid: order?.release_rewards_after_paid,
                 current_status: OrderStatus.PENDING,
                 supported_payment_method: OrderService.paymentMethod,
                 redirect_url: order.redirect_url,
@@ -138,6 +139,7 @@ export class OrderService {
             cancelled_time: data.cancelled_time,
             cancelled_detail: data.cancelled_detail,
             rewards_model_snapshot: data.rewards_model_snapshot as unknown as any,
+            release_rewards_after_paid: data.release_rewards_after_paid,
             order_url: orderUrl,
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
@@ -489,6 +491,10 @@ export class OrderService {
                 stripe_invoice_detail: invoice as any,
             },
         })
+
+        if (order.release_rewards_after_paid) {
+            await this.releaseRewards(order)
+        }
         await this.processCallback(order.order_id)
     }
 
@@ -937,7 +943,7 @@ export class OrderService {
             const result = await this.prisma.$queryRaw`
 update user_rewards r join (select id,
                                    least(datediff(current_date, start_allocate) *
-                                         (rewards / datediff(end_allocate, start_allocate)), rewards) as r_amount
+                                         (rewards / greatest(1, datediff(end_allocate, start_allocate))), rewards) as r_amount
                             from user_rewards) u
     on r.id = u.id
 set r.released_rewards=u.r_amount,

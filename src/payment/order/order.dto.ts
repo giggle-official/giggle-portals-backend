@@ -90,6 +90,11 @@ export class OrderDto implements orders {
     rewards_model_snapshot: any
 
     @ApiProperty({
+        description: "The release rewards after paid of the order",
+    })
+    release_rewards_after_paid: boolean
+
+    @ApiProperty({
         description: "The supported payment method of the order",
     })
     supported_payment_method: string[]
@@ -189,6 +194,13 @@ export class CreateOrderDto {
     @IsNotEmpty()
     @Min(1)
     amount: number
+
+    @ApiProperty({
+        description: "Release rewards after paid of the order, default is false",
+        required: false,
+        default: false,
+    })
+    release_rewards_after_paid?: boolean
 
     @ApiProperty({ description: "The description of the order", required: false })
     description?: string
