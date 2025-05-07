@@ -365,7 +365,7 @@ ORDER BY d.date;`
                 order_info: true,
             },
             orderBy: {
-                created_at: "desc",
+                id: "desc",
             },
             skip: Math.max(parseInt(query.page) - 1, 0) * parseInt(query.page_size),
             take: parseInt(query.page_size),
