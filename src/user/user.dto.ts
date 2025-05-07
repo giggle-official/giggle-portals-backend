@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { IsString, IsEmail, IsNotEmpty, IsOptional } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
-import { WalletDetailDto } from "src/web3/giggle/giggle.dto"
+import { CreateIpTokenGiggleResponseDto, WalletDetailDto } from "src/web3/giggle/giggle.dto"
 
 export class ContactDTO {
     @ApiProperty()
@@ -85,7 +85,13 @@ export class UserTokenRewardsDto {
     @ApiProperty({
         description: "The token rewards",
     })
-    token: number
+    token: string
+
+    @ApiProperty({
+        description: "The token info",
+        type: () => CreateIpTokenGiggleResponseDto,
+    })
+    token_info: CreateIpTokenGiggleResponseDto
 
     @ApiProperty({
         description: "The token ticker",

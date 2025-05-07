@@ -1,4 +1,16 @@
-import { Controller, HttpCode, HttpStatus, Post, Req, Body, UseGuards, Headers, Get, Param } from "@nestjs/common"
+import {
+    Controller,
+    HttpCode,
+    HttpStatus,
+    Post,
+    Req,
+    Body,
+    UseGuards,
+    Headers,
+    Get,
+    Param,
+    Query,
+} from "@nestjs/common"
 import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { CreateIpOrderDto } from "../ip-library.dto"
@@ -6,7 +18,7 @@ import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from 
 import { IpOrderService } from "./ip-order.service"
 import { OrderDetailDto } from "src/payment/order/order.dto"
 import { Request } from "express"
-import { CheckIpOrderDto, CheckIpOrderListDto } from "./ip-order.dto"
+import { CheckIpOrderDto, CheckIpOrderListDto, OrderRanksResponseDto } from "./ip-order.dto"
 
 @ApiTags("IP Order")
 @Controller("/api/v1/ip/order")
@@ -41,6 +53,17 @@ export class IpOrderController {
     @ApiResponse({ type: CheckIpOrderListDto })
     async getIpOrderList(@Req() req: Request, @Headers("app-id") app_id: string) {
         return await this.ipOrderService.getIpOrderList(req.user as UserJwtExtractDto, app_id)
+    }
+
+    @Get("/ranks")
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: "Get ip creation ranks",
+        description: "Get ip creation ranks, default is top 30",
+    })
+    @ApiResponse({ type: OrderRanksResponseDto })
+    async getOrderRanks(@Headers("app-id") app_id: string) {
+        return await this.ipOrderService.getOrderRanks(app_id)
     }
 
     @Get("/:order_id")

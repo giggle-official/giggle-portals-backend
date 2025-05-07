@@ -202,8 +202,22 @@ export class UserService {
             },
         })
 
+        //get current token Info from ip_library
+        const currentTokenInfo = await this.prisma.ip_library.findMany({
+            where: {
+                token_mint: { in: tokenRewards.map((token) => token.token) },
+            },
+            select: {
+                token_mint: true,
+                token_info: true,
+            },
+        })
+
         return {
-            rewards: tokenRewards,
+            rewards: tokenRewards.map((token) => ({
+                ...token,
+                token_info: (currentTokenInfo?.find((info) => info.token_mint === token.token) as any)?.token_info,
+            })),
             total: total.length,
         }
     }

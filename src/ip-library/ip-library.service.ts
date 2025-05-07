@@ -356,6 +356,7 @@ export class IpLibraryService {
             user_info: true,
             ip_signature_clips: true,
             ip_library_child: true,
+            ip_share_count: true,
             _count: {
                 select: {
                     ip_comments: true,
@@ -1410,6 +1411,7 @@ export class IpLibraryService {
                 where: { id: ip.id },
                 data: {
                     token_info: tokenInfo?.token_info,
+                    token_mint: (tokenInfo?.token_info as any)?.mint,
                 },
             })
 
@@ -2070,7 +2072,7 @@ export class IpLibraryService {
             })
             await tx.ip_library.update({
                 where: { id: body.id },
-                data: { token_info: null, current_token_info: null },
+                data: { token_info: null, current_token_info: null, token_mint: null },
             })
         })
         return await this.detail(body.id.toString(), null)

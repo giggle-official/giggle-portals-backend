@@ -41,3 +41,25 @@ export class CheckIpOrderListDto {
     })
     orders: CheckIpOrderDto[]
 }
+
+export class OrderRanksResponseDto {
+    @ApiProperty({
+        description: "The username of the user",
+    })
+    username: string
+
+    @ApiProperty({
+        description: "The avatar of the user",
+    })
+    avatar: string
+
+    @ApiProperty({
+        description: "The rank of the user",
+    })
+    rank: number
+
+    @ApiProperty({
+        description: "The total duration of the ip creation",
+    })
+    duration: number
+}

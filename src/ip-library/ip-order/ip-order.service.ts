@@ -6,7 +6,7 @@ import { CreateOrderDto, OrderDetailDto, OrderStatus } from "src/payment/order/o
 import { OrderService } from "src/payment/order/order.service"
 import { IpLibraryService } from "../ip-library.service"
 import { AssetsService } from "src/assets/assets.service"
-import { CheckIpOrderDto, CheckIpOrderListDto, IpCreateStatus } from "./ip-order.dto"
+import { CheckIpOrderDto, CheckIpOrderListDto, IpCreateStatus, OrderRanksResponseDto } from "./ip-order.dto"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { lastValueFrom, Observable, take, tap, toArray } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
@@ -68,17 +68,32 @@ export class IpOrderService {
         if (!parentIp) {
             throw new BadRequestException("parent ip not found")
         }
+
+        //find top level ip
+        const topLevelIp = await this.prisma.ip_library_child.findFirst({
+            where: {
+                ip_id: body.parent_ip_library_id,
+            },
+            select: {
+                parent_ip: true,
+            },
+        })
+        if (!topLevelIp) {
+            throw new BadRequestException("top level ip not found")
+        }
+
         let amount = 1
+        let duration = 1
         if (!body.video_id) {
             amount = parentIp.authorization_settings.license_price
+            duration = 1
         } else {
             const asset = await this.assetsService.getAsset(user, body.video_id)
             if (!asset || asset.type !== "video") {
                 throw new BadRequestException("asset not found or is not a video")
             }
-            amount =
-                Math.max(Math.ceil(asset?.asset_info?.videoInfo?.duration / 60), 1) *
-                parentIp.authorization_settings.license_price
+            duration = Math.ceil(asset?.asset_info?.videoInfo?.duration / 60)
+            amount = duration * parentIp.authorization_settings.license_price
         }
 
         if (amount < parentIp.authorization_settings.license_price) {
@@ -87,7 +102,7 @@ export class IpOrderService {
 
         const orderInfo: CreateOrderDto = {
             amount: amount * 100,
-            description: `create derivative ip for ${parentIp.name}`,
+            description: `Create Derivative Ip For ${parentIp.name}`,
             redirect_url: body.redirect_url,
             callback_url: `${process.env.FRONTEND_URL}/api/v1/ip/order/callback`,
         }
@@ -98,6 +113,8 @@ export class IpOrderService {
             data: {
                 order_id: orderDetail.order_id,
                 creation_data: body as any,
+                top_level_ip: topLevelIp.parent_ip,
+                duration: duration,
                 current_status: orderDetail.current_status,
                 owner: orderDetail.owner,
                 ip_create_status: IpCreateStatus.PENDING,
@@ -161,6 +178,51 @@ export class IpOrderService {
         }
     }
 
+    async getOrderRanks(app_id: string): Promise<OrderRanksResponseDto[]> {
+        const appBindIp = await this.prisma.app_bind_ips.findFirst({
+            where: {
+                app_id: app_id,
+            },
+        })
+        if (!appBindIp) {
+            throw new BadRequestException("app not found")
+        }
+        const topLevelIpId = appBindIp.ip_id
+        const ipLibraries = await this.prisma.third_level_ip_orders.groupBy({
+            by: ["owner"],
+            _sum: {
+                duration: true,
+            },
+            where: {
+                top_level_ip: topLevelIpId,
+                ip_create_status: IpCreateStatus.CREATED,
+                current_status: OrderStatus.COMPLETED,
+            },
+            orderBy: {
+                _sum: {
+                    duration: "desc",
+                },
+            },
+        })
+
+        const users = await this.prisma.users.findMany({
+            where: {
+                username_in_be: { in: ipLibraries.map((ip) => ip.owner) },
+            },
+            select: {
+                username_in_be: true,
+                username: true,
+                avatar: true,
+            },
+        })
+
+        return ipLibraries.map((ip, index) => ({
+            username: users.find((u) => u.username_in_be === ip.owner)?.username || "",
+            avatar: users.find((u) => u.username_in_be === ip.owner)?.avatar || "",
+            duration: ip._sum.duration || 0,
+            rank: index + 1,
+        }))
+    }
     async orderCallback(body: OrderDetailDto) {
         const previousOrder = await this.prisma.third_level_ip_orders.findFirst({
             where: {

@@ -275,6 +275,7 @@ model ip_library {
   extra_info              Json?
   creation_guide_lines    String?                     @db.Text
   authorization_settings  Json?
+  token_mint              String?                     @db.VarChar(64)
   token_info              Json?
   current_token_info      Json?
   created_at              DateTime?                   @default(now()) @db.DateTime(0)
@@ -869,6 +870,8 @@ model third_level_ip_orders {
   id                 Int       @id @default(autoincrement())
   creation_data      Json?
   order_id           String?   @db.VarChar(36)
+  top_level_ip       Int?
+  duration           Int?
   current_status     String?   @db.VarChar(16)
   retry_count        Int?      @default(0)
   ip_create_status   String?   @db.VarChar(32)
