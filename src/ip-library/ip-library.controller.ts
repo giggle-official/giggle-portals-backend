@@ -440,11 +440,7 @@ data: some error message
     @UseGuards(OptionalJwtAuthGuard)
     @ApiParam({ name: "id", type: Number })
     async getDetail(@Param("id") id: string, @Req() req: Request): Promise<IpLibraryDetailDto> {
-        if (req?.user) {
-            return await this.ipLibraryService.detail(id, null, null, req.user as UserJwtExtractDto)
-        } else {
-            return await this.ipLibraryService.detail(id, true, null, null)
-        }
+        return await this.ipLibraryService.detail(id, true, null, req?.user as UserJwtExtractDto)
     }
 
     @Post("/register-token")
