@@ -798,7 +798,8 @@ export class OrderService {
         rewards.push({
             order_id: orderRecord.order_id,
             user: "",
-            role: "platform",
+            role: RewardAllocateRoles.PLATFORM,
+            expected_role: RewardAllocateRoles.PLATFORM,
             token: process.env.GIGGLE_LEGAL_USDC,
             ticker: "usdc",
             wallet_address: process.env.PLATFORM_WALLET,
