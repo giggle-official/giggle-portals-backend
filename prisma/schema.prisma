@@ -973,6 +973,7 @@ model user_rewards {
   order_id          String?   @db.VarChar(36)
   user              String?   @db.VarChar(32)
   role              String?   @db.VarChar(32)
+  expected_role     String?   @db.VarChar(32)
   wallet_address    String?   @db.VarChar(64)
   rewards           Decimal?  @db.Decimal(65, 12)
   token             String?   @db.VarChar(64)

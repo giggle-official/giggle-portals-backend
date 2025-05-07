@@ -305,9 +305,14 @@ export class UserRewards implements user_rewards {
     user: string
 
     @ApiProperty({
-        description: "The role of the order rewards",
+        description: "The actual allocated role of the order rewards",
     })
     role: RewardAllocateRoles
+
+    @ApiProperty({
+        description: "The expected role of the order rewards",
+    })
+    expected_role: RewardAllocateRoles
 
     @ApiProperty({
         description: "The wallet address of the order rewards",

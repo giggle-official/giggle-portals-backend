@@ -387,6 +387,7 @@ export class OrderService {
             token: reward.token,
             ticker: reward.ticker,
             role: reward.role as RewardAllocateRoles,
+            expected_role: reward.expected_role as RewardAllocateRoles,
             note: reward.note,
             created_at: reward.created_at,
             updated_at: reward.updated_at,
@@ -715,14 +716,18 @@ export class OrderService {
             }
             const rewardUSDAmount = this._calculateUSDCRewards(reward, orderRecord)
             const rewardTokenAmount = rewardUSDAmount.div(new Decimal(modelSnapshot.unit_price))
-            const rewwardType = reward.allocate_type as unknown as RewardAllocateType
-            const { user, address, role, note } = await this.getUser(orderRecord, reward)
-            if (rewwardType === RewardAllocateType.USDC) {
+            const rewardType = reward.allocate_type as unknown as RewardAllocateType
+            const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
+                orderRecord,
+                reward,
+            )
+            if (rewardType === RewardAllocateType.USDC) {
                 const currentDate = new Date()
                 rewards.push({
                     order_id: orderRecord.order_id,
                     user: user,
-                    role: role,
+                    role: actualAllocateRole,
+                    expected_role: expectedAllocateRole,
                     token: process.env.GIGGLE_LEGAL_USDC,
                     ticker: "usdc",
                     wallet_address: address,
@@ -738,11 +743,12 @@ export class OrderService {
                 })
             } else {
                 //we only allocate token to user not buyback
-                if (role !== RewardAllocateRoles.BUYBACK) {
+                if (actualAllocateRole !== RewardAllocateRoles.BUYBACK) {
                     rewards.push({
                         order_id: orderRecord.order_id,
                         user: user,
-                        role: role,
+                        role: actualAllocateRole,
+                        expected_role: expectedAllocateRole,
                         token: modelSnapshot.token,
                         ticker: modelSnapshot.ticker,
                         wallet_address: address,
@@ -758,11 +764,17 @@ export class OrderService {
                     })
                 }
 
-                //usdc rewards to buy back account
+                let buybackNote =
+                    actualAllocateRole !== RewardAllocateRoles.BUYBACK
+                        ? `We need to allocate ${rewardTokenAmount} ${modelSnapshot.ticker} to the ${expectedAllocateRole} in order to give the ${actualAllocateRole} the corresponding token rewards.`
+                        : note
+
+                //whatever the role is, we need to allocate usdc to buyback account
                 rewards.push({
                     order_id: orderRecord.order_id,
                     user: "",
                     role: RewardAllocateRoles.BUYBACK,
+                    expected_role: expectedAllocateRole,
                     token: process.env.GIGGLE_LEGAL_USDC,
                     ticker: "usdc",
                     wallet_address: process.env.BUYBACK_WALLET,
@@ -774,7 +786,7 @@ export class OrderService {
                     locked_rewards: 0,
                     allocate_snapshot: modelSnapshot as any,
                     withdraw_rewards: 0,
-                    note: `The ${role} got token rewards, so we need usdc to buyback`,
+                    note: buybackNote,
                 })
                 allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
             }
@@ -861,19 +873,31 @@ export class OrderService {
     async getUser(
         orderRecord: orders,
         allocateRatio: RewardAllocateRatio,
-    ): Promise<{ user: string; address: string; role: RewardAllocateRoles; note: string }> {
-        const defaultAddress = {
-            user: "",
-            address: process.env.BUYBACK_WALLET,
-            role: RewardAllocateRoles.BUYBACK,
-            note: "",
-        }
+    ): Promise<{
+        user: string
+        address: string
+        actualAllocateRole: RewardAllocateRoles
+        expectedAllocateRole: RewardAllocateRoles
+        note: string
+    }> {
         switch (allocateRatio.role) {
             case RewardAllocateRoles.BUYBACK:
-                return defaultAddress
+                return {
+                    user: "",
+                    address: process.env.BUYBACK_WALLET,
+                    expectedAllocateRole: RewardAllocateRoles.BUYBACK,
+                    actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                    note: "",
+                }
             case RewardAllocateRoles.INVITER:
                 if (!orderRecord.from_source_link) {
-                    return { ...defaultAddress, note: "Inviter not found, reward to buyback wallet" }
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Inviter not found, reward to buyback wallet",
+                    }
                 }
                 const link = await this.prisma.app_links.findFirst({
                     where: {
@@ -881,12 +905,30 @@ export class OrderService {
                     },
                 })
                 if (!link) {
-                    return { ...defaultAddress, note: "Inviter not found, reward to buyback wallet" }
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Inviter not found, reward to buyback wallet",
+                    }
                 }
-                return { user: link.creator, address: "", role: RewardAllocateRoles.INVITER, note: "" }
+                return {
+                    user: link.creator,
+                    address: "",
+                    expectedAllocateRole: RewardAllocateRoles.INVITER,
+                    actualAllocateRole: RewardAllocateRoles.INVITER,
+                    note: "",
+                }
             case RewardAllocateRoles.DEVELOPER:
                 if (!orderRecord.widget_tag) {
-                    return { ...defaultAddress, note: "Widget tag not found, reward to buyback wallet" }
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.DEVELOPER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Widget tag not found, reward to buyback wallet",
+                    }
                 }
                 const widget = await this.prisma.widgets.findFirst({
                     where: {
@@ -894,13 +936,37 @@ export class OrderService {
                     },
                 })
                 if (!widget) {
-                    return { ...defaultAddress, note: "Widget not found, reward to buyback wallet" }
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.DEVELOPER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Widget not found, reward to buyback wallet",
+                    }
                 }
-                return { user: widget.author, address: "", role: RewardAllocateRoles.DEVELOPER, note: "" }
+                return {
+                    user: widget.author,
+                    address: "",
+                    expectedAllocateRole: RewardAllocateRoles.DEVELOPER,
+                    actualAllocateRole: RewardAllocateRoles.DEVELOPER,
+                    note: "",
+                }
             case RewardAllocateRoles.CUSTOMIZED:
-                return { user: "", address: allocateRatio.address, role: RewardAllocateRoles.CUSTOMIZED, note: "" }
+                return {
+                    user: "",
+                    address: allocateRatio.address,
+                    expectedAllocateRole: RewardAllocateRoles.CUSTOMIZED,
+                    actualAllocateRole: RewardAllocateRoles.CUSTOMIZED,
+                    note: "",
+                }
             default:
-                return defaultAddress
+                return {
+                    user: "",
+                    address: "",
+                    expectedAllocateRole: RewardAllocateRoles.BUYBACK,
+                    actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                    note: "unknown role, reward to buyback wallet",
+                }
         }
     }
 

@@ -17,6 +17,7 @@ import {
     StatementQueryDto,
     StatementResponseListDto,
     StatementType,
+    RewardAllocateType,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -213,6 +214,24 @@ export class RewardsPoolService {
         const totalRatio = ratio.reduce((acc, curr) => acc + curr.ratio, 0)
         if (totalRatio !== 90) {
             throw new BadRequestException("The sum of the ratio must be 90")
+        }
+
+        for (const r of ratio) {
+            let allocateType = r.allocate_type as unknown as RewardAllocateType
+            switch (r.role) {
+                case RewardAllocateRoles.BUYBACK:
+                    if (allocateType !== RewardAllocateType.USDC) {
+                        throw new BadRequestException("The allocate type of buyback must be usdc")
+                    }
+                    break
+                case RewardAllocateRoles.DEVELOPER:
+                    if (allocateType !== RewardAllocateType.USDC) {
+                        throw new BadRequestException("The allocate type of developer must be usdc")
+                    }
+                    break
+                default:
+                    break
+            }
         }
     }
 
