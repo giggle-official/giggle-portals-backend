@@ -64,9 +64,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
 
             await this.jwtService.verifyAsync(payload.token, { secret: process.env.SESSION_SECRET })
 
+            if (!extractedPayload?.usernameShorted) {
+                return null
+            }
             const userInfo = await this.prismaService.users.findFirst({
                 where: {
-                    username_in_be: extractedPayload.token,
+                    username_in_be: extractedPayload?.usernameShorted,
                     is_blocked: false,
                 },
             })
