@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common"
 import {
     BindRewardPoolDto,
+    OrderCallbackDto,
     OrderDetailDto,
     OrderListDto,
     OrderListQueryDto,
@@ -26,7 +27,7 @@ import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
 import { orders, Prisma, user_rewards, users } from "@prisma/client"
-import { UserInfoDTO } from "src/user/user.controller"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
@@ -36,7 +37,7 @@ import Stripe from "stripe"
 import { InjectStripe } from "nestjs-stripe"
 import { Request } from "express"
 import { HttpService } from "@nestjs/axios"
-import { lastValueFrom } from "rxjs"
+import { async, lastValueFrom } from "rxjs"
 import { LinkService } from "src/open-app/link/link.service"
 import { RewardsPoolService } from "../rewards-pool/rewards-pool.service"
 import {
@@ -46,6 +47,7 @@ import {
     RewardSnapshotDto,
 } from "../rewards-pool/rewards-pool.dto"
 import { Decimal } from "@prisma/client/runtime/library"
+import { JwtService } from "@nestjs/jwt"
 @Injectable()
 export class OrderService {
     public readonly logger = new Logger(OrderService.name)
@@ -57,12 +59,13 @@ export class OrderService {
         private readonly httpService: HttpService,
         private readonly linkService: LinkService,
         private readonly rewardsPoolService: RewardsPoolService,
+        private readonly jwtService: JwtService,
         @InjectStripe() private readonly stripe: Stripe,
     ) {}
 
     async createOrder(
         order: CreateOrderDto,
-        userInfo: UserInfoDTO,
+        userInfo: UserJwtExtractDto,
         app_id: string = "", // this value will replaced if app_id exists in the user's widget info
     ): Promise<OrderDetailDto> {
         const userProfile = await this.userService.getProfile(userInfo)
@@ -143,19 +146,17 @@ export class OrderService {
         }
     }
 
-    async getOrderDetail(orderId: string, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+    async getOrderDetail(orderId: string, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         if (!orderId) {
             throw new BadRequestException("Order id is required")
         }
-        const userProfile = await this.userService.getProfile(userInfo)
-        const where = { order_id: orderId, owner: userProfile.usernameShorted }
 
-        if (userProfile.widget_info?.app_id) {
-            where["app_id"] = userProfile.widget_info.app_id
-        }
+        let where = { order_id: orderId }
 
-        if (userProfile.widget_info?.widget_tag) {
-            where["widget_tag"] = userProfile.widget_info.widget_tag
+        if (userInfo.developer_info) {
+            where["widget_tag"] = userInfo.developer_info.tag
+        } else {
+            where["owner"] = userInfo.usernameShorted
         }
 
         //todo: permission check
@@ -169,21 +170,27 @@ export class OrderService {
         return await this.mapOrderDetail(record)
     }
 
-    async getOrderList(query: OrderListQueryDto, userInfo: UserInfoDTO): Promise<OrderListDto> {
+    async getOrderList(query: OrderListQueryDto, userInfo: UserJwtExtractDto): Promise<OrderListDto> {
         const userProfile = await this.userService.getProfile(userInfo)
-        const where = { owner: userProfile.usernameShorted }
-        if (userProfile.widget_info?.app_id) {
-            where["app_id"] = userProfile.widget_info.app_id
-        }
-
-        if (userProfile.widget_info?.widget_tag) {
-            where["widget_tag"] = userProfile.widget_info.widget_tag
-        }
-
-        if (query.status) {
-            where["current_status"] = query.status
+        let where = {}
+        if (userInfo.developer_info) {
+            //if user is developer, it will return all orders of specific widget tag
+            where = { widget_tag: userInfo.developer_info.tag }
         } else {
-            where["current_status"] = { not: OrderStatus.CANCELLED }
+            where = { owner: userProfile.usernameShorted }
+            if (userProfile.widget_info?.app_id) {
+                where["app_id"] = userProfile.widget_info.app_id
+            }
+
+            if (userProfile.widget_info?.widget_tag) {
+                where["widget_tag"] = userProfile.widget_info.widget_tag
+            }
+
+            if (query.status) {
+                where["current_status"] = query.status
+            } else {
+                where["current_status"] = { not: OrderStatus.CANCELLED }
+            }
         }
 
         const orders = await this.prisma.orders.findMany({
@@ -204,7 +211,7 @@ export class OrderService {
         }
     }
 
-    async payWithWallet(order: PayWithWalletRequestDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+    async payWithWallet(order: PayWithWalletRequestDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const userProfile = await this.userService.getProfile(userInfo)
         const orderId = order.order_id
         const {
@@ -248,11 +255,14 @@ export class OrderService {
             await this.releaseRewards(orderRecord)
         }
 
-        await this.processCallback(orderRecord.order_id)
+        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
         return await this.mapOrderDetail(orderRecord)
     }
 
-    async payOrderWithStripe(order: PayWithStripeRequestDto, userInfo: UserInfoDTO): Promise<PayWithStripeResponseDto> {
+    async payOrderWithStripe(
+        order: PayWithStripeRequestDto,
+        userInfo: UserJwtExtractDto,
+    ): Promise<PayWithStripeResponseDto> {
         const userProfile = await this.userService.getProfile(userInfo)
         const orderId = order.order_id
         const {
@@ -443,14 +453,14 @@ export class OrderService {
                     },
                 },
             })
-            await this.processCallback(order.order_id)
+            await this.processCallback(order.order_id, order.callback_url)
         }
         this.logger.log(`Cancelled ${orders.length} expired orders`)
     }
 
     async allowPayOrder(
         orderId: string,
-        profile: UserInfoDTO,
+        profile: UserJwtExtractDto,
         method: PaymentMethod,
     ): Promise<{ allow: boolean; message: string; order: orders }> {
         const order = await this.prisma.orders.findUnique({
@@ -498,7 +508,7 @@ export class OrderService {
         if (order.release_rewards_after_paid) {
             await this.releaseRewards(order)
         }
-        await this.processCallback(order.order_id)
+        await this.processCallback(order.order_id, order.callback_url)
     }
 
     async stripeSessionCompleted(localRecordId: number) {
@@ -525,20 +535,41 @@ export class OrderService {
         //await this.processCallback(order.order_id)
     }
 
-    async processCallback(orderId: string) {
+    async processCallback(orderId: string, callbackUrl: string): Promise<OrderCallbackDto> {
         const order = await this.prisma.orders.findUnique({
             where: { order_id: orderId },
         })
-        if (!order || !order.callback_url) {
+        if (!order || !callbackUrl) {
             return
         }
-        const orderDetail = await this.mapOrderDetail(order)
+        const orderDetail: OrderCallbackDto = {
+            ...(await this.mapOrderDetail(order)),
+            jwt_verify: "",
+        }
+
+        //if order is from widget, we need add a jwt verify field to the order detail
+        if (order.widget_tag) {
+            const widgetInfo = await this.prisma.widgets.findUnique({
+                where: { tag: order.widget_tag },
+            })
+            if (widgetInfo) {
+                const signInfo = {
+                    iss: widgetInfo.access_key,
+                    exp: Math.floor(Date.now() / 1000) + 60 * 5, //5 minutes
+                    nbf: Math.floor(Date.now() / 1000) - 5, // 5 seconds before now
+                }
+                orderDetail.jwt_verify = await this.jwtService.signAsync(signInfo, {
+                    secret: widgetInfo.secret_key,
+                })
+            }
+        }
+
         try {
-            const request = await lastValueFrom(this.httpService.post(order.callback_url, orderDetail))
+            const request = await lastValueFrom(this.httpService.post(callbackUrl, orderDetail))
             await this.prisma.order_callback_record.create({
                 data: {
                     order_id: orderId,
-                    callback_url: order.callback_url,
+                    callback_url: callbackUrl,
                     request: orderDetail as any,
                     response: request.data,
                 },
@@ -547,37 +578,61 @@ export class OrderService {
             await this.prisma.order_callback_record.create({
                 data: {
                     order_id: orderId,
-                    callback_url: order.callback_url,
+                    callback_url: callbackUrl,
                     request: orderDetail as any,
                     response: error,
                 },
             })
         }
+
+        return orderDetail
     }
 
-    async resendCallback(order: ResendCallbackRequestDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
-        const { order_id } = order
+    async resendCallback(order: ResendCallbackRequestDto, userInfo: UserJwtExtractDto): Promise<OrderCallbackDto> {
+        const { order_id, new_callback_url } = order
         const orderRecord = await this.prisma.orders.findUnique({
             where: { order_id: order_id },
         })
-        const user = await this.prisma.users.findUnique({
-            where: { username_in_be: userInfo.usernameShorted },
-        })
-        if (!orderRecord || !orderRecord.callback_url) {
-            throw new NotFoundException("Order or callback url not found")
+
+        if (!orderRecord) {
+            throw new NotFoundException("Order not found")
         }
-        if (!user || !user.is_admin) {
+
+        if (!new_callback_url && !orderRecord.callback_url) {
+            throw new BadRequestException("Order has no callback url")
+        }
+
+        let callbackUrl = new_callback_url || orderRecord.callback_url
+
+        //check permission
+        let allow = false
+        if (orderRecord.owner === userInfo.usernameShorted || userInfo.is_admin) {
+            allow = true
+        }
+
+        if (userInfo.developer_info && userInfo.developer_info.tag === orderRecord.widget_tag) {
+            allow = true
+        }
+
+        if (!allow) {
             throw new ForbiddenException("You are not allowed to resend callback")
         }
-        await this.processCallback(orderRecord.order_id)
-        return await this.mapOrderDetail(orderRecord)
+
+        return await this.processCallback(orderRecord.order_id, callbackUrl)
     }
 
-    async bindRewardPoolByUser(order: BindRewardPoolDto, userInfo: UserInfoDTO): Promise<OrderDetailDto> {
+    async bindRewardPoolByUser(order: BindRewardPoolDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const { order_id } = order
-        const orderRecord = await this.prisma.orders.findUnique({
-            where: { order_id: order_id, owner: userInfo.usernameShorted },
-        })
+        let orderRecord = null
+        if (userInfo.developer_info) {
+            orderRecord = await this.prisma.orders.findUnique({
+                where: { widget_tag: userInfo.developer_info.tag, order_id: order_id },
+            })
+        } else {
+            orderRecord = await this.prisma.orders.findUnique({
+                where: { order_id: order_id, owner: userInfo.usernameShorted },
+            })
+        }
         if (!orderRecord) {
             throw new NotFoundException("Order not found")
         }
@@ -644,14 +699,21 @@ export class OrderService {
         )
     }
 
-    async releaseRewardsByUser(order: ReleaseRewardsDto, userInfo: UserInfoDTO): Promise<OrderRewardsDto[]> {
-        const orderRecord = await this.prisma.orders.findFirst({
-            where: { owner: userInfo.usernameShorted, order_id: order.order_id },
-        })
+    async releaseRewardsByUser(order: ReleaseRewardsDto, userInfo: UserJwtExtractDto): Promise<OrderRewardsDto[]> {
+        let orderRecord = null
+        if (userInfo.developer_info) {
+            orderRecord = await this.prisma.orders.findFirst({
+                where: { widget_tag: userInfo.developer_info.tag, order_id: order.order_id },
+            })
+        } else {
+            orderRecord = await this.prisma.orders.findFirst({
+                where: { owner: userInfo.usernameShorted, order_id: order.order_id },
+            })
+        }
         if (!orderRecord) {
             throw new NotFoundException("Order not found")
         }
-        return await this.releaseRewards(order)
+        return await this.releaseRewards(orderRecord)
     }
 
     async releaseRewards(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {

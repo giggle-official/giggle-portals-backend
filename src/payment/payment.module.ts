@@ -14,6 +14,7 @@ import { UserModule } from "src/user/user.module"
 import { Web3Module } from "src/web3/web3.module"
 import { OpenAppModule } from "src/open-app/open-app.module"
 import { RewardsPoolService } from "./rewards-pool/rewards-pool.service"
+import { JwtModule } from "@nestjs/jwt"
 
 @Module({
     imports: [
@@ -25,6 +26,7 @@ import { RewardsPoolService } from "./rewards-pool/rewards-pool.service"
         forwardRef(() => UserModule),
         forwardRef(() => Web3Module),
         forwardRef(() => OpenAppModule),
+        JwtModule.register({}),
     ],
     controllers: [PaymentController, OrderController, RewardsPoolController],
     providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService, RewardsPoolService],

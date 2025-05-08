@@ -14,6 +14,7 @@ import {
 import {
     BindRewardPoolDto,
     CreateOrderDto,
+    OrderCallbackDto,
     OrderDetailDto,
     OrderListDto,
     OrderListQueryDto,
@@ -25,7 +26,7 @@ import {
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
 } from "./order.dto"
-import { ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
+import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -38,9 +39,15 @@ export class OrderController {
     constructor(private readonly orderService: OrderService) {}
 
     @Get("/list")
-    @ApiOperation({ summary: "List of user's orders", tags: ["Order"] })
+    @ApiOperation({
+        summary: "List of orders",
+        description:
+            "List of orders, if requester is developer, it will return all orders depends your permission, if requester is user, it will return all orders of specific user",
+        tags: ["Order"],
+    })
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: OrderListDto })
+    @ApiBearerAuth("jwt")
     async getOrderList(@Query() query: OrderListQueryDto, @Req() req: Request): Promise<OrderListDto> {
         return await this.orderService.getOrderList(query, req.user as UserJwtExtractDto)
     }
@@ -98,6 +105,19 @@ export class OrderController {
     @UseGuards(AuthGuard("jwt"))
     async payWithWallet(@Body() order: PayWithWalletRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
         return await this.orderService.payWithWallet(order, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/resend-callback")
+    @ApiOperation({ summary: "Resend callback for an order", tags: ["Order"] })
+    @ApiBody({ type: ResendCallbackRequestDto })
+    @ApiResponse({ type: OrderCallbackDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async resendCallbackByUser(
+        @Body() order: ResendCallbackRequestDto,
+        @Req() req: Request,
+    ): Promise<OrderCallbackDto> {
+        return await this.orderService.resendCallback(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payWithStripe")

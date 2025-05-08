@@ -799,6 +799,8 @@ model widgets {
   summary                 String?                   @db.Text
   pricing                 Json?
   settings                Json?
+  access_key              String?                   @db.VarChar(32)
+  secret_key              String?                   @db.VarChar(64)
   is_featured             Boolean?
   is_new                  Boolean?
   is_official             Boolean?

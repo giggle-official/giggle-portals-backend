@@ -170,6 +170,11 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
     widget_session_id?: string
 
     is_admin?: boolean
+
+    developer_info?: {
+        usernameShorted: string
+        tag: string
+    }
 }
 
 export class CreateUserDto {

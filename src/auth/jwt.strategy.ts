@@ -2,22 +2,22 @@
 import { ExtractJwt, Strategy } from "passport-jwt"
 import { PassportStrategy } from "@nestjs/passport"
 import { Injectable } from "@nestjs/common"
-import { ApiKeyDTO, UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
-import { JwtService } from "@nestjs/jwt"
+import { UserJwtExtractDto } from "src/user/user.controller"
 import { PrismaService } from "src/common/prisma.service"
+import { JwtService } from "@nestjs/jwt"
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     constructor(
-        private readonly jwtService: JwtService,
         private readonly prismaService: PrismaService,
+        private readonly jwtService: JwtService,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 (req) => {
                     let authorization = req?.headers?.["authorization"]
                     const token = authorization?.split(" ")[1]
-                    if (token) return token
+                    if (token) return this.jwtService.sign({ token: token })
                     return null
                 },
             ]),
@@ -26,34 +26,68 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         })
     }
 
-    async validate(payload: any): Promise<UserJwtExtractDto> {
-        if (!payload?.usernameShorted) {
-            return null
-        }
+    async validate(payload: { token: string }): Promise<UserJwtExtractDto> {
+        try {
+            const extractedPayload = this.jwtService.decode(payload.token)
+            //check if token is a widget access key
+            if (extractedPayload?.iss && extractedPayload.iss.startsWith("wgt_ak_")) {
+                const widgetInfo = await this.prismaService.widgets.findFirst({
+                    where: {
+                        access_key: extractedPayload.iss,
+                    },
+                })
+                if (
+                    widgetInfo &&
+                    (await this.jwtService.verifyAsync(payload.token, { secret: widgetInfo.secret_key }))
+                ) {
+                    const userInfo = await this.prismaService.users.findFirst({
+                        where: {
+                            username_in_be: widgetInfo.author,
+                        },
+                    })
+                    return {
+                        username: userInfo.username,
+                        usernameShorted: userInfo.username_in_be,
+                        email: userInfo.email,
+                        avatar: userInfo.avatar,
+                        device_id: extractedPayload?.device_id,
+                        is_developer: userInfo.is_developer,
+                        is_admin: userInfo.is_admin,
+                        widget_session_id: extractedPayload?.widget_session_id,
+                        developer_info: {
+                            usernameShorted: userInfo.username_in_be,
+                            tag: widgetInfo.tag,
+                        },
+                    }
+                }
+            }
 
-        if (payload?.followers) {
-            return null
-        }
-        const userInfo = await this.prismaService.users.findFirst({
-            where: {
-                username_in_be: payload.usernameShorted,
-                is_blocked: false,
-            },
-        })
+            await this.jwtService.verifyAsync(payload.token, { secret: process.env.SESSION_SECRET })
 
-        if (!userInfo) {
-            return null
-        }
+            const userInfo = await this.prismaService.users.findFirst({
+                where: {
+                    username_in_be: extractedPayload.token,
+                    is_blocked: false,
+                },
+            })
 
-        return {
-            username: payload?.username,
-            usernameShorted: payload?.usernameShorted,
-            email: payload?.email,
-            avatar: payload?.avatar,
-            device_id: payload?.device_id,
-            is_developer: userInfo.is_developer,
-            is_admin: userInfo.is_admin,
-            widget_session_id: payload?.widget_session_id,
+            if (!userInfo) {
+                return null
+            }
+
+            return {
+                username: userInfo.username,
+                usernameShorted: userInfo.username_in_be,
+                email: userInfo.email,
+                avatar: userInfo.avatar,
+                device_id: extractedPayload?.device_id,
+                is_developer: userInfo.is_developer,
+                is_admin: userInfo.is_admin,
+                widget_session_id: extractedPayload?.widget_session_id,
+                developer_info: null,
+            }
+        } catch (error) {
+            return null
         }
     }
 }

@@ -209,17 +209,12 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
     ]
 
-    app.use(
-        "/api/reference-private",
-        apiReference({
-            spec: {
-                content: privateDocument,
-            },
-            hideClientButton: true,
-            hideModels: true,
-            hideDownloadButton: true,
-        }),
-    )
+    if (process.env.ENV === "local") {
+        publicDocument.servers.push({
+            url: "http://app.local.giggle.pro",
+            description: "Local Environment",
+        })
+    }
 
     app.use(
         "/api/reference",

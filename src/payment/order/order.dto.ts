@@ -265,6 +265,12 @@ export class ResendCallbackRequestDto {
         description: "The order id",
     })
     order_id: string
+
+    @ApiProperty({
+        description: "The new callback url, if not provided, the old callback url will be used",
+        required: false,
+    })
+    new_callback_url?: string
 }
 
 export class BindRewardPoolDto {
@@ -428,4 +434,11 @@ export class OrderRewardsDto extends OmitType(UserRewards, [
         avatar: string
         email: string
     }
+}
+
+export class OrderCallbackDto extends OrderDetailDto {
+    @ApiProperty({
+        description: "The jwt verify of the order",
+    })
+    jwt_verify: string
 }

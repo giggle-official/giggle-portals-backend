@@ -201,6 +201,42 @@ export class DeveloperService {
         return this.widgetsService._mapToSummaryResponse(widgets, subscribedWidgets)
     }
 
+    async getWidgetIdentity(user: UserJwtExtractDto, tag: string) {
+        if (!tag) {
+            throw new BadRequestException("Tag is required")
+        }
+        const widget = await this.prisma.widgets.findUnique({
+            where: { tag: tag, author: user.usernameShorted },
+        })
+        if (!widget) {
+            throw new NotFoundException("Widget not found")
+        }
+
+        let access_key = widget.access_key
+        let secret_key = widget.secret_key
+        if (!access_key) {
+            //generate a random 32 length string
+            access_key = "wgt_ak_" + crypto.randomBytes(64).toString("hex").slice(0, 25)
+            await this.prisma.widgets.update({
+                where: { tag: tag, author: user.usernameShorted },
+                data: { access_key: access_key },
+            })
+        }
+
+        if (!widget.secret_key) {
+            //generate a random 64 length string
+            secret_key = "wgt_sk_" + crypto.randomBytes(64).toString("hex").slice(0, 57)
+            await this.prisma.widgets.update({
+                where: { tag: tag, author: user.usernameShorted },
+                data: { secret_key: secret_key },
+            })
+        }
+        return {
+            access_key: access_key,
+            secret_key: secret_key,
+        }
+    }
+
     async getWidgetDetail(tag: string, user: UserJwtExtractDto) {
         const widget = await this.prisma.widgets.findUnique({
             where: { tag: tag, author: user.usernameShorted },

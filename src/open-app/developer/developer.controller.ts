@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, Body, Get, Param } from "@nestjs/common"
+import { Controller, Post, Req, UseGuards, Body, Get, Param, Query } from "@nestjs/common"
 import { DeveloperService } from "./developer.service"
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import {
@@ -6,6 +6,7 @@ import {
     DeveloperWidgetDeleteDto,
     DeveloperWidgetDeleteResponseDto,
     DeveloperWidgetUpdateDto,
+    WidgetIdentityDto,
 } from "./developer.dto"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetDetailDto } from "../widgets/widget.dto"
@@ -43,6 +44,14 @@ export class DeveloperController {
     @ApiResponse({ type: DeveloperWidgetDeleteResponseDto })
     async deleteWidget(@Body() body: DeveloperWidgetDeleteDto, @Req() req: Request) {
         return this.developerService.deleteWidget(body.tag, req.user as UserJwtExtractDto)
+    }
+
+    @Get("/widgets/identity")
+    @UseGuards(IsDeveloperGuard)
+    @ApiOperation({ summary: "get identity for a widget" })
+    @ApiResponse({ type: WidgetIdentityDto })
+    async identifyWidget(@Req() req: Request, @Query("tag") tag: string) {
+        return this.developerService.getWidgetIdentity(req.user as UserJwtExtractDto, tag)
     }
 
     @Get("/widgets")
