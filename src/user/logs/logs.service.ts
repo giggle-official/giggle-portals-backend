@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { UserInfoDTO } from "../user.controller"
 import { ProductType } from "src/credit/credit.dto"
+import { Decimal } from "@prisma/client/runtime/library"
 
 export class CreateLogDto {
     product: ProductType | null | "web" | "openapi"
@@ -64,6 +65,10 @@ export class LogsService {
                     sanitized[key] = maskChar
                 } else {
                     sanitized[key] = this.sanitizeLogData(value, options, depth + 1)
+                }
+                //convert decimal to number
+                if (value instanceof Decimal) {
+                    sanitized[key] = value.toNumber()
                 }
             }
             return sanitized

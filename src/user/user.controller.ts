@@ -44,6 +44,9 @@ import {
     UserWalletDetailQueryDto,
     UserTokenRewardsQueryDto,
     UserTokenRewardsListDto,
+    ClaimRewardsDto,
+    ClaimRewardsQueryDto,
+    ClaimRewardsHistoryListDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -582,5 +585,38 @@ export class UserController {
     })
     async getTokenRewards(@Req() req: Request, @Query() query: UserTokenRewardsQueryDto) {
         return await this.userService.getTokenRewards(req.user as UserJwtExtractDto, query)
+    }
+
+    @Post("claim-rewards")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({
+        summary: "Claim rewards",
+        description: "Claim rewards",
+        tags: ["User Wallet"],
+    })
+    @ApiResponse({
+        type: UserTokenRewardsListDto,
+    })
+    @ApiBody({
+        type: ClaimRewardsDto,
+    })
+    async claimRewards(@Req() req: Request, @Body() body: ClaimRewardsDto) {
+        return await this.userService.claimRewards(req.user as UserJwtExtractDto, body)
+    }
+
+    @Get("claim-rewards-history")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({
+        summary: "Get claim rewards history",
+        description: "Get claim rewards history",
+        tags: ["User Wallet"],
+    })
+    @ApiResponse({
+        type: ClaimRewardsHistoryListDto,
+    })
+    async claimRewardsHistory(@Req() req: Request, @Query() query: ClaimRewardsQueryDto) {
+        return await this.userService.getClaimRewardsHistory(req.user as UserJwtExtractDto, query)
     }
 }

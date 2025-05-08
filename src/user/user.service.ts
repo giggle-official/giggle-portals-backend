@@ -8,7 +8,6 @@ import {
 } from "@nestjs/common"
 import {
     UserInfoDTO,
-    EmailUserCreateDto,
     ResetPasswordDto,
     CheckResetPasswordTokenDto,
     SubmitResetPasswordDto,
@@ -24,9 +23,12 @@ import { isEmail } from "class-validator"
 import validator from "validator"
 import { NotificationService } from "src/notification/notification.service"
 import {
+    ClaimRewardsDto,
+    ClaimRewardsHistoryListDto,
+    ClaimRewardsQueryDto,
+    ClaimStatus,
     ContactDTO,
     LoginCodeReqDto,
-    UserTokenRewardsDto,
     UserTokenRewardsListDto,
     UserTokenRewardsQueryDto,
 } from "./user.dto"
@@ -173,52 +175,122 @@ export class UserService {
             throw new BadRequestException("user not found")
         }
 
-        const tokenRewards = await this.prisma.$queryRaw<UserTokenRewardsDto[]>`
-            SELECT 
-                token,
-                ticker,
-                SUM(rewards) as rewards,
-                SUM(locked_rewards) as locked_rewards,
-                SUM(released_rewards) as released_rewards
-            FROM user_rewards
-            WHERE user = ${user.username_in_be} and ticker != 'usdc' ${query.token ? Prisma.sql` and token = ${query.token}` : Prisma.sql``}
-            GROUP BY token,ticker
-            LIMIT ${parseInt(query.page_size)}
-            OFFSET ${Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size))}
-        `
+        const where: Prisma.view_user_rewards_summaryWhereInput = {
+            user: user.username_in_be,
+            ticker: {
+                not: "usdc",
+            },
+        }
 
-        const total = await this.prisma.user_rewards.findMany({
-            where: {
-                user: user.username_in_be,
-                ticker: {
-                    not: "usdc",
-                },
-                ...(query.token ? { token: query.token } : {}),
-            },
-            distinct: ["user", "token"],
-            select: {
-                user: true,
-                token: true,
-            },
+        if (query.token) {
+            where.token = query.token
+        }
+
+        const tokenRewards = await this.prisma.view_user_rewards_summary.findMany({
+            where: where,
+            take: parseInt(query.page_size),
+            skip: Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size)),
         })
 
-        //get current token Info from ip_library
-        const currentTokenInfo = await this.prisma.ip_library.findMany({
-            where: {
-                token_mint: { in: tokenRewards.map((token) => token.token) },
-            },
-            select: {
-                token_mint: true,
-                token_info: true,
-            },
+        const total = await this.prisma.view_user_rewards_summary.findMany({
+            where: where,
         })
 
         return {
             rewards: tokenRewards.map((token) => ({
-                ...token,
-                token_info: (currentTokenInfo?.find((info) => info.token_mint === token.token) as any)?.token_info,
+                token: token.token,
+                ticker: token.ticker,
+                rewards: token.rewards.toNumber(),
+                locked: token.locked.toNumber(),
+                released: token.released.toNumber(),
+                token_info: token.token_info as any,
+                availables: token.released.minus(token.withdrawn).toNumber(),
             })),
             total: total.length,
+        }
+    }
+
+    //claim rewards
+    async claimRewards(userInfo: UserJwtExtractDto, body: ClaimRewardsDto): Promise<UserTokenRewardsListDto> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not found")
+        }
+
+        const token = await this.prisma.view_user_rewards_summary.findFirst({
+            where: {
+                user: user.username_in_be,
+                token: body.token,
+            },
+        })
+        if (!token) {
+            throw new BadRequestException("token not found")
+        }
+
+        const available = token.released.minus(token.withdrawn)
+
+        if (available.lt(body.amount)) {
+            throw new BadRequestException("not enough available")
+        }
+
+        await this.prisma.user_rewards_withdraw.create({
+            data: {
+                user: user.username_in_be,
+                token: body.token,
+                withdrawn: body.amount,
+                status: ClaimStatus.PENDING,
+            },
+        })
+
+        return await this.getTokenRewards(userInfo, {
+            token: body.token,
+            page: "1",
+            page_size: "1",
+        })
+    }
+
+    async getClaimRewardsHistory(
+        userInfo: UserJwtExtractDto,
+        query: ClaimRewardsQueryDto,
+    ): Promise<ClaimRewardsHistoryListDto> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not found")
+        }
+
+        const where: Prisma.user_rewards_withdrawWhereInput = {
+            user: user.username_in_be,
+        }
+
+        if (query.token) {
+            where.token = query.token
+        }
+
+        const claims = await this.prisma.user_rewards_withdraw.findMany({
+            where: where,
+            take: parseInt(query.page_size),
+            skip: Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size)),
+        })
+
+        return {
+            claims: claims.map((claim) => ({
+                id: claim.id,
+                token: claim.token,
+                withdrawn: claim.withdrawn.toNumber(),
+                status: claim.status as ClaimStatus,
+                created_at: claim.created_at,
+                updated_at: claim.updated_at,
+                user: claim.user,
+            })),
+            total: claims.length,
         }
     }
 

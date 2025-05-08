@@ -1,5 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger"
-import { IsString, IsEmail, IsNotEmpty, IsOptional } from "class-validator"
+import { ApiProperty, OmitType } from "@nestjs/swagger"
+import { user_rewards_withdraw } from "@prisma/client"
+import { Decimal } from "@prisma/client/runtime/library"
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsNumber, Min, IsPositive } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { CreateIpTokenGiggleResponseDto, WalletDetailDto } from "src/web3/giggle/giggle.dto"
 
@@ -83,47 +85,138 @@ export class UserTokenRewardsQueryDto extends PaginationDto {
 
 export class UserTokenRewardsDto {
     @ApiProperty({
-        description: "The token rewards",
+        description: "Token address",
     })
     token: string
 
     @ApiProperty({
-        description: "The token info",
+        description: "Token info",
         type: () => CreateIpTokenGiggleResponseDto,
     })
     token_info: CreateIpTokenGiggleResponseDto
 
     @ApiProperty({
-        description: "The token ticker",
+        description: "Token ticker",
     })
     ticker: string
 
     @ApiProperty({
-        description: "The token rewards",
+        description: "Token rewards",
     })
     rewards: number
 
     @ApiProperty({
-        description: "The token locked",
+        description: "Token locked",
     })
     locked: number
 
     @ApiProperty({
-        description: "The token released",
+        description: "Token released",
     })
     released: number
+
+    @ApiProperty({
+        description: "The available tokens can be claimed",
+    })
+    availables: number
 }
 
 export class UserTokenRewardsListDto {
     @ApiProperty({
-        description: "The token rewards",
+        description: "Token rewards",
         isArray: true,
         type: () => UserTokenRewardsDto,
     })
     rewards: UserTokenRewardsDto[]
 
     @ApiProperty({
-        description: "The total token rewards of user",
+        description: "Total token rewards of user",
+    })
+    total: number
+}
+
+export enum ClaimStatus {
+    PENDING = "pending",
+    COMPLETED = "completed",
+    FAILED = "failed",
+    REJECTED = "rejected",
+}
+
+export class ClaimRewardsDto {
+    @ApiProperty({
+        description: "Token address",
+    })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+
+    @ApiProperty({
+        description: "Amount to claim",
+    })
+    @IsNumber()
+    @IsPositive()
+    @Min(1)
+    amount: number
+}
+
+export class ClaimRewardsQueryDto extends PaginationDto {
+    @ApiProperty({
+        description: "Token address",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    token?: string
+}
+
+export class UserRewardsClaimDto {
+    @ApiProperty({
+        description: "Claim id",
+    })
+    id: number
+
+    @ApiProperty({
+        description: "Token address",
+    })
+    token: string
+
+    @ApiProperty({
+        description: "Claim status",
+        enum: ClaimStatus,
+    })
+    status: ClaimStatus
+
+    @ApiProperty({
+        description: "created at",
+    })
+    created_at: Date
+
+    @ApiProperty({
+        description: "updated at",
+    })
+    updated_at: Date
+
+    @ApiProperty({
+        description: "user id",
+    })
+    user: string
+
+    @ApiProperty({
+        description: "Withdrawn amount",
+    })
+    withdrawn: number
+}
+
+export class ClaimRewardsHistoryListDto {
+    @ApiProperty({
+        description: "The claims",
+        isArray: true,
+        type: () => UserRewardsClaimDto,
+    })
+    claims: UserRewardsClaimDto[]
+
+    @ApiProperty({
+        description: "The total claims",
     })
     total: number
 }
