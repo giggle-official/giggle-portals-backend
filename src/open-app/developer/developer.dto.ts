@@ -74,6 +74,18 @@ export class DeveloperWidgetCreateDto {
     management_url: string
 
     @ApiProperty({
+        description: "The URL of the widget demo",
+        example: "http://localhost:4290/demo",
+    })
+    @IsOptional()
+    @IsUrl({
+        protocols: ["http", "https"],
+        require_protocol: true,
+        require_tld: false,
+    })
+    demo_url: string
+
+    @ApiProperty({
         description: "The URL of the widget repository",
         example: "https://github.com/my-widget",
     })

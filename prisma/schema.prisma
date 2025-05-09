@@ -811,6 +811,7 @@ model widgets {
   is_developing           Boolean?
   test_users              Json?
   priority                Int?                      @default(1)
+  demo_url                String?                   @db.VarChar(1024)
   user_subscribed_widgets user_subscribed_widgets[]
   app_bind_widgets        app_bind_widgets[]
   author_info             users?                    @relation(fields: [author], references: [username_in_be])

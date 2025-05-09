@@ -52,6 +52,7 @@ export class DeveloperService {
                     icon: mappedWidget.icon,
                     settings: mappedWidget.settings,
                     test_users: mappedWidget.test_users,
+                    demo_url: mappedWidget.demo_url,
                 },
             })
 
@@ -107,6 +108,7 @@ export class DeveloperService {
             icon: body.category,
             description: body.description,
             settings: settings as any,
+            demo_url: body.demo_url,
             is_featured: false,
             is_new: false,
             is_official: false,
@@ -142,6 +144,8 @@ export class DeveloperService {
             coming_soon: originalWidget.coming_soon,
             priority: originalWidget.priority,
             test_users: body.test_users !== undefined ? body.test_users : originalWidget.test_users,
+            demo_url: body.demo_url !== undefined ? body.demo_url : originalWidget.demo_url,
+            is_private: body.is_private !== undefined ? body.is_private : originalWidget.is_private,
         }
     }
 

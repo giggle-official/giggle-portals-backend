@@ -84,7 +84,12 @@ export class WidgetsService {
 
     async getWidgets(query: GetWidgetsRequestDto, user?: UserJwtExtractDto): Promise<WidgetSummaryDto[]> {
         const where: Prisma.widgetsWhereInput = {
-            is_developing: false,
+            OR: [
+                { is_developing: false },
+                {
+                    demo_url: { not: null },
+                },
+            ],
             is_private: false,
         }
 
@@ -131,7 +136,7 @@ export class WidgetsService {
 
     async getWidgetByTag(tag: string, user: UserJwtExtractDto): Promise<WidgetDetailDto> {
         const widget = await this.prisma.widgets.findUnique({
-            where: { tag, is_private: false, is_developing: false },
+            where: { tag, is_private: false, OR: [{ is_developing: false }, { demo_url: { not: null } }] },
             include: {
                 _count: {
                     select: { user_subscribed_widgets: true },
@@ -302,6 +307,7 @@ export class WidgetsService {
                 priority: widget.priority,
                 is_subscribed: !!subscribedDetail,
                 subscribed_detail: subscribedDetail,
+                demo_url: widget.demo_url,
                 settings: this.parseSettings(widget.settings) as any,
             }
         })
@@ -338,6 +344,7 @@ export class WidgetsService {
             is_private: widget.is_private,
             is_developing: widget.is_developing,
             settings: this.parseSettings(widget.settings) as any,
+            demo_url: widget.demo_url,
             test_users: widget.test_users as string[],
             subscribed_detail: subscribedWidgets,
         }
