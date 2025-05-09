@@ -1995,24 +1995,18 @@ export class IpLibraryService {
 
     async setIpVisibility(user: UserJwtExtractDto, body: SetVisibilityDto): Promise<IpLibraryDetailDto> {
         const ip = await this.prismaService.ip_library.findUnique({
-            where: { id: body.id, owner: user.usernameShorted },
+            where: { id: body.id },
         })
         if (!ip) {
             throw new BadRequestException("IP not found or you are not the owner of this IP")
         }
 
-        //if set to private, check if it is bound to an app
-        if (!body.is_public) {
-            const appBind = await this.prismaService.app_bind_ips.findFirst({
-                where: {
-                    ip_id: body.id,
-                    is_temp: false,
-                },
-            })
+        const userInfo = await this.prismaService.users.findUnique({
+            where: { username_in_be: user.usernameShorted },
+        })
 
-            if (appBind) {
-                throw new BadRequestException("This IP is bound to an app, please unbind it first")
-            }
+        if (ip.owner !== user.usernameShorted || !userInfo?.is_admin) {
+            throw new BadRequestException("You are not the owner of this IP")
         }
 
         //toggle from giggle
