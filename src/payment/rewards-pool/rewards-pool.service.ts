@@ -243,7 +243,7 @@ export class RewardsPoolService {
             },
         })
         if (!pool) {
-            throw new BadRequestException("Pool does not exist")
+            return null
         }
         return {
             token: pool.token,
