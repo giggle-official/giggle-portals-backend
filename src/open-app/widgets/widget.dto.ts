@@ -128,8 +128,13 @@ export class WidgetDto implements widgets {
     @ApiProperty({ description: "widget priority" })
     priority: number
 
+    @ApiProperty({ description: "widget demo url" })
+    demo_url: string
+
     is_private: boolean
+
     is_developing: boolean
+
     test_users: string[]
 }
 
@@ -178,6 +183,7 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
     "is_featured",
     "is_new",
     "is_official",
+    "demo_url",
     "category",
     "icon",
     "description",
