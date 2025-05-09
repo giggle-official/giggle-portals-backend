@@ -2003,7 +2003,7 @@ export class IpLibraryService {
             where: { username_in_be: user.usernameShorted },
         })
 
-        if (ip.owner !== user.usernameShorted || !userInfo?.is_admin) {
+        if (ip.owner !== user.usernameShorted && !userInfo?.is_admin) {
             throw new BadRequestException("You are not the owner of this IP")
         }
 
