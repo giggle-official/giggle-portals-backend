@@ -724,13 +724,16 @@ export class OrderService {
             where: { order_id: order_id },
         })
         if (!orderRecord) {
-            throw new NotFoundException("Order not found")
+            this.logger.error(`Order ${order_id} not found`)
+            return []
         }
         if (orderRecord.current_status !== OrderStatus.COMPLETED) {
-            throw new BadRequestException("Order is not completed")
+            this.logger.error(`Order ${order_id} is not completed`)
+            return []
         }
         if (!orderRecord.related_reward_id || !orderRecord.rewards_model_snapshot) {
-            throw new BadRequestException("Order has no reward pool")
+            this.logger.error(`Order ${order_id} has no reward pool`)
+            return []
         }
 
         const modelSnapshot = orderRecord.rewards_model_snapshot as unknown as RewardSnapshotDto
@@ -741,7 +744,8 @@ export class OrderService {
             },
         })
         if (!rewardPool) {
-            throw new BadRequestException("Reward pool not found")
+            this.logger.error(`Reward pool not found for order ${order_id}`)
+            return []
         }
 
         let rewards: Prisma.user_rewardsCreateManyInput[] = []
