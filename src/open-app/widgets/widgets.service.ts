@@ -68,7 +68,7 @@ export class WidgetsService {
                     pricing: body.pricing,
                     is_featured: body.is_featured,
                     is_new: body.is_new,
-                    is_official: body.is_official,
+                    is_official: true, //TODO: remove this after testing
                     category: body.category,
                     description: body.description,
                     coming_soon: body.coming_soon,
@@ -483,7 +483,10 @@ export class WidgetsService {
         const mappedBody = this.mapToUpdateWidgetDto(body, widget)
         await this.prisma.widgets.update({
             where: { tag: body.tag },
-            data: mappedBody,
+            data: {
+                ...mappedBody,
+                is_official: true, //TODO: remove this after testing
+            },
         })
         return this.getWidgetByTag(body.tag, user)
     }

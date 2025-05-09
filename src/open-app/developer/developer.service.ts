@@ -43,7 +43,7 @@ export class DeveloperService {
                     pricing: mappedWidget.pricing,
                     is_featured: mappedWidget.is_featured,
                     is_new: mappedWidget.is_new,
-                    is_official: mappedWidget.is_official,
+                    is_official: true, //TODO: remove this after testing
                     category: mappedWidget.category,
                     description: mappedWidget.description,
                     coming_soon: mappedWidget.coming_soon,
@@ -287,7 +287,10 @@ export class DeveloperService {
         const updatedWidgetTag: string = await this.prisma.$transaction(async (tx) => {
             const widget = await tx.widgets.update({
                 where: { tag: body.tag, author: user.usernameShorted },
-                data: updatedWidget,
+                data: {
+                    ...updatedWidget,
+                    is_official: true, //TODO: remove this after testing
+                },
             })
 
             //resubscribe to widget for test users and author
