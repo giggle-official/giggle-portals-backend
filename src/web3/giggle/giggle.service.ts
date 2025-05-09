@@ -881,7 +881,7 @@ export class GiggleService {
                         return tokenInfo.mint || ""
                     })
                     .filter((mint) => mint !== "")
-                const listResult = await this.getIpTokenList({
+                const listResult: any = await this.getIpTokenList({
                     mint: mints.join(","),
                     page: "1",
                     page_size: "10",
@@ -897,7 +897,15 @@ export class GiggleService {
                             },
                         },
                         data: {
-                            current_token_info: item as any,
+                            current_token_info: {
+                                ...item,
+                                market_cap: item?.marketCap,
+                                change1h: item?.change1h || "0",
+                                change5m: item?.change5m || "0",
+                                change24h: item?.change24h || "0",
+                                price: item?.price,
+                                visitLink: item?.tradingUri,
+                            },
                         },
                     })
                     await this.prismaService.asset_to_meme_record.updateMany({
@@ -908,7 +916,25 @@ export class GiggleService {
                             },
                         },
                         data: {
-                            current_token_info: item as any,
+                            current_token_info: {
+                                ...item,
+                                market_cap: item?.marketCap,
+                                change1h: item?.change1h || "0",
+                                change5m: item?.change5m || "0",
+                                change24h: item?.change24h || "0",
+                                price: item?.price,
+                                visitLink: item?.tradingUri,
+                            },
+                        },
+                    })
+
+                    //update rewards pool price
+                    await this.prismaService.reward_pools.updateMany({
+                        where: {
+                            token: item.mint,
+                        },
+                        data: {
+                            unit_price: new Prisma.Decimal(item.price),
                         },
                     })
                 }

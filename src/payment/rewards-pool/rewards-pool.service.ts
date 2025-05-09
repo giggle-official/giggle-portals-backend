@@ -12,7 +12,6 @@ import {
     RewardAllocateRoles,
     StatisticsSummaryDto,
     StatisticsQueryDto,
-    StatisticsRolesDto,
     StatisticsIncomesDto,
     StatementQueryDto,
     StatementResponseListDto,
@@ -21,7 +20,7 @@ import {
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { Prisma } from "@prisma/client"
+import { Prisma, reward_pool_limit_offer } from "@prisma/client"
 import { OpenAppService } from "src/open-app/open-app.service"
 import { Decimal } from "@prisma/client/runtime/library"
 
@@ -57,13 +56,26 @@ export class RewardsPoolService {
             throw new BadRequestException("You are not the owner of the ip")
         }
         this.checkRewardsRatio(body.revenue_ratio)
+        //find price
+        const price = (await this.prisma.ip_library.findFirst({
+            where: {
+                current_token_info: {
+                    path: "$.mint",
+                    equals: body.token,
+                },
+            },
+            select: {
+                current_token_info: true,
+            },
+        })) as any
+        const unitPrice = price?.current_token_info?.price || 0
         //create pool
         return await this.prisma.$transaction(async (tx) => {
-            const poolCreated = await tx.reward_pools.create({
+            await tx.reward_pools.create({
                 data: {
                     token: body.token,
+                    unit_price: new Prisma.Decimal(unitPrice),
                     owner: user.usernameShorted,
-                    unit_price: body.unit_price,
                     injected_amount: body.amount,
                     rewarded_amount: 0,
                     current_balance: body.amount,
@@ -75,12 +87,28 @@ export class RewardsPoolService {
                 data: {
                     token: body.token,
                     amount: body.amount,
-                    unit_price: body.unit_price,
                     type: "injected",
                     current_balance: body.amount,
                 },
             })
-            return this.mapToPoolData(poolCreated)
+            if (body.limit_offers) {
+                await tx.reward_pool_limit_offer.createMany({
+                    data: body.limit_offers.map((limitOffer) => ({
+                        token: body.token,
+                        external_ratio: limitOffer.external_ratio,
+                        end_date: limitOffer.end_date,
+                        start_date: limitOffer.start_date,
+                    })),
+                })
+            }
+            return this.mapToPoolData(
+                await tx.reward_pools.findUniqueOrThrow({
+                    where: { token: body.token },
+                    include: {
+                        reward_pool_limit_offer: true,
+                    },
+                }),
+            )
         })
     }
 
@@ -103,8 +131,20 @@ export class RewardsPoolService {
             const poolUpdated = await tx.reward_pools.update({
                 where: { token: body.token },
                 data: {
-                    unit_price: body.unit_price,
                     revenue_ratio: this.mapRewardsRatioToPercentage(body.revenue_ratio),
+                    reward_pool_limit_offer: {
+                        deleteMany: {},
+                        createMany: {
+                            data: body.limit_offers.map((limitOffer) => ({
+                                external_ratio: limitOffer.external_ratio,
+                                end_date: limitOffer.end_date,
+                                start_date: limitOffer.start_date,
+                            })),
+                        },
+                    },
+                },
+                include: {
+                    reward_pool_limit_offer: true,
                 },
             })
             return this.mapToPoolData(poolUpdated)
@@ -128,12 +168,14 @@ export class RewardsPoolService {
                     injected_amount: newInjectedAmount,
                     current_balance: newBalance,
                 },
+                include: {
+                    reward_pool_limit_offer: true,
+                },
             })
             await tx.reward_pool_statement.create({
                 data: {
                     token: body.token,
                     amount: body.append_amount,
-                    unit_price: poolExists.unit_price,
                     type: "injected",
                     current_balance: newBalance,
                 },
@@ -167,6 +209,9 @@ export class RewardsPoolService {
         }
         const pools = await this.prisma.reward_pools.findMany({
             where,
+            include: {
+                reward_pool_limit_offer: true,
+            },
             orderBy: {
                 created_at: "desc",
             },
@@ -181,7 +226,21 @@ export class RewardsPoolService {
 
     async getRewardSnapshot(token: string): Promise<RewardSnapshotDto> {
         const pool = await this.prisma.reward_pools.findFirst({
-            where: { token },
+            where: {
+                token,
+            },
+            include: {
+                reward_pool_limit_offer: {
+                    where: {
+                        start_date: {
+                            lte: new Date(),
+                        },
+                        end_date: {
+                            gte: new Date(),
+                        },
+                    },
+                },
+            },
         })
         if (!pool) {
             throw new BadRequestException("Pool does not exist")
@@ -194,6 +253,7 @@ export class RewardsPoolService {
             updated_at: pool.updated_at,
             created_at: pool.created_at,
             snapshot_date: new Date(),
+            limit_offer: pool.reward_pool_limit_offer.length > 0 ? pool.reward_pool_limit_offer[0] : null,
         }
     }
 
@@ -422,7 +482,7 @@ ORDER BY d.date;`
         ]
     }
 
-    mapToPoolData(data: Pool): PoolResponseDto {
+    mapToPoolData(data: Pool & { reward_pool_limit_offer: reward_pool_limit_offer[] }): PoolResponseDto {
         return {
             id: data.id,
             token: data.token,
@@ -436,6 +496,11 @@ ORDER BY d.date;`
             current_balance: data.current_balance.toString(),
             created_at: data.created_at,
             updated_at: data.updated_at,
+            limit_offers: data.reward_pool_limit_offer.map((r) => ({
+                external_ratio: r.external_ratio,
+                start_date: r.start_date,
+                end_date: r.end_date,
+            })),
         }
     }
 }

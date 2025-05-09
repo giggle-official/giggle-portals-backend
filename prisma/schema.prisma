@@ -936,19 +936,20 @@ model ip_share_count {
 }
 
 model reward_pools {
-  id              Int                     @id @default(autoincrement())
-  token           String?                 @unique(map: "token") @db.VarChar(64)
-  ticker          String?                 @db.VarChar(32)
-  owner           String?                 @db.VarChar(32)
-  revenue_ratio   Json?
-  address         String?                 @db.VarChar(1024)
-  injected_amount Decimal?                @db.Decimal(65, 12)
-  rewarded_amount Decimal?                @db.Decimal(65, 12)
-  current_balance Decimal?                @db.Decimal(65, 12)
-  unit_price      Decimal?                @db.Decimal(65, 12)
-  created_at      DateTime?               @default(now()) @db.Timestamp(0)
-  updated_at      DateTime?               @default(now()) @db.Timestamp(0)
-  statement       reward_pool_statement[]
+  id                      Int                       @id @default(autoincrement())
+  token                   String?                   @unique(map: "token") @db.VarChar(64)
+  ticker                  String?                   @db.VarChar(32)
+  owner                   String?                   @db.VarChar(32)
+  revenue_ratio           Json?
+  address                 String?                   @db.VarChar(1024)
+  injected_amount         Decimal?                  @db.Decimal(65, 12)
+  rewarded_amount         Decimal?                  @db.Decimal(65, 12)
+  current_balance         Decimal?                  @db.Decimal(65, 12)
+  unit_price              Decimal?                  @db.Decimal(65, 12)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  statement               reward_pool_statement[]
+  reward_pool_limit_offer reward_pool_limit_offer[]
 }
 
 model reward_pool_statement {
@@ -964,6 +965,17 @@ model reward_pool_statement {
   updated_at       DateTime?         @default(now()) @db.Timestamp(0)
   reward_pools     reward_pools?     @relation(fields: [token], references: [token])
   order_info       orders?           @relation(fields: [related_order_id], references: [order_id])
+}
+
+model reward_pool_limit_offer {
+  id             Int           @id @default(autoincrement())
+  token          String?       @db.VarChar(64)
+  external_ratio Int?
+  start_date     DateTime?     @db.Date
+  end_date       DateTime?     @db.Date
+  created_at     DateTime?     @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?     @default(now()) @db.Timestamp(0)
+  reward_pools   reward_pools? @relation(fields: [token], references: [token])
 }
 
 enum reward_pool_type {

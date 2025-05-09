@@ -5,11 +5,14 @@ import { Type } from "class-transformer"
 import {
     IsArray,
     IsDate,
+    IsDateString,
     IsEnum,
+    IsInt,
     IsNotEmpty,
     IsNumber,
     IsPositive,
     IsString,
+    Max,
     Min,
     ValidateNested,
 } from "class-validator"
@@ -82,6 +85,11 @@ export class PoolResponseDto extends OmitType(Pool, [
 
     @ApiProperty({ description: "Current balance of the pool" })
     current_balance: string
+
+    @ApiProperty({ description: "Limit offer of the pool", isArray: true })
+    @ValidateNested({ each: true })
+    @Type(() => LimitOffer)
+    limit_offers: LimitOffer[]
 }
 
 export class RewardAllocateRatio {
@@ -105,6 +113,24 @@ export class RewardAllocateRatio {
     allocate_type: RewardAllocateRoles
 }
 
+export class LimitOffer {
+    @ApiProperty({ description: "External ratio of the limit offer" })
+    @IsNumber()
+    @IsPositive()
+    @IsInt()
+    @Min(101)
+    @Max(200)
+    external_ratio: number
+
+    @ApiProperty({ description: "Start date of the limit offer" })
+    @IsDateString()
+    start_date: Date
+
+    @ApiProperty({ description: "End date of the limit offer" })
+    @IsDateString()
+    end_date: Date
+}
+
 export class CreateRewardsPoolDto {
     @ApiProperty({ description: "Token mint address" })
     @IsString()
@@ -116,13 +142,10 @@ export class CreateRewardsPoolDto {
     @Min(0)
     amount: number
 
-    @ApiProperty({
-        description: "Unit price of the token, in usdc",
-        example: 0.00001,
-    })
-    @IsNumber()
-    @IsPositive()
-    unit_price: number
+    @ApiProperty({ description: "Limit offer of the pool", required: false, isArray: true })
+    @ValidateNested({ each: true })
+    @Type(() => LimitOffer)
+    limit_offers?: LimitOffer[]
 
     @ApiProperty({
         description: "Revenue ratio of the pool, all revenue will be allocated depends on this ratio",
@@ -165,7 +188,7 @@ export class CreateRewardsPoolDto {
     revenue_ratio: RewardAllocateRatio[]
 }
 
-export class UpdateRewardsPoolDto extends PickType(CreateRewardsPoolDto, ["unit_price", "revenue_ratio", "token"]) {}
+export class UpdateRewardsPoolDto extends PickType(CreateRewardsPoolDto, ["revenue_ratio", "token", "limit_offers"]) {}
 
 export class InjectTokensDto {
     @ApiProperty({ description: "Token address" })
@@ -225,6 +248,9 @@ export class RewardSnapshotDto {
 
     @ApiProperty({ description: "Snapshot date" })
     snapshot_date: Date
+
+    @ApiProperty({ description: "Limit offer of the pool", required: false })
+    limit_offer: LimitOffer
 }
 
 export class StatisticsQueryDto {

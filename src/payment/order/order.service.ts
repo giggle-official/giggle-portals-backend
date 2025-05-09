@@ -251,6 +251,8 @@ export class OrderService {
             },
         })
 
+        await this.updateBindRewards(orderRecord) // we need update bind rewards price after paid
+
         if (orderRecord.release_rewards_after_paid) {
             await this.releaseRewards(orderRecord)
         }
@@ -505,10 +507,50 @@ export class OrderService {
             },
         })
 
+        //update bind rewards price
+        await this.updateBindRewards(order)
+
         if (order.release_rewards_after_paid) {
             await this.releaseRewards(order)
         }
         await this.processCallback(order.order_id, order.callback_url)
+    }
+
+    async updateBindRewards(order: orders) {
+        const orderRecord = await this.prisma.orders.findUnique({
+            where: { order_id: order.order_id },
+        })
+        if (!orderRecord || !orderRecord.rewards_model_snapshot) {
+            return
+        }
+        const snapshot = orderRecord.rewards_model_snapshot as unknown as RewardSnapshotDto
+        const token = snapshot?.token
+        if (!token) {
+            return
+        }
+        const tokenInfo = await this.giggleService.getIpTokenList({
+            mint: token,
+            page: "1",
+            page_size: "1",
+            site: "3body",
+        })
+        if (!tokenInfo) {
+            return
+        }
+        const resData = tokenInfo.data
+        const unitPrice = resData?.[0]?.price
+        if (new Decimal(unitPrice).eq(snapshot.unit_price)) {
+            return
+        }
+        await this.prisma.orders.update({
+            where: { id: order.id },
+            data: {
+                rewards_model_snapshot: {
+                    ...snapshot,
+                    unit_price: unitPrice.toString(),
+                } as any,
+            },
+        })
     }
 
     async stripeSessionCompleted(localRecordId: number) {
@@ -873,7 +915,8 @@ export class OrderService {
             note: "",
         })
 
-        //check pool balance
+        // check pool balance
+        // todo: maybe this will be removed, rewards pool allow negative balance
         if (rewardPool.current_balance.lt(allocatedTokenAmount)) {
             throw new BadRequestException("Reward pool balance is not enough")
         }
