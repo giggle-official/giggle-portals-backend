@@ -90,8 +90,10 @@ export class OrderService {
                 page: "1",
                 page_size: "1",
             })
-            relatedRewardId = rewardPool?.pools?.[0]?.id
-            rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
+            if(rewardPool){
+                relatedRewardId = rewardPool?.pools?.[0]?.id
+                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
+            }
         }
 
         const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
