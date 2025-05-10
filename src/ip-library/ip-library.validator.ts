@@ -1,4 +1,10 @@
-import { ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments, isInt } from "class-validator"
+import {
+    ValidatorConstraint,
+    ValidatorConstraintInterface,
+    ValidationArguments,
+    isInt,
+    isString,
+} from "class-validator"
 import { AuthorizationSettingsDto, CreateIpDto, IpPeriodDto, RevenueDistributionDto } from "./ip-library.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { Injectable } from "@nestjs/common"
@@ -69,9 +75,8 @@ export class IpNameValidator implements ValidatorConstraintInterface {
 @Injectable()
 export class TickerValidator implements ValidatorConstraintInterface {
     validate(obj: string, args: ValidationArguments) {
-        console.log(obj)
         const regex = /^[A-Za-z0-9]+$/
-        return obj.toUpperCase() !== "USDC" && obj.toUpperCase() !== "USDT" && regex.test(obj)
+        return obj && isString(obj) && obj.toUpperCase() !== "USDC" && obj.toUpperCase() !== "USDT" && regex.test(obj)
     }
 
     defaultMessage(args: ValidationArguments) {

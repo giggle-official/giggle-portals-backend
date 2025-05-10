@@ -90,7 +90,7 @@ export class OrderService {
                 page: "1",
                 page_size: "1",
             })
-            if(rewardPool){
+            if (rewardPool) {
                 relatedRewardId = rewardPool?.pools?.[0]?.id
                 rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
             }

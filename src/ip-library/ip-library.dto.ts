@@ -1004,12 +1004,14 @@ export class IpNameCheckDto {
     @ApiProperty({
         description: "name of the ip library",
     })
+    @IsNotEmpty()
     @Validate(IpNameValidator)
     name: string
 
     @ApiProperty({
         description: "ticker of the ip library",
     })
+    @IsNotEmpty()
     @Validate(TickerValidator)
     ticker: string
 }
