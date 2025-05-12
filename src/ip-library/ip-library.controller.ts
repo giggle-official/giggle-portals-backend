@@ -20,6 +20,7 @@ import {
     EditIpDto,
     GenreDto,
     GetListParams,
+    GetMyListParams,
     IpLibraryDetailDto,
     IpLibraryListDto,
     IpNameCheckDto,
@@ -88,7 +89,7 @@ export class IpLibraryController {
     @CheckJwtPolicies((abilities) => abilities.can("read_ip"))
     @ApiBearerAuth()
     @ApiResponse({ type: IpLibraryListDto, status: 200 })
-    async getMy(@Req() req: Request, @Query() query: GetListParams): Promise<IpLibraryListDto> {
+    async getMy(@Req() req: Request, @Query() query: GetMyListParams): Promise<IpLibraryListDto> {
         return await this.ipLibraryService.getList(
             query,
             query.is_public === "true" ? true : query.is_public === "false" ? false : null,

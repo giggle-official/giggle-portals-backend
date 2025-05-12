@@ -247,11 +247,11 @@ export class GetListParams extends PaginationDto {
 
     @ApiProperty({
         required: false,
-        description: "is public",
+        description: "ip level",
     })
     @IsOptional()
-    @IsEnum(["true", "false"])
-    is_public?: "true" | "false"
+    @IsString()
+    ip_level?: string
 
     @ApiProperty({
         required: false,
@@ -260,6 +260,16 @@ export class GetListParams extends PaginationDto {
     @IsOptional()
     @IsEnum(["1", "2", "3"])
     children_levels?: "1" | "2"
+}
+
+export class GetMyListParams extends GetListParams {
+    @ApiProperty({
+        required: false,
+        description: "is public",
+    })
+    @IsOptional()
+    @IsEnum(["true", "false"])
+    is_public?: "true" | "false"
 }
 
 export class RemixClipsDto {

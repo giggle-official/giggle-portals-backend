@@ -348,7 +348,7 @@ export class IpLibraryService {
     ): Promise<IpLibraryListDto> {
         const where: Prisma.ip_libraryWhereInput = {}
 
-        if (is_public !== null) {
+        if (is_public !== null && user) {
             where.is_public = is_public
         }
 
@@ -456,6 +456,10 @@ export class IpLibraryService {
             }
         }
 
+        if (params.ip_level) {
+            where.ip_levels = parseInt(params.ip_level)
+        }
+
         if (app_id) {
             //request from app
             const app = await this.prismaService.apps.findUnique({
@@ -545,7 +549,7 @@ export class IpLibraryService {
                     cover_hash,
                     creation_guide_lines: item.creation_guide_lines,
                     is_top: item.ip_library_child.length === 0,
-                    ip_level: await this.getIpLevel(item.id),
+                    ip_level: item.ip_levels,
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     authorization_settings: authSettings,
@@ -661,7 +665,7 @@ export class IpLibraryService {
                     comments: item._count.ip_comments,
                     share_count: item.ip_share_count?.share_count || 0,
                     is_top: item.ip_library_child.length === 0,
-                    ip_level: await this.getIpLevel(item.id),
+                    ip_level: item.ip_levels,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
@@ -704,7 +708,7 @@ export class IpLibraryService {
             comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
             is_top: data.ip_library_child === null,
-            ip_level: await this.getIpLevel(data.id),
+            ip_level: data.ip_levels,
             is_public: data.is_public,
             share_count: data.ip_share_count?.share_count || 0,
             creator_id: data.user_info?.username_in_be || "",
@@ -1022,6 +1026,7 @@ export class IpLibraryService {
         let ipPushedToChain: boolean = false
         let ipTokenCreated: boolean = false
         let ipTokenRegistered: boolean = false
+        let ipLevel: number = 1
         try {
             if (body.parent_ip_library_id) {
                 const parentIpInfo = await this.prismaService.ip_library.findUnique({
@@ -1030,6 +1035,8 @@ export class IpLibraryService {
                 if (!parentIpInfo) {
                     throw new BadRequestException("Parent ip not found")
                 }
+
+                ipLevel = 2
 
                 //is 3rd ip
                 const is3rdLevelIp = await this.prismaService.ip_library_child.findFirst({
@@ -1056,6 +1063,7 @@ export class IpLibraryService {
                     if (ipOrder.current_status !== OrderStatus.COMPLETED) {
                         throw new BadRequestException("ip order status error")
                     }
+                    ipLevel = 3
                 } else if (parentIpInfo.owner !== user.usernameShorted) {
                     throw new BadRequestException("you have no permission to use this parent ip")
                 }
@@ -1093,6 +1101,7 @@ export class IpLibraryService {
                         name: body.name,
                         ticker: body.ticker,
                         description: body.description,
+                        ip_levels: ipLevel,
                         extra_info: {
                             twitter: body?.twitter || "",
                             website: body?.website || "",
@@ -1565,7 +1574,7 @@ export class IpLibraryService {
                     comments: item._count.ip_comments,
                     share_count: item.ip_share_count?.share_count || 0,
                     is_top: false,
-                    ip_level: await this.getIpLevel(item.id),
+                    ip_level: item.ip_levels,
                     creation_guide_lines: item.creation_guide_lines,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
@@ -1609,22 +1618,6 @@ export class IpLibraryService {
         await this.prismaService.asset_related_ips.deleteMany({
             where: { ip_id: ip_id },
         })
-    }
-
-    async getIpLevel(ip_id: number): Promise<number> {
-        const parentIp = await this.prismaService.ip_library_child.findFirst({
-            where: { ip_id: ip_id },
-        })
-        if (!parentIp) {
-            return 1
-        }
-        const parentParentIp = await this.prismaService.ip_library_child.findFirst({
-            where: { ip_id: parentIp.parent_ip },
-        })
-        if (!parentParentIp) {
-            return 2
-        }
-        return 3
     }
 
     _generateCreateIpRelatedIp(ip_id: number): string {
