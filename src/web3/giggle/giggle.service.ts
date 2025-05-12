@@ -899,6 +899,8 @@ export class GiggleService {
                         data: {
                             current_token_info: {
                                 ...item,
+                                file_url: item?.fileUrl,
+                                cover_url: item?.coverUrl,
                                 market_cap: item?.marketCap,
                                 change1h: item?.change1h || "0",
                                 change5m: item?.change5m || "0",

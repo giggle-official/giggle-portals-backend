@@ -821,9 +821,17 @@ export class OrderService {
 
         //allocate order creator's rewards
         const orderAmount = new Decimal(orderRecord.amount).div(100)
-        let orderCreatorRewards = orderAmount.div(unitPrice)
-        let currentRewardPoolBalance = new Decimal(rewardPool.current_balance)
         let creatorNote = ""
+        let orderCreatorRewards = orderAmount.div(unitPrice)
+        //external rewards
+        if (modelSnapshot.limit_offer.external_ratio) {
+            orderCreatorRewards = orderAmount
+                .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
+                .div(unitPrice)
+                .div(100)
+            creatorNote = `External ratio: ${modelSnapshot.limit_offer.external_ratio}%`
+        }
+        let currentRewardPoolBalance = new Decimal(rewardPool.current_balance)
 
         if (orderCreatorRewards.gt(currentRewardPoolBalance)) {
             orderCreatorRewards = Decimal.min(orderCreatorRewards, currentRewardPoolBalance)
