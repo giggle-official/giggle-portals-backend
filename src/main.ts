@@ -214,6 +214,10 @@ To see how to process the event stream response, please refer to the [Event Stre
             url: "http://app.local.giggle.pro",
             description: "Local Environment",
         })
+        publicDocument.servers.push({
+            url: "https://app.ggltest.com",
+            description: "Development Environment",
+        })
     }
 
     app.use(

@@ -348,7 +348,7 @@ export class IpLibraryService {
     ): Promise<IpLibraryListDto> {
         const where: Prisma.ip_libraryWhereInput = {}
 
-        if (is_public !== null && user) {
+        if (is_public !== null) {
             where.is_public = is_public
         }
 
@@ -472,7 +472,7 @@ export class IpLibraryService {
             if (!app || !rootIp) {
                 throw new BadRequestException("App not found or app not bind to any ip")
             }
-            where.owner = app.creator
+            //where.owner = app.creator
             const childIps = await this.prismaService.ip_library_child.findMany({
                 where: {
                     parent_ip: rootIp,
