@@ -478,8 +478,17 @@ export class IpLibraryService {
                     parent_ip: rootIp,
                 },
             })
+
+            //third level ip
+            const thirdLevelIps = await this.prismaService.ip_library_child.findMany({
+                where: {
+                    parent_ip: {
+                        in: childIps.map((item) => item.ip_id),
+                    },
+                },
+            })
             where.id = {
-                in: [...childIps.map((item) => item.ip_id)],
+                in: [...childIps.map((item) => item.ip_id), ...thirdLevelIps.map((item) => item.ip_id)],
             }
         }
 
