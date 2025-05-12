@@ -4,7 +4,7 @@ import { Decimal, JsonValue } from "@prisma/client/runtime/library"
 import { IsInt, IsNotEmpty, Min } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
-import { RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
+import { PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
 export enum OrderStatus {
     PENDING = "pending",
     REFUNDING = "refunding",
@@ -156,6 +156,13 @@ export class OrderDetailDto extends OmitType(OrderDto, [
         type: () => RewardSnapshotDto,
     })
     rewards_model_snapshot: RewardSnapshotDto
+
+    @ApiProperty({
+        description: "The current reward pool detail of the order",
+        type: () => PoolResponseDto,
+    })
+    current_reward_pool_detail: PoolResponseDto
+
     @ApiProperty({
         description: "The url of order to pay or check the order status",
     })

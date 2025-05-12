@@ -122,6 +122,16 @@ export class OrderService {
 
     async mapOrderDetail(data: orders): Promise<OrderDetailDto> {
         const orderUrl = `${process.env.FRONTEND_URL}/order?orderId=${data.order_id}`
+        const snapshot = data.rewards_model_snapshot as unknown as RewardSnapshotDto
+        let current_reward_pool_detail = null
+        if (snapshot?.token) {
+            const rewardPool = await this.rewardsPoolService.getPools({
+                token: snapshot.token,
+                page: "1",
+                page_size: "1",
+            })
+            current_reward_pool_detail = rewardPool?.pools?.length > 0 ? rewardPool?.pools[0] : null
+        }
         return {
             order_id: data.order_id,
             owner: data.owner,
@@ -145,6 +155,7 @@ export class OrderService {
             order_url: orderUrl,
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
+            current_reward_pool_detail: current_reward_pool_detail,
         }
     }
 
@@ -794,8 +805,31 @@ export class OrderService {
         const currentDate = new Date(Date.now())
         const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
 
+        //get newest unit price
+        const unitPriceResponse = await this.giggleService.getIpTokenList({
+            mint: modelSnapshot.token,
+            page: "1",
+            page_size: "1",
+            site: "3body",
+        })
+
+        if (!unitPriceResponse || !unitPriceResponse.data || !unitPriceResponse.data.length) {
+            this.logger.error(`Unit price not found for order ${order_id}`)
+            return []
+        }
+        const unitPrice = new Decimal(unitPriceResponse.data[0].price)
+
         //allocate order creator's rewards
-        const orderCreatorRewards = new Decimal(orderRecord.amount).div(100).div(new Decimal(modelSnapshot.unit_price))
+        const orderAmount = new Decimal(orderRecord.amount).div(100)
+        let orderCreatorRewards = orderAmount.div(unitPrice)
+        let currentRewardPoolBalance = new Decimal(rewardPool.current_balance)
+        let creatorNote = ""
+
+        if (orderCreatorRewards.gt(currentRewardPoolBalance)) {
+            orderCreatorRewards = Decimal.min(orderCreatorRewards, currentRewardPoolBalance)
+            creatorNote = "Reward pool balance is not enough, only allocate part of the rewards"
+        }
+        currentRewardPoolBalance = Decimal.max(currentRewardPoolBalance.minus(orderCreatorRewards), new Decimal(0))
 
         rewards.push({
             order_id: orderRecord.order_id,
@@ -812,18 +846,20 @@ export class OrderService {
             locked_rewards: orderCreatorRewards,
             allocate_snapshot: modelSnapshot as any,
             withdraw_rewards: 0,
+            note: creatorNote,
         })
 
         let allocatedUSDCAmount = new Decimal(0)
         let allocatedTokenAmount = orderCreatorRewards
+
         for (const reward of modelSnapshot.revenue_ratio) {
             //to ensure usdc not overflow, we need process platform rewards at final
             if (reward.role === RewardAllocateRoles.PLATFORM) {
                 continue
             }
             const rewardUSDAmount = this._calculateUSDCRewards(reward, orderRecord)
-            const rewardTokenAmount = rewardUSDAmount.div(new Decimal(modelSnapshot.unit_price))
             const rewardType = reward.allocate_type as unknown as RewardAllocateType
+
             const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
                 orderRecord,
                 reward,
@@ -849,8 +885,23 @@ export class OrderService {
                     note: note,
                 })
             } else {
+                let buybackNote = note
                 //we only allocate token to user not buyback
                 if (actualAllocateRole !== RewardAllocateRoles.BUYBACK) {
+                    //check balance
+                    let rewardTokenAmount = rewardUSDAmount.div(unitPrice)
+                    let tokenNote = note
+                    //check balance
+                    if (rewardTokenAmount.gt(currentRewardPoolBalance)) {
+                        rewardTokenAmount = currentRewardPoolBalance
+                        tokenNote = tokenNote + "Reward pool balance is not enough, only allocate part of the rewards"
+                    }
+
+                    currentRewardPoolBalance = Decimal.max(
+                        currentRewardPoolBalance.minus(rewardTokenAmount),
+                        new Decimal(0),
+                    )
+
                     rewards.push({
                         order_id: orderRecord.order_id,
                         user: user,
@@ -867,14 +918,11 @@ export class OrderService {
                         locked_rewards: rewardTokenAmount,
                         allocate_snapshot: modelSnapshot as any,
                         withdraw_rewards: 0,
-                        note: note,
+                        note: tokenNote,
                     })
+                    buybackNote = `We need to allocate ${rewardTokenAmount} ${modelSnapshot.ticker} to the ${expectedAllocateRole} in order to give the ${actualAllocateRole} the corresponding token rewards.`
+                    allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
                 }
-
-                let buybackNote =
-                    actualAllocateRole !== RewardAllocateRoles.BUYBACK
-                        ? `We need to allocate ${rewardTokenAmount} ${modelSnapshot.ticker} to the ${expectedAllocateRole} in order to give the ${actualAllocateRole} the corresponding token rewards.`
-                        : note
 
                 //whatever the role is, we need to allocate usdc to buyback account
                 rewards.push({
@@ -895,13 +943,12 @@ export class OrderService {
                     withdraw_rewards: 0,
                     note: buybackNote,
                 })
-                allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
             }
             allocatedUSDCAmount = allocatedUSDCAmount.plus(rewardUSDAmount)
         }
 
         //add platform rewards
-        const platformRewards = new Decimal(orderRecord.amount).div(100).minus(allocatedUSDCAmount)
+        const platformRewards = orderAmount.minus(allocatedUSDCAmount)
         rewards.push({
             order_id: orderRecord.order_id,
             user: "",
@@ -953,7 +1000,7 @@ export class OrderService {
                 data: {
                     token: modelSnapshot.token,
                     amount: allocatedTokenAmount.mul(new Decimal(-1)),
-                    usd_revenue: new Decimal(orderRecord.amount).div(100),
+                    usd_revenue: orderAmount,
                     unit_price: modelSnapshot.unit_price,
                     related_order_id: orderRecord.order_id,
                     type: "released",
@@ -1008,11 +1055,14 @@ export class OrderService {
                         note: "Inviter not found, reward to buyback wallet",
                     }
                 }
+
+                //new user and first order
                 const link = await this.prisma.app_links.findFirst({
                     where: {
                         unique_str: orderRecord.from_source_link,
                     },
                 })
+
                 if (!link) {
                     return {
                         user: "",
@@ -1022,13 +1072,76 @@ export class OrderService {
                         note: "Inviter not found, reward to buyback wallet",
                     }
                 }
-                return {
-                    user: link.creator,
-                    address: "",
-                    expectedAllocateRole: RewardAllocateRoles.INVITER,
-                    actualAllocateRole: RewardAllocateRoles.INVITER,
-                    note: "",
+
+                if (link && link.creator === orderRecord.owner) {
+                    return {
+                        user: "",
+                        address: "",
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.INVITER,
+                        note: "Can not invite yourself",
+                    }
                 }
+
+                const user = await this.prisma.users.findFirst({
+                    where: {
+                        username_in_be: orderRecord.owner,
+                    },
+                })
+
+                //check if user is invited by link.
+                if (!user.from_source_link) {
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Inviter not found, reward to buyback wallet",
+                    }
+                }
+
+                let isFirstOrder = false
+                const orders = await this.prisma.orders.findMany({
+                    where: {
+                        owner: user.username_in_be,
+                        current_status: {
+                            in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                        },
+                    },
+                    orderBy: {
+                        id: "asc",
+                    },
+                    take: 1,
+                })
+
+                if (orders && orders.length > 0 && orders[0].id === orderRecord.id) {
+                    isFirstOrder = true
+                }
+
+                const inviteUsersLink = await this.prisma.app_links.findFirst({
+                    where: {
+                        unique_str: user.from_source_link,
+                    },
+                })
+
+                if (inviteUsersLink && isFirstOrder && inviteUsersLink.creator === link.creator) {
+                    return {
+                        user: link.creator,
+                        address: "",
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.INVITER,
+                        note: "",
+                    }
+                } else {
+                    return {
+                        user: "",
+                        address: process.env.BUYBACK_WALLET,
+                        expectedAllocateRole: RewardAllocateRoles.INVITER,
+                        actualAllocateRole: RewardAllocateRoles.BUYBACK,
+                        note: "Inviter not found, reward to buyback wallet",
+                    }
+                }
+
             case RewardAllocateRoles.DEVELOPER:
                 if (!orderRecord.widget_tag) {
                     return {
@@ -1081,7 +1194,6 @@ export class OrderService {
 
     //@Cron(CronExpression.EVERY_MINUTE)
     async bindAllOrdersToRewardPool() {
-        console.log("Binding all orders to reward pool")
         const orders = await this.prisma.orders.findMany({
             where: {
                 current_status: OrderStatus.COMPLETED,

@@ -298,6 +298,15 @@ export class StatisticsSummaryDto {
     @ApiProperty({ description: "unit price" })
     unit_price: number
 
+    @ApiProperty({ description: "price change 24h" })
+    price_change_24h: number
+
+    @ApiProperty({ description: "market cap" })
+    market_cap: number
+
+    @ApiProperty({ description: "trade volume" })
+    trade_volume: number
+
     @ApiProperty({ description: "current balance" })
     current_balance: number
 

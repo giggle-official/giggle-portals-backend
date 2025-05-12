@@ -322,6 +322,7 @@ export class RewardsPoolService {
                 },
             },
         })
+
         //total income expect platform
         const totalIncomeWithoutPlatform = await this.prisma.user_rewards.aggregate({
             _sum: {
@@ -338,11 +339,24 @@ export class RewardsPoolService {
             },
         })
 
+        //tokenInfo
+        const tokenInfo = await this.prisma.view_ip_token_prices.findFirst({
+            where: {
+                current_token_info: {
+                    path: "$.mint",
+                    equals: query.token,
+                },
+            },
+        })
+
         return {
             incomes: totalIncomeWithoutPlatform._sum.rewards?.toNumber() || 0,
             incomes_total: pool.statement.reduce((acc, curr) => acc.plus(curr.usd_revenue), new Decimal(0)).toNumber(),
             orders: pool.statement.length,
             unit_price: pool.unit_price.toNumber(),
+            price_change_24h: tokenInfo?.change24h.toNumber() || 0,
+            market_cap: tokenInfo?.market_cap.toNumber() || 0,
+            trade_volume: tokenInfo?.trade_volume.toNumber() || 0,
             current_balance: pool.current_balance.toNumber(),
             injected_amount: pool.injected_amount.toNumber(),
             rewarded_amount: pool.rewarded_amount.toNumber(),

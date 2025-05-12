@@ -221,6 +221,18 @@ To see how to process the event stream response, please refer to the [Event Stre
     }
 
     app.use(
+        "/api/reference-private",
+        apiReference({
+            spec: {
+                content: privateDocument,
+            },
+            hideClientButton: true,
+            hideModels: true,
+            hideDownloadButton: true,
+        }),
+    )
+
+    app.use(
         "/api/reference",
         apiReference({
             spec: {
