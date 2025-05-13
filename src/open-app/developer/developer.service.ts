@@ -33,6 +33,7 @@ export class DeveloperService {
         await this.processTestUsers(body.test_users)
 
         const mappedWidget = this._mapToCreateWidgetDto(body, user, tag)
+        const identify = this.widgetsService.generateIdentity()
 
         const newWidget: string = await this.prisma.$transaction(async (tx) => {
             const widget = await tx.widgets.create({
@@ -53,6 +54,8 @@ export class DeveloperService {
                     settings: mappedWidget.settings,
                     test_users: mappedWidget.test_users,
                     demo_url: mappedWidget.demo_url,
+                    secret_key: identify.secret_key,
+                    access_key: identify.access_key,
                 },
             })
 
@@ -218,9 +221,10 @@ export class DeveloperService {
 
         let access_key = widget.access_key
         let secret_key = widget.secret_key
+        const newIdentity = this.widgetsService.generateIdentity()
         if (!access_key) {
             //generate a random 32 length string
-            access_key = "wgt_ak_" + crypto.randomBytes(64).toString("hex").slice(0, 25)
+            access_key = newIdentity.access_key
             await this.prisma.widgets.update({
                 where: { tag: tag, author: user.usernameShorted },
                 data: { access_key: access_key },
@@ -229,7 +233,7 @@ export class DeveloperService {
 
         if (!widget.secret_key) {
             //generate a random 64 length string
-            secret_key = "wgt_sk_" + crypto.randomBytes(64).toString("hex").slice(0, 57)
+            secret_key = newIdentity.secret_key
             await this.prisma.widgets.update({
                 where: { tag: tag, author: user.usernameShorted },
                 data: { secret_key: secret_key },

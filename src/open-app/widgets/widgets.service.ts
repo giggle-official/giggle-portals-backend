@@ -60,6 +60,7 @@ export class WidgetsService {
         }
 
         return await this.prisma.$transaction(async (tx) => {
+            const identify = this.generateIdentity()
             const widget = await tx.widgets.create({
                 data: {
                     tag: body.tag,
@@ -76,6 +77,8 @@ export class WidgetsService {
                     author: body.author,
                     icon: body.icon,
                     settings: this.parseSettings(body.settings, body) as any,
+                    secret_key: identify.secret_key,
+                    access_key: identify.access_key,
                 },
             })
             return widget
@@ -629,5 +632,14 @@ export class WidgetsService {
 
     generateId(prefix = "sub_"): string {
         return prefix + crypto.randomBytes(10).toString("hex")
+    }
+
+    generateIdentity(): { access_key: string; secret_key: string } {
+        const access_key = "wgt_ak_" + crypto.randomBytes(64).toString("hex").slice(0, 25)
+        const secret_key = "wgt_sk_" + crypto.randomBytes(64).toString("hex").slice(0, 57)
+        return {
+            access_key: access_key,
+            secret_key: secret_key,
+        }
     }
 }
