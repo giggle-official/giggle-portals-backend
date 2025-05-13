@@ -145,7 +145,7 @@ export class UtilitiesService {
         return (num / 1000000).toFixed(2) + "M"
     }
 
-    public static async checkTaskRunning(taskId: number = 1): Promise<boolean> {
+    public static async checkTaskRunning(taskId: number): Promise<boolean> {
         const prisma = new PrismaService()
         let taskRunning = await prisma.ai_router_requesting.findUnique({
             where: {
@@ -164,7 +164,7 @@ export class UtilitiesService {
         return taskRunning && taskRunning.is_requesting
     }
 
-    public static async startTask(taskId: number = 1): Promise<void> {
+    public static async startTask(taskId): Promise<void> {
         const prisma = new PrismaService()
         await prisma.ai_router_requesting.update({
             where: {

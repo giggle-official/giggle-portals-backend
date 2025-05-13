@@ -251,7 +251,7 @@ export class IpOrderService {
     //check ip order if order completed, but status pending
     @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
-        const taskId = 1
+        const taskId = 2
         const maxRetryCount = 3
         //sleep a random time but less than 2 seconds
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
