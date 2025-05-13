@@ -147,11 +147,20 @@ export class UtilitiesService {
 
     public static async checkTaskRunning(taskId: number = 1): Promise<boolean> {
         const prisma = new PrismaService()
-        const taskRunning = await prisma.ai_router_requesting.findUnique({
+        let taskRunning = await prisma.ai_router_requesting.findUnique({
             where: {
                 id: taskId,
             },
         })
+        //check update time
+        if (taskRunning && taskRunning.updated_at < new Date(Date.now() - 1000 * 60 * 5)) {
+            //5 minutes
+            //if task is running for more than 5 minutes, set is_requesting to false
+            taskRunning = await prisma.ai_router_requesting.update({
+                where: { id: taskId },
+                data: { is_requesting: false },
+            })
+        }
         return taskRunning && taskRunning.is_requesting
     }
 
