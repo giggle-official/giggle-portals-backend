@@ -164,7 +164,7 @@ export class UtilitiesService {
         return taskRunning && taskRunning.is_requesting
     }
 
-    public static async startTask(taskId): Promise<void> {
+    public static async startTask(taskId: number): Promise<void> {
         const prisma = new PrismaService()
         await prisma.ai_router_requesting.update({
             where: {

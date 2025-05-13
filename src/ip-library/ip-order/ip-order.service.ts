@@ -225,6 +225,7 @@ export class IpOrderService {
             rank: index + 1,
         }))
     }
+
     async orderCallback(body: OrderDetailDto) {
         const previousOrder = await this.prisma.third_level_ip_orders.findFirst({
             where: {
@@ -253,8 +254,8 @@ export class IpOrderService {
     async checkIpOrder() {
         const taskId = 2
         const maxRetryCount = 3
-        //sleep a random time but less than 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
+        //sleep a random time but less than 5 seconds
+        await new Promise((resolve) => setTimeout(resolve, Math.random() * 5000))
 
         //check if task running
         const taskRunning = await UtilitiesService.checkTaskRunning(taskId)
