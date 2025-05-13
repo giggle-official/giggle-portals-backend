@@ -12,6 +12,7 @@ import { lastValueFrom, Observable, take, tap, toArray } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { UserService } from "src/user/user.service"
 import { third_level_ip_orders } from "@prisma/client"
+import { UtilitiesService } from "src/common/utilities.service"
 @Injectable()
 export class IpOrderService {
     private readonly logger = new Logger(IpOrderService.name)
@@ -250,137 +251,135 @@ export class IpOrderService {
     //check ip order if order completed, but status pending
     @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
+        const taskId = 1
         const maxRetryCount = 3
         //sleep a random time but less than 2 seconds
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
 
         //check if task running
-        const taskRunning = await this.prisma.ai_router_requesting.findFirst({
-            where: {
-                is_requesting: true,
-            },
-        })
+        const taskRunning = await UtilitiesService.checkTaskRunning(taskId)
         if (taskRunning) {
             this.logger.warn("task running, skip checkIpOrder")
             return
         }
 
-        //check order status and update to ip order status
-        const pendingOrders = await this.prisma.third_level_ip_orders.findMany({
-            where: {
-                current_status: OrderStatus.PENDING,
-            },
-        })
+        try {
+            //set is_requesting to true
+            await UtilitiesService.startTask(taskId)
+            //check order status and update to ip order status
+            const pendingOrders = await this.prisma.third_level_ip_orders.findMany({
+                where: {
+                    current_status: OrderStatus.PENDING,
+                },
+            })
 
-        if (pendingOrders.length > 0) {
-            for (const order of pendingOrders) {
-                const currentOrder = await this.prisma.orders.findUnique({
+            if (pendingOrders.length > 0) {
+                for (const order of pendingOrders) {
+                    const currentOrder = await this.prisma.orders.findUnique({
+                        where: {
+                            order_id: order.order_id,
+                            current_status: {
+                                in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                            },
+                        },
+                    })
+                    if (currentOrder) {
+                        await this.prisma.third_level_ip_orders.update({
+                            where: { id: order.id },
+                            data: {
+                                current_status: OrderStatus.COMPLETED,
+                            },
+                        })
+                    }
+                }
+            }
+
+            //get order
+            let order: third_level_ip_orders | null = null
+
+            order = await this.prisma.third_level_ip_orders.findFirst({
+                where: {
+                    ip_create_status: IpCreateStatus.PENDING,
+                    current_status: {
+                        in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                    },
+                }, //the order is completed, but status is pending
+            })
+            if (!order) {
+                //pick a failed order
+                order = await this.prisma.third_level_ip_orders.findFirst({
                     where: {
-                        order_id: order.order_id,
-                        current_status: {
-                            in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                        ip_create_status: IpCreateStatus.FAILED,
+                        retry_count: {
+                            lt: maxRetryCount,
                         },
                     },
                 })
-                if (currentOrder) {
-                    await this.prisma.third_level_ip_orders.update({
-                        where: { id: order.id },
-                        data: {
-                            current_status: OrderStatus.COMPLETED,
-                        },
-                    })
-                }
             }
-        }
 
-        //get order
-        let order: third_level_ip_orders | null = null
+            if (!order) {
+                await UtilitiesService.stopTask(taskId)
+                return
+            }
 
-        order = await this.prisma.third_level_ip_orders.findFirst({
-            where: {
-                ip_create_status: IpCreateStatus.PENDING,
-                current_status: {
-                    in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+            //create ip
+            const user = await this.userService.getProfile({ usernameShorted: order.owner })
+            if (!user) {
+                await UtilitiesService.stopTask(taskId)
+                return
+            }
+
+            this.logger.warn("processOrder", order)
+            //set status to creating
+            await this.prisma.third_level_ip_orders.update({
+                where: { id: order.id },
+                data: {
+                    ip_create_status: IpCreateStatus.CREATING,
                 },
-            }, //the order is completed, but status is pending
-        })
-        if (!order) {
-            //pick a failed order
-            order = await this.prisma.third_level_ip_orders.findFirst({
-                where: {
-                    ip_create_status: IpCreateStatus.FAILED,
-                    retry_count: {
-                        lt: maxRetryCount,
+            })
+
+            try {
+                const result = new Observable<SSEMessage>((subscriber) => {
+                    this.ipLibraryService
+                        .processCreateIp(user, order.creation_data as any as CreateIpDto, subscriber)
+                        .catch((error) => {
+                            subscriber.error(error)
+                        })
+                })
+                let allResponse = []
+                const response = await lastValueFrom(
+                    result.pipe(
+                        tap((message) => {
+                            allResponse.push(message.data)
+                        }),
+                        toArray(),
+                    ),
+                )
+                this.logger.warn("processOrder finished", order)
+                //set status to created
+                await this.prisma.third_level_ip_orders.update({
+                    where: { id: order.id },
+                    data: {
+                        ip_create_status: IpCreateStatus.CREATED,
+                        ip_create_response: JSON.stringify(response),
                     },
-                },
-            })
-        }
-
-        if (!order) {
-            return
-        }
-
-        //create ip
-        const user = await this.userService.getProfile({ usernameShorted: order.owner })
-        if (!user) {
-            return
-        }
-
-        this.logger.warn("processOrder", order)
-        //set status to creating
-        await this.prisma.third_level_ip_orders.update({
-            where: { id: order.id },
-            data: {
-                ip_create_status: IpCreateStatus.CREATING,
-            },
-        })
-
-        try {
-            const result = new Observable<SSEMessage>((subscriber) => {
-                this.ipLibraryService
-                    .processCreateIp(user, order.creation_data as any as CreateIpDto, subscriber)
-                    .catch((error) => {
-                        subscriber.error(error)
-                    })
-            })
-            let allResponse = []
-            const response = await lastValueFrom(
-                result.pipe(
-                    tap((message) => {
-                        allResponse.push(message.data)
-                    }),
-                    toArray(),
-                ),
-            )
-            this.logger.warn("processOrder finished", order)
-            //set status to created
-            await this.prisma.third_level_ip_orders.update({
-                where: { id: order.id },
-                data: {
-                    ip_create_status: IpCreateStatus.CREATED,
-                    ip_create_response: JSON.stringify(response),
-                },
-            })
+                })
+            } catch (error) {
+                this.logger.error("processOrder error", error)
+                await this.prisma.third_level_ip_orders.update({
+                    where: { id: order.id },
+                    data: {
+                        ip_create_status: IpCreateStatus.FAILED,
+                        ip_create_response: JSON.stringify({ error: error }),
+                        retry_count: order.retry_count + 1,
+                    },
+                })
+            }
         } catch (error) {
-            this.logger.error("processOrder error", error)
-            await this.prisma.third_level_ip_orders.update({
-                where: { id: order.id },
-                data: {
-                    ip_create_status: IpCreateStatus.FAILED,
-                    ip_create_response: JSON.stringify({ error: error }),
-                    retry_count: order.retry_count + 1,
-                },
-            })
+            this.logger.error("checkIpOrder error", error)
+        } finally {
+            await UtilitiesService.stopTask(taskId)
         }
-        //set is_requesting to false
-        await this.prisma.ai_router_requesting.update({
-            where: {
-                id: taskRunning.id,
-            },
-            data: {
-                is_requesting: false,
-            },
-        })
     }
 
     async isThirdLevelIp(creationData: CreateIpDto): Promise<boolean> {

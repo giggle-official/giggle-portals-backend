@@ -144,4 +144,38 @@ export class UtilitiesService {
         }
         return (num / 1000000).toFixed(2) + "M"
     }
+
+    public static async checkTaskRunning(taskId: number = 1): Promise<boolean> {
+        const prisma = new PrismaService()
+        const taskRunning = await prisma.ai_router_requesting.findUnique({
+            where: {
+                id: taskId,
+            },
+        })
+        return taskRunning && taskRunning.is_requesting
+    }
+
+    public static async startTask(taskId: number = 1): Promise<void> {
+        const prisma = new PrismaService()
+        await prisma.ai_router_requesting.update({
+            where: {
+                id: taskId,
+            },
+            data: {
+                is_requesting: true,
+            },
+        })
+    }
+
+    public static async stopTask(taskId: number): Promise<void> {
+        const prisma = new PrismaService()
+        await prisma.ai_router_requesting.update({
+            where: {
+                id: taskId,
+            },
+            data: {
+                is_requesting: false,
+            },
+        })
+    }
 }
