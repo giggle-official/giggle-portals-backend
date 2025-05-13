@@ -547,9 +547,11 @@ export class OrderService {
             page_size: "1",
             site: "3body",
         })
-        if (!tokenInfo) {
+
+        if (!tokenInfo || !tokenInfo.data || !tokenInfo.data.length) {
             return
         }
+
         const resData = tokenInfo.data
         const unitPrice = resData?.[0]?.price
         if (new Decimal(unitPrice).eq(snapshot.unit_price)) {
