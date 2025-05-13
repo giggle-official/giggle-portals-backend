@@ -361,7 +361,7 @@ export class IpOrderService {
                     where: { id: order.id },
                     data: {
                         ip_create_status: IpCreateStatus.CREATED,
-                        ip_create_response: JSON.stringify(response),
+                        ip_create_response: JSON.stringify(response.slice(-5)),
                     },
                 })
             } catch (error) {
