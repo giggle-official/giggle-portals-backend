@@ -254,6 +254,17 @@ export class IpOrderService {
         //sleep a random time but less than 2 seconds
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
 
+        //check if task running
+        const taskRunning = await this.prisma.ai_router_requesting.findFirst({
+            where: {
+                is_requesting: true,
+            },
+        })
+        if (taskRunning) {
+            this.logger.warn("task running, skip checkIpOrder")
+            return
+        }
+
         //check order status and update to ip order status
         const pendingOrders = await this.prisma.third_level_ip_orders.findMany({
             where: {
@@ -361,6 +372,15 @@ export class IpOrderService {
                 },
             })
         }
+        //set is_requesting to false
+        await this.prisma.ai_router_requesting.update({
+            where: {
+                id: taskRunning.id,
+            },
+            data: {
+                is_requesting: false,
+            },
+        })
     }
 
     async isThirdLevelIp(creationData: CreateIpDto): Promise<boolean> {
