@@ -196,7 +196,7 @@ export class IpOrderService {
             where: {
                 top_level_ip: topLevelIpId,
                 ip_create_status: IpCreateStatus.CREATED,
-                current_status: OrderStatus.COMPLETED,
+                current_status: { in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED] },
             },
             orderBy: {
                 _sum: {
@@ -253,13 +253,43 @@ export class IpOrderService {
         //sleep a random time but less than 2 seconds
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000))
 
+        //check order status and update to ip order status
+        const pendingOrders = await this.prisma.third_level_ip_orders.findMany({
+            where: {
+                current_status: OrderStatus.PENDING,
+            },
+        })
+
+        if (pendingOrders.length > 0) {
+            for (const order of pendingOrders) {
+                const currentOrder = await this.prisma.orders.findUnique({
+                    where: {
+                        order_id: order.order_id,
+                        current_status: {
+                            in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                        },
+                    },
+                })
+                if (currentOrder) {
+                    await this.prisma.third_level_ip_orders.update({
+                        where: { id: order.id },
+                        data: {
+                            current_status: OrderStatus.COMPLETED,
+                        },
+                    })
+                }
+            }
+        }
+
         //get order
         let order: third_level_ip_orders | null = null
 
         order = await this.prisma.third_level_ip_orders.findFirst({
             where: {
                 ip_create_status: IpCreateStatus.PENDING,
-                current_status: OrderStatus.COMPLETED,
+                current_status: {
+                    in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED],
+                },
             }, //the order is completed, but status is pending
         })
         if (!order) {

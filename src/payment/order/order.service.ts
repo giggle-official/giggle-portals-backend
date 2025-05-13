@@ -704,7 +704,7 @@ export class OrderService {
         if (!orderRecord || !orderRecord.app_id) {
             throw new NotFoundException("Order not found")
         }
-        if (![OrderStatus.COMPLETED, OrderStatus.COMPLETED].includes(orderRecord.current_status as OrderStatus)) {
+        if (![OrderStatus.COMPLETED, OrderStatus.PENDING].includes(orderRecord.current_status as OrderStatus)) {
             throw new BadRequestException("Order is not completed or pending")
         }
 

@@ -42,15 +42,6 @@ export class AssetsController {
         return await this.assetsService.getAsset(req.user as UserJwtExtractDto, parseInt(id))
     }
 
-    @Post("/relate-to-ip")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @ApiResponse({ type: AssetDetailDto })
-    @ApiOperation({ summary: "Relate an asset to an ip" })
-    async relateToIp(@Req() req: Request, @Body() body: RelateToIpDto): Promise<AssetDetailDto> {
-        return await this.assetsService.relateToIp(req.user as UserJwtExtractDto, body)
-    }
-
     @Post("/rename")
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
