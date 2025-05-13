@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, Injectable, NotFoundException, Logger } from "@nestjs/common"
 import { CreateIpDto, CreateIpOrderDto } from "../ip-library.dto"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { PrismaService } from "src/common/prisma.service"
@@ -14,6 +14,7 @@ import { UserService } from "src/user/user.service"
 import { third_level_ip_orders } from "@prisma/client"
 @Injectable()
 export class IpOrderService {
+    private readonly logger = new Logger(IpOrderService.name)
     constructor(
         private readonly prisma: PrismaService,
         private readonly orderService: OrderService,
@@ -314,6 +315,7 @@ export class IpOrderService {
             return
         }
 
+        this.logger.warn("processOrder", order)
         //set status to creating
         await this.prisma.third_level_ip_orders.update({
             where: { id: order.id },
@@ -339,6 +341,7 @@ export class IpOrderService {
                     toArray(),
                 ),
             )
+            this.logger.warn("processOrder finished", order)
             //set status to created
             await this.prisma.third_level_ip_orders.update({
                 where: { id: order.id },
@@ -348,6 +351,7 @@ export class IpOrderService {
                 },
             })
         } catch (error) {
+            this.logger.error("processOrder error", error)
             await this.prisma.third_level_ip_orders.update({
                 where: { id: order.id },
                 data: {
