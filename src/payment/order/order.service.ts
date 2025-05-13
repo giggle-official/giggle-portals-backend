@@ -826,7 +826,7 @@ export class OrderService {
         let creatorNote = ""
         let orderCreatorRewards = orderAmount.div(unitPrice)
         //external rewards
-        if (modelSnapshot.limit_offer.external_ratio) {
+        if (modelSnapshot?.limit_offer?.external_ratio) {
             orderCreatorRewards = orderAmount
                 .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
                 .div(unitPrice)
