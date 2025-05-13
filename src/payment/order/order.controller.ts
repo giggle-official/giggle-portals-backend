@@ -192,7 +192,7 @@ export class OrderController {
     @ApiBody({ type: ReleaseRewardsDto })
     @ApiResponse({ type: OrderDetailDto })
     async releaseRewards(@Body() body: ReleaseRewardsDto) {
-        return await this.orderService.releaseRewards(body)
+        return await this.orderService.releaseRewardsRequest(body)
     }
 
     @Get("/get-stripe-pkey")

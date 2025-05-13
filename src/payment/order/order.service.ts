@@ -770,10 +770,61 @@ export class OrderService {
         if (!orderRecord) {
             throw new NotFoundException("Order not found")
         }
-        return await this.releaseRewards(orderRecord)
+        return await this.releaseRewardsRequest(orderRecord)
     }
 
-    async releaseRewards(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
+    async releaseRewardsRequest(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
+        const { order_id } = order
+        const orderRecord = await this.prisma.orders.findUnique({
+            where: { order_id: order_id },
+        })
+        if (!orderRecord) {
+            this.logger.error(`Order ${order_id} not found`)
+            throw new NotFoundException("Order not found")
+        }
+        if (orderRecord.current_status !== OrderStatus.COMPLETED) {
+            this.logger.error(`Order ${order_id} is not completed`)
+            throw new BadRequestException("Order is not completed")
+        }
+        if (!orderRecord.related_reward_id || !orderRecord.rewards_model_snapshot) {
+            this.logger.error(`Order ${order_id} has no reward pool`)
+            throw new BadRequestException("Order has no reward pool")
+        }
+
+        const modelSnapshot = orderRecord.rewards_model_snapshot as unknown as RewardSnapshotDto
+
+        const rewardPool = await this.prisma.reward_pools.findFirst({
+            where: {
+                token: modelSnapshot.token,
+            },
+        })
+        if (!rewardPool) {
+            this.logger.error(`Reward pool not found for order ${order_id}`)
+            throw new BadRequestException("Reward pool not found")
+        }
+
+        //get newest unit price
+        const unitPriceResponse = await this.giggleService.getIpTokenList({
+            mint: modelSnapshot.token,
+            page: "1",
+            page_size: "1",
+            site: "3body",
+        })
+
+        if (
+            !unitPriceResponse ||
+            !unitPriceResponse.data ||
+            !unitPriceResponse.data.length ||
+            !unitPriceResponse.data?.[0]?.price
+        ) {
+            this.logger.error(`Unit price not found for order ${order_id}`)
+            throw new BadRequestException("Unit price not found")
+        }
+
+        return await this.releaseRewards(order, new Decimal(unitPriceResponse.data[0].price))
+    }
+
+    async releaseRewards(order: ReleaseRewardsDto, unitPrice: Decimal = null): Promise<OrderRewardsDto[]> {
         const { order_id } = order
         const orderRecord = await this.prisma.orders.findUnique({
             where: { order_id: order_id },
@@ -807,19 +858,26 @@ export class OrderService {
         const currentDate = new Date(Date.now())
         const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
 
-        //get newest unit price
-        const unitPriceResponse = await this.giggleService.getIpTokenList({
-            mint: modelSnapshot.token,
-            page: "1",
-            page_size: "1",
-            site: "3body",
-        })
+        if (!unitPrice) {
+            //get newest unit price
+            const unitPriceResponse = await this.giggleService.getIpTokenList({
+                mint: modelSnapshot.token,
+                page: "1",
+                page_size: "1",
+                site: "3body",
+            })
 
-        if (!unitPriceResponse || !unitPriceResponse.data || !unitPriceResponse.data.length) {
-            this.logger.error(`Unit price not found for order ${order_id}`)
-            return []
+            if (
+                !unitPriceResponse ||
+                !unitPriceResponse.data ||
+                !unitPriceResponse.data.length ||
+                !unitPriceResponse.data?.[0]?.price
+            ) {
+                this.logger.error(`Unit price not found for order ${order_id}`)
+                return []
+            }
+            unitPrice = new Decimal(unitPriceResponse.data[0].price)
         }
-        const unitPrice = new Decimal(unitPriceResponse.data[0].price)
 
         //allocate order creator's rewards
         const orderAmount = new Decimal(orderRecord.amount).div(100)
