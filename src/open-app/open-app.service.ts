@@ -87,7 +87,15 @@ export class OpenAppService {
                     select: {
                         widget_tag: true,
                         widget_configs: true,
-                        widget_detail: true,
+                        widget_detail: {
+                            select: {
+                                id: true,
+                                tag: true,
+                                name: true,
+                                summary: true,
+                                pricing: true,
+                            },
+                        },
                         enabled: true,
                         order: true,
                         subscribe_detail: true,

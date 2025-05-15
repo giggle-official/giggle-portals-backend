@@ -601,6 +601,12 @@ export class WidgetsService {
         }
     }
 
+    mapWidgetDetail(widget: widgets): widgets {
+        delete widget.access_key
+        delete widget.secret_key
+        return widget
+    }
+
     mapToUpdateWidgetDto(body: UpdateWidgetDto, originalWidget: widgets): Prisma.widgetsUpdateInput {
         return {
             name: body.name !== undefined ? body.name : originalWidget.name,
