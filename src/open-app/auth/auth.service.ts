@@ -21,13 +21,16 @@ import { NotificationService } from "src/notification/notification.service"
 export class AuthService {
     private readonly authWidgetTag = "login_from_external"
     private readonly logger = new Logger(AuthService.name)
+    private readonly appDomainWhiteList: string[] = []
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly userService: UserService,
         private readonly authUserService: AuthUserService,
         private readonly notificationService: NotificationService,
-    ) {}
+    ) {
+        this.appDomainWhiteList = process.env.APP_DOMAIN_WHITELIST.split(",")
+    }
 
     async checkSignature(
         requestParams: Record<string, any>,
@@ -182,15 +185,18 @@ export class AuthService {
         //remove port from host
         const host = decoded.host.split(":")[0]
 
-        const appTrusted = await this.prisma.user_trusted_apps.findFirst({
-            where: { user: user.username_in_be, app_id: decoded.app_id, original: { endsWith: host } },
-        })
-        if (!appTrusted || !appTrusted.is_trusted) {
-            return {
-                is_bind: false,
-                access_token: "",
-                host: host,
-                email: user.email,
+        if (!this.appDomainWhiteList.includes(host)) {
+            //not in white list, need bind app first
+            const appTrusted = await this.prisma.user_trusted_apps.findFirst({
+                where: { user: user.username_in_be, app_id: decoded.app_id, original: { endsWith: host } },
+            })
+            if (!appTrusted || !appTrusted.is_trusted) {
+                return {
+                    is_bind: false,
+                    access_token: "",
+                    host: host,
+                    email: user.email,
+                }
             }
         }
 
