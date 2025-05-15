@@ -264,8 +264,9 @@ export class RewardsPoolService {
                 ![
                     RewardAllocateRoles.CUSTOMIZED,
                     RewardAllocateRoles.BUYBACK,
-                    RewardAllocateRoles.DEVELOPER,
-                    RewardAllocateRoles.INVITER,
+                    //RewardAllocateRoles.DEVELOPER,
+                    //RewardAllocateRoles.INVITER,
+                    RewardAllocateRoles.IPHOLDER,
                 ].includes(r.role)
             ) {
                 throw new BadRequestException("unknown role")
@@ -278,20 +279,24 @@ export class RewardsPoolService {
 
         for (const r of ratio) {
             let allocateType = r.allocate_type as unknown as RewardAllocateType
+            if (allocateType !== RewardAllocateType.USDC) {
+                throw new BadRequestException("The allocate type must be usdc")
+            }
+            /*
             switch (r.role) {
                 case RewardAllocateRoles.BUYBACK:
-                    if (allocateType !== RewardAllocateType.USDC) {
+                    if () {
                         throw new BadRequestException("The allocate type of buyback must be usdc")
                     }
                     break
-                case RewardAllocateRoles.DEVELOPER:
+                case RewardAllocateRoles.IPHOLDER:
                     if (allocateType !== RewardAllocateType.USDC) {
-                        throw new BadRequestException("The allocate type of developer must be usdc")
+                        throw new BadRequestException("The allocate type of ipholder must be usdc")
                     }
                     break
                 default:
                     break
-            }
+            }*/
         }
     }
 
@@ -416,6 +421,7 @@ roles AS (
   SELECT 'buyback' AS role UNION ALL
   SELECT 'developer' UNION ALL
   SELECT 'inviter' UNION ALL
+  SELECT 'ip-holder' UNION ALL
   SELECT 'customized'
 )
 SELECT

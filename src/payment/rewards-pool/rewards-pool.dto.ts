@@ -24,10 +24,11 @@ export enum RewardAllocateType {
 
 export enum RewardAllocateRoles {
     BUYBACK = "buyback",
-    INVITER = "inviter",
-    DEVELOPER = "developer",
+    //INVITER = "inviter",
+    //DEVELOPER = "developer",
     CUSTOMIZED = "customized",
     PLATFORM = "platform",
+    IPHOLDER = "ip-holder",
 }
 
 export class Pool implements reward_pools {
@@ -164,6 +165,13 @@ export class CreateRewardsPoolDto {
             },
             {
                 address: "",
+                ratio: 40,
+                role: RewardAllocateRoles.IPHOLDER,
+                allocate_type: "usdc",
+            },
+            /*
+            {
+                address: "",
                 ratio: 30,
                 role: RewardAllocateRoles.DEVELOPER,
                 allocate_type: "usdc",
@@ -174,6 +182,7 @@ export class CreateRewardsPoolDto {
                 role: RewardAllocateRoles.INVITER,
                 allocate_type: "token",
             },
+            */
             {
                 address: "some customized address",
                 ratio: 10,

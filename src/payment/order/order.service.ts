@@ -931,6 +931,7 @@ export class OrderService {
             const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
                 orderRecord,
                 reward,
+                rewardPool.owner,
             )
             if (rewardType === RewardAllocateType.USDC) {
                 const currentDate = new Date()
@@ -1097,6 +1098,7 @@ export class OrderService {
     async getUser(
         orderRecord: orders,
         allocateRatio: RewardAllocateRatio,
+        ipHolder: string,
     ): Promise<{
         user: string
         address: string
@@ -1113,6 +1115,15 @@ export class OrderService {
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "",
                 }
+            case RewardAllocateRoles.IPHOLDER:
+                return {
+                    user: ipHolder,
+                    address: "",
+                    expectedAllocateRole: RewardAllocateRoles.IPHOLDER,
+                    actualAllocateRole: RewardAllocateRoles.IPHOLDER,
+                    note: "",
+                }
+            /*
             case RewardAllocateRoles.INVITER:
                 if (!orderRecord.from_source_link) {
                     return {
@@ -1241,6 +1252,7 @@ export class OrderService {
                     actualAllocateRole: RewardAllocateRoles.DEVELOPER,
                     note: "",
                 }
+            */
             case RewardAllocateRoles.CUSTOMIZED:
                 return {
                     user: "",
