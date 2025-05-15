@@ -486,7 +486,7 @@ export class OpenAppService {
                         await this.prisma.app_bind_widgets.update({
                             where: { id: isBind.id },
                             data: {
-                                widget_configs: widgetConfigs,
+                                //widget_configs: widgetConfigs,
                                 subscription_id: subscription.id,
                                 enabled: widget.enabled,
                                 order: widget.order,
