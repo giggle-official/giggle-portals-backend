@@ -1069,7 +1069,10 @@ export class IpLibraryService {
                     if (!ipOrder) {
                         throw new BadRequestException("ip order not found")
                     }
-                    if (ipOrder.current_status !== OrderStatus.COMPLETED) {
+                    if (
+                        ipOrder.current_status !== OrderStatus.COMPLETED &&
+                        ipOrder.current_status !== OrderStatus.REWARDS_RELEASED
+                    ) {
                         throw new BadRequestException("ip order status error")
                     }
                     ipLevel = 3

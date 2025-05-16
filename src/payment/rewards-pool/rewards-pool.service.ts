@@ -31,6 +31,9 @@ import { OpenAppService } from "src/open-app/open-app.service"
 import { Decimal } from "@prisma/client/runtime/library"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { OrderService } from "src/payment/order/order.service"
+import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
+import { CronExpression } from "@nestjs/schedule"
+import { Cron } from "@nestjs/schedule"
 
 @Injectable()
 export class RewardsPoolService {
@@ -707,6 +710,47 @@ ORDER BY d.date;`
                 start_date: r.start_date,
                 end_date: r.end_date,
             })),
+        }
+    }
+
+    //create rewards pool if not exists
+    //@Cron(CronExpression.EVERY_MINUTE)
+    async createRewardsPool(): Promise<void> {
+        const ips = await this.prisma.ip_library.findMany({
+            where: {
+                token_info: {
+                    not: null,
+                },
+            },
+        })
+        const ratioDefault = [
+            { role: "buyback", ratio: 50, address: "", allocate_type: "usdc" },
+            { role: "ip-holder", ratio: 40, address: "", allocate_type: "usdc" },
+            { role: "platform", ratio: 10, address: "", allocate_type: "usdc" },
+        ]
+        for (const ip of ips) {
+            const tokenInfo = ip.token_info as any as CreateIpTokenGiggleResponseDto
+            if (!tokenInfo?.mint) continue
+            const pool = await this.prisma.reward_pools.findUnique({
+                where: {
+                    token: tokenInfo.mint,
+                },
+            })
+            if (pool) {
+                continue
+            }
+            await this.prisma.reward_pools.create({
+                data: {
+                    token: tokenInfo.mint,
+                    owner: ip.owner,
+                    ticker: ip.ticker,
+                    unit_price: (ip.current_token_info as any)?.price,
+                    revenue_ratio: ratioDefault,
+                    rewarded_amount: 0,
+                    injected_amount: 0,
+                    current_balance: 0,
+                },
+            })
         }
     }
 }
