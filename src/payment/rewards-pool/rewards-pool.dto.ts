@@ -6,6 +6,7 @@ import {
     IsArray,
     IsDate,
     IsDateString,
+    IsEmail,
     IsEnum,
     IsInt,
     IsNotEmpty,
@@ -17,6 +18,7 @@ import {
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
+import { OrderRewardsDto, UserRewards } from "../order/order.dto"
 export enum RewardAllocateType {
     TOKEN = "token",
     USDC = "usdc",
@@ -339,13 +341,44 @@ export class StatementQueryDto extends PaginationDto {
 export enum StatementType {
     RELEASED = "released",
     INJECTED = "injected",
+    AIRDROP = "airdrop",
+}
+
+export enum AirdropType {
+    INVITE = "invite",
+    INTERACT = "interact",
+    OTHER = "other",
+}
+
+export class RequestAirdropDto {
+    @ApiProperty({ description: "token address" })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+
+    @ApiProperty({ description: "email of the user to be airdropped" })
+    @IsEmail()
+    @IsNotEmpty()
+    email: string
+
+    @ApiProperty({ description: "usd amount of tokens to be airdropped, if set, token_amount will be ignored" })
+    @IsNumber()
+    @IsPositive()
+    usd_amount: number
+
+    @ApiProperty({ description: "type of airdrop", enum: AirdropType })
+    @IsEnum(AirdropType)
+    type: AirdropType
 }
 
 export class StatementResponseDto {
+    @ApiProperty({ description: "id" })
+    id: number
+
     @ApiProperty({ description: "date" })
     date: Date
 
-    @ApiProperty({ description: "usd revenue" })
+    @ApiProperty({ description: "usd revenue", type: "string" })
     usd_revenue: Decimal
 
     @ApiProperty({ description: "order id" })
@@ -354,15 +387,24 @@ export class StatementResponseDto {
     @ApiProperty({ description: "widget id" })
     widget_tag: string
 
-    @ApiProperty({ description: "rewarded amount" })
+    @ApiProperty({ description: "rewarded amount", type: "string" })
     rewarded_amount: Decimal
 
-    @ApiProperty({ description: "balance" })
+    @ApiProperty({ description: "balance", type: "string" })
     balance: Decimal
 
     @ApiProperty({ description: "type", enum: StatementType })
     @IsEnum(StatementType)
     type: StatementType
+
+    @ApiProperty({ description: "airdrop type", enum: AirdropType })
+    @IsEnum(AirdropType)
+    airdrop_type: AirdropType
+}
+
+export class AirdropResponseDto extends StatementResponseDto {
+    @ApiProperty({ description: "rewards detail", type: () => OrderRewardsDto })
+    rewards_detail: OrderRewardsDto
 }
 
 export class StatementResponseListDto {
@@ -375,5 +417,27 @@ export class StatementResponseListDto {
     @ApiProperty({ description: "total" })
     @IsNumber()
     @IsPositive()
+    total: number
+}
+
+export class AirdropQueryDto extends PaginationDto {
+    @ApiProperty({ description: "token address", required: false })
+    @IsString()
+    token?: string
+
+    @ApiProperty({ description: "email of the user to be airdropped", required: false })
+    @IsEmail()
+    email?: string
+
+    @ApiProperty({ description: "type of airdrop", enum: AirdropType, required: false })
+    @IsEnum(AirdropType)
+    type?: AirdropType
+}
+
+export class AirdropResponseListDto {
+    @ApiProperty({ description: "list of airdrop", isArray: true, type: AirdropResponseDto })
+    airdrops: AirdropResponseDto[]
+
+    @ApiProperty({ description: "total" })
     total: number
 }

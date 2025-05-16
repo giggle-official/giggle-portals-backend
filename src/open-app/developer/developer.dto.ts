@@ -158,3 +158,25 @@ export class WidgetIdentityDto {
     })
     secret_key: string
 }
+
+export class RequestWidgetAccessTokenDto {
+    @ApiProperty({
+        description: "The access key of the widget",
+        example: "1234567890",
+    })
+    access_key: string
+
+    @ApiProperty({
+        description: "The secret key of the widget",
+        example: "1234567890",
+    })
+    secret_key: string
+}
+
+export class WidgetAccessTokenDto {
+    @ApiProperty({
+        description: "The access token of the widget",
+        example: "1234567890",
+    })
+    access_token: string
+}

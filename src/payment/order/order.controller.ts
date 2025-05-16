@@ -14,6 +14,7 @@ import {
 import {
     BindRewardPoolDto,
     CreateOrderDto,
+    GetRewardsDetailQueryDto,
     OrderCallbackDto,
     OrderDetailDto,
     OrderListDto,
@@ -137,11 +138,11 @@ export class OrderController {
     @Get("/rewards-detail")
     @ApiOperation({ summary: "Get rewards detail for an order", tags: ["Order"] })
     @ApiResponse({ type: OrderRewardsDto, isArray: true })
-    async getRewardsDetail(@Query("order_id") orderId: string): Promise<OrderRewardsDto[]> {
-        if (!orderId) {
-            throw new BadRequestException("Order id is required")
+    async getRewardsDetail(@Query() query: GetRewardsDetailQueryDto): Promise<OrderRewardsDto[]> {
+        if (!query.order_id && !query.statement_id) {
+            throw new BadRequestException("Order id or statement id is required")
         }
-        return await this.orderService.getRewardsDetail(orderId)
+        return await this.orderService.getRewardsDetail(query.order_id, query.statement_id)
     }
 
     @ApiExcludeEndpoint()

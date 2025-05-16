@@ -301,11 +301,22 @@ export class ReleaseRewardsDto {
     order_id: string
 }
 
+export enum RewardType {
+    ORDER = "order",
+    AIRDROP = "airdrop",
+}
+
 export class UserRewards implements user_rewards {
     @ApiProperty({
         description: "The id of the order rewards",
     })
     id: number
+
+    @ApiProperty()
+    statement_id: number
+
+    @ApiProperty()
+    rewards_type: string
 
     @ApiProperty({
         description: "The order id",
@@ -448,4 +459,18 @@ export class OrderCallbackDto extends OrderDetailDto {
         description: "The jwt verify of the order",
     })
     jwt_verify: string
+}
+
+export class GetRewardsDetailQueryDto {
+    @ApiProperty({
+        description: "The order id",
+        required: false,
+    })
+    order_id?: string
+
+    @ApiProperty({
+        description: "The statement id",
+        required: false,
+    })
+    statement_id?: string
 }

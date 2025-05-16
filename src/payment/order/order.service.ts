@@ -378,16 +378,32 @@ export class OrderService {
         }
     }
 
-    async getRewardsDetail(orderId: string): Promise<OrderRewardsDto[]> {
-        const order = await this.prisma.orders.findUnique({
-            where: { order_id: orderId },
-        })
-        if (!order) {
-            throw new NotFoundException("Order not found")
+    async getRewardsDetail(orderId: string, statementId: string): Promise<OrderRewardsDto[]> {
+        let where = {}
+        if (orderId) {
+            const order = await this.prisma.orders.findUnique({
+                where: { order_id: orderId },
+            })
+            if (!order) {
+                throw new NotFoundException("Order not found")
+            }
+            where["order_id"] = orderId
         }
+
+        const statementIdInt = parseInt(statementId)
+        if (statementIdInt) {
+            const statement = await this.prisma.reward_pool_statement.findUnique({
+                where: { id: statementIdInt },
+            })
+            if (!statement) {
+                throw new NotFoundException("Statement not found")
+            }
+            where["statement_id"] = statementIdInt
+        }
+
         return this.mapRewardsDetail(
             await this.prisma.user_rewards.findMany({
-                where: { order_id: orderId },
+                where: where,
                 include: {
                     user_info: true,
                 },
@@ -399,6 +415,8 @@ export class OrderService {
         return rewards.map((reward) => ({
             id: reward.id,
             order_id: reward.order_id,
+            statement_id: reward.statement_id,
+            rewards_type: reward.rewards_type,
             user_info: {
                 username: reward?.user_info?.username,
                 avatar: reward?.user_info?.avatar,
@@ -1068,6 +1086,7 @@ export class OrderService {
             await tx.reward_pool_statement.create({
                 data: {
                     token: modelSnapshot.token,
+                    widget_tag: orderRecord.widget_tag,
                     amount: allocatedTokenAmount.mul(new Decimal(-1)),
                     usd_revenue: orderAmount,
                     unit_price: modelSnapshot.unit_price,

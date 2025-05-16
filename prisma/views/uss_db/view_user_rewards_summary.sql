@@ -54,7 +54,7 @@ SELECT
   `a`.`released` AS `released`,
   `a`.`withdrawn` AS `withdrawn`,
   `b`.`ticker` AS `ticker`,
-  `b`.`token_info` AS `token_info`
+  `b`.`current_token_info` AS `token_info`
 FROM
   (
     `t3` `a`

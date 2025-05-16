@@ -107,6 +107,7 @@ export class IpOrderService {
             description: `Create Derivative Ip For ${parentIp.name}`,
             redirect_url: body.redirect_url,
             callback_url: `${process.env.FRONTEND_URL}/api/v1/ip/order/callback`,
+            release_rewards_after_paid: true,
         }
         const orderDetail = await this.orderService.createOrder(orderInfo, user, app_id)
 

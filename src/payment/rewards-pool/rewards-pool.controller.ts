@@ -1,16 +1,20 @@
-import { Controller, Get, Post, Body, Req, UseGuards, Query } from "@nestjs/common"
+import { Controller, Get, Post, Body, Req, UseGuards, Query, Param } from "@nestjs/common"
 import {
     CreateRewardsPoolDto,
     InjectTokensDto,
     PoolResponseDto,
     PoolsQueryDto,
     PoolsResponseListDto,
+    RequestAirdropDto,
     StatementQueryDto,
     StatementResponseListDto,
     StatisticsIncomesDto,
     StatisticsQueryDto,
     StatisticsSummaryDto,
     UpdateRewardsPoolDto,
+    AirdropResponseDto,
+    StatementResponseDto,
+    AirdropQueryDto,
 } from "./rewards-pool.dto"
 import { RewardsPoolService } from "./rewards-pool.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -18,6 +22,8 @@ import { Request } from "express"
 import { ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
+import { IsWidgetGuard } from "src/auth/is_widget"
+import { OrderRewardsDto } from "../order/order.dto"
 
 @Controller("/api/v1/rewards-pool")
 export class RewardsPoolController {
@@ -59,6 +65,31 @@ export class RewardsPoolController {
     @UseGuards(AuthGuard("jwt"))
     async injectTokens(@Body() body: InjectTokensDto, @Req() req: Request) {
         return await this.rewardsPoolService.injectTokens(body, req.user as UserJwtExtractDto)
+    }
+
+    @ApiOperation({
+        summary: "Airdrop tokens to an user",
+        tags: ["Order"],
+        description: "Airdrop tokens to an user",
+    })
+    @Post("/airdrop")
+    @UseGuards(IsWidgetGuard)
+    @ApiBody({ type: RequestAirdropDto })
+    @ApiResponse({ type: AirdropResponseDto })
+    async airdrop(@Body() body: RequestAirdropDto, @Req() req: Request) {
+        return await this.rewardsPoolService.airdrop(body, req.user as UserJwtExtractDto)
+    }
+
+    @Get("/airdrops")
+    @ApiResponse({ type: StatementResponseDto })
+    @ApiOperation({
+        summary: "Get airdrop statements",
+        tags: ["Order"],
+        description: "Get airdrop statements",
+    })
+    @UseGuards(AuthGuard("jwt"))
+    async getAirdropStatements(@Query() query: AirdropQueryDto) {
+        return await this.rewardsPoolService.getAirdrops(query)
     }
 
     @Get("/")

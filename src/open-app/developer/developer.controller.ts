@@ -6,6 +6,8 @@ import {
     DeveloperWidgetDeleteDto,
     DeveloperWidgetDeleteResponseDto,
     DeveloperWidgetUpdateDto,
+    RequestWidgetAccessTokenDto,
+    WidgetAccessTokenDto,
     WidgetIdentityDto,
 } from "./developer.dto"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -52,6 +54,18 @@ export class DeveloperController {
     @ApiResponse({ type: WidgetIdentityDto })
     async identifyWidget(@Req() req: Request, @Query("tag") tag: string) {
         return this.developerService.getWidgetIdentity(req.user as UserJwtExtractDto, tag)
+    }
+
+    @Post("/widgets/get-access-token")
+    @ApiOperation({
+        summary: "get access token for a widget",
+        description: "get access token for a widget, default expire in 10 minites",
+        tags: ["Developer Utility"],
+    })
+    @ApiBody({ type: RequestWidgetAccessTokenDto })
+    @ApiResponse({ type: WidgetAccessTokenDto })
+    async getAccessToken(@Body() body: RequestWidgetAccessTokenDto) {
+        return this.developerService.getWidgetAccessToken(body)
     }
 
     @Get("/widgets")

@@ -205,7 +205,14 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "🔑 Admin",
-            tags: ["App Management", "Widgets Management", "Rewards Pool Management", "Order Management", "Test Tools"],
+            tags: [
+                "App Management",
+                "Widgets Management",
+                "Rewards Pool Management",
+                "Order Management",
+                "Test Tools",
+                "Developer Utility",
+            ],
         },
     ]
 

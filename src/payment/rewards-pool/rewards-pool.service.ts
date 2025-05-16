@@ -17,12 +17,20 @@ import {
     StatementResponseListDto,
     StatementType,
     RewardAllocateType,
+    RequestAirdropDto,
+    AirdropResponseDto,
+    StatementResponseDto,
+    AirdropQueryDto,
+    AirdropResponseListDto,
+    AirdropType,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { Prisma, reward_pool_limit_offer } from "@prisma/client"
+import { orders, Prisma, reward_pool_limit_offer, reward_pool_statement } from "@prisma/client"
 import { OpenAppService } from "src/open-app/open-app.service"
 import { Decimal } from "@prisma/client/runtime/library"
+import { GiggleService } from "src/web3/giggle/giggle.service"
+import { OrderService } from "src/payment/order/order.service"
 
 @Injectable()
 export class RewardsPoolService {
@@ -32,6 +40,12 @@ export class RewardsPoolService {
 
         @Inject(forwardRef(() => OpenAppService))
         private readonly openAppService: OpenAppService,
+
+        @Inject(forwardRef(() => GiggleService))
+        private readonly giggleService: GiggleService,
+
+        @Inject(forwardRef(() => OrderService))
+        private readonly orderService: OrderService,
     ) {}
     async createPool(body: CreateRewardsPoolDto, user: UserJwtExtractDto): Promise<PoolResponseDto> {
         const poolExists = await this.prisma.reward_pools.findFirst({
@@ -477,16 +491,183 @@ ORDER BY d.date;`
         })
 
         return {
-            statements: statement.map((s) => ({
-                date: s.created_at,
-                order_id: s.related_order_id,
-                widget_tag: s.order_info?.widget_tag,
-                usd_revenue: s.usd_revenue,
-                rewarded_amount: s.amount,
-                balance: s.current_balance,
-                type: s.type as StatementType,
-            })),
+            statements: statement.map((s) => this.mapStatementDetail(s)),
             total: count,
+        }
+    }
+
+    async airdrop(body: RequestAirdropDto, user: UserJwtExtractDto): Promise<AirdropResponseDto> {
+        if (body.usd_amount < 0) {
+            throw new BadRequestException("The amount of airdrop must be greater than 0")
+        }
+
+        const rewardsPools = await this.prisma.reward_pools.findFirst({
+            where: {
+                token: body.token,
+            },
+        })
+        if (!rewardsPools) {
+            throw new BadRequestException("Pool does not exist")
+        }
+
+        //user exists
+        const userExists = await this.prisma.users.findFirst({
+            where: {
+                email: body.email,
+            },
+        })
+        if (!userExists) {
+            throw new BadRequestException("User does not exist")
+        }
+
+        //if user subscribed this widget
+        const widget = await this.prisma.user_subscribed_widgets.findFirst({
+            where: {
+                widget_tag: user.developer_info.tag,
+                user: rewardsPools.owner,
+            },
+        })
+
+        if (!widget) {
+            throw new BadRequestException("Rewards pool is not subscribed to this widget")
+        }
+
+        const tokenInfo = await this.giggleService.getIpTokenList({
+            mint: body.token,
+            page: "1",
+            page_size: "1",
+            site: "3body",
+        })
+        if (!tokenInfo || !tokenInfo.data || !tokenInfo.data.length) {
+            throw new BadRequestException("Token not found")
+        }
+
+        const unitPrice = tokenInfo.data?.[0]?.price
+        if (!unitPrice) {
+            throw new BadRequestException("Token price not found")
+        }
+
+        const amount = new Decimal(body.usd_amount).div(unitPrice)
+
+        if (rewardsPools.current_balance < amount) {
+            throw new BadRequestException("Insufficient balance")
+        }
+
+        const newBalance = rewardsPools.current_balance.minus(amount)
+        const releasePerDay = amount.div(180)
+        const currentDate = new Date(Date.now())
+        const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
+
+        const { statement, userRewards } = await this.prisma.$transaction(async (tx) => {
+            await tx.reward_pools.update({
+                where: { token: body.token },
+                data: { current_balance: newBalance },
+            })
+            const statement = await tx.reward_pool_statement.create({
+                data: {
+                    token: body.token,
+                    amount: amount.mul(-1),
+                    type: "airdrop",
+                    widget_tag: user.developer_info.tag,
+                    airdrop_type: body.type,
+                    current_balance: newBalance,
+                },
+                include: {
+                    order_info: true,
+                },
+            })
+
+            const userRewards = await tx.user_rewards.create({
+                data: {
+                    statement_id: statement.id,
+                    rewards_type: "airdrop",
+                    user: userExists.username_in_be,
+                    rewards: amount,
+                    token: body.token,
+                    ticker: rewardsPools.ticker,
+                    released_per_day: releasePerDay,
+                    start_allocate: currentDate,
+                    end_allocate: releaseEndTime,
+                    released_rewards: 0,
+                    locked_rewards: amount,
+                    withdraw_rewards: 0,
+                },
+                include: {
+                    user_info: true,
+                },
+            })
+            return { statement, userRewards }
+        })
+
+        return {
+            ...this.mapStatementDetail(statement),
+            rewards_detail: this.orderService.mapRewardsDetail([userRewards])[0],
+        }
+    }
+
+    async getAirdrops(query: AirdropQueryDto): Promise<AirdropResponseListDto> {
+        const where: Prisma.reward_pool_statementWhereInput = {}
+        const userRewardsWhere: Prisma.user_rewardsWhereInput = {}
+        if (query.token) {
+            where.token = query.token
+        }
+        if (query.email) {
+            const user = await this.prisma.users.findFirst({
+                where: {
+                    email: query.email,
+                },
+            })
+            if (!user) {
+                return {
+                    airdrops: [],
+                    total: 0,
+                }
+            }
+            userRewardsWhere.user = user.username_in_be
+        }
+
+        if (query.type) {
+            where.airdrop_type = query.type
+        }
+
+        const airdrops = await this.prisma.reward_pool_statement.findMany({
+            where: where,
+            include: {
+                user_rewards: {
+                    where: userRewardsWhere,
+                    include: {
+                        user_info: true,
+                    },
+                },
+                order_info: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip: Math.max(parseInt(query.page) - 1, 0) * parseInt(query.page_size),
+            take: parseInt(query.page_size),
+        })
+
+        return {
+            airdrops: airdrops.map((r) => ({
+                ...this.mapStatementDetail(r),
+                rewards_detail: this.orderService.mapRewardsDetail(r.user_rewards)?.[0],
+            })),
+            total: airdrops.length,
+        }
+    }
+
+    mapStatementDetail(statement: reward_pool_statement & { order_info: orders }): StatementResponseDto {
+        return {
+            id: statement.id,
+            date: statement.created_at,
+            order_id: statement.related_order_id,
+            widget_tag: statement.widget_tag || statement.order_info?.widget_tag,
+            usd_revenue: statement.usd_revenue,
+            rewarded_amount: statement.amount,
+            balance: statement.current_balance,
+            type: statement.type as StatementType,
+            airdrop_type: statement.airdrop_type as AirdropType,
         }
     }
 

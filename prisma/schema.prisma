@@ -956,6 +956,8 @@ model reward_pools {
 model reward_pool_statement {
   id               Int               @id @default(autoincrement())
   token            String?           @db.VarChar(64)
+  widget_tag       String?           @db.VarChar(64)
+  airdrop_type     String?           @db.VarChar(64)
   usd_revenue      Decimal?          @db.Decimal(65, 12)
   unit_price       Decimal?          @db.Decimal(65, 12)
   amount           Decimal?          @db.Decimal(65, 12)
@@ -966,6 +968,7 @@ model reward_pool_statement {
   updated_at       DateTime?         @default(now()) @db.Timestamp(0)
   reward_pools     reward_pools?     @relation(fields: [token], references: [token])
   order_info       orders?           @relation(fields: [related_order_id], references: [order_id])
+  user_rewards     user_rewards[]
 }
 
 model reward_pool_limit_offer {
@@ -982,30 +985,34 @@ model reward_pool_limit_offer {
 enum reward_pool_type {
   released
   injected
+  airdrop
 }
 
 model user_rewards {
-  id                Int       @id @default(autoincrement())
-  order_id          String?   @db.VarChar(36)
-  user              String?   @db.VarChar(32)
-  role              String?   @db.VarChar(32)
-  expected_role     String?   @db.VarChar(32)
-  wallet_address    String?   @db.VarChar(64)
-  rewards           Decimal?  @db.Decimal(65, 12)
-  token             String?   @db.VarChar(64)
-  ticker            String?   @db.VarChar(32)
-  released_per_day  Decimal?  @db.Decimal(65, 12)
-  start_allocate    DateTime? @db.DateTime(0)
-  end_allocate      DateTime? @db.DateTime(0)
-  released_rewards  Decimal?  @db.Decimal(65, 12)
-  locked_rewards    Decimal?  @db.Decimal(65, 12)
-  withdraw_rewards  Decimal?  @db.Decimal(65, 12)
+  id                Int                    @id @default(autoincrement())
+  statement_id      Int?
+  rewards_type      String?                @default("order") @db.VarChar(32)
+  order_id          String?                @db.VarChar(36)
+  user              String?                @db.VarChar(32)
+  role              String?                @db.VarChar(32)
+  expected_role     String?                @db.VarChar(32)
+  wallet_address    String?                @db.VarChar(64)
+  rewards           Decimal?               @db.Decimal(65, 12)
+  token             String?                @db.VarChar(64)
+  ticker            String?                @db.VarChar(32)
+  released_per_day  Decimal?               @db.Decimal(65, 12)
+  start_allocate    DateTime?              @db.DateTime(0)
+  end_allocate      DateTime?              @db.DateTime(0)
+  released_rewards  Decimal?               @db.Decimal(65, 12)
+  locked_rewards    Decimal?               @db.Decimal(65, 12)
+  withdraw_rewards  Decimal?               @db.Decimal(65, 12)
   allocate_snapshot Json?
-  note              String?   @db.Text
-  created_at        DateTime? @default(now()) @db.Timestamp(0)
-  updated_at        DateTime? @default(now()) @db.Timestamp(0)
-  order_info        orders?   @relation(fields: [order_id], references: [order_id])
-  user_info         users?    @relation(fields: [user], references: [username_in_be])
+  note              String?                @db.Text
+  created_at        DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?              @default(now()) @db.Timestamp(0)
+  order_info        orders?                @relation(fields: [order_id], references: [order_id])
+  user_info         users?                 @relation(fields: [user], references: [username_in_be])
+  statement_info    reward_pool_statement? @relation(fields: [statement_id], references: [id])
 }
 
 model user_rewards_withdraw {

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { DeveloperWidgetCreateDto, DeveloperWidgetUpdateDto } from "./developer.dto"
+import { DeveloperWidgetCreateDto, DeveloperWidgetUpdateDto, RequestWidgetAccessTokenDto } from "./developer.dto"
 import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetSettingsDto } from "../widgets/widget.dto"
 import { WidgetsService } from "../widgets/widgets.service"
@@ -9,12 +9,14 @@ import { Prisma } from "@prisma/client"
 import { UserService } from "src/user/user.service"
 import * as crypto from "crypto"
 import { isEmail } from "class-validator"
+import { JwtService } from "@nestjs/jwt"
 @Injectable()
 export class DeveloperService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly widgetsService: WidgetsService,
         private readonly usersService: UserService,
+        private readonly jwtService: JwtService,
     ) {}
 
     async createWidget(body: DeveloperWidgetCreateDto, user: UserJwtExtractDto) {
@@ -391,5 +393,24 @@ export class DeveloperService {
         } catch (error) {
             throw new BadRequestException("Failed to delete widget")
         }
+    }
+
+    async getWidgetAccessToken(body: RequestWidgetAccessTokenDto) {
+        const widget = await this.prisma.widgets.findFirst({
+            where: { access_key: body.access_key, secret_key: body.secret_key },
+        })
+        if (!widget) {
+            throw new NotFoundException("Widget not found")
+        }
+        return this.jwtService.sign(
+            {
+                iss: widget.access_key,
+                widget_tag: widget.tag,
+            },
+            {
+                secret: widget.secret_key,
+                expiresIn: "10m",
+            },
+        )
     }
 }
