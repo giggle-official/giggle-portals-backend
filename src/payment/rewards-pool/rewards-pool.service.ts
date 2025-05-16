@@ -606,8 +606,9 @@ ORDER BY d.date;`
     }
 
     async getAirdrops(query: AirdropQueryDto): Promise<AirdropResponseListDto> {
-        const where: Prisma.reward_pool_statementWhereInput = {}
-        const userRewardsWhere: Prisma.user_rewardsWhereInput = {}
+        const where: Prisma.reward_pool_statementWhereInput = {
+            type: "airdrop",
+        }
         if (query.token) {
             where.token = query.token
         }
@@ -615,6 +616,7 @@ ORDER BY d.date;`
             const user = await this.prisma.users.findFirst({
                 where: {
                     email: query.email,
+                    is_blocked: false,
                 },
             })
             if (!user) {
@@ -623,7 +625,11 @@ ORDER BY d.date;`
                     total: 0,
                 }
             }
-            userRewardsWhere.user = user.username_in_be
+            where.user_rewards = {
+                some: {
+                    user: user.username_in_be,
+                },
+            }
         }
 
         if (query.type) {
@@ -634,7 +640,6 @@ ORDER BY d.date;`
             where: where,
             include: {
                 user_rewards: {
-                    where: userRewardsWhere,
                     include: {
                         user_info: true,
                     },

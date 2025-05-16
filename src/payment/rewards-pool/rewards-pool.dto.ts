@@ -11,6 +11,7 @@ import {
     IsInt,
     IsNotEmpty,
     IsNumber,
+    IsOptional,
     IsPositive,
     IsString,
     Max,
@@ -423,14 +424,17 @@ export class StatementResponseListDto {
 export class AirdropQueryDto extends PaginationDto {
     @ApiProperty({ description: "token address", required: false })
     @IsString()
+    @IsOptional()
     token?: string
 
     @ApiProperty({ description: "email of the user to be airdropped", required: false })
     @IsEmail()
+    @IsOptional()
     email?: string
 
     @ApiProperty({ description: "type of airdrop", enum: AirdropType, required: false })
     @IsEnum(AirdropType)
+    @IsOptional()
     type?: AirdropType
 }
 
