@@ -173,8 +173,6 @@ export class OrderService {
         }
 
         //todo: permission check
-        console.log(where)
-        console.log(userInfo)
         const record = await this.prisma.orders.findUnique({
             where,
         })
