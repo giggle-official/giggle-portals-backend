@@ -173,7 +173,8 @@ export class OrderService {
         }
 
         //todo: permission check
-
+        console.log(where)
+        console.log(userInfo)
         const record = await this.prisma.orders.findUnique({
             where,
         })
@@ -1065,9 +1066,6 @@ export class OrderService {
 
         //create rewards for the order
         await this.prisma.$transaction(async (tx) => {
-            await tx.user_rewards.createMany({
-                data: rewards,
-            })
             await tx.orders.update({
                 where: { id: orderRecord.id },
                 data: {
@@ -1083,7 +1081,7 @@ export class OrderService {
                     id: rewardPool.id,
                 },
             })
-            await tx.reward_pool_statement.create({
+            const statement = await tx.reward_pool_statement.create({
                 data: {
                     token: modelSnapshot.token,
                     widget_tag: orderRecord.widget_tag,
@@ -1094,6 +1092,12 @@ export class OrderService {
                     type: "released",
                     current_balance: newPoolBalance,
                 },
+            })
+            await tx.user_rewards.createMany({
+                data: rewards.map((reward) => ({
+                    ...reward,
+                    statement_id: statement.id,
+                })),
             })
         })
 
