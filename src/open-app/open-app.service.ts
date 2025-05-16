@@ -94,6 +94,7 @@ export class OpenAppService {
                                 name: true,
                                 summary: true,
                                 pricing: true,
+                                settings: true,
                             },
                         },
                         enabled: true,
