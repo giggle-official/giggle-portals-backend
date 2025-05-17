@@ -62,6 +62,22 @@ export class CreateLinkResponseDto {
     })
     enable_login: boolean
 }
+export class LinkCreatorDto {
+    @ApiProperty({
+        description: "The username of the creator",
+    })
+    username: string
+
+    @ApiProperty({
+        description: "The avatar of the creator",
+    })
+    avatar: string
+
+    @ApiProperty({
+        description: "The email of the creator",
+    })
+    email: string
+}
 
 export class LinkDetailDto {
     @ApiProperty({
@@ -81,15 +97,9 @@ export class LinkDetailDto {
 
     @ApiProperty({
         description: "The creator of the link",
-        properties: {
-            username: { type: "string" },
-            avatar: { type: "string" },
-        },
+        type: () => LinkCreatorDto,
     })
-    creator: {
-        username: string
-        avatar: string
-    }
+    creator: LinkCreatorDto
 
     @ApiProperty({
         description: "The widget tag of the link",

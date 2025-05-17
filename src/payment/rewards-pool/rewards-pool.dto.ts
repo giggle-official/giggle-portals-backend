@@ -439,7 +439,7 @@ export class AirdropQueryDto extends PaginationDto {
 }
 
 export class AirdropResponseListDto {
-    @ApiProperty({ description: "list of airdrop", isArray: true, type: AirdropResponseDto })
+    @ApiProperty({ description: "list of airdrop", isArray: true, type: () => AirdropResponseDto })
     airdrops: AirdropResponseDto[]
 
     @ApiProperty({ description: "total" })

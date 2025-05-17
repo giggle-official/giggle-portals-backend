@@ -15,6 +15,7 @@ import {
     AirdropResponseDto,
     StatementResponseDto,
     AirdropQueryDto,
+    AirdropResponseListDto,
 } from "./rewards-pool.dto"
 import { RewardsPoolService } from "./rewards-pool.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -81,7 +82,7 @@ export class RewardsPoolController {
     }
 
     @Get("/airdrops")
-    @ApiResponse({ type: StatementResponseDto })
+    @ApiResponse({ type: AirdropResponseListDto })
     @ApiOperation({
         summary: "Get airdrop statements",
         tags: ["Order"],

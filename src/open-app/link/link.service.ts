@@ -172,6 +172,7 @@ export class LinkService {
             creator: {
                 username: link.creator_info.username,
                 avatar: link.creator_info.avatar,
+                email: link.creator_info.email,
             },
             redirect_to_widget: link.widget_tag,
             widget_message: link.widget_message,
