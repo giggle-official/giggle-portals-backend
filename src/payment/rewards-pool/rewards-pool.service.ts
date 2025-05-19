@@ -553,7 +553,7 @@ ORDER BY d.date;`
 
         const amount = new Decimal(body.usd_amount).div(unitPrice)
 
-        if (rewardsPools.current_balance < amount) {
+        if (rewardsPools.current_balance.lt(amount)) {
             this.logger.error(
                 `Insufficient balance for airdrop: ${body.token}, expected: ${amount}, current: ${rewardsPools.current_balance}, request widget: ${user.developer_info.tag}`,
             )
