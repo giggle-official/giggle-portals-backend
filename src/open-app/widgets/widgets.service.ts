@@ -533,8 +533,11 @@ export class WidgetsService {
             throw new NotFoundException("Widget not found")
         }
 
-        await this.prisma.app_bind_widgets.deleteMany({
+        await this.prisma.app_bind_widgets.updateMany({
             where: { widget_tag: body.tag, app_id: body.app_id, app_detail: { creator: user.usernameShorted } },
+            data: {
+                enabled: false,
+            },
         })
         return {
             status: "success",
@@ -663,6 +666,7 @@ export class WidgetsService {
             private: (appBind.widget_configs as any).private as Record<string, any>,
             tag: appBind.widget_tag,
             app_id: appBind.app_id,
+            enabled: appBind.enabled,
         }
     }
 

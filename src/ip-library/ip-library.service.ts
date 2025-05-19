@@ -1847,6 +1847,7 @@ export class IpLibraryService {
             change24h: currentTokenInfo?.change24h || "0",
             price: currentTokenInfo?.price || originalTokenInfo?.price,
             visitLink: currentTokenInfo?.tradingUri || originalTokenInfo?.visitLink,
+            volume: currentTokenInfo?.tradeVolume || "0",
         }
     }
 

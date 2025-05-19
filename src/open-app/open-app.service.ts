@@ -441,6 +441,8 @@ export class OpenAppService {
             })
 
             //process widgets
+            //updated at: 2025-05-19, we are no longer support to update widgets if app created
+            /*
             await Promise.all(
                 updateData.widgets.map(async (widget) => {
                     const widgetDetail = await this.prisma.widgets.findUnique({
@@ -496,7 +498,7 @@ export class OpenAppService {
                         })
                     }
                 }),
-            )
+            )*/
 
             return app
         })
@@ -761,6 +763,9 @@ export class OpenAppService {
     }
 
     private _mapAppMenus(menus: any): AppMenuDto[] {
+        //updated at: 2025-05-19, we are no longer support to update menus if app created
+        return []
+        /*
         const STATIC_MENUS: AppMenuDto[] = [
             { name: "IP Browser", path: "/ip-browser", order: 0, enabled: true },
             { name: "Community", path: "/community", order: 1, enabled: true },
@@ -781,6 +786,7 @@ export class OpenAppService {
                 enabled: menu.enabled === undefined ? menuItem.enabled : menu.enabled,
             }
         })
+        */
     }
 
     async addInviteEmail(addInviteEmailDto: AddInviteEmailDto, userInfo: UserInfoDTO) {

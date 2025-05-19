@@ -279,6 +279,12 @@ export class CreateIpTokenGiggleResponseDto {
         required: false,
     })
     change24h?: string
+
+    @ApiProperty({
+        description: "trade volume of the ip token",
+        required: false,
+    })
+    volume?: string
 }
 
 export class GetIpTokenListQueryDto {
