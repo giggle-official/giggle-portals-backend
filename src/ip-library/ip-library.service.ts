@@ -41,6 +41,7 @@ import { AssetDetailDto } from "src/assets/assets.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
 import { OrderStatus } from "src/payment/order/order.dto"
+import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
 
 @Injectable()
 export class IpLibraryService {
@@ -76,6 +77,9 @@ export class IpLibraryService {
 
         @Inject(forwardRef(() => PriceService))
         private readonly priceService: PriceService,
+
+        @Inject(forwardRef(() => RewardsPoolService))
+        private readonly rewardsPoolService: RewardsPoolService,
     ) {}
 
     getGenres(): GenreDto[] {
@@ -1466,6 +1470,9 @@ export class IpLibraryService {
                 })
                 subscriber.complete()
             }
+
+            //create rewards pool if not exists
+            await this.rewardsPoolService.createRewardsPool(ip.id)
 
             return ipProcessStepsDto
         } catch (error) {

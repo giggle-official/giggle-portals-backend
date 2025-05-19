@@ -14,10 +14,12 @@ import {
     GetAccessTokenDto,
     GetAccessTokenResponseDto,
     GetWidgetsRequestDto,
+    MyWidgetsSummaryDto,
     SubscribeWidgetDto,
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
     UpdateWidgetDto,
+    WidgetBindAppInfoDto,
     WidgetConfigDto,
     WidgetDetailDto,
     WidgetSettingsDto,
@@ -234,7 +236,7 @@ export class WidgetsService {
         }
     }
 
-    async getMyWidgets(user: UserJwtExtractDto, query: GetWidgetsRequestDto): Promise<WidgetSummaryDto[]> {
+    async getMyWidgets(user: UserJwtExtractDto, query: GetWidgetsRequestDto): Promise<MyWidgetsSummaryDto[]> {
         const filterWhere: Prisma.widgetsWhereInput = {}
 
         if (query.type) {
@@ -260,6 +262,29 @@ export class WidgetsService {
                         },
                     },
                 },
+
+                app_bind_widgets: {
+                    where: {
+                        app_detail: {
+                            app_bind_ips: {
+                                some: {
+                                    ip_id: parseInt(query.ip_id) || -1,
+                                },
+                            },
+                        },
+                        enabled: true,
+                    },
+                    select: {
+                        widget_tag: true,
+                        app_detail: {
+                            select: {
+                                app_id: true,
+                                sub_domain: true,
+                            },
+                        },
+                    },
+                    take: 1,
+                },
             },
         })
 
@@ -267,10 +292,15 @@ export class WidgetsService {
             where: { user: user.usernameShorted },
         })
 
-        return this._mapToSummaryResponse(
+        const res = await this._mapToSummaryResponse(
             widgets.map((widget) => widget.widget_info),
             subscribedWidgets,
         )
+
+        return res.map((widget) => ({
+            ...widget,
+            app_info: widgets.find((w) => w.widget_tag === widget.tag)?.app_bind_widgets?.[0]?.app_detail || null,
+        }))
     }
 
     async _mapToSummaryResponse(

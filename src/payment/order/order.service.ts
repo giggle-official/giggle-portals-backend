@@ -6,6 +6,8 @@ import {
     NotFoundException,
     InternalServerErrorException,
     ForbiddenException,
+    Inject,
+    forwardRef,
 } from "@nestjs/common"
 import {
     BindRewardPoolDto,
@@ -54,11 +56,18 @@ export class OrderService {
     public static readonly paymentMethod = [PaymentMethod.STRIPE, PaymentMethod.WALLET]
     constructor(
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
         private readonly giggleService: GiggleService,
         private readonly httpService: HttpService,
+
+        @Inject(forwardRef(() => LinkService))
         private readonly linkService: LinkService,
+
+        @Inject(forwardRef(() => RewardsPoolService))
         private readonly rewardsPoolService: RewardsPoolService,
+
         private readonly jwtService: JwtService,
         @InjectStripe() private readonly stripe: Stripe,
     ) {}

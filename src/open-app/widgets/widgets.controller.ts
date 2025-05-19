@@ -29,6 +29,7 @@ import {
     GetWidgetsRequestDto,
     GetAccessTokenDto,
     GetAccessTokenResponseDto,
+    MyWidgetsSummaryDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -50,7 +51,7 @@ export class WidgetsController {
 
     @Get("/my")
     @ApiOperation({ summary: "get all my widgets" })
-    @ApiResponse({ type: WidgetSummaryDto, isArray: true })
+    @ApiResponse({ type: MyWidgetsSummaryDto, isArray: true })
     @UseGuards(AuthGuard("jwt"))
     async getMyWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
         return this.widgetService.getMyWidgets(req.user as UserJwtExtractDto, query)

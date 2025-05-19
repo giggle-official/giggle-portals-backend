@@ -30,6 +30,6 @@ import { JwtModule } from "@nestjs/jwt"
     ],
     controllers: [PaymentController, OrderController, RewardsPoolController],
     providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService, RewardsPoolService],
-    exports: [OrderService],
+    exports: [OrderService, RewardsPoolService],
 })
 export class PaymentModule {}

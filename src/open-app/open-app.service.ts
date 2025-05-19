@@ -429,6 +429,7 @@ export class OpenAppService {
                     menus: true,
                 },
             })
+
             await tx.app_bind_ips.deleteMany({
                 where: { app_id: updateData.app_id },
             })
@@ -534,6 +535,9 @@ export class OpenAppService {
                 where: { app_id: deleteData.app_id },
             })
             await tx.app_bind_ips.deleteMany({
+                where: { app_id: deleteData.app_id },
+            })
+            await tx.app_bind_widgets.deleteMany({
                 where: { app_id: deleteData.app_id },
             })
         })

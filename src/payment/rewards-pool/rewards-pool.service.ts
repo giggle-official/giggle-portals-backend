@@ -1,4 +1,4 @@
-import { BadRequestException, forwardRef, Inject, Injectable } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import {
     CreateRewardsPoolDto,
     RewardAllocateRatio,
@@ -37,6 +37,7 @@ import { Cron } from "@nestjs/schedule"
 
 @Injectable()
 export class RewardsPoolService {
+    private readonly logger = new Logger(RewardsPoolService.name)
     public readonly PLATFORM_REVENUE_RATIO = 10
     constructor(
         private readonly prisma: PrismaService,
@@ -553,6 +554,9 @@ ORDER BY d.date;`
         const amount = new Decimal(body.usd_amount).div(unitPrice)
 
         if (rewardsPools.current_balance < amount) {
+            this.logger.error(
+                `Insufficient balance for airdrop: ${body.token}, expected: ${amount}, current: ${rewardsPools.current_balance}, request widget: ${user.developer_info.tag}`,
+            )
             throw new BadRequestException("Insufficient balance")
         }
 
@@ -714,43 +718,42 @@ ORDER BY d.date;`
     }
 
     //create rewards pool if not exists
-    //@Cron(CronExpression.EVERY_MINUTE)
-    async createRewardsPool(): Promise<void> {
-        const ips = await this.prisma.ip_library.findMany({
+    async createRewardsPool(ip_id: number): Promise<void> {
+        const ip = await this.prisma.ip_library.findUnique({
             where: {
                 token_info: {
                     not: null,
                 },
+                id: ip_id,
             },
         })
+        if (!ip) return
         const ratioDefault = [
             { role: "buyback", ratio: 50, address: "", allocate_type: "usdc" },
             { role: "ip-holder", ratio: 40, address: "", allocate_type: "usdc" },
             { role: "platform", ratio: 10, address: "", allocate_type: "usdc" },
         ]
-        for (const ip of ips) {
-            const tokenInfo = ip.token_info as any as CreateIpTokenGiggleResponseDto
-            if (!tokenInfo?.mint) continue
-            const pool = await this.prisma.reward_pools.findUnique({
-                where: {
-                    token: tokenInfo.mint,
-                },
-            })
-            if (pool) {
-                continue
-            }
-            await this.prisma.reward_pools.create({
-                data: {
-                    token: tokenInfo.mint,
-                    owner: ip.owner,
-                    ticker: ip.ticker,
-                    unit_price: (ip.current_token_info as any)?.price,
-                    revenue_ratio: ratioDefault,
-                    rewarded_amount: 0,
-                    injected_amount: 0,
-                    current_balance: 0,
-                },
-            })
+        const tokenInfo = ip.token_info as any as CreateIpTokenGiggleResponseDto
+        if (!tokenInfo?.mint) return
+        const pool = await this.prisma.reward_pools.findUnique({
+            where: {
+                token: tokenInfo.mint,
+            },
+        })
+        if (pool) {
+            return
         }
+        await this.prisma.reward_pools.create({
+            data: {
+                token: tokenInfo.mint,
+                owner: ip.owner,
+                ticker: ip.ticker,
+                unit_price: (ip.current_token_info as any)?.price || (ip.token_info as any)?.price,
+                revenue_ratio: ratioDefault,
+                rewarded_amount: 0,
+                injected_amount: 0,
+                current_balance: 0,
+            },
+        })
     }
 }

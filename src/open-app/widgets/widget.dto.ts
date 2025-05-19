@@ -4,6 +4,7 @@ import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
 import { JwtPermissions, ROLES } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+import { AppInfoDto } from "../open-app.dto"
 
 export class WidgetSettingsDto {
     @ApiProperty({ description: "widget tag" })
@@ -206,6 +207,19 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
     subscribed_detail: UserWidgetSubscribedResponseDto
 }
 
+export class WidgetBindAppInfoDto {
+    @ApiProperty({ description: "app id" })
+    app_id: string
+
+    @ApiProperty({ description: "app sub domain" })
+    sub_domain: string
+}
+
+export class MyWidgetsSummaryDto extends WidgetSummaryDto {
+    @ApiProperty({ description: "widget bind app info", type: () => WidgetBindAppInfoDto, required: false })
+    app_info: WidgetBindAppInfoDto | null
+}
+
 export class WidgetDetailDto extends WidgetSummaryDto {
     @ApiProperty({ description: "widget created at" })
     created_at: Date
@@ -273,6 +287,9 @@ export class GetWidgetsRequestDto {
 
     @ApiProperty({ description: "type", required: false, enum: ["iframe", "system"] })
     type?: "iframe" | "system"
+
+    @ApiProperty({ description: "ip id", required: false })
+    ip_id?: string
 }
 
 export class GetAccessTokenResponseDto {
