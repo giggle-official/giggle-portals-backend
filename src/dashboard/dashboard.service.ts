@@ -39,10 +39,10 @@ export class DashboardService {
         })
 
         return {
-            total_ip_count: totalIpCount,
-            top_level_ip_count: topLevelIpCount,
+            total_ip_count: totalIpCount || 0,
+            top_level_ip_count: topLevelIpCount || 0,
             current_market_value: currentMarketValue?._sum?.market_cap?.toNumber() || 0,
-            bound_widget: boundWidget,
+            bound_widget: boundWidget || 0,
         }
     }
 
