@@ -41,7 +41,7 @@ export class DashboardService {
         return {
             total_ip_count: totalIpCount,
             top_level_ip_count: topLevelIpCount,
-            current_market_value: currentMarketValue._sum.market_cap.toNumber(),
+            current_market_value: currentMarketValue?._sum?.market_cap?.toNumber() || 0,
             bound_widget: boundWidget,
         }
     }
