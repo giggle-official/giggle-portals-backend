@@ -717,6 +717,21 @@ ORDER BY d.date;`
         }
     }
 
+    //create pool
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    async createPools() {
+        const ips = await this.prisma.ip_library.findMany({
+            where: {
+                token_mint: {
+                    not: null,
+                },
+            },
+        })
+        for (const ip of ips) {
+            await this.createRewardsPool(ip.id)
+        }
+    }
+
     //create rewards pool if not exists
     async createRewardsPool(ip_id: number): Promise<void> {
         const ip = await this.prisma.ip_library.findUnique({
