@@ -143,6 +143,7 @@ export class OpenAppService {
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
             configs: this._processConfigs(app.configs),
             kline_url: process.env.GIGGLE_KLINE_URL,
+            custom_sub_domain: process.env.OPEN_APP_SUB_DOMAIN || "app.giggle.pro",
             menus: this._mapAppMenus(app.menus),
             widgets: await Promise.all(
                 app.app_bind_widgets.map(async (widget) => {

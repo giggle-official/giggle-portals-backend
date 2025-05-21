@@ -1,9 +1,9 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
-import { user_subscribed_widgets } from "@prisma/client"
 import { IsEmail, IsNotEmpty } from "class-validator"
-import { IpLibraryDetailDto, IpLibraryDetailNoChildDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
+import { IpLibraryDetailNoChildDto, IpSummaryDto } from "src/ip-library/ip-library.dto"
 import { UserInfoDTO } from "src/user/user.controller"
-import { UserWidgetSubscribedDetailDto, WidgetDetailDto } from "./widgets/widget.dto"
+import { UserWidgetSubscribedDetailDto } from "./widgets/widget.dto"
+
 export class AppMenuDto {
     @ApiProperty({
         description: "Menu ID",
@@ -141,6 +141,11 @@ export class AppInfoDto {
         isArray: true,
     })
     widgets: AppWidgetsDto[]
+
+    @ApiProperty({
+        description: "Custom Sub Domain",
+    })
+    custom_sub_domain: string
 }
 
 export class CreateAppDto extends PickType(AppInfoDto, [

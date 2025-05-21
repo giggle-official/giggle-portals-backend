@@ -1,4 +1,4 @@
-import { HttpStatus, HttpException, Injectable, NotFoundException } from "@nestjs/common"
+import { Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { IncomeRankDto, MarketCapRankDto, MySummaryDto, StatisticByDayDto } from "./dashboard.dto"
