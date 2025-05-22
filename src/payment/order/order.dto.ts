@@ -209,6 +209,13 @@ export class CreateOrderDto {
     })
     release_rewards_after_paid?: boolean
 
+    @ApiProperty({
+        description:
+            "The token of the order rewards, if not provided, the default token will be used, this token must be app bind ip or child ip of app bind ip",
+        required: false,
+    })
+    reward_token?: string
+
     @ApiProperty({ description: "The description of the order", required: false })
     description?: string
 

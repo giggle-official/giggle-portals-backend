@@ -94,14 +94,60 @@ export class OrderService {
         }
 
         if (appId) {
-            const rewardPool = await this.rewardsPoolService.getPools({
-                app_id: appId,
-                page: "1",
-                page_size: "1",
+            const appBindIp = await this.prisma.app_bind_ips.findFirst({
+                where: {
+                    app_id: appId,
+                },
             })
-            if (rewardPool) {
-                relatedRewardId = rewardPool?.pools?.[0]?.id
-                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
+
+            if (!appBindIp) {
+                throw new BadRequestException("App bind ip not found")
+            }
+
+            if (order.reward_token) {
+                const pool = await this.rewardsPoolService.getPools({
+                    token: order.reward_token,
+                    page: "1",
+                    page_size: "1",
+                })
+                if (!pool || pool.pools.length === 0) {
+                    throw new BadRequestException("Rewards token not found")
+                }
+
+                const tokenIp = await this.prisma.ip_library.findFirst({
+                    where: {
+                        token_mint: order.reward_token,
+                    },
+                })
+
+                if (!tokenIp) {
+                    throw new BadRequestException("Can not find ip info for this rewards token")
+                }
+
+                const IpRelations = await this.prisma.ip_library_child.findFirst({
+                    where: {
+                        ip_id: tokenIp.id,
+                    },
+                })
+
+                if (IpRelations.parent_ip !== appBindIp.ip_id && IpRelations.ip_id !== appBindIp.ip_id) {
+                    throw new BadRequestException("This ip is not allowed to be use in current app")
+                }
+
+                relatedRewardId = pool.pools[0].id
+                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
+            } else {
+                const rewardPool = await this.rewardsPoolService.getPools({
+                    app_id: appId,
+                    page: "1",
+                    page_size: "1",
+                })
+                if (rewardPool && rewardPool.pools.length > 0) {
+                    relatedRewardId = rewardPool?.pools?.[0]?.id
+                    rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(
+                        rewardPool?.pools?.[0]?.token,
+                    )
+                }
             }
         }
 
