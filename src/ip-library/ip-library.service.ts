@@ -496,6 +496,10 @@ export class IpLibraryService {
             }
         }
 
+        if (params.token_mint) {
+            where.token_mint = params.token_mint
+        }
+
         let orderBy: Prisma.ip_libraryOrderByWithRelationInput = {
             created_at: "desc",
         }

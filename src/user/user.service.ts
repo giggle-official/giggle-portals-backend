@@ -177,6 +177,9 @@ export class UserService {
 
         const where: Prisma.view_user_rewards_summaryWhereInput = {
             user: user.username_in_be,
+            rewards: {
+                gt: 0,
+            },
             ticker: {
                 not: "usdc",
             },

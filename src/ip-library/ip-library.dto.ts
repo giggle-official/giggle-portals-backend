@@ -260,6 +260,14 @@ export class GetListParams extends PaginationDto {
     @IsOptional()
     @IsEnum(["1", "2", "3"])
     children_levels?: "1" | "2"
+
+    @ApiProperty({
+        required: false,
+        description: "token mint address of the ip library",
+    })
+    @IsOptional()
+    @IsString()
+    token_mint?: string
 }
 
 export class GetMyListParams extends GetListParams {
