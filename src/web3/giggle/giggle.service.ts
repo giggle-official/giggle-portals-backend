@@ -331,11 +331,11 @@ export class GiggleService {
 
     private async uploadAsset(path: string, subscriber: any): Promise<string> {
         const fileName = path.split("/").pop()
-        if (!fileName.endsWith(".mp4")) {
-            throw new BadRequestException("File is not a mp4 video")
+        if (!fileName.endsWith(".mp4") && !fileName.endsWith(".mov") && !fileName.endsWith(".mkv")) {
+            throw new BadRequestException("File is not a mp4 or mov or mkv video")
         }
 
-        const contentType = "video/mp4"
+        const contentType = "video/" + fileName.split(".").pop()
         const s3Info = await this.utilitiesService.getIpLibraryS3Info()
 
         const signatureParams = this.generateSignature({ fileName, scene: "createCoin" })
