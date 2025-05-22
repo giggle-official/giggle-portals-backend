@@ -850,10 +850,12 @@ export class GiggleService {
                         date: new Date(),
                     },
                 })
-                await this.prismaService.users.update({
-                    where: { username_in_be: user.username_in_be },
-                    data: { wallet_address: walletDetail?.addr },
-                })
+                if (walletDetail?.addr) {
+                    await this.prismaService.users.update({
+                        where: { username_in_be: user.username_in_be },
+                        data: { wallet_address: walletDetail?.addr },
+                    })
+                }
                 record++
             }
             await new Promise((resolve) => setTimeout(resolve, 1000)) //1 second
