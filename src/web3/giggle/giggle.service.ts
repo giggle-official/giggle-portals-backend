@@ -858,6 +858,7 @@ export class GiggleService {
                 }
                 record++
             }
+            await new Promise((resolve) => setTimeout(resolve, 1000)) //1 second
         }
         this.logger.log(`end processUserWalletRecord24h, processed ${record} users`)
     }
