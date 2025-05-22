@@ -823,29 +823,41 @@ export class GiggleService {
     async processUserWalletRecord24h() {
         this.logger.log("start processUserWalletRecord24h")
         const prismaService = new PrismaService()
-        const users = await prismaService.asset_to_meme_record.findMany({
+        const batchSize = 10
+        const total = await prismaService.users.count({
             where: {
-                status: "completed",
+                is_blocked: false,
             },
-            select: {
-                owner: true,
-            },
-            distinct: ["owner"],
         })
         let record = 0
-        for (const user of users) {
-            const walletDetail = await this.getUserWalletDetail({ usernameShorted: user.owner }, 1, 100)
-            if (walletDetail.total_balance === 0) {
-                continue
-            }
-            await this.prismaService.user_wallet_record_24h.create({
-                data: {
-                    user: user.owner,
-                    record: walletDetail as any,
-                    date: new Date(),
+        for (let i = 0; i < total; i += batchSize) {
+            const users = await prismaService.users.findMany({
+                where: {
+                    is_blocked: false,
                 },
+                skip: i,
+                take: batchSize,
             })
-            record++
+            for (const user of users) {
+                const walletDetail = await this.getUserWalletDetail({ usernameShorted: user.username_in_be }, 1, 100)
+                if (walletDetail.total_balance === 0) {
+                    continue
+                }
+                await this.prismaService.user_wallet_record_24h.create({
+                    data: {
+                        user: user.username_in_be,
+                        record: walletDetail as any,
+                        date: new Date(),
+                    },
+                })
+                if (!user.wallet_address) {
+                    await this.prismaService.users.update({
+                        where: { username_in_be: user.username_in_be },
+                        data: { wallet_address: walletDetail?.addr },
+                    })
+                }
+                record++
+            }
         }
         this.logger.log(`end processUserWalletRecord24h, processed ${record} users`)
     }

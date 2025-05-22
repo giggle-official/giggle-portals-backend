@@ -10,6 +10,7 @@ import { IpOnChainService } from "./ip-on-chain/ip-on-chain.service"
 import { IpLibraryModule } from "src/ip-library/ip-library.module"
 import { PriceController } from "./price/price.controller"
 import { PriceService } from "./price/price.service"
+import { RewardPoolOnChainService } from './reward-pool-on-chain/reward-pool-on-chain.service';
 
 @Module({
     imports: [
@@ -18,7 +19,7 @@ import { PriceService } from "./price/price.service"
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),
     ],
-    providers: [GiggleService, PrismaService, UtilitiesService, IpOnChainService, PriceService],
+    providers: [GiggleService, PrismaService, UtilitiesService, IpOnChainService, PriceService, RewardPoolOnChainService],
     controllers: [GiggleController, PriceController],
     exports: [GiggleService, IpOnChainService, PriceService],
 })

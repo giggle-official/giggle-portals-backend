@@ -41,6 +41,7 @@ model users {
   login_code_expired             DateTime?                     @db.DateTime(0)
   login_code_requested_at        DateTime?                     @db.DateTime(0)
   register_app_id                String?                       @db.VarChar(32)
+  wallet_address                 String?                       @db.VarChar(64)
   universal_stimulator_videos    universal_stimulator_videos[]
   stripe_orders                  stripe_orders[]
   assets                         assets[]
