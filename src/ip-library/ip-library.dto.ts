@@ -814,7 +814,8 @@ export class PurchaseStrategyDto {
         required: false,
     })
     @IsObject()
-    strategy_detail: any
+    @IsOptional()
+    strategy_detail?: any
 }
 
 export class CreateIpDto {
