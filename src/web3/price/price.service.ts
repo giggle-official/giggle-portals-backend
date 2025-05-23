@@ -2,7 +2,7 @@ import { HttpService } from "@nestjs/axios"
 import { BadRequestException, Injectable, Logger } from "@nestjs/common"
 import { AxiosRequestConfig } from "axios"
 import { HttpsProxyAgent } from "https-proxy-agent"
-import { lastValueFrom } from "rxjs"
+import { async, lastValueFrom } from "rxjs"
 import { GiggleTokenPriceDTO, PercentageToCreditsDTO } from "./price.dto"
 
 @Injectable()
@@ -27,6 +27,24 @@ export class PriceService {
         if (!this.apiKey) {
             throw new Error("COINGECKO_API_KEY is not set")
         }
+    }
+
+    async getSolPrice(): Promise<number> {
+        const request: AxiosRequestConfig = {
+            params: {
+                ids: "solana",
+                vs_currencies: "usd",
+            },
+            ...this.priceRequestHeaders,
+        }
+
+        if (this.proxy) {
+            request.httpsAgent = new HttpsProxyAgent(this.proxy)
+        }
+
+        const response = this.httpService.get(this.apiUrl, request)
+        const data = await lastValueFrom(response)
+        return data.data.solana.usd
     }
 
     async getGiggleTokenPrice(credits: number): Promise<GiggleTokenPriceDTO> {

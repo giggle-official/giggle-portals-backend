@@ -285,6 +285,7 @@ model ip_library {
   web3_order_sn           String?                     @db.VarChar(255)
   user_info               users?                      @relation(fields: [owner], references: [username_in_be])
   on_chain_status         ip_library_on_chain_status? @default(pending)
+  launch_agent_id         String?                     @db.VarChar(255)
   ip_signature_clips      ip_signature_clips[]
   ip_library_tags         ip_library_tags[]
   asset_related_ips       asset_related_ips[]
@@ -297,6 +298,7 @@ model ip_library {
   ip_share_count          ip_share_count?
   ip_token_price_history  ip_token_price_history[]
   view_ip_incomes         view_ip_incomes[]
+  launch_agent            launch_agents?              @relation(fields: [launch_agent_id], references: [agent_id])
 }
 
 model ip_library_tags {
@@ -1042,6 +1044,24 @@ model ip_token_price_history {
   id                     Int         @unique(map: "id") @default(autoincrement())
   date                   DateTime?   @db.Date
   ip_info                ip_library? @relation(fields: [ip_id], references: [id])
+}
+
+model launch_agents {
+  id                   Int          @id @default(autoincrement())
+  agent_id             String?      @unique(map: "agent_id") @db.VarChar(255)
+  instruction          String?      @db.Text
+  strategy_response    Json?
+  current_status       String?      @db.VarChar(32)
+  ip_id                Int?
+  token_address        String?      @db.VarChar(255)
+  result               Json?
+  transfer_usdc_sig    String?      @db.VarChar(1024)
+  owner                String?      @db.VarChar(32)
+  email                String?      @db.VarChar(255)
+  transfer_usdc_amount Decimal?     @db.Decimal(65, 12)
+  created_at           DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?    @default(now()) @db.Timestamp(0)
+  ip_library           ip_library[]
 }
 
 view view_ip_token_prices {

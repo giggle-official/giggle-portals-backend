@@ -19,6 +19,8 @@ import {
     IpSummaryDto,
     IpSummaryWithChildDto,
     PurchasedIpDto,
+    PurchaseStrategyDto,
+    PurchaseStrategyType,
     RegisterTokenDto,
     SetVisibilityDto,
     ShareToGiggleDto,
@@ -33,7 +35,7 @@ import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
-import { Observable } from "rxjs"
+import { async, Observable } from "rxjs"
 import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { PinataSDK } from "pinata-web3"
 import { LicenseService } from "./license/license.service"
@@ -42,6 +44,8 @@ import { PriceService } from "src/web3/price/price.service"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
 import { OrderStatus } from "src/payment/order/order.dto"
 import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
+import { ParseLaunchLaunchPlanResponseDto } from "src/web3/launch-agent/launch-agent.dto"
+import { LaunchAgentService } from "src/web3/launch-agent/launch-agent.service"
 
 @Injectable()
 export class IpLibraryService {
@@ -80,6 +84,9 @@ export class IpLibraryService {
 
         @Inject(forwardRef(() => RewardsPoolService))
         private readonly rewardsPoolService: RewardsPoolService,
+
+        @Inject(forwardRef(() => LaunchAgentService))
+        private readonly launchAgentService: LaunchAgentService,
     ) {}
 
     getGenres(): GenreDto[] {
@@ -1023,6 +1030,34 @@ export class IpLibraryService {
         return await this.uploadAssetToIpfs(subscriber, imageAsset, videoAsset)
     }
 
+    async validatePurchaseStrategy(purchase_strategy: PurchaseStrategyDto) {
+        switch (purchase_strategy.type) {
+            case PurchaseStrategyType.AGENT:
+                if (!purchase_strategy.strategy_detail) {
+                    return false
+                }
+                if (purchase_strategy.agent_id) {
+                    const agent = await this.prismaService.launch_agents.findUnique({
+                        where: { agent_id: purchase_strategy.agent_id },
+                    })
+                    if (!agent || !agent.strategy_response) {
+                        return false
+                    }
+                }
+                return true
+            case PurchaseStrategyType.DIRECT:
+                return (
+                    purchase_strategy.percentage >= 1 &&
+                    purchase_strategy.percentage <= 98 &&
+                    purchase_strategy.percentage % 1 === 0
+                )
+            case PurchaseStrategyType.NONE:
+                return true
+            default:
+                return false
+        }
+    }
+
     async processCreateIp(user: UserJwtExtractDto, body: CreateIpDto, subscriber: any): Promise<void> {
         subscriber.next({
             event: "ip.data_validating",
@@ -1030,8 +1065,8 @@ export class IpLibraryService {
                 message: "Validating data",
             },
         })
-        if (body.buy_amount < 0 || body.buy_amount > 98) {
-            throw new BadRequestException("buy_amount must be between 0 and 98")
+        if (!(await this.validatePurchaseStrategy(body.purchase_strategy))) {
+            throw new BadRequestException("invalid purchase strategy")
         }
 
         if (!(await this._checkCreateIpPermission(user, body))) {
@@ -1197,7 +1232,7 @@ export class IpLibraryService {
                     user,
                     {
                         id: ipId,
-                        buy_amount: body.buy_amount,
+                        purchase_strategy: body.purchase_strategy,
                     },
                     subscriber,
                     false, //do not complete subscriber here
@@ -1322,7 +1357,12 @@ export class IpLibraryService {
             error: null,
         }
 
-        const { create_amount, buy_amount } = await this._computeNeedUsdc(body.buy_amount)
+        //validate purchase strategy
+        if (!(await this.validatePurchaseStrategy(body.purchase_strategy))) {
+            throw new BadRequestException("invalid purchase strategy")
+        }
+
+        const { create_amount, buy_amount } = await this._computeNeedUsdc(body.purchase_strategy)
 
         try {
             const ipOwner = await this.prismaService.ip_library.findFirst({
@@ -1410,7 +1450,7 @@ export class IpLibraryService {
                 createAmount: create_amount,
             }
 
-            if (buy_amount > 0) {
+            if (buy_amount > 0 && body.purchase_strategy.type === PurchaseStrategyType.DIRECT) {
                 mintParams.buyAmount = buy_amount
             }
 
@@ -1436,11 +1476,16 @@ export class IpLibraryService {
                 throw new BadRequestException("Failed to create ip token")
             }
 
+            const tokenMint = (tokenInfo?.token_info as any)?.mint
+            if (!tokenMint) {
+                throw new BadRequestException("Failed to get token mint")
+            }
+
             await this.prismaService.ip_library.update({
                 where: { id: ip.id },
                 data: {
                     token_info: tokenInfo?.token_info,
-                    token_mint: (tokenInfo?.token_info as any)?.mint,
+                    token_mint: tokenMint,
                 },
             })
 
@@ -1478,6 +1523,18 @@ export class IpLibraryService {
             //create rewards pool if not exists
             await this.rewardsPoolService.createRewardsPool(ip.id)
 
+            //run strategy if purchase strategy is agent
+            if (body.purchase_strategy.type === PurchaseStrategyType.AGENT) {
+                await this.launchAgentService.start(
+                    body.purchase_strategy.agent_id,
+                    {
+                        token_mint: tokenMint,
+                        user_email: user.email,
+                        ip_id: ip.id,
+                    },
+                    user,
+                )
+            }
             return ipProcessStepsDto
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"
@@ -1998,15 +2055,31 @@ export class IpLibraryService {
         return Boolean(authSettings.governance_types.find((item) => item.name === GovernanceType.GOVERNANCE_RIGHT))
     }
 
-    private async _computeNeedUsdc(buyPercentage: number): Promise<{ create_amount: number; buy_amount: number }> {
+    private async _computeNeedUsdc(
+        purchase_strategy: PurchaseStrategyDto,
+    ): Promise<{ create_amount: number; buy_amount: number }> {
         let create_amount = IpLibraryService.SHARE_TO_GIGGLE_USDT_AMOUNT
         let buy_amount = 0
 
-        if (buyPercentage > 0 && buyPercentage <= 98) {
-            const convertResult = await this.priceService.getPercentageToCredits(buyPercentage)
-            buy_amount = convertResult.usdc
+        if (purchase_strategy.type === PurchaseStrategyType.DIRECT) {
+            const buyPercentage = purchase_strategy.percentage
+            if (buyPercentage > 0 && buyPercentage <= 98) {
+                const convertResult = await this.priceService.getPercentageToCredits(buyPercentage)
+                buy_amount = convertResult.usdc
+            }
+        } else if (purchase_strategy.type === PurchaseStrategyType.AGENT) {
+            const agent = await this.prismaService.launch_agents.findUnique({
+                where: { agent_id: purchase_strategy.agent_id },
+            })
+            if (agent?.strategy_response) {
+                const { estimated_cost } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
+                if (estimated_cost) {
+                    buy_amount = await this.launchAgentService.getStrategyEstimatedUsdc(
+                        estimated_cost.total_estimated_sol,
+                    )
+                }
+            }
         }
-
         return { create_amount: create_amount, buy_amount: buy_amount }
     }
 

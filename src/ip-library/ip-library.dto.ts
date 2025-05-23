@@ -777,6 +777,46 @@ export class IpLibraryListDto {
     count: number
 }
 
+export enum PurchaseStrategyType {
+    DIRECT = "direct",
+    AGENT = "agent",
+    NONE = "none",
+}
+
+export class PurchaseStrategyDto {
+    @IsEnum(PurchaseStrategyType)
+    @ApiProperty({
+        description: "type of the purchase strategy",
+        enum: PurchaseStrategyType,
+    })
+    type: PurchaseStrategyType
+
+    @IsNumber()
+    @ApiProperty({
+        description: "percentage of the purchase strategy",
+    })
+    percentage: number
+
+    @IsString()
+    @ApiProperty({
+        description: "prompt of the purchase strategy",
+    })
+    prompt: string
+
+    @IsString()
+    @ApiProperty({
+        description: "agent id of the purchase strategy",
+    })
+    agent_id: string
+
+    @ApiProperty({
+        description: "strategy detail of the purchase strategy",
+        required: false,
+    })
+    @IsObject()
+    strategy_detail: any
+}
+
 export class CreateIpDto {
     @ApiProperty({
         description: "name of the ip library",
@@ -893,14 +933,13 @@ export class CreateIpDto {
     })
     telegram?: string
 
-    @IsOptional()
-    @IsNumber()
-    @IsInt()
     @ApiProperty({
-        description: "buy **PERCENTAGE** of ip tokens to self using usdc when share to giggle",
+        description: "purchase strategy of the ip library",
         required: false,
     })
-    buy_amount: number
+    @ValidateNested()
+    @Type(() => PurchaseStrategyDto)
+    purchase_strategy: PurchaseStrategyDto
 }
 
 export class EditIpDto extends OmitType(CreateIpDto, [
@@ -909,7 +948,7 @@ export class EditIpDto extends OmitType(CreateIpDto, [
     "chain_name",
     "name",
     "ticker",
-    "buy_amount",
+    "purchase_strategy",
 ]) {
     @IsNotEmpty()
     @IsNumber()
@@ -919,7 +958,7 @@ export class EditIpDto extends OmitType(CreateIpDto, [
     id: number
 }
 
-export class ShareToGiggleDto extends PickType(CreateIpDto, ["buy_amount"]) {
+export class ShareToGiggleDto extends PickType(CreateIpDto, ["purchase_strategy"]) {
     @IsNotEmpty()
     @IsNumber()
     @ApiProperty({

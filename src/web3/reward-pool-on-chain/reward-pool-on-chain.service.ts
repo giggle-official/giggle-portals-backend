@@ -6,7 +6,5 @@ import { CreatePoolDto } from "./reward-pool-on-chain.dto"
 export class RewardPoolOnChainService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(dto: CreatePoolDto) {
-        //todo
-    }
+    async create(dto: CreatePoolDto) {}
 }
