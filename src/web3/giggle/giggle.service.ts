@@ -38,6 +38,7 @@ import { assets, Prisma } from "@prisma/client"
 import FormData from "form-data"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import axios from "axios"
+import https from "https"
 
 @Injectable()
 export class GiggleService {
@@ -69,11 +70,15 @@ export class GiggleService {
         if (process.env.HTTP_PROXY) {
             this.web3HttpService = new HttpService(
                 axios.create({
-                    httpsAgent: new HttpsProxyAgent(process.env.HTTP_PROXY),
+                    httpsAgent: new HttpsProxyAgent(process.env.HTTP_PROXY, { keepAlive: false }),
                 }),
             )
         } else {
-            this.web3HttpService = new HttpService()
+            this.web3HttpService = new HttpService(
+                axios.create({
+                    httpsAgent: new https.Agent({ keepAlive: false }),
+                }),
+            )
         }
     }
 

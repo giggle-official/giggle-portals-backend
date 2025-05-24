@@ -40,6 +40,10 @@ export class LaunchAgentService {
     }
 
     async createAgent(user: UserJwtExtractDto): Promise<{ agent_id: string }> {
+        if (!this.getPermission(user)) {
+            throw new BadRequestException("You are not allowed to use launch agent")
+        }
+
         const createAgentRes: AxiosResponse<CreateLaunchAgentResponseDto> = await lastValueFrom(
             this.httpService.post(`${this.launchAgentUrl}/api/create-agent`, {}),
         )
@@ -62,6 +66,10 @@ export class LaunchAgentService {
         dto: ParseLaunchLaunchPlanRequestDto,
         user: UserJwtExtractDto,
     ): Promise<CreateLaunchAgentResponseDto> {
+        if (!this.getPermission(user)) {
+            throw new BadRequestException("You are not allowed to use launch agent")
+        }
+
         if (!dto.agent_id) {
             throw new BadRequestException("Agent ID is required")
         }
@@ -267,6 +275,11 @@ export class LaunchAgentService {
             }
         }
         return agent.result as any
+    }
+
+    async getPermission(user: UserJwtExtractDto) {
+        const allowedList = process.env.LAUNCH_AGENT_ALLOW_USERS?.toLowerCase().split(",")
+        return { allowed: allowedList?.includes(user.email.toLowerCase()) }
     }
 
     //check agent status every 1 minute

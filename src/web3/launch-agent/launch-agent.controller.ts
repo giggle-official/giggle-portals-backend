@@ -47,4 +47,12 @@ export class LaunchAgentController {
     async checkAgentStatus(@Param("ip_id") ip_id: string, @Req() req: Request) {
         return await this.launchAgentService.checkAgentStatusByIpId(req.user as UserJwtExtractDto, Number(ip_id))
     }
+
+    @Get("/get-permission")
+    @ApiOperation({ summary: "Get the permission of a user to use launch agent" })
+    @ApiResponse({ schema: { type: "object", properties: { allowed: { type: "boolean" } } } })
+    @UseGuards(AuthGuard("jwt"))
+    async getPermission(@Req() req: Request) {
+        return await this.launchAgentService.getPermission(req.user as UserJwtExtractDto)
+    }
 }
