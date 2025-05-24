@@ -1240,7 +1240,7 @@ export class IpLibraryService {
                 ipTokenCreated = shareResult.ipTokenCreated
                 ipTokenRegistered = shareResult.ipTokenRegistered
                 if (shareResult?.error) {
-                    shareWarning = "IP created successfully, but sharing to giggle error: " + shareResult?.error
+                    shareWarning = "IP created successfully, but there is an warning: " + shareResult?.error
                 }
             }
 
@@ -1512,19 +1512,16 @@ export class IpLibraryService {
 
             ipProcessStepsDto.ipTokenRegistered = true
 
-            if (complete) {
-                subscriber.next({
-                    event: "ip.token_created_on_chain",
-                    data: await this.detail(ip.id.toString(), null),
-                })
-                subscriber.complete()
-            }
-
             //create rewards pool if not exists
             await this.rewardsPoolService.createRewardsPool(ip.id)
 
             //run strategy if purchase strategy is agent
+
             if (body.purchase_strategy.type === PurchaseStrategyType.AGENT) {
+                subscriber.next({
+                    event: "ip.start_launch_agent",
+                    data: tokenMint,
+                })
                 await this.launchAgentService.start(
                     body.purchase_strategy.agent_id,
                     {
@@ -1533,8 +1530,18 @@ export class IpLibraryService {
                         ip_id: ip.id,
                     },
                     user,
+                    subscriber,
                 )
             }
+
+            if (complete) {
+                subscriber.next({
+                    event: "ip.token_created_on_chain",
+                    data: await this.detail(ip.id.toString(), null),
+                })
+                subscriber.complete()
+            }
+
             return ipProcessStepsDto
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"

@@ -118,7 +118,7 @@ export class LaunchAgentService {
         return estimatedUsdc
     }
 
-    async start(agentId: string, initParams: StartLaunchAgentRequestDto, user: UserJwtExtractDto) {
+    async start(agentId: string, initParams: StartLaunchAgentRequestDto, user: UserJwtExtractDto, subscriber: any) {
         const userInfo = await this.prisma.users.findUnique({
             where: {
                 username_in_be: user.usernameShorted,
@@ -140,16 +140,40 @@ export class LaunchAgentService {
 
         const { parsed_strategy, estimated_cost } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
 
+        if (subscriber) {
+            subscriber.next({
+                event: "ip.start_launch_agent.calculate_cost",
+                data: {
+                    estimated_sol: estimated_cost?.total_estimated_sol,
+                },
+            })
+        }
         const estimatedSol = estimated_cost?.total_estimated_sol || 0
         const estimatedUsdc = await this.getStrategyEstimatedUsdc(estimatedSol)
 
         if (estimatedUsdc > 0 && !this.launchAgentDebug) {
+            if (subscriber) {
+                subscriber.next({
+                    event: "ip.start_launch_agent.check_balance",
+                    data: {
+                        estimated_usdc: estimatedUsdc,
+                    },
+                })
+            }
             const usdcBalance = await this.giggleService.getUsdcBalance(user)
             if (usdcBalance.balance < estimatedUsdc) {
                 throw new BadRequestException("Insufficient balance")
             }
 
             //transfer to launch agent wallet
+            if (subscriber) {
+                subscriber.next({
+                    event: "ip.start_launch_agent.transfer_usdc",
+                    data: {
+                        estimated_usdc: estimatedUsdc,
+                    },
+                })
+            }
             const sendTokenRes = await this.giggleService.sendToken(user, {
                 mint: this.usdcMint,
                 amount: estimatedUsdc,
@@ -178,6 +202,15 @@ export class LaunchAgentService {
             launchParam.debug = true
         }
 
+        if (subscriber) {
+            subscriber.next({
+                event: "ip.start_launch_agent.start_agent",
+                data: {
+                    message: "Start launch agent",
+                },
+            })
+        }
+
         const response: AxiosResponse<ParseLaunchLaunchPlanResponseDto> = await lastValueFrom(
             this.httpService.post(`${this.launchAgentUrl}/api/agent/${agentId}/start_launch_agent`, launchParam, {
                 headers: {
@@ -201,6 +234,15 @@ export class LaunchAgentService {
                 launch_agent_id: agentId,
             },
         })
+
+        if (subscriber) {
+            subscriber.next({
+                event: "ip.start_launch_agent.agent_started",
+                data: {
+                    message: "Agent started",
+                },
+            })
+        }
 
         return response.data
     }
