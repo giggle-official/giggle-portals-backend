@@ -44,7 +44,7 @@ export class GiggleService {
     private readonly appid: string
     private readonly apiKey: string
     private readonly endpoint: string
-    private readonly requestTimeout = 120000 //120 seconds
+    private readonly requestTimeout = 180000 //180 seconds
     private readonly legalUsdcPOW: number = parseInt(process.env.GIGGLE_LEGAL_USDC_POW || "1") //using for usdc mint
 
     public static readonly GIGGLE_LEGAL_USDC: string = process.env.GIGGLE_LEGAL_USDC || ""
@@ -624,6 +624,7 @@ export class GiggleService {
         const response: AxiosResponse<GiggleApiResponseDto<SendTokenResponseDto>> = await lastValueFrom(
             this.web3HttpService.post(this.endpoint + "/cus/send", signatureParams, {
                 headers: { "Content-Type": "application/json" },
+                timeout: this.requestTimeout,
             }),
         )
 
