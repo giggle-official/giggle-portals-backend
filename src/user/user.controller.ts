@@ -132,6 +132,9 @@ export class UserInfoDTO extends LoginDTO {
     can_create_ip?: boolean
 
     @ApiProperty()
+    wallet_address?: string
+
+    @ApiProperty()
     is_developer?: boolean
 
     @ApiProperty()
@@ -167,6 +170,7 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
     "usernameShorted",
     "device_id",
     "is_developer",
+    "wallet_address",
     "avatar",
 ]) {
     @ApiProperty()

@@ -126,7 +126,7 @@ export class LaunchAgentService {
         return estimatedUsdc
     }
 
-    async start(agentId: string, initParams: StartLaunchAgentRequestDto, user: UserJwtExtractDto, subscriber: any) {
+    async start(agentId: string, initParams: StartLaunchAgentRequestDto, user: UserJwtExtractDto, subscriber?: any) {
         const userInfo = await this.prisma.users.findUnique({
             where: {
                 username_in_be: user.usernameShorted,
@@ -158,6 +158,7 @@ export class LaunchAgentService {
         }
         const estimatedSol = estimated_cost?.total_estimated_sol || 0
         const estimatedUsdc = await this.getStrategyEstimatedUsdc(estimatedSol)
+        let recycleWallet = user.wallet_address
 
         if (estimatedUsdc > 0 && !this.launchAgentDebug) {
             if (subscriber) {
@@ -198,10 +199,11 @@ export class LaunchAgentService {
                     },
                 })
             }
+            recycleWallet = usdcBalance.address
         }
 
         const launchParam: any = {
-            parsed_strategy: parsed_strategy,
+            parsed_strategy: { ...parsed_strategy, recycle_wallet: recycleWallet },
             token_mint: initParams.token_mint,
             user_email: userInfo.email,
         }
