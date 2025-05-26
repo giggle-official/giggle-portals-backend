@@ -285,6 +285,12 @@ export class CreateIpTokenGiggleResponseDto {
         required: false,
     })
     volume?: string
+
+    @ApiProperty({
+        description: "on exchange of the ip token",
+        required: false,
+    })
+    on_exchange?: boolean
 }
 
 export class GetIpTokenListQueryDto {
