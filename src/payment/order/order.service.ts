@@ -130,7 +130,7 @@ export class OrderService {
                     },
                 })
 
-                if (IpRelations.parent_ip !== appBindIp.ip_id && IpRelations.ip_id !== appBindIp.ip_id) {
+                if (tokenIp.id !== appBindIp.ip_id && IpRelations?.parent_ip !== appBindIp.ip_id) {
                     throw new BadRequestException("This ip is not allowed to be use in current app")
                 }
 
