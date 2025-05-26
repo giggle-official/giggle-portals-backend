@@ -291,6 +291,12 @@ export class CreateIpTokenGiggleResponseDto {
         required: false,
     })
     on_exchange?: boolean
+
+    @ApiProperty({
+        description: "pool address of the ip token",
+        required: false,
+    })
+    poolAddress?: string
 }
 
 export class GetIpTokenListQueryDto {

@@ -1917,6 +1917,7 @@ export class IpLibraryService {
             visitLink: currentTokenInfo?.tradingUri || originalTokenInfo?.visitLink,
             volume: currentTokenInfo?.tradeVolume || "0",
             on_exchange: currentTokenInfo?.on_exchange || false,
+            poolAddress: currentTokenInfo?.poolAddress || "",
         }
     }
 
