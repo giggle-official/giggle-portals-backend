@@ -25,6 +25,12 @@ export class CreateLinkRequestDto {
         required: false,
     })
     enable_login?: boolean
+
+    @ApiProperty({
+        description: "The og-picture of the link, it will be used as the og-picture of the link",
+        required: false,
+    })
+    link_pic?: string
 }
 
 export class LinkStatisticsDto {
@@ -61,6 +67,11 @@ export class CreateLinkResponseDto {
         description: "The enable login of the link",
     })
     enable_login: boolean
+
+    @ApiProperty({
+        description: "The og-picture of the link",
+    })
+    link_pic: string
 }
 export class LinkCreatorDto {
     @ApiProperty({
@@ -94,6 +105,11 @@ export class LinkDetailDto {
         description: "The enable login of the link",
     })
     enable_login: boolean
+
+    @ApiProperty({
+        description: "The og-picture url of the link",
+    })
+    link_pic: string
 
     @ApiProperty({
         description: "The creator of the link",
@@ -142,7 +158,7 @@ export class LinkDetailDto {
     updated_at: Date
 }
 
-export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "short_link"]) {}
+export class LinkSummaryDto extends PickType(LinkDetailDto, ["creator", "short_link", "link_pic"]) {}
 
 export class BindDeviceRequestDto {
     @ApiProperty({
@@ -154,4 +170,9 @@ export class BindDeviceRequestDto {
         description: "The link id of the user",
     })
     link_id: string
+
+    @ApiProperty({
+        description: "The link pic of the link",
+    })
+    link_pic: string
 }

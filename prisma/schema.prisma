@@ -596,6 +596,8 @@ model apps {
   style_name       String?            @db.VarChar(32)
   sub_domain       String?            @db.VarChar(32)
   configs          Json?
+  app_icons        Json?
+  manifest         Json?
   menus            Json?
   created_at       DateTime?          @default(now()) @db.Timestamp(0)
   is_temp          Boolean?           @default(false)
@@ -902,6 +904,7 @@ model app_links {
   widget_message  String?   @db.VarChar(2048)
   enable_login    Boolean?  @default(false)
   creator         String?   @db.VarChar(32)
+  link_pic        String?   @db.VarChar(2048)
   created_at      DateTime? @default(now()) @db.Timestamp(0)
   updated_at      DateTime? @default(now()) @db.Timestamp(0)
   creator_info    users?    @relation(fields: [creator], references: [username_in_be])

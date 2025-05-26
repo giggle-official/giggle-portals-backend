@@ -67,6 +67,7 @@ export class LinkService {
                     app_id: app_id,
                     creator: userInfo.usernameShorted,
                     enable_login: body.enable_login,
+                    link_pic: body.link_pic,
                 },
             })
             if (existingLink) {
@@ -74,6 +75,7 @@ export class LinkService {
                     link_id: existingLink.unique_str,
                     short_link: existingLink.full_short_link,
                     enable_login: existingLink.enable_login,
+                    link_pic: existingLink.link_pic,
                 }
             }
         } else {
@@ -84,6 +86,7 @@ export class LinkService {
                     widget_message: body.widget_message,
                     creator: userInfo.usernameShorted,
                     enable_login: body.enable_login,
+                    link_pic: body.link_pic,
                 },
             })
             if (existingLink) {
@@ -91,6 +94,7 @@ export class LinkService {
                     link_id: existingLink.unique_str,
                     short_link: existingLink.full_short_link,
                     enable_login: existingLink.enable_login,
+                    link_pic: existingLink.link_pic,
                 }
             }
         }
@@ -125,6 +129,7 @@ export class LinkService {
                 creator: userInfo.usernameShorted,
                 full_short_link: response.data.link,
                 enable_login: body.enable_login,
+                link_pic: body.link_pic,
             },
         })
 
@@ -132,6 +137,7 @@ export class LinkService {
             link_id: link.unique_str,
             short_link: response.data.link,
             enable_login: body.enable_login,
+            link_pic: body.link_pic,
         }
     }
 
@@ -170,12 +176,13 @@ export class LinkService {
             short_link: link.full_short_link,
             enable_login: link.enable_login,
             creator: {
-                username: link.creator_info.username,
-                avatar: link.creator_info.avatar,
-                email: link.creator_info.email,
+                username: link?.creator_info?.username,
+                avatar: link?.creator_info?.avatar,
+                email: link?.creator_info?.email,
             },
             redirect_to_widget: link.widget_tag,
             widget_message: link.widget_message,
+            link_pic: link.link_pic,
             redirect_to_link: link.link,
             app_id: link.app_id,
             statistics: {
@@ -230,6 +237,7 @@ export class LinkService {
         return {
             creator: link?.creator,
             short_link: link?.short_link,
+            link_pic: link?.link_pic,
         }
     }
 

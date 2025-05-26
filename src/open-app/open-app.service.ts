@@ -10,6 +10,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import {
     AddInviteEmailDto,
+    AppIconDto,
     AppInfoDto,
     AppListDto,
     AppMenuDto,
@@ -17,6 +18,7 @@ import {
     ApproveCreatorResponseDto,
     CreateAppDto,
     DeleteAppDto,
+    ManifestDto,
     OpenAppSettingsDto,
     RemoveInviteEmailDto,
     RequestCreatorDto,
@@ -78,6 +80,8 @@ export class OpenAppService {
                 sub_domain: true,
                 configs: true,
                 menus: true,
+                app_icons: true,
+                manifest: true,
                 app_bind_ips: {
                     select: {
                         ip: true,
@@ -138,6 +142,8 @@ export class OpenAppService {
             radius: app.radius,
             style_name: app.style_name,
             sub_domain: app.sub_domain,
+            app_icons: app.app_icons as unknown as AppIconDto,
+            manifest: app.manifest as unknown as ManifestDto,
             ip_info: ipDetail,
             is_admin: userInfo?.usernameShorted === ipInfo.owner,
             usdc_mint: GiggleService.GIGGLE_LEGAL_USDC,
@@ -417,6 +423,8 @@ export class OpenAppService {
                     sub_domain: updateData.sub_domain,
                     configs: this._processConfigs(updateData.configs) as any,
                     menus: this._mapAppMenus(updateData.menus) as any,
+                    app_icons: updateData?.app_icons as any,
+                    manifest: updateData?.manifest as any,
                 },
                 select: {
                     id: true,
@@ -428,6 +436,8 @@ export class OpenAppService {
                     sub_domain: true,
                     created_at: true,
                     menus: true,
+                    app_icons: true,
+                    manifest: true,
                 },
             })
 

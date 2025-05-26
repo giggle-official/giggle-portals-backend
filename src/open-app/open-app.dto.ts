@@ -60,6 +60,51 @@ export class AppWidgetsDto {
     subscribed_detail: UserWidgetSubscribedDetailDto
 }
 
+export class ManifestDto {
+    @ApiProperty({
+        description: "Enabled",
+    })
+    enabled: boolean
+    @ApiProperty({
+        description: "Name",
+    })
+    name: string
+
+    @ApiProperty({
+        description: "Description",
+    })
+    description: string
+
+    @ApiProperty({
+        description: "Short Name",
+    })
+    theme_color: string
+    @ApiProperty({
+        description: "Background Color",
+    })
+    background_color: string
+    @ApiProperty({
+        description: "Display",
+    })
+    display: string
+    @ApiProperty({
+        description: "Orientation",
+    })
+    orientation: string
+}
+
+export class AppIconDto {
+    @ApiProperty({
+        description: "Icon 192*192",
+    })
+    icon192: string
+
+    @ApiProperty({
+        description: "Icon 512*512",
+    })
+    icon512: string
+}
+
 export class AppInfoDto {
     @ApiProperty({
         description: "App ID",
@@ -146,6 +191,18 @@ export class AppInfoDto {
         description: "Custom Sub Domain",
     })
     custom_sub_domain: string
+
+    @ApiProperty({
+        description: "App Icon",
+        type: () => AppIconDto,
+    })
+    app_icons: AppIconDto
+
+    @ApiProperty({
+        description: "Manifest",
+        type: () => ManifestDto,
+    })
+    manifest: ManifestDto
 }
 
 export class CreateAppDto extends PickType(AppInfoDto, [
@@ -155,6 +212,8 @@ export class CreateAppDto extends PickType(AppInfoDto, [
     "configs",
     "widgets",
     "menus",
+    "app_icons",
+    "manifest",
 ]) {
     @ApiProperty({
         description:
@@ -170,6 +229,8 @@ export class UpdateAppDto extends PickType(AppInfoDto, [
     "configs",
     "widgets",
     "menus",
+    "app_icons",
+    "manifest",
 ]) {
     @ApiProperty({
         description: "App ID",
