@@ -413,14 +413,24 @@ export class WidgetsService {
             throw new NotFoundException("Widget not found")
         }
 
-        const userSubscribedWidget = await this.prisma.user_subscribed_widgets.findFirst({
+        let userSubscribedWidget = await this.prisma.user_subscribed_widgets.findFirst({
             where: { user: user.usernameShorted, widget_tag: tag },
             include: {
                 app_bind_widgets: true,
             },
         })
         if (!userSubscribedWidget) {
-            throw new BadRequestException("You have not subscribed to this widget")
+            if (tag == "login_from_external") {
+                await this.subscribeWidget({ tag: tag }, user)
+                userSubscribedWidget = await this.prisma.user_subscribed_widgets.findFirst({
+                    where: { user: user.usernameShorted, widget_tag: tag },
+                    include: {
+                        app_bind_widgets: true,
+                    },
+                })
+            } else {
+                throw new BadRequestException("You have not subscribed to this widget")
+            }
         }
 
         const bindWhere: Prisma.app_bind_widgetsWhereInput = {
