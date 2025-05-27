@@ -187,4 +187,32 @@ export class UtilitiesService {
             },
         })
     }
+
+    public static async uploadToPublicS3(file: Express.Multer.File, usernameShorted: string): Promise<string> {
+        const s3 = new AWS.S3({
+            region: process.env.S3_PUBLIC_REGION,
+            credentials: {
+                accessKeyId: process.env.S3_PUBLIC_ACCESS_KEY,
+                secretAccessKey: process.env.S3_PUBLIC_SECRET_KEY,
+            },
+        })
+
+        //generate a random string
+        const key_prefix = process.env.S3_PUBLIC_KEY_PREFIX
+        const file_extension = file.originalname.split(".").pop()
+        const randomString = Math.random().toString(36).substring(2, 30)
+        const keyWithPrefix = `${key_prefix}/${usernameShorted}/${randomString}.${file_extension}`
+        const keyWithoutPrefix = `${usernameShorted}/${randomString}.${file_extension}`
+
+        await s3
+            .putObject({
+                Bucket: process.env.S3_PUBLIC_BUCKET_NAME,
+                Key: keyWithPrefix,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            })
+            .promise()
+
+        return `${process.env.S3_PUBLIC_CDN_DOMAIN}/${keyWithoutPrefix}`
+    }
 }

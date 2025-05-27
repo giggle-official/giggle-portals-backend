@@ -25,6 +25,7 @@ import {
     RequestCreatorResponseDto,
     TopIpSummaryDto,
     UpdateAppDto,
+    UploadIconDto,
 } from "./open-app.dto"
 import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
@@ -41,6 +42,7 @@ import { NotificationService } from "src/notification/notification.service"
 import { WidgetConfigDto } from "./widgets/widget.dto"
 import { IpLibraryDetailDto } from "src/ip-library/ip-library.dto"
 import { WidgetsService } from "./widgets/widgets.service"
+import { UtilitiesService } from "src/common/utilities.service"
 
 @Injectable()
 export class OpenAppService {
@@ -559,6 +561,47 @@ export class OpenAppService {
         }
     }
 
+    async uploadIcon(userInfo: UserInfoDTO, icon: Express.Multer.File) {
+        const sharp = require("sharp")
+        // Convert to PNG format
+        const pngBuffer = await sharp(icon.buffer).png().toBuffer()
+
+        // Replace original buffer with PNG version
+        icon.buffer = pngBuffer
+
+        // Resize to 512x512
+        const icon512 = await sharp(icon.buffer)
+            .resize(512, 512, {
+                fit: "cover",
+                position: "center",
+            })
+            .toBuffer()
+
+        // Resize to 192x192
+        const icon192 = await sharp(icon.buffer)
+            .resize(192, 192, {
+                fit: "cover",
+                position: "center",
+            })
+            .toBuffer()
+        // Update file name to .png
+        icon.originalname = icon.originalname.split(".")[0] + ".png"
+
+        // Upload both versions
+        const icon512Url = await UtilitiesService.uploadToPublicS3(
+            { ...icon, buffer: icon512 },
+            userInfo.usernameShorted,
+        )
+        const icon192Url = await UtilitiesService.uploadToPublicS3(
+            { ...icon, buffer: icon192 },
+            userInfo.usernameShorted,
+        )
+
+        return {
+            icon512_url: icon512Url,
+            icon192_url: icon192Url,
+        }
+    }
     //clear temp app every 1 hour
     @Cron(CronExpression.EVERY_HOUR)
     async clearTempApp() {

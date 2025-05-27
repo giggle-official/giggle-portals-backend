@@ -694,7 +694,7 @@ export class UserService {
 
     async updateAvatar(userInfo: UserJwtExtractDto, avatar: Express.Multer.File) {
         try {
-            const result = await this._processAvatar(avatar)
+            const result = await UtilitiesService.uploadToPublicS3(avatar, userInfo.usernameShorted)
             await this.prisma.users.update({
                 where: {
                     username_in_be: userInfo.usernameShorted,
@@ -790,22 +790,6 @@ Message: ${contactInfo.message}
             },
         })
         return this.getProfile(userInfo)
-    }
-
-    private async _processAvatar(file: Express.Multer.File): Promise<string> {
-        const pinata = new PinataSDK({
-            pinataJwt: process.env.PINATA_JWT,
-            pinataGateway: process.env.PINATA_GATEWAY,
-        })
-
-        // Create a readable stream from the buffer
-        const readable = new Readable()
-        readable.push(file.buffer)
-        readable.push(null)
-
-        const result = await pinata.upload.stream(readable)
-
-        return process.env.PINATA_GATEWAY + "/ipfs/" + result.IpfsHash
     }
 
     async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string, deviceId?: string) {

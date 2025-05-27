@@ -1,16 +1,21 @@
 import {
     Body,
     Controller,
+    FileTypeValidator,
     Get,
     Headers,
     HttpCode,
     HttpStatus,
+    MaxFileSizeValidator,
     Param,
+    ParseFilePipe,
     Post,
     Query,
     Req,
     Res,
+    UploadedFile,
     UseGuards,
+    UseInterceptors,
 } from "@nestjs/common"
 import { OpenAppService } from "./open-app.service"
 import {
@@ -43,6 +48,7 @@ import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request, Response } from "express"
 import { PaginationDto } from "src/common/common.dto"
 import { Recaptcha } from "@nestlab/google-recaptcha"
+import { FileInterceptor } from "@nestjs/platform-express"
 
 @Controller("/api/v1/app")
 export class OpenAppController {
@@ -87,6 +93,27 @@ export class OpenAppController {
     async getAppInfo(@Headers("app-id") appId: string, @Headers("authorization") authorization?: string) {
         const token = authorization?.split(" ")[1]
         return this.openAppService.getAppDetail(appId, token)
+    }
+
+    @Post("/uploadIcon")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @UseInterceptors(FileInterceptor("icon"))
+    @ApiExcludeEndpoint()
+    async uploadIcon(
+        @Req() req: Request,
+        @UploadedFile(
+            new ParseFilePipe({
+                validators: [
+                    new MaxFileSizeValidator({ maxSize: 1 * 1024 * 1024 }),
+                    new FileTypeValidator({ fileType: "image/.[png|jpeg|jpg]" }),
+                ],
+                fileIsRequired: true,
+            }),
+        )
+        icon: Express.Multer.File,
+    ) {
+        return this.openAppService.uploadIcon(req.user as any, icon)
     }
 
     @Get("/settings")

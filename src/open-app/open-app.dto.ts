@@ -222,6 +222,28 @@ export class CreateAppDto extends PickType(AppInfoDto, [
     ip_id: number
 }
 
+export class UploadIconDto {
+    @ApiProperty({
+        description: "App ID",
+    })
+    @IsNotEmpty()
+    app_id: string
+
+    @ApiProperty({
+        description: "Icon type",
+        enum: ["192", "512"],
+    })
+    @IsNotEmpty()
+    icon_type: "192" | "512"
+}
+
+export class UploadIconResponseDto {
+    @ApiProperty({
+        description: "Icon URL",
+    })
+    icon_url: string
+}
+
 export class UpdateAppDto extends PickType(AppInfoDto, [
     "radius",
     "style_name",
