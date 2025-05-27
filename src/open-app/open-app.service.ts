@@ -562,6 +562,10 @@ export class OpenAppService {
     //clear temp app every 1 hour
     @Cron(CronExpression.EVERY_HOUR)
     async clearTempApp() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const yesterDay = new Date()
         yesterDay.setDate(yesterDay.getDate() - 1)
 

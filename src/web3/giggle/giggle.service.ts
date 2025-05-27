@@ -827,6 +827,10 @@ export class GiggleService {
     @Cron(CronExpression.EVERY_DAY_AT_5AM) //est time
     //@Cron(CronExpression.EVERY_5_MINUTES) //test
     async processUserWalletRecord24h() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         this.logger.log("start processUserWalletRecord24h")
         const prismaService = new PrismaService()
         const batchSize = 10
@@ -871,6 +875,10 @@ export class GiggleService {
 
     @Cron(CronExpression.EVERY_5_MINUTES)
     async fetchNewestTokenInfo() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         this.logger.log("Fetching newest token info from Giggle API")
         const batchSize = 10
         const tokenCount = await this.prismaService.ip_library.count({

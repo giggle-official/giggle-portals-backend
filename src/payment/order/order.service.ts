@@ -519,6 +519,10 @@ export class OrderService {
     @Cron(CronExpression.EVERY_SECOND)
     //check if the order is expired
     async cancelExpiredOrders() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const orders = await this.prisma.orders.findMany({
             where: {
                 expire_time: { lt: new Date() },
@@ -1386,6 +1390,10 @@ export class OrderService {
 
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async settleUserRewards() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         try {
             this.logger.log("Settling user rewards")
             const result = await this.prisma.$queryRaw`

@@ -253,6 +253,10 @@ export class IpOrderService {
     //check ip order if order completed, but status pending
     @Cron(CronExpression.EVERY_10_SECONDS)
     async checkIpOrder() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const taskId = 2
         const maxRetryCount = 3
         //sleep a random time but less than 5 seconds

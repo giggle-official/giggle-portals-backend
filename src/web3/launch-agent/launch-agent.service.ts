@@ -287,6 +287,10 @@ export class LaunchAgentService {
     //check agent status every 1 minute
     @Cron(CronExpression.EVERY_MINUTE)
     async checkAgentStatus() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const agents = await this.prisma.launch_agents.findMany({
             where: { current_status: "started" },
         })

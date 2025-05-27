@@ -218,8 +218,10 @@ export class DashboardService {
 
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleMarketCap() {
-        //sleep a random time but less 1 minute
-        await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000 * 60))
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         let yesterday = new Date()
         yesterday.setDate(yesterday.getDate() - 1)
 

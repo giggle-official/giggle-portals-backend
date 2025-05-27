@@ -720,6 +720,10 @@ ORDER BY d.date;`
     //create pool
     @Cron(CronExpression.EVERY_10_MINUTES)
     async createPools() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const ips = await this.prisma.ip_library.findMany({
             where: {
                 token_mint: {
