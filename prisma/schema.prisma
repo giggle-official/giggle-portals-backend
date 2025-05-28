@@ -854,6 +854,7 @@ model orders {
   wallet_paid_detail         Json?
   related_reward_id          Int?
   rewards_model_snapshot     Json?
+  costs_allocation           Json?
   release_rewards_after_paid Boolean?                @default(false)
   supported_payment_method   Json?
   callback_url               String?                 @db.VarChar(1024)
@@ -1011,6 +1012,9 @@ enum reward_pool_type {
 model user_rewards {
   id                Int                    @id @default(autoincrement())
   statement_id      Int?
+  is_cost           Boolean?               @default(false)
+  cost_type         String?                @db.VarChar(32)
+  cost_amount       Decimal?               @db.Decimal(65, 12)
   rewards_type      String?                @default("order") @db.VarChar(32)
   order_id          String?                @db.VarChar(36)
   user              String?                @db.VarChar(32)

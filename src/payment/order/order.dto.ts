@@ -1,10 +1,11 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
-import { IsInt, IsNotEmpty, Min } from "class-validator"
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
-import { PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
+import { LimitOffer, PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
+import { Type } from "class-transformer"
 export enum OrderStatus {
     PENDING = "pending",
     REFUNDING = "refunding",
@@ -90,6 +91,11 @@ export class OrderDto implements orders {
     rewards_model_snapshot: any
 
     @ApiProperty({
+        description: "The costs allocation of the order",
+    })
+    costs_allocation: JsonValue
+
+    @ApiProperty({
         description: "The release rewards after paid of the order",
     })
     release_rewards_after_paid: boolean
@@ -144,11 +150,35 @@ export class OrderDto implements orders {
     from_source_link: string
 }
 
+export class EstimatedRewardsDto {
+    @ApiProperty({
+        description: "The base rewards of the order",
+    })
+    base_rewards: number
+
+    @ApiProperty({
+        description: "The bonus rewards of the order",
+    })
+    bonus_rewards: number
+
+    @ApiProperty({
+        description: "The total rewards of the order",
+    })
+    total_rewards: number
+
+    @ApiProperty({
+        description: "The limit offer of the order",
+    })
+    limit_offer: LimitOffer
+}
+
 export class OrderDetailDto extends OmitType(OrderDto, [
     "id",
     "stripe_invoice_detail",
     "stripe_invoice_id",
     "wallet_paid_detail",
+    "costs_allocation",
+    "rewards_model_snapshot",
     "callback_url",
 ]) {
     @ApiProperty({
@@ -174,6 +204,19 @@ export class OrderDetailDto extends OmitType(OrderDto, [
         required: false,
     })
     source_link_summary: LinkSummaryDto
+
+    @ApiProperty({
+        description: "The costs allocation of the order",
+        type: () => [OrderCostsAllocationDto],
+        required: false,
+    })
+    costs_allocation: OrderCostsAllocationDto[]
+
+    @ApiProperty({
+        description: "The estimated rewards of the order",
+        type: () => EstimatedRewardsDto,
+    })
+    estimated_rewards: EstimatedRewardsDto
 }
 
 export class ItemDto {
@@ -191,6 +234,38 @@ export class ItemDto {
         description: "The quantity of the item",
     })
     quantity: number
+}
+
+export enum OrderCostType {
+    DEVELOPER_COST = "developer_cost",
+    GOODS_COST = "goods_cost",
+    CREATOR_COST = "creator_cost",
+    PLATFORM = "platform",
+}
+
+export class OrderCostsAllocationDto {
+    @ApiProperty({
+        description: "Cost amount of the order, must be integer, 100 means $1.00, min is 1($0.01)",
+    })
+    @IsInt()
+    @IsNotEmpty()
+    @Min(1)
+    amount: number
+
+    @ApiProperty({
+        description: "The type of the cost",
+        enum: OrderCostType,
+    })
+    @IsEnum(OrderCostType)
+    @IsNotEmpty()
+    type: OrderCostType
+
+    //@ApiProperty({
+    //    description: "The wallet address of the cost, when order paid, the cost will be distributed to this wallet",
+    //})
+    //@IsNotEmpty()
+    //@IsString()
+    //distribute_wallet: string
 }
 
 export class CreateOrderDto {
@@ -231,6 +306,18 @@ export class CreateOrderDto {
         required: false,
     })
     callback_url?: string
+
+    @ApiProperty({
+        description: `The costs of the order.
+    Can be multiple costs and the total amount of the costs must be less than the 90% of the amount of the order.
+    The costs will be distributed to the distribute_wallet provided.`,
+        type: () => [OrderCostsAllocationDto],
+        required: false,
+    })
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => OrderCostsAllocationDto)
+    costs_allocation?: OrderCostsAllocationDto[]
 }
 
 export class OrderListDto {
@@ -321,6 +408,21 @@ export class UserRewards implements user_rewards {
 
     @ApiProperty()
     statement_id: number
+
+    @ApiProperty({
+        description: "Whether the rewards is cost",
+    })
+    is_cost: boolean
+
+    @ApiProperty({
+        description: "The type of the cost",
+    })
+    cost_type: OrderCostType
+
+    @ApiProperty({
+        description: "The amount of the cost",
+    })
+    cost_amount: Decimal
 
     @ApiProperty()
     rewards_type: string
@@ -425,6 +527,9 @@ export class OrderRewardsDto extends OmitType(UserRewards, [
     "locked_rewards",
     "withdraw_rewards",
     "allocate_snapshot",
+    "cost_amount",
+    "cost_type",
+    "is_cost",
 ]) {
     @ApiProperty({
         description: "The rewards of the order rewards",
@@ -450,6 +555,17 @@ export class OrderRewardsDto extends OmitType(UserRewards, [
         description: "The withdraw rewards of the order rewards",
     })
     withdraw_rewards: string
+
+    @ApiProperty({
+        description: "The cost amount of the order rewards",
+    })
+    cost_amount: string
+
+    @ApiProperty({
+        description: "The cost type of the order rewards",
+        enum: OrderCostType,
+    })
+    cost_type: OrderCostType
 
     @ApiProperty({
         description: "The user info of the order rewards",
