@@ -260,12 +260,12 @@ export class OrderCostsAllocationDto {
     @IsNotEmpty()
     type: OrderCostType
 
-    @ApiProperty({
-        description: "The wallet address of the cost, when order paid, the cost will be distributed to this wallet",
-    })
-    @IsNotEmpty()
-    @IsString()
-    distribute_wallet: string
+    //@ApiProperty({
+    //    description: "The wallet address of the cost, when order paid, the cost will be distributed to this wallet",
+    //})
+    //@IsNotEmpty()
+    //@IsString()
+    //distribute_wallet: string
 }
 
 export class CreateOrderDto {

@@ -85,6 +85,7 @@ export class OrderService {
         const orderId = uuidv4()
         let relatedRewardId = null
         let rewardsModelSnapshot = null
+        let widgetTag = ""
 
         if (userProfile?.widget_info?.app_id) {
             const app = await this.prisma.apps.findUnique({
@@ -94,6 +95,7 @@ export class OrderService {
                 throw new BadRequestException("App not found")
             }
             appId = app.app_id
+            widgetTag = userProfile.widget_info?.widget_tag
         }
 
         if (appId) {
@@ -158,6 +160,9 @@ export class OrderService {
         const costsAllocation = order.costs_allocation || []
         let costSum = new Decimal(0)
         for (const cost of costsAllocation) {
+            if (!widgetTag) {
+                throw new BadRequestException("Widget tag is required when costs allocation is provided.")
+            }
             costSum = costSum.plus(new Decimal(cost.amount))
         }
 
@@ -175,7 +180,7 @@ export class OrderService {
             data: {
                 order_id: orderId,
                 owner: userProfile.usernameShorted,
-                widget_tag: userProfile.widget_info?.widget_tag || "",
+                widget_tag: widgetTag,
                 app_id: appId,
                 amount: order.amount,
                 description: order.description,
@@ -1085,29 +1090,48 @@ export class OrderService {
 
         //process costs allocation
         const costsAllocation = orderRecord.costs_allocation as unknown as OrderCostsAllocationDto[]
-        for (const cost of costsAllocation) {
-            const costAmount = new Decimal(cost.amount).div(100)
-            rewards.push({
-                order_id: orderRecord.order_id,
-                user: "",
-                token: process.env.GIGGLE_LEGAL_USDC,
-                ticker: "usdc",
-                wallet_address: cost.distribute_wallet,
-                rewards: costAmount,
-                start_allocate: currentDate,
-                end_allocate: currentDate, //usdc is released immediately
-                released_per_day: costAmount,
-                released_rewards: costAmount,
-                locked_rewards: 0,
-                withdraw_rewards: 0,
-                is_cost: true,
-                cost_type: cost.type as OrderCostType,
-                cost_amount: costAmount,
-                note: "",
+        if (costsAllocation.length > 0) {
+            const widgetRecord = await this.prisma.widgets.findUnique({
+                where: {
+                    tag: orderRecord.widget_tag,
+                },
             })
-            allocatedUSDCAmount = allocatedUSDCAmount.plus(costAmount)
-            orderAmount = orderAmount.minus(costAmount)
-            totalCostsAllocation = totalCostsAllocation.plus(costAmount)
+            const widgetDeveloper = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: widgetRecord.author,
+                },
+            })
+
+            for (const cost of costsAllocation) {
+                const costType = cost.type as OrderCostType
+                let walletAddress = widgetDeveloper?.wallet_address || ""
+                if (costType === OrderCostType.PLATFORM) {
+                    walletAddress = process.env.PLATFORM_WALLET
+                }
+
+                const costAmount = new Decimal(cost.amount).div(100)
+                rewards.push({
+                    order_id: orderRecord.order_id,
+                    user: "",
+                    token: process.env.GIGGLE_LEGAL_USDC,
+                    ticker: "usdc",
+                    wallet_address: walletAddress,
+                    rewards: costAmount,
+                    start_allocate: currentDate,
+                    end_allocate: currentDate, //usdc is released immediately
+                    released_per_day: costAmount,
+                    released_rewards: costAmount,
+                    locked_rewards: 0,
+                    withdraw_rewards: 0,
+                    is_cost: true,
+                    cost_type: cost.type as OrderCostType,
+                    cost_amount: costAmount,
+                    note: "",
+                })
+                allocatedUSDCAmount = allocatedUSDCAmount.plus(costAmount)
+                orderAmount = orderAmount.minus(costAmount)
+                totalCostsAllocation = totalCostsAllocation.plus(costAmount)
+            }
         }
 
         //allocate order creator's rewards and minus the costs allocation
