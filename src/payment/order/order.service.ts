@@ -11,7 +11,10 @@ import {
 } from "@nestjs/common"
 import {
     BindRewardPoolDto,
+    EstimatedRewardsDto,
     OrderCallbackDto,
+    OrderCostsAllocationDto,
+    OrderCostType,
     OrderDetailDto,
     OrderListDto,
     OrderListQueryDto,
@@ -151,6 +154,21 @@ export class OrderService {
             }
         }
 
+        //process costs allocation
+        const costsAllocation = order.costs_allocation || []
+        let costSum = new Decimal(0)
+        for (const cost of costsAllocation) {
+            costSum = costSum.plus(new Decimal(cost.amount))
+        }
+
+        const orderAmount = new Decimal(order.amount)
+        if (costSum.gt(orderAmount.minus(orderAmount.mul(new Decimal(10)).div(100)))) {
+            //ensure platform has enough usdc revenue
+            throw new BadRequestException(
+                "The total cost of the order is greater than or equal to the 90% of the amount of the order, please check the costs allocation",
+            )
+        }
+
         const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
 
         const record = await this.prisma.orders.create({
@@ -163,6 +181,7 @@ export class OrderService {
                 description: order.description,
                 related_reward_id: relatedRewardId,
                 rewards_model_snapshot: rewardsModelSnapshot as any,
+                costs_allocation: costsAllocation as any,
                 release_rewards_after_paid: order?.release_rewards_after_paid,
                 current_status: OrderStatus.PENDING,
                 supported_payment_method: OrderService.paymentMethod,
@@ -187,7 +206,7 @@ export class OrderService {
             })
             current_reward_pool_detail = rewardPool?.pools?.length > 0 ? rewardPool?.pools[0] : null
         }
-        return {
+        const order = {
             order_id: data.order_id,
             owner: data.owner,
             widget_tag: data.widget_tag,
@@ -205,13 +224,87 @@ export class OrderService {
             expire_time: data.expire_time,
             cancelled_time: data.cancelled_time,
             cancelled_detail: data.cancelled_detail,
-            rewards_model_snapshot: data.rewards_model_snapshot as unknown as any,
+            rewards_model_snapshot: data.rewards_model_snapshot as unknown as RewardSnapshotDto,
+            costs_allocation: data.costs_allocation as unknown as OrderCostsAllocationDto[],
             release_rewards_after_paid: data.release_rewards_after_paid,
             order_url: orderUrl,
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
             current_reward_pool_detail: current_reward_pool_detail,
+            estimated_rewards: {
+                base_rewards: 0,
+                bonus_rewards: 0,
+                total_rewards: 0,
+                limit_offer: null,
+            },
         }
+
+        return { ...order, estimated_rewards: await this.mapEstimatedRewards(order) }
+    }
+
+    async mapEstimatedRewards(order: OrderDetailDto): Promise<EstimatedRewardsDto> {
+        let rewards: EstimatedRewardsDto = {
+            base_rewards: 0,
+            bonus_rewards: 0,
+            total_rewards: 0,
+            limit_offer: order.rewards_model_snapshot.limit_offer,
+        }
+
+        if (!order?.rewards_model_snapshot) return rewards
+
+        const currentPrice = await this.prisma.reward_pools.findFirst({
+            where: {
+                token: order.rewards_model_snapshot.token,
+            },
+            select: {
+                unit_price: true,
+            },
+        })
+
+        if (!currentPrice) {
+            this.logger.error(`Rewards pool not found for token: ${order.rewards_model_snapshot.token}`)
+            return rewards
+        }
+
+        // Base rewards calculation
+        let orderAmount = new Decimal(order.amount).mul(90).div(10000)
+        const unitPrice = new Decimal(currentPrice?.unit_price || 0)
+        // minus costs allocation
+        for (const cost of order.costs_allocation) {
+            orderAmount = orderAmount.minus(new Decimal(cost.amount).div(100))
+        }
+        const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
+
+        // Check if limit offer exists and is active
+        const ration = Number(rewards.limit_offer?.external_ratio || 100) / 100
+
+        if (rewards.limit_offer) {
+            // Apply external ratio if limit offer is active
+            rewards = {
+                base_rewards: baseRewards,
+                bonus_rewards: Math.round(baseRewards * ration - baseRewards),
+                total_rewards: Math.round(baseRewards * ration),
+                limit_offer: rewards.limit_offer,
+            }
+        } else {
+            rewards = {
+                base_rewards: baseRewards,
+                bonus_rewards: 0,
+                total_rewards: baseRewards,
+                limit_offer: null,
+            }
+        }
+
+        if (order.current_reward_pool_detail) {
+            const currentPoolBalance = parseInt(order.current_reward_pool_detail.current_balance)
+            if (currentPoolBalance < rewards.total_rewards) {
+                rewards.base_rewards = currentPoolBalance
+                rewards.bonus_rewards = 0
+                rewards.total_rewards = currentPoolBalance
+                rewards.limit_offer = null
+            }
+        }
+        return rewards
     }
 
     async getOrderDetail(orderId: string, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
@@ -470,6 +563,9 @@ export class OrderService {
             id: reward.id,
             order_id: reward.order_id,
             statement_id: reward.statement_id,
+            is_cost: reward.is_cost,
+            cost_type: reward.cost_type as OrderCostType,
+            cost_amount: reward.cost_amount?.toString() || "0",
             rewards_type: reward.rewards_type,
             user_info: {
                 username: reward?.user_info?.username,
@@ -955,8 +1051,66 @@ export class OrderService {
             unitPrice = new Decimal(unitPriceResponse.data[0].price)
         }
 
-        //allocate order creator's rewards
-        const orderAmount = new Decimal(orderRecord.amount).div(100)
+        let orderAmount = new Decimal(orderRecord.amount).div(100)
+        let allocatedUSDCAmount = new Decimal(0)
+        let allocatedTokenAmount = new Decimal(0)
+        let totalCostsAllocation = new Decimal(0)
+
+        //add platform cost (10%)
+        const platformRewards = orderAmount.mul(new Decimal(10)).div(100)
+        rewards.push({
+            order_id: orderRecord.order_id,
+            user: "",
+            role: RewardAllocateRoles.PLATFORM,
+            expected_role: RewardAllocateRoles.PLATFORM,
+            token: process.env.GIGGLE_LEGAL_USDC,
+            ticker: "usdc",
+            wallet_address: process.env.PLATFORM_WALLET,
+            rewards: platformRewards,
+            start_allocate: currentDate,
+            end_allocate: currentDate, //usdc is released immediately
+            released_per_day: platformRewards,
+            released_rewards: platformRewards,
+            locked_rewards: 0,
+            allocate_snapshot: modelSnapshot as any,
+            withdraw_rewards: 0,
+            note: "",
+            is_cost: true,
+            cost_type: OrderCostType.PLATFORM,
+            cost_amount: platformRewards,
+        })
+
+        allocatedUSDCAmount = allocatedUSDCAmount.plus(platformRewards)
+        orderAmount = orderAmount.minus(platformRewards)
+
+        //process costs allocation
+        const costsAllocation = orderRecord.costs_allocation as unknown as OrderCostsAllocationDto[]
+        for (const cost of costsAllocation) {
+            const costAmount = new Decimal(cost.amount).div(100)
+            rewards.push({
+                order_id: orderRecord.order_id,
+                user: "",
+                token: process.env.GIGGLE_LEGAL_USDC,
+                ticker: "usdc",
+                wallet_address: cost.distribute_wallet,
+                rewards: costAmount,
+                start_allocate: currentDate,
+                end_allocate: currentDate, //usdc is released immediately
+                released_per_day: costAmount,
+                released_rewards: costAmount,
+                locked_rewards: 0,
+                withdraw_rewards: 0,
+                is_cost: true,
+                cost_type: cost.type as OrderCostType,
+                cost_amount: costAmount,
+                note: "",
+            })
+            allocatedUSDCAmount = allocatedUSDCAmount.plus(costAmount)
+            orderAmount = orderAmount.minus(costAmount)
+            totalCostsAllocation = totalCostsAllocation.plus(costAmount)
+        }
+
+        //allocate order creator's rewards and minus the costs allocation
         let creatorNote = ""
         let orderCreatorRewards = orderAmount.div(unitPrice)
         //external rewards
@@ -972,6 +1126,10 @@ export class OrderService {
         if (orderCreatorRewards.gt(currentRewardPoolBalance)) {
             orderCreatorRewards = Decimal.min(orderCreatorRewards, currentRewardPoolBalance)
             creatorNote = "Reward pool balance is not enough, only allocate part of the rewards"
+        }
+
+        if (totalCostsAllocation.gt(0)) {
+            creatorNote = `Costs allocation: ${totalCostsAllocation.toString()}`
         }
         currentRewardPoolBalance = Decimal.max(currentRewardPoolBalance.minus(orderCreatorRewards), new Decimal(0))
 
@@ -993,15 +1151,14 @@ export class OrderService {
             note: creatorNote,
         })
 
-        let allocatedUSDCAmount = new Decimal(0)
-        let allocatedTokenAmount = orderCreatorRewards
+        allocatedTokenAmount = allocatedTokenAmount.plus(orderCreatorRewards)
 
         for (const reward of modelSnapshot.revenue_ratio) {
             //to ensure usdc not overflow, we need process platform rewards at final
             if (reward.role === RewardAllocateRoles.PLATFORM) {
                 continue
             }
-            const rewardUSDAmount = this._calculateUSDCRewards(reward, orderRecord)
+            const rewardUSDAmount = this._calculateUSDCRewards(reward, orderAmount)
             const rewardType = reward.allocate_type as unknown as RewardAllocateType
 
             const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
@@ -1092,26 +1249,24 @@ export class OrderService {
             allocatedUSDCAmount = allocatedUSDCAmount.plus(rewardUSDAmount)
         }
 
-        //add platform rewards
-        const platformRewards = orderAmount.minus(allocatedUSDCAmount)
-        rewards.push({
-            order_id: orderRecord.order_id,
-            user: "",
-            role: RewardAllocateRoles.PLATFORM,
-            expected_role: RewardAllocateRoles.PLATFORM,
-            token: process.env.GIGGLE_LEGAL_USDC,
-            ticker: "usdc",
-            wallet_address: process.env.PLATFORM_WALLET,
-            rewards: platformRewards,
-            start_allocate: currentDate,
-            end_allocate: currentDate, //usdc is released immediately
-            released_per_day: platformRewards,
-            released_rewards: platformRewards,
-            locked_rewards: 0,
-            allocate_snapshot: modelSnapshot as any,
-            withdraw_rewards: 0,
-            note: "",
-        })
+        //ensure allocated usd amount is not greater than the order original amount, if greater, we need to minus the platform rewards
+        const orderOriginalAmount = new Decimal(orderRecord.amount).div(100)
+        if (allocatedUSDCAmount.gt(orderOriginalAmount)) {
+            //minus platform rewards
+            let newPlatformRewards = platformRewards.minus(allocatedUSDCAmount.minus(orderOriginalAmount))
+            if (newPlatformRewards.lt(0)) {
+                throw new BadRequestException(
+                    `Platform rewards is not enough for order ${orderRecord.order_id}, please check the all you allocated usd amount`,
+                )
+            }
+            //replace platform rewards
+            const rewardIndex = rewards.findIndex((reward) => reward.role === RewardAllocateRoles.PLATFORM)
+            if (rewardIndex !== -1) {
+                rewards[rewardIndex].rewards = newPlatformRewards
+                rewards[rewardIndex].released_rewards = newPlatformRewards
+                rewards[rewardIndex].released_per_day = newPlatformRewards
+            }
+        }
 
         // check pool balance
         // todo: maybe this will be removed, rewards pool allow negative balance
@@ -1143,7 +1298,7 @@ export class OrderService {
                     token: modelSnapshot.token,
                     widget_tag: orderRecord.widget_tag,
                     amount: allocatedTokenAmount.mul(new Decimal(-1)),
-                    usd_revenue: orderAmount,
+                    usd_revenue: orderOriginalAmount,
                     unit_price: modelSnapshot.unit_price,
                     related_order_id: orderRecord.order_id,
                     type: "released",
@@ -1171,8 +1326,8 @@ export class OrderService {
         )
     }
 
-    _calculateUSDCRewards(reward: RewardAllocateRatio, orderRecord: orders): Decimal {
-        return new Decimal(orderRecord.amount).mul(new Decimal(reward.ratio)).div(100).div(100)
+    _calculateUSDCRewards(reward: RewardAllocateRatio, amount: Decimal): Decimal {
+        return amount.mul(new Decimal(reward.ratio)).div(100)
     }
 
     async getUser(
@@ -1196,9 +1351,14 @@ export class OrderService {
                     note: "",
                 }
             case RewardAllocateRoles.IPHOLDER:
+                const user = await this.prisma.users.findUnique({
+                    where: {
+                        username_in_be: ipHolder,
+                    },
+                })
                 return {
                     user: ipHolder,
-                    address: "",
+                    address: user?.wallet_address || "",
                     expectedAllocateRole: RewardAllocateRoles.IPHOLDER,
                     actualAllocateRole: RewardAllocateRoles.IPHOLDER,
                     note: "",
@@ -1344,7 +1504,7 @@ export class OrderService {
             default:
                 return {
                     user: "",
-                    address: "",
+                    address: process.env.BUYBACK_WALLET,
                     expectedAllocateRole: RewardAllocateRoles.BUYBACK,
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "unknown role, reward to buyback wallet",
