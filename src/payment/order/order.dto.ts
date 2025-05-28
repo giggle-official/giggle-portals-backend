@@ -308,8 +308,9 @@ export class CreateOrderDto {
     callback_url?: string
 
     @ApiProperty({
-        description:
-            "The costs of the order, can be multiple costs and the total amount of the costs must be less than the amount of the order, the costs will be distributed to the distribute_wallet provided",
+        description: `The costs of the order.
+    Can be multiple costs and the total amount of the costs must be less than the 90% of the amount of the order.
+    The costs will be distributed to the distribute_wallet provided.`,
         type: () => [OrderCostsAllocationDto],
         required: false,
     })
