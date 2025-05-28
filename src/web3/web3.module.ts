@@ -31,6 +31,6 @@ import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
         LaunchAgentService,
     ],
     controllers: [GiggleController, PriceController, LaunchAgentController],
-    exports: [GiggleService, IpOnChainService, PriceService, LaunchAgentService],
+    exports: [GiggleService, IpOnChainService, PriceService, LaunchAgentService, RewardPoolOnChainService],
 })
 export class Web3Module {}

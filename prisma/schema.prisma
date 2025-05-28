@@ -64,6 +64,7 @@ model users {
   app_links                      app_links[]
   user_subscribed_widgets        user_subscribed_widgets[]
   user_rewards                   user_rewards[]
+  reward_pools                   reward_pools[]
 }
 
 model user_request_log {
@@ -944,39 +945,50 @@ model ip_share_count {
   ip_info     ip_library? @relation(fields: [ip_id], references: [id])
 }
 
+enum reward_pool_on_chain_status {
+  ready
+  success
+  failed
+}
+
 model reward_pools {
-  id                      Int                       @id @default(autoincrement())
-  token                   String?                   @unique(map: "token") @db.VarChar(64)
-  ticker                  String?                   @db.VarChar(32)
-  owner                   String?                   @db.VarChar(32)
+  id                      Int                          @id @default(autoincrement())
+  token                   String?                      @unique(map: "token") @db.VarChar(64)
+  ticker                  String?                      @db.VarChar(32)
+  owner                   String?                      @db.VarChar(32)
   revenue_ratio           Json?
-  address                 String?                   @db.VarChar(1024)
-  injected_amount         Decimal?                  @db.Decimal(65, 12)
-  rewarded_amount         Decimal?                  @db.Decimal(65, 12)
-  current_balance         Decimal?                  @db.Decimal(65, 12)
-  unit_price              Decimal?                  @db.Decimal(65, 12)
-  created_at              DateTime?                 @default(now()) @db.Timestamp(0)
-  updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  address                 String?                      @db.VarChar(1024)
+  on_chain_status         reward_pool_on_chain_status? @default(ready)
+  on_chain_detail         Json?
+  on_chain_error          Json?
+  injected_amount         Decimal?                     @db.Decimal(65, 12)
+  rewarded_amount         Decimal?                     @db.Decimal(65, 12)
+  current_balance         Decimal?                     @db.Decimal(65, 12)
+  unit_price              Decimal?                     @db.Decimal(65, 12)
+  created_at              DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                    @default(now()) @db.Timestamp(0)
+  user_info               users?                       @relation(fields: [owner], references: [username_in_be])
   statement               reward_pool_statement[]
   reward_pool_limit_offer reward_pool_limit_offer[]
 }
 
 model reward_pool_statement {
-  id               Int               @id @default(autoincrement())
-  token            String?           @db.VarChar(64)
-  widget_tag       String?           @db.VarChar(64)
-  airdrop_type     String?           @db.VarChar(64)
-  usd_revenue      Decimal?          @db.Decimal(65, 12)
-  unit_price       Decimal?          @db.Decimal(65, 12)
-  amount           Decimal?          @db.Decimal(65, 12)
-  related_order_id String?           @db.VarChar(36)
-  type             reward_pool_type?
-  current_balance  Decimal?          @db.Decimal(65, 12)
-  created_at       DateTime?         @default(now()) @db.Timestamp(0)
-  updated_at       DateTime?         @default(now()) @db.Timestamp(0)
-  reward_pools     reward_pools?     @relation(fields: [token], references: [token])
-  order_info       orders?           @relation(fields: [related_order_id], references: [order_id])
-  user_rewards     user_rewards[]
+  id                Int               @id @default(autoincrement())
+  token             String?           @db.VarChar(64)
+  widget_tag        String?           @db.VarChar(64)
+  airdrop_type      String?           @db.VarChar(64)
+  usd_revenue       Decimal?          @db.Decimal(65, 12)
+  unit_price        Decimal?          @db.Decimal(65, 12)
+  amount            Decimal?          @db.Decimal(65, 12)
+  related_order_id  String?           @db.VarChar(36)
+  type              reward_pool_type?
+  chain_transaction Json?
+  current_balance   Decimal?          @db.Decimal(65, 12)
+  created_at        DateTime?         @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?         @default(now()) @db.Timestamp(0)
+  reward_pools      reward_pools?     @relation(fields: [token], references: [token])
+  order_info        orders?           @relation(fields: [related_order_id], references: [order_id])
+  user_rewards      user_rewards[]
 }
 
 model reward_pool_limit_offer {

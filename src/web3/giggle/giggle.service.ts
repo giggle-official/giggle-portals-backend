@@ -100,9 +100,9 @@ export class GiggleService {
         const sortedKeys = Object.keys(params)
             .filter((key) => key !== "sign" && params[key] !== undefined && params[key] !== null)
             .sort()
-
-        const stringA = sortedKeys.map((key) => `${key}=${params[key]}`).join(",")
-
+        const stringA = sortedKeys
+            .map((key) => `${key}=${typeof params[key] === "object" ? JSON.stringify(params[key]) : params[key]}`)
+            .join(",")
         const stringSignTemp = `${stringA},key=${this.apiKey}`
         const hash = crypto.createHash("md5").update(stringSignTemp).digest("hex")
 
@@ -699,6 +699,27 @@ export class GiggleService {
         })
 
         return responseData
+    }
+
+    async signTx(tx: string, signers: string[], email: string): Promise<string> {
+        const signatureParams = this.generateSignature({
+            base64Tx: tx,
+            singers: signers,
+            email: email,
+        })
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/signAndSendTx", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (!response.data?.data?.sig) {
+            this.logger.error("request sign tx signature: " + JSON.stringify(signatureParams))
+            this.logger.error("response sign tx signature: " + JSON.stringify(response.data))
+        } else {
+            this.logger.log("request sign tx signature: " + JSON.stringify(signatureParams))
+            this.logger.log("response sign tx signature: " + JSON.stringify(response.data))
+        }
+        return response.data.data.sig
     }
 
     async paymentCallback(params: PaymentCallbackDto): Promise<PaymentResponseDto> {

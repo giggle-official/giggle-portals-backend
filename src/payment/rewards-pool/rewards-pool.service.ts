@@ -26,7 +26,13 @@ import {
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { orders, Prisma, reward_pool_limit_offer, reward_pool_statement } from "@prisma/client"
+import {
+    orders,
+    Prisma,
+    reward_pool_limit_offer,
+    reward_pool_on_chain_status,
+    reward_pool_statement,
+} from "@prisma/client"
 import { OpenAppService } from "src/open-app/open-app.service"
 import { Decimal } from "@prisma/client/runtime/library"
 import { GiggleService } from "src/web3/giggle/giggle.service"
@@ -34,6 +40,7 @@ import { OrderService } from "src/payment/order/order.service"
 import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
 import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
+import { RewardPoolOnChainService } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.service"
 
 @Injectable()
 export class RewardsPoolService {
@@ -50,6 +57,9 @@ export class RewardsPoolService {
 
         @Inject(forwardRef(() => OrderService))
         private readonly orderService: OrderService,
+
+        @Inject(forwardRef(() => RewardPoolOnChainService))
+        private readonly rewardPoolOnChainService: RewardPoolOnChainService,
     ) {}
     async createPool(body: CreateRewardsPoolDto, user: UserJwtExtractDto): Promise<PoolResponseDto> {
         const poolExists = await this.prisma.reward_pools.findFirst({
@@ -177,6 +187,20 @@ export class RewardsPoolService {
             throw new BadRequestException("Pool does not exist or you are not the owner of the pool")
         }
 
+        if (poolExists.on_chain_status !== reward_pool_on_chain_status.success) {
+            throw new BadRequestException("Pool is not on chain")
+        }
+
+        const transaction = await this.rewardPoolOnChainService.injectToken(
+            {
+                token_mint: poolExists.token,
+                amount: body.append_amount,
+                user_wallet: user.wallet_address,
+                email: user.email,
+            },
+            user,
+        )
+
         const newBalance = poolExists.current_balance.plus(body.append_amount)
         const newInjectedAmount = poolExists.injected_amount.plus(body.append_amount)
         return await this.prisma.$transaction(async (tx) => {
@@ -196,6 +220,7 @@ export class RewardsPoolService {
                     amount: body.append_amount,
                     type: "injected",
                     current_balance: newBalance,
+                    chain_transaction: transaction as any,
                 },
             })
             return this.mapToPoolData(poolUpdated)

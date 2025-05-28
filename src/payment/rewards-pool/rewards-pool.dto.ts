@@ -1,5 +1,5 @@
 import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
-import { reward_pools } from "@prisma/client"
+import { reward_pool_on_chain_status, reward_pools } from "@prisma/client"
 import { Decimal } from "@prisma/client/runtime/library"
 import { Type } from "class-transformer"
 import {
@@ -56,6 +56,15 @@ export class Pool implements reward_pools {
     @ApiProperty({ description: "Address of the pool" })
     address: string
 
+    @ApiProperty({ description: "On chain status of the pool" })
+    on_chain_status: reward_pool_on_chain_status
+
+    @ApiProperty({ description: "On chain detail of the pool" })
+    on_chain_detail: any
+
+    @ApiProperty({ description: "On chain error of the pool" })
+    on_chain_error: any
+
     @ApiProperty({ description: "Injected token amount of the pool" })
     injected_amount: Decimal
 
@@ -77,6 +86,9 @@ export class PoolResponseDto extends OmitType(Pool, [
     "injected_amount",
     "rewarded_amount",
     "current_balance",
+    "on_chain_error",
+    "on_chain_status",
+    "on_chain_detail",
 ]) {
     @ApiProperty({ description: "Unit price of the token" })
     unit_price: string
