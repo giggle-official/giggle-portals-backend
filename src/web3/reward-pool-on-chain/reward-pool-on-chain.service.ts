@@ -3,11 +3,17 @@ import { PrismaService } from "src/common/prisma.service"
 import {
     CreatePoolDto,
     CreatePoolResponseDto,
+    AllocateRevenueDto,
     InjectTokenDto,
     InjectTokenResponseDto,
     RetrieveResponseDto,
     RpcResponseDto,
     TransactionDto,
+    RetrieveUserTokenBalanceResponseDto,
+    AirdropStatementToChainDto,
+    AirdropResponseDto,
+    WithdrawTokenToWalletDto,
+    WithdrawTokenToWalletResponseDto,
 } from "./reward-pool-on-chain.dto"
 import { HttpService } from "@nestjs/axios"
 import axios, { AxiosResponse } from "axios"
@@ -15,15 +21,17 @@ import https from "https"
 import { lastValueFrom } from "rxjs"
 import { GiggleService } from "../giggle/giggle.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { reward_pool_on_chain_status } from "@prisma/client"
+import { Prisma, reward_pool_on_chain_status, reward_pool_type } from "@prisma/client"
 import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
+import { OrderStatus } from "src/payment/order/order.dto"
+import { Decimal } from "@prisma/client/runtime/library"
+import { RewardAllocateRoles } from "src/payment/rewards-pool/rewards-pool.dto"
 
 @Injectable()
 export class RewardPoolOnChainService {
     private readonly logger = new Logger(RewardPoolOnChainService.name)
-    private readonly gasPayer: string
-    private readonly usdtPayer: string
+    private readonly settleWallet: string
     private readonly rpcUrl: string
     private readonly authToken: string
     private readonly rewardOnChainHttpService: HttpService
@@ -32,11 +40,10 @@ export class RewardPoolOnChainService {
         private readonly prisma: PrismaService,
         private readonly giggleService: GiggleService,
     ) {
-        this.gasPayer = process.env.GAS_PAYER_WALLET
-        this.usdtPayer = process.env.USDT_PAYER_WALLET
+        this.settleWallet = process.env.SETTLEMENT_WALLET
         this.rpcUrl = process.env.REWARD_ON_CHAIN_ENDPOINT
-        if (!this.gasPayer || !this.rpcUrl || !this.usdtPayer) {
-            throw new Error("Gas payer or rpc url or usdt payer is not set")
+        if (!this.settleWallet || !this.rpcUrl) {
+            throw new Error("Settle wallet or rpc url is not set")
         }
 
         this.authToken = process.env.REWARD_ON_CHAIN_TOKEN
@@ -52,23 +59,31 @@ export class RewardPoolOnChainService {
         )
     }
 
-    async retrieve(token: string) {
+    async retrieve(token: string): Promise<RetrieveResponseDto | null> {
         //retrieve first
         const retrieveFunc = "/CreateFiInfo"
         const requestParams = {
             createFiToken: token,
             __authToken: this.authToken,
         }
-        const response: AxiosResponse<RpcResponseDto<RetrieveResponseDto>> = await lastValueFrom(
+        const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + retrieveFunc, requestParams),
         )
         if (!response.data?.isSucc || !response.data?.res?.content) {
             this.logger.error(
-                `Retrieve failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
             )
             return null
         }
-        return response.data.res.content
+
+        try {
+            return JSON.parse(response.data.res.content) as RetrieveResponseDto
+        } catch (error) {
+            this.logger.error(
+                `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return null
+        }
     }
 
     async injectToken(dto: InjectTokenDto, user: UserJwtExtractDto): Promise<TransactionDto> {
@@ -95,7 +110,7 @@ export class RewardPoolOnChainService {
         }
         if (balance < dto.amount) {
             this.logger.error(
-                `Insufficient balance for inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
+                `INJECT TOKEN ERROR: Insufficient balance for inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
             )
             throw new BadRequestException(
                 `Insufficient balance when inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
@@ -107,7 +122,7 @@ export class RewardPoolOnChainService {
             user: dto.user_wallet,
             createFiToken: dto.token_mint,
             amount: (dto.amount * 10 ** 6).toString(), //currently our token is on decimals 6
-            payer: this.gasPayer,
+            payer: this.settleWallet,
             __authToken: this.authToken,
         }
         const injectFunc = "/RefillCreateFi"
@@ -116,17 +131,77 @@ export class RewardPoolOnChainService {
         )
         if (!response.data?.isSucc || !response.data?.res?.tx) {
             this.logger.error(
-                `Inject token failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                `INJECT TOKEN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
             )
             throw new BadRequestException("Inject token failed")
         }
 
         //sign tx
-        const signers = [this.gasPayer]
+        const signers = [this.settleWallet]
         const signature = await this.giggleService.signTx(response.data.res.tx, signers, dto.email)
         if (!signature) {
             this.logger.error(
-                `Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+                `INJECT TOKEN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new BadRequestException("Sign tx failed")
+        }
+
+        return {
+            tx: response.data.res.tx,
+            signature: signature,
+            request_params: requestParams,
+        }
+    }
+
+    async allocateRevenue(dto: AllocateRevenueDto): Promise<TransactionDto> {
+        const rewardPool = await this.prisma.reward_pools.findUnique({
+            where: {
+                token: dto.token_mint,
+                on_chain_status: reward_pool_on_chain_status.success,
+            },
+            include: {
+                user_info: true,
+            },
+        })
+
+        if (!rewardPool) {
+            throw new BadRequestException("Pool not found")
+        }
+
+        const func = "/CreateFiConsume"
+        const requestParams = {
+            user: this.settleWallet,
+            creator: rewardPool.user_info.wallet_address,
+            consumeToken: process.env.GIGGLE_LEGAL_USDC,
+            createFiToken: rewardPool.token,
+            amountIn: Math.round(dto.revenue * 10 ** 6).toString(),
+            revenueArr: dto.revenue_allocate_details.map((r) => ({
+                acc: r.wallet_address,
+                share: Math.round(r.share * 10 ** 6).toString(),
+                token: r.token,
+            })),
+            orderTime: dto.paid_time,
+            payer: this.settleWallet,
+            __authToken: this.authToken,
+        }
+
+        const response: AxiosResponse<RpcResponseDto<CreatePoolResponseDto>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+
+        if (!response.data?.isSucc || !response.data?.res?.tx) {
+            this.logger.error(
+                `ALLOCATE REVENUE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new BadRequestException("Allocate revenue failed")
+        }
+
+        //sign tx
+        const signers = [this.settleWallet]
+        const signature = await this.giggleService.signTx(response.data.res.tx, signers, rewardPool.user_info.email)
+        if (!signature) {
+            this.logger.error(
+                `ALLOCATE REVENUE ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
             )
             throw new BadRequestException("Sign tx failed")
         }
@@ -173,7 +248,7 @@ export class RewardPoolOnChainService {
             const requestParams = {
                 creator: dto.user_wallet,
                 createFiToken: dto.token_mint,
-                payer: this.gasPayer,
+                payer: this.settleWallet,
                 __authToken: this.authToken,
             }
 
@@ -183,21 +258,25 @@ export class RewardPoolOnChainService {
 
             if (!response.data?.isSucc || !response.data?.res?.tx) {
                 this.logger.error(
-                    `Create pool failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                    `CREATE POOL ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
                 )
                 throw new BadRequestException("Create pool failed")
             }
 
             const tx = response.data.res.tx
-            const signers = [this.gasPayer]
+            const signers = [this.settleWallet]
             const signature = await this.giggleService.signTx(tx, signers, dto.email)
 
             if (!signature) {
-                this.logger.error(`Sign tx failed: ${tx}, request params: ${JSON.stringify(requestParams)}`)
+                this.logger.error(
+                    `CREATE POOL ERROR: Sign tx failed: ${tx}, request params: ${JSON.stringify(requestParams)}`,
+                )
                 throw new BadRequestException("Sign tx failed")
             }
 
             const newContent = await this.retrieve(dto.token_mint)
+            const buybackWallet = await this.retrieveBuybackWallet(dto.token_mint)
+
             await this.prisma.reward_pools.update({
                 where: {
                     token: dto.token_mint,
@@ -205,15 +284,16 @@ export class RewardPoolOnChainService {
                 data: {
                     token: dto.token_mint,
                     on_chain_status: reward_pool_on_chain_status.success,
+                    buyback_address: buybackWallet,
                     on_chain_detail: {
                         tx: tx,
                         signature: signature,
-                        content: newContent,
+                        content: newContent as any,
                     },
                 },
             })
         } catch (error) {
-            this.logger.error(`Create pool failed: ${error}`)
+            this.logger.error(`CREATE POOL ERROR: ${error}`)
             await this.prisma.reward_pools.update({
                 where: {
                     token: dto.token_mint,
@@ -226,8 +306,273 @@ export class RewardPoolOnChainService {
         }
     }
 
-    //push current reward pool to chain
+    //retrieve buyback wallet
+    async retrieveBuybackWallet(token: string) {
+        const func = "/GetBuyback"
+        const requestParams = {
+            createFiToken: token,
+            __authToken: this.authToken,
+        }
+        const response: AxiosResponse<RpcResponseDto<{ addr: string }>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        if (!response.data?.isSucc || !response.data?.res?.addr) {
+            this.logger.error(
+                `RETRIEVE BUYBACK WALLET ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return null
+        }
+        return response.data.res.addr
+    }
+
+    //retrieve user token balance
+    async retrieveUserTokenBalance(
+        token: string,
+        user_wallet: string,
+    ): Promise<RetrieveUserTokenBalanceResponseDto | null> {
+        const func = "/CreateFiUserVestingInfo"
+        const requestParams = {
+            createFiToken: token,
+            user: user_wallet,
+            __authToken: this.authToken,
+        }
+        const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        if (!response.data?.isSucc || !response.data?.res?.content) {
+            this.logger.error(
+                `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return null
+        }
+        try {
+            return JSON.parse(response.data.res.content) as RetrieveUserTokenBalanceResponseDto
+        } catch (error) {
+            this.logger.error(
+                `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return null
+        }
+    }
+
+    //withdraw token to wallet
+    async withdrawTokenToWallet(dto: WithdrawTokenToWalletDto, user_email: string): Promise<TransactionDto> {
+        const func = "/ClaimCreateFiVesting"
+        const requestParams = {
+            user: dto.user_wallet,
+            createFiToken: dto.token,
+            amount: Math.round(dto.amount * 10 ** 6).toString(),
+            payer: this.settleWallet,
+            __authToken: this.authToken,
+        }
+        const response: AxiosResponse<RpcResponseDto<WithdrawTokenToWalletResponseDto>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        if (!response.data?.isSucc || !response.data?.res?.tx) {
+            throw new BadRequestException("Withdraw token to wallet failed")
+        }
+
+        //sign tx
+        const signers = [this.settleWallet]
+        const signature = await this.giggleService.signTx(response.data.res.tx, signers, user_email)
+        if (!signature) {
+            throw new BadRequestException("Sign tx failed")
+        }
+
+        return {
+            tx: response.data.res.tx,
+            signature: signature,
+            request_params: requestParams,
+        }
+    }
+
+    //airdrop statement to chain
+    async airdropStatementToChain(airdropDto: AirdropStatementToChainDto, creator_email: string) {
+        const func = "/CreateFiAirdrop"
+        const requestParams = {
+            user: airdropDto.user_wallet,
+            creator: airdropDto.owner_wallet,
+            createFiToken: airdropDto.token,
+            amount: Math.round(airdropDto.amount * 10 ** 6).toString(),
+            orderTime: airdropDto.timestamp,
+            payer: this.settleWallet,
+            __authToken: this.authToken,
+        }
+
+        const response: AxiosResponse<RpcResponseDto<AirdropResponseDto>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+
+        if (!response.data?.isSucc || !response.data?.res?.tx) {
+            this.logger.error(
+                `AIRDROP STATEMENT TO CHAIN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new BadRequestException("Airdrop statement to chain failed")
+        }
+        //sign tx
+        const signers = [this.settleWallet]
+        const signature = await this.giggleService.signTx(response.data.res.tx, signers, creator_email)
+        if (!signature) {
+            this.logger.error(
+                `AIRDROP STATEMENT TO CHAIN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            throw new BadRequestException("Sign tx failed")
+        }
+
+        return {
+            tx: response.data.res.tx,
+            signature: signature,
+            request_params: requestParams,
+        }
+    }
+
+    //process withdraw token of history record
     @Cron(CronExpression.EVERY_MINUTE)
+    async processWithdrawToken() {
+        if (process.env.TASK_SLOT != "1") return
+
+        const withdrawToken = await this.prisma.user_rewards_withdraw.findFirst({
+            where: {
+                chain_transaction: {
+                    equals: Prisma.AnyNull,
+                },
+                status: "pending",
+            },
+            include: {
+                user_info: true,
+            },
+            orderBy: {
+                id: "desc",
+            },
+        })
+
+        if (!withdrawToken) {
+            this.logger.log("No withdraw token need process")
+            return
+        }
+
+        const userBalance = await this.retrieveUserTokenBalance(
+            withdrawToken.token,
+            //"7MmYE6vu9fRaQ9eCVAY6EtzKBS8aoACoGa62D8veA3ry", //for test
+            withdrawToken.user_info.wallet_address,
+            //"CGSsRhaW2212oTUDwBdZT3xe5FknTW8C2ekcsSqZZcfk", //for test
+        )
+
+        if (!userBalance) {
+            this.logger.error(
+                `PROCESS WITHDRAW TOKEN ERROR: No user balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
+            )
+            return
+        }
+
+        const userBalanceAmount = new Decimal(userBalance.totalAmount)
+        if (userBalanceAmount.lt(withdrawToken.withdrawn)) {
+            this.logger.error(
+                `PROCESS WITHDRAW TOKEN ERROR: Insufficient token balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
+            )
+            return
+        }
+
+        //start withdraw
+        this.logger.log(
+            `PROCESS WITHDRAW TOKEN: ${withdrawToken.id}, need tokens: ${withdrawToken.withdrawn.toNumber()}, token balance: ${userBalanceAmount.toNumber()}`,
+        )
+
+        try {
+            const reqParam = {
+                user_wallet: withdrawToken.user_info.wallet_address,
+                amount: withdrawToken.withdrawn.toNumber(),
+                token: withdrawToken.token,
+            }
+            const transaction = await this.withdrawTokenToWallet(reqParam, withdrawToken.user_info.email)
+            await this.prisma.user_rewards_withdraw.update({
+                where: { id: withdrawToken.id },
+                data: { chain_transaction: transaction as any, status: "completed" },
+            })
+        } catch (error) {
+            this.logger.error(`PROCESS WITHDRAW TOKEN ERROR: ${error}`)
+            await this.prisma.user_rewards_withdraw.update({
+                where: { id: withdrawToken.id },
+                data: { status: "failed", transaction_error: JSON.stringify(error) },
+            })
+        }
+    }
+
+    //process inject token of history record
+    @Cron(CronExpression.EVERY_MINUTE)
+    async processInjectToken() {
+        if (process.env.TASK_SLOT != "1") return
+
+        const injectToken = await this.prisma.reward_pool_statement.findFirst({
+            where: {
+                chain_transaction: {
+                    equals: Prisma.AnyNull,
+                },
+                type: reward_pool_type.injected,
+                reward_pools: {
+                    on_chain_status: reward_pool_on_chain_status.success,
+                },
+            },
+            include: {
+                reward_pools: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+            },
+            orderBy: {
+                id: "desc",
+            },
+            take: 1,
+        })
+
+        if (!injectToken) {
+            this.logger.log("No inject token need process")
+            return
+        }
+        //check user wallet token balance
+        const userBalance = await this.giggleService.getWalletBalance(
+            injectToken.reward_pools.user_info.wallet_address,
+            injectToken.reward_pools.token,
+        )
+        if (userBalance.length === 0) {
+            this.logger.error(
+                `PROCESS INJECT TOKEN ERROR: No token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
+            )
+            return
+        }
+        const userBalanceAmount = new Decimal(userBalance[0].amount)
+        if (userBalanceAmount.lt(injectToken.amount)) {
+            this.logger.error(
+                `PROCESS INJECT TOKEN ERROR: Insufficient token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
+            )
+            return
+        }
+
+        this.logger.log(
+            `PROCESS INJECT TOKEN: ${injectToken.token} $${injectToken.reward_pools.ticker}, need tokens: ${injectToken.amount}`,
+        )
+
+        const injectResult = await this.injectToken(
+            {
+                token_mint: injectToken.reward_pools.token,
+                amount: injectToken.amount.toNumber(),
+                email: injectToken.reward_pools.user_info.email,
+                user_wallet: injectToken.reward_pools.user_info.wallet_address,
+            },
+            {
+                usernameShorted: injectToken.reward_pools.user_info.username_in_be,
+            },
+        )
+
+        await this.prisma.reward_pool_statement.update({
+            where: { id: injectToken.id },
+            data: { chain_transaction: injectResult as any },
+        })
+    }
+
+    //push current reward pool to chain
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async pushToChain() {
         if (process.env.TASK_SLOT != "1") return
 
@@ -250,7 +595,260 @@ export class RewardPoolOnChainService {
                 user_wallet: rewardPool.user_info.wallet_address,
                 email: rewardPool.user_info.email,
             })
-            this.logger.log(`Push to chain done: ${rewardPool.token}`)
+            this.logger.log(`CREATE POOL: ${rewardPool.token} done`)
         }
     }
+
+    //settle air drop statement to chain
+    @Cron(CronExpression.EVERY_MINUTE)
+    async settleAirDropStatement() {
+        if (process.env.TASK_SLOT != "1") return
+        const airdropStatement = await this.prisma.reward_pool_statement.findFirst({
+            where: {
+                type: reward_pool_type.airdrop,
+                chain_transaction: {
+                    equals: Prisma.AnyNull,
+                },
+            },
+            orderBy: {
+                id: "desc",
+            },
+            take: 1,
+            include: {
+                user_rewards: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+                reward_pools: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+            },
+        })
+
+        if (!airdropStatement) {
+            this.logger.log("SETTLE AIRDROP: No airdrop statement need settle")
+            return
+        }
+
+        if (airdropStatement.user_rewards.length === 0) {
+            this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${airdropStatement.id}`)
+            return
+        }
+
+        const userReward = new Decimal(airdropStatement.user_rewards[0].rewards)
+
+        //check reward pool token balance
+        const tokenBalance = await this.retrieve(airdropStatement.token)
+        if (!tokenBalance) {
+            this.logger.error(
+                `SETTLE AIRDROP ERROR: No token balance for settle airdrop statement: ${airdropStatement.id}, wallet: ${this.settleWallet}`,
+            )
+            return
+        }
+
+        const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
+        if (tokenBalanceAmount.lt(userReward)) {
+            this.logger.error(
+                `SETTLE AIRDROP ERROR: Insufficient token balance when settle airdrop statement: ${airdropStatement.id}, pool: ${airdropStatement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${userReward.toNumber()}`,
+            )
+            return
+        }
+
+        //start settle
+        this.logger.log(
+            `SETTLE AIRDROP: ${airdropStatement.id}, need tokens: ${userReward.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+        )
+
+        const reqParam = {
+            user_wallet: airdropStatement.user_rewards[0].user_info.wallet_address,
+            owner_wallet: airdropStatement.reward_pools.user_info.wallet_address,
+            token: airdropStatement.token,
+            amount: userReward.toNumber(),
+            timestamp: airdropStatement.created_at.getTime() / 1000,
+        }
+
+        const transaction = await this.airdropStatementToChain(reqParam, airdropStatement.reward_pools.user_info.email)
+        await this.prisma.reward_pool_statement.update({
+            where: { id: airdropStatement.id },
+            data: { chain_transaction: transaction as any },
+        })
+        this.logger.log(`SETTLE AIRDROP: ${airdropStatement.id} done`)
+    }
+
+    //settle order statement to chain
+    @Cron(CronExpression.EVERY_MINUTE)
+    async settleStatement() {
+        if (process.env.TASK_SLOT != "1") return
+        const statement = await this.prisma.reward_pool_statement.findFirst({
+            where: {
+                order_info: {
+                    current_status: OrderStatus.REWARDS_RELEASED,
+                },
+                type: reward_pool_type.released,
+                chain_transaction: {
+                    equals: Prisma.AnyNull,
+                },
+            },
+            orderBy: {
+                id: "desc",
+            },
+            take: 1,
+            include: {
+                user_rewards: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+                order_info: true,
+                reward_pools: true,
+            },
+        })
+
+        if (!statement) {
+            this.logger.log("No statement need settle")
+            return
+        }
+
+        //check balance
+        const usdcBalance = await this.giggleService.getWalletBalance(this.settleWallet, process.env.GIGGLE_LEGAL_USDC)
+        if (usdcBalance.length === 0) {
+            this.logger.error(
+                `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+            )
+            return
+        }
+        const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
+        if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
+            this.logger.error(
+                `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toNumber()} < ${statement.usd_revenue.toNumber()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+            )
+            return
+        }
+
+        //check reward pool token balance
+        const tokenBalance = await this.retrieve(statement.token)
+        if (!tokenBalance) {
+            this.logger.error(
+                `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+            )
+            return
+        }
+        const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
+        if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
+            this.logger.error(
+                `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${statement.amount.mul(-1).toNumber()}`,
+            )
+            return
+        }
+
+        const arr = []
+        let amountIn = new Decimal(0)
+        let needTokens = new Decimal(0)
+        for (const userReward of statement.user_rewards) {
+            //determine wallet address
+            let walletAddress = ""
+            if (userReward.role === RewardAllocateRoles.BUYBACK) {
+                //get buyback wallet from reward pool
+                walletAddress = statement.reward_pools.buyback_address
+            } else if (userReward.user_info) {
+                walletAddress = userReward.user_info.wallet_address
+            } else if (userReward.wallet_address) {
+                walletAddress = userReward.wallet_address
+            } else {
+                this.logger.warn(`User reward has no user info or user: ${JSON.stringify(userReward)}`)
+                continue
+            }
+
+            arr.push({
+                wallet_address: walletAddress,
+                share: userReward.rewards,
+                token: userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : 1,
+            })
+            amountIn = amountIn.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? userReward.rewards : 0)
+            needTokens = needTokens.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : userReward.rewards)
+        }
+
+        if (arr.length === 0) {
+            this.logger.error(
+                `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
+            )
+            return
+        }
+
+        this.logger.log(
+            `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toNumber()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toNumber()}`,
+        )
+
+        this.logger.log(
+            `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+        )
+
+        const allocateParams: AllocateRevenueDto = {
+            token_mint: statement.token,
+            revenue: amountIn.toNumber(),
+            paid_time: statement.order_info.paid_time.getTime() / 1000,
+            revenue_allocate_details: arr,
+        }
+
+        const transaction = await this.allocateRevenue(allocateParams)
+        await this.prisma.reward_pool_statement.update({
+            where: {
+                id: statement.id,
+            },
+            data: { chain_transaction: transaction as any },
+        })
+    }
+
+    /*
+    //update buyback wallet
+    //@Cron(CronExpression.EVERY_5_MINUTES)
+    //despeciated
+    /*
+    async updateBuybackWallet() {
+        if (process.env.TASK_SLOT != "1") return
+
+        const rewardPools = await this.prisma.reward_pools.findMany({
+            where: {
+                on_chain_status: reward_pool_on_chain_status.success,
+                buyback_address: null,
+            },
+            orderBy: {
+                id: "desc",
+            },
+        })
+
+        //check if there is any reward pool
+        if (rewardPools.length === 0) {
+            this.logger.log("No reward pool to update buyback wallet")
+            return
+        }
+
+        this.logger.log(`Update buyback wallet start: ${rewardPools.length} reward pools`)
+        for (const rewardPool of rewardPools) {
+            try {
+                const buybackWallet = await this.retrieveBuybackWallet(rewardPool.token)
+                if (!buybackWallet) {
+                    this.logger.error(`Buyback wallet not found: ${rewardPool.token}`)
+                    return
+                }
+                await this.prisma.reward_pools.update({
+                    where: {
+                        token: rewardPool.token,
+                    },
+                    data: {
+                        buyback_address: buybackWallet,
+                    },
+                })
+                await new Promise((resolve) => setTimeout(resolve, 10000))
+                this.logger.log(`Update buyback wallet done: ${rewardPool.token}`)
+            } catch (error) {
+                this.logger.error(`Update buyback wallet failed: ${error}`)
+                continue
+            }
+        }
+    }
+    */
 }

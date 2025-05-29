@@ -31,7 +31,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
-import { orders, Prisma, user_rewards, users } from "@prisma/client"
+import { orders, Prisma, reward_pools, user_rewards, users } from "@prisma/client"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
@@ -1189,6 +1189,7 @@ export class OrderService {
                 orderRecord,
                 reward,
                 rewardPool.owner,
+                rewardPool.buyback_address,
             )
             if (rewardType === RewardAllocateType.USDC) {
                 const currentDate = new Date()
@@ -1258,7 +1259,7 @@ export class OrderService {
                     expected_role: expectedAllocateRole,
                     token: process.env.GIGGLE_LEGAL_USDC,
                     ticker: "usdc",
-                    wallet_address: process.env.BUYBACK_WALLET,
+                    wallet_address: rewardPool.buyback_address,
                     rewards: rewardUSDAmount,
                     start_allocate: currentDate,
                     end_allocate: currentDate,
@@ -1358,6 +1359,7 @@ export class OrderService {
         orderRecord: orders,
         allocateRatio: RewardAllocateRatio,
         ipHolder: string,
+        buybackAddress: string,
     ): Promise<{
         user: string
         address: string
@@ -1369,7 +1371,7 @@ export class OrderService {
             case RewardAllocateRoles.BUYBACK:
                 return {
                     user: "",
-                    address: process.env.BUYBACK_WALLET,
+                    address: buybackAddress,
                     expectedAllocateRole: RewardAllocateRoles.BUYBACK,
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "",
@@ -1392,7 +1394,7 @@ export class OrderService {
                 if (!orderRecord.from_source_link) {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.INVITER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Inviter not found, reward to buyback wallet",
@@ -1409,7 +1411,7 @@ export class OrderService {
                 if (!link) {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.INVITER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Inviter not found, reward to buyback wallet",
@@ -1436,7 +1438,7 @@ export class OrderService {
                 if (!user.from_source_link) {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.INVITER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Inviter not found, reward to buyback wallet",
@@ -1478,7 +1480,7 @@ export class OrderService {
                 } else {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.INVITER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Inviter not found, reward to buyback wallet",
@@ -1489,7 +1491,7 @@ export class OrderService {
                 if (!orderRecord.widget_tag) {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.DEVELOPER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Widget tag not found, reward to buyback wallet",
@@ -1503,7 +1505,7 @@ export class OrderService {
                 if (!widget) {
                     return {
                         user: "",
-                        address: process.env.BUYBACK_WALLET,
+                        address: buybackAddress,
                         expectedAllocateRole: RewardAllocateRoles.DEVELOPER,
                         actualAllocateRole: RewardAllocateRoles.BUYBACK,
                         note: "Widget not found, reward to buyback wallet",
@@ -1528,7 +1530,7 @@ export class OrderService {
             default:
                 return {
                     user: "",
-                    address: process.env.BUYBACK_WALLET,
+                    address: buybackAddress,
                     expectedAllocateRole: RewardAllocateRoles.BUYBACK,
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "unknown role, reward to buyback wallet",
@@ -1582,8 +1584,9 @@ export class OrderService {
             this.logger.log("Settling user rewards")
             const result = await this.prisma.$queryRaw`
 update user_rewards r join (select id,
-                                   least(datediff(current_date, start_allocate) *
-                                         (rewards / greatest(1, datediff(end_allocate, start_allocate))), rewards) as r_amount
+                                   truncate(least(datediff(current_date, start_allocate) *
+                                                  (rewards / greatest(1, datediff(end_allocate, start_allocate))),
+                                                  rewards), 6) as r_amount
                             from user_rewards) u
     on r.id = u.id
 set r.released_rewards=u.r_amount,

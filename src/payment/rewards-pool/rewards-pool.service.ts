@@ -228,7 +228,13 @@ export class RewardsPoolService {
     }
 
     async getPools(query: PoolsQueryDto): Promise<PoolsResponseListDto> {
-        const where: Prisma.reward_poolsWhereInput = {}
+        const where: Prisma.reward_poolsWhereInput = {
+            on_chain_status: reward_pool_on_chain_status.success,
+            buyback_address: {
+                not: null,
+            },
+        }
+
         if (query.token) {
             where.token = query.token
         }
@@ -727,6 +733,7 @@ ORDER BY d.date;`
             ticker: data.ticker,
             owner: data.owner,
             address: data.address,
+            buyback_address: data.buyback_address,
             unit_price: data.unit_price.toString(),
             revenue_ratio: data.revenue_ratio.filter((r: RewardAllocateRatio) => r.role !== "platform"),
             injected_amount: data.injected_amount.toString(),
@@ -742,8 +749,10 @@ ORDER BY d.date;`
         }
     }
 
+    /*
     //create pool
-    @Cron(CronExpression.EVERY_10_MINUTES)
+    //@Cron(CronExpression.EVERY_10_MINUTES)
+    //despeciated
     async createPools() {
         if (process.env.TASK_SLOT != "1") {
             return
@@ -760,9 +769,18 @@ ORDER BY d.date;`
             await this.createRewardsPool(ip.id)
         }
     }
+    */
 
     //create rewards pool if not exists
-    async createRewardsPool(ip_id: number): Promise<void> {
+    async createRewardsPool(ip_id: number, user_wallet: string, email: string, subscriber?: any): Promise<void> {
+        if (subscriber) {
+            subscriber.next({
+                event: "ip.create_rewards_pool",
+                data: {
+                    message: "Creating rewards pool",
+                },
+            })
+        }
         const ip = await this.prisma.ip_library.findUnique({
             where: {
                 token_info: {
@@ -797,7 +815,23 @@ ORDER BY d.date;`
                 rewarded_amount: 0,
                 injected_amount: 0,
                 current_balance: 0,
+                on_chain_status: reward_pool_on_chain_status.ready,
             },
+        })
+
+        if (subscriber) {
+            subscriber.next({
+                event: "ip.create_rewards_pool_on_chain",
+                data: {
+                    message: "Creating rewards pool on chain",
+                },
+            })
+        }
+
+        await this.rewardPoolOnChainService.create({
+            token_mint: tokenInfo.mint,
+            user_wallet: user_wallet,
+            email: email,
         })
     }
 }

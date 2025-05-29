@@ -65,6 +65,7 @@ model users {
   user_subscribed_widgets        user_subscribed_widgets[]
   user_rewards                   user_rewards[]
   reward_pools                   reward_pools[]
+  user_rewards_withdraw          user_rewards_withdraw[]
 }
 
 model user_request_log {
@@ -962,9 +963,10 @@ model reward_pools {
   on_chain_status         reward_pool_on_chain_status? @default(ready)
   on_chain_detail         Json?
   on_chain_error          Json?
-  injected_amount         Decimal?                     @db.Decimal(65, 12)
-  rewarded_amount         Decimal?                     @db.Decimal(65, 12)
-  current_balance         Decimal?                     @db.Decimal(65, 12)
+  buyback_address         String?                      @db.VarChar(64)
+  injected_amount         Decimal?                     @db.Decimal(65, 6)
+  rewarded_amount         Decimal?                     @db.Decimal(65, 6)
+  current_balance         Decimal?                     @db.Decimal(65, 6)
   unit_price              Decimal?                     @db.Decimal(65, 12)
   created_at              DateTime?                    @default(now()) @db.Timestamp(0)
   updated_at              DateTime?                    @default(now()) @db.Timestamp(0)
@@ -978,13 +980,13 @@ model reward_pool_statement {
   token             String?           @db.VarChar(64)
   widget_tag        String?           @db.VarChar(64)
   airdrop_type      String?           @db.VarChar(64)
-  usd_revenue       Decimal?          @db.Decimal(65, 12)
+  usd_revenue       Decimal?          @db.Decimal(65, 6)
   unit_price        Decimal?          @db.Decimal(65, 12)
-  amount            Decimal?          @db.Decimal(65, 12)
+  amount            Decimal?          @db.Decimal(65, 6)
   related_order_id  String?           @db.VarChar(36)
   type              reward_pool_type?
   chain_transaction Json?
-  current_balance   Decimal?          @db.Decimal(65, 12)
+  current_balance   Decimal?          @db.Decimal(65, 6)
   created_at        DateTime?         @default(now()) @db.Timestamp(0)
   updated_at        DateTime?         @default(now()) @db.Timestamp(0)
   reward_pools      reward_pools?     @relation(fields: [token], references: [token])
@@ -1014,22 +1016,22 @@ model user_rewards {
   statement_id      Int?
   is_cost           Boolean?               @default(false)
   cost_type         String?                @db.VarChar(32)
-  cost_amount       Decimal?               @db.Decimal(65, 12)
+  cost_amount       Decimal?               @db.Decimal(65, 6)
   rewards_type      String?                @default("order") @db.VarChar(32)
   order_id          String?                @db.VarChar(36)
   user              String?                @db.VarChar(32)
   role              String?                @db.VarChar(32)
   expected_role     String?                @db.VarChar(32)
   wallet_address    String?                @db.VarChar(64)
-  rewards           Decimal?               @db.Decimal(65, 12)
+  rewards           Decimal?               @db.Decimal(65, 6)
   token             String?                @db.VarChar(64)
   ticker            String?                @db.VarChar(32)
-  released_per_day  Decimal?               @db.Decimal(65, 12)
+  released_per_day  Decimal?               @db.Decimal(65, 6)
   start_allocate    DateTime?              @db.DateTime(0)
   end_allocate      DateTime?              @db.DateTime(0)
-  released_rewards  Decimal?               @db.Decimal(65, 12)
-  locked_rewards    Decimal?               @db.Decimal(65, 12)
-  withdraw_rewards  Decimal?               @db.Decimal(65, 12)
+  released_rewards  Decimal?               @db.Decimal(65, 6)
+  locked_rewards    Decimal?               @db.Decimal(65, 6)
+  withdraw_rewards  Decimal?               @db.Decimal(65, 6)
   allocate_snapshot Json?
   note              String?                @db.Text
   created_at        DateTime?              @default(now()) @db.Timestamp(0)
@@ -1040,26 +1042,29 @@ model user_rewards {
 }
 
 model user_rewards_withdraw {
-  id         Int       @id @default(autoincrement())
-  user       String?   @db.VarChar(32)
-  token      String?   @db.VarChar(64)
-  withdrawn  Decimal?  @db.Decimal(65, 12)
-  status     String?   @db.VarChar(32)
-  created_at DateTime? @default(now()) @db.Timestamp(0)
-  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  id                Int       @id @default(autoincrement())
+  user              String?   @db.VarChar(32)
+  token             String?   @db.VarChar(64)
+  withdrawn         Decimal?  @db.Decimal(65, 6)
+  status            String?   @db.VarChar(32)
+  chain_transaction Json?
+  transaction_error Json?
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+  updated_at        DateTime? @default(now()) @db.Timestamp(0)
+  user_info         users?    @relation(fields: [user], references: [username_in_be])
 }
 
 model ip_token_price_history {
   ip_id                  Int         @default(0)
   current_token_info     Json?
   price                  Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  bonding_curve_progress Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change1h               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change5m               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change24h              Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  market_cap             Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  bonding_curve_progress Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change1h               Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change5m               Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change24h              Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  market_cap             Decimal     @default(0.000000000000) @db.Decimal(65, 6)
   total_supply           Decimal     @default(0) @db.Decimal(10, 0)
-  trade_volume           Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  trade_volume           Decimal     @default(0.000000000000) @db.Decimal(65, 6)
   id                     Int         @unique(map: "id") @default(autoincrement())
   date                   DateTime?   @db.Date
   ip_info                ip_library? @relation(fields: [ip_id], references: [id])
@@ -1077,7 +1082,7 @@ model launch_agents {
   transfer_usdc_sig    String?      @db.VarChar(1024)
   owner                String?      @db.VarChar(32)
   email                String?      @db.VarChar(255)
-  transfer_usdc_amount Decimal?     @db.Decimal(65, 12)
+  transfer_usdc_amount Decimal?     @db.Decimal(65, 6)
   created_at           DateTime?    @default(now()) @db.Timestamp(0)
   updated_at           DateTime?    @default(now()) @db.Timestamp(0)
   ip_library           ip_library[]
@@ -1087,13 +1092,13 @@ view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?
   price                  Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  bonding_curve_progress Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change1h               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change5m               Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  change24h              Decimal     @default(0.000000000000) @db.Decimal(65, 12)
-  market_cap             Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  bonding_curve_progress Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change1h               Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change5m               Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  change24h              Decimal     @default(0.000000000000) @db.Decimal(65, 6)
+  market_cap             Decimal     @default(0.000000000000) @db.Decimal(65, 6)
   total_supply           Decimal     @default(0) @db.Decimal(10, 0)
-  trade_volume           Decimal     @default(0.000000000000) @db.Decimal(65, 12)
+  trade_volume           Decimal     @default(0.000000000000) @db.Decimal(65, 6)
   ip_info                ip_library? @relation(fields: [id], references: [id])
 }
 
@@ -1102,10 +1107,10 @@ view view_user_rewards_summary {
   user       String?  @db.VarChar(32)
   token      String?  @db.VarChar(64)
   ticker     String?  @db.VarChar(32)
-  rewards    Decimal? @db.Decimal(65, 12)
-  locked     Decimal? @db.Decimal(65, 12)
-  released   Decimal? @db.Decimal(65, 12)
-  withdrawn  Decimal? @db.Decimal(65, 12)
+  rewards    Decimal? @db.Decimal(65, 6)
+  locked     Decimal? @db.Decimal(65, 6)
+  released   Decimal? @db.Decimal(65, 6)
+  withdrawn  Decimal? @db.Decimal(65, 6)
   token_info Json?
 }
 

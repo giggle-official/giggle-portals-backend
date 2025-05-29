@@ -1429,12 +1429,14 @@ export class IpLibraryService {
 
             //consume usdt
             const needUsdt = create_amount + buy_amount
+            let userWalletAddr = user.wallet_address
             if (needUsdt > 0) {
                 //check usdc balance
                 const usdcBalance = await this.giggleService.getUsdcBalance(user)
                 if (usdcBalance.balance < needUsdt) {
                     throw new BadRequestException("insufficient usdc balance")
                 }
+                userWalletAddr = usdcBalance.address
             }
 
             const mintParams: CreateIpTokenDto = {
@@ -1513,7 +1515,7 @@ export class IpLibraryService {
             ipProcessStepsDto.ipTokenRegistered = true
 
             //create rewards pool if not exists
-            await this.rewardsPoolService.createRewardsPool(ip.id)
+            await this.rewardsPoolService.createRewardsPool(ip.id, userWalletAddr, user.email, subscriber)
 
             //run strategy if purchase strategy is agent
 

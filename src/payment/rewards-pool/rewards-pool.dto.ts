@@ -65,6 +65,9 @@ export class Pool implements reward_pools {
     @ApiProperty({ description: "On chain error of the pool" })
     on_chain_error: any
 
+    @ApiProperty({ description: "Buyback address of the pool" })
+    buyback_address: string
+
     @ApiProperty({ description: "Injected token amount of the pool" })
     injected_amount: Decimal
 

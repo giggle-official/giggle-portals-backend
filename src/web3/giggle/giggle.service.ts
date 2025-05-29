@@ -1,7 +1,7 @@
 import { HttpService } from "@nestjs/axios"
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common"
 import * as crypto from "crypto"
-import { lastValueFrom, Observable } from "rxjs"
+import { async, lastValueFrom, Observable } from "rxjs"
 import {
     ConfirmStatus,
     CreateIpTokenDto,
@@ -440,6 +440,24 @@ export class GiggleService {
         }
     }
 
+    async getWalletBalance(walletAddress: string, mint?: string): Promise<{ mint: string; amount: string }[]> {
+        const params: any = { address: walletAddress }
+        if (mint) {
+            params.mint = mint
+        }
+        const signatureParams = this.generateSignature(params)
+        const response: AxiosResponse<GiggleApiResponseDto<{ mint: string; amount: string }[]>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/user/balance", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (response.data.code !== 0) {
+            this.logger.error("Failed to get wallet balance: " + JSON.stringify(response.data))
+            throw new BadRequestException("Failed to get wallet balance: " + response.data.msg)
+        }
+        return response.data.data
+    }
+
     async getUserWalletDetail(
         userInfo: UserJwtExtractDto,
         page: number = 1,
@@ -473,7 +491,9 @@ export class GiggleService {
             page_size: 0,
         }
         if (response.data.code !== 0) {
-            this.logger.error("Failed to get user wallet detail: " + JSON.stringify(response.data))
+            this.logger.error(
+                `Failed to get user wallet detail: ${JSON.stringify(response.data)}, user: ${userEmail.email}, request: ${JSON.stringify(signatureParams)}`,
+            )
             return res
         }
         const data = response.data.data
@@ -600,6 +620,9 @@ export class GiggleService {
         })
 
         if (response.data.code !== 0 || response.data.data.status === TradeStatus.FAILED) {
+            this.logger.error(
+                `Failed to trade: ${response.data.msg}, user: ${userEmail.email}, request: ${JSON.stringify(signatureParams)}`,
+            )
             throw new BadRequestException("Failed to trade: " + response.data.msg)
         }
 
@@ -701,12 +724,17 @@ export class GiggleService {
         return responseData
     }
 
-    async signTx(tx: string, signers: string[], email: string): Promise<string> {
-        const signatureParams = this.generateSignature({
+    async signTx(tx: string, signers: string[], email?: string): Promise<string> {
+        let signatureParams: any = {
             base64Tx: tx,
             singers: signers,
-            email: email,
-        })
+        }
+        if (email) {
+            signatureParams.email = email
+        }
+
+        signatureParams = this.generateSignature(signatureParams)
+
         const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
             this.web3HttpService.post(this.endpoint + "/cus/signAndSendTx", signatureParams, {
                 headers: { "Content-Type": "application/json" },
@@ -789,7 +817,7 @@ export class GiggleService {
         const signatureParams = this.generateSignature({
             email: email,
         })
-        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+        const response: AxiosResponse<GiggleApiResponseDto<{ email: string; addr: string }>> = await lastValueFrom(
             this.web3HttpService.post(this.endpoint + "/user/binding", signatureParams, {
                 headers: { "Content-Type": "application/json" },
             }),
@@ -797,6 +825,12 @@ export class GiggleService {
         if (response.data.code !== 0) {
             this.logger.error("Failed to bind giggle wallet: " + JSON.stringify(response.data))
         }
+
+        //update user wallet address
+        await this.prismaService.users.update({
+            where: { email: email },
+            data: { wallet_address: response.data.data.addr },
+        })
         return response.data.data
     }
 

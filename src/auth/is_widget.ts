@@ -4,7 +4,7 @@ import { AuthGuard } from "@nestjs/passport"
 export class IsWidgetGuard extends AuthGuard("jwt") {
     handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
         if (!user.developer_info) {
-            throw new ForbiddenException("You are not an authorized widget")
+            throw new ForbiddenException("You are not an authorized developer")
         }
         return user
     }
