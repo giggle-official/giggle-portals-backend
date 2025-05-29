@@ -36,6 +36,8 @@ export class RewardPoolOnChainService {
     private readonly authToken: string
     private readonly rewardOnChainHttpService: HttpService
 
+    private readonly maxOnChainTryCount: number = 3
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly giggleService: GiggleService,
@@ -427,7 +429,7 @@ export class RewardPoolOnChainService {
     }
 
     //process withdraw token of history record
-    @Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async processWithdrawToken() {
         if (process.env.TASK_SLOT != "1") return
 
@@ -435,6 +437,9 @@ export class RewardPoolOnChainService {
             where: {
                 chain_transaction: {
                     equals: Prisma.AnyNull,
+                },
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
                 },
                 status: "pending",
             },
@@ -451,11 +456,15 @@ export class RewardPoolOnChainService {
             return
         }
 
+        //append on_chain_try_count
+        await this.prisma.user_rewards_withdraw.update({
+            where: { id: withdrawToken.id },
+            data: { on_chain_try_count: withdrawToken.on_chain_try_count + 1 },
+        })
+
         const userBalance = await this.retrieveUserTokenBalance(
             withdrawToken.token,
-            //"7MmYE6vu9fRaQ9eCVAY6EtzKBS8aoACoGa62D8veA3ry", //for test
             withdrawToken.user_info.wallet_address,
-            //"CGSsRhaW2212oTUDwBdZT3xe5FknTW8C2ekcsSqZZcfk", //for test
         )
 
         if (!userBalance) {
@@ -508,6 +517,9 @@ export class RewardPoolOnChainService {
                 chain_transaction: {
                     equals: Prisma.AnyNull,
                 },
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
+                },
                 type: reward_pool_type.injected,
                 reward_pools: {
                     on_chain_status: reward_pool_on_chain_status.success,
@@ -530,6 +542,13 @@ export class RewardPoolOnChainService {
             this.logger.log("No inject token need process")
             return
         }
+
+        //append on_chain_try_count
+        await this.prisma.reward_pool_statement.update({
+            where: { id: injectToken.id },
+            data: { on_chain_try_count: injectToken.on_chain_try_count + 1 },
+        })
+
         //check user wallet token balance
         const userBalance = await this.giggleService.getWalletBalance(
             injectToken.reward_pools.user_info.wallet_address,
@@ -609,11 +628,13 @@ export class RewardPoolOnChainService {
                 chain_transaction: {
                     equals: Prisma.AnyNull,
                 },
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
+                },
             },
             orderBy: {
                 id: "desc",
             },
-            take: 1,
             include: {
                 user_rewards: {
                     include: {
@@ -632,6 +653,12 @@ export class RewardPoolOnChainService {
             this.logger.log("SETTLE AIRDROP: No airdrop statement need settle")
             return
         }
+
+        //append on_chain_try_count
+        await this.prisma.reward_pool_statement.update({
+            where: { id: airdropStatement.id },
+            data: { on_chain_try_count: airdropStatement.on_chain_try_count + 1 },
+        })
 
         if (airdropStatement.user_rewards.length === 0) {
             this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${airdropStatement.id}`)
@@ -691,11 +718,13 @@ export class RewardPoolOnChainService {
                 chain_transaction: {
                     equals: Prisma.AnyNull,
                 },
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
+                },
             },
             orderBy: {
                 id: "desc",
             },
-            take: 1,
             include: {
                 user_rewards: {
                     include: {
@@ -711,6 +740,12 @@ export class RewardPoolOnChainService {
             this.logger.log("No statement need settle")
             return
         }
+
+        //append on_chain_try_count
+        await this.prisma.reward_pool_statement.update({
+            where: { id: statement.id },
+            data: { on_chain_try_count: statement.on_chain_try_count + 1 },
+        })
 
         //check balance
         const usdcBalance = await this.giggleService.getWalletBalance(this.settleWallet, process.env.GIGGLE_LEGAL_USDC)
