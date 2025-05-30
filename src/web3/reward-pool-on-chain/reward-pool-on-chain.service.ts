@@ -32,6 +32,7 @@ import { RewardAllocateRoles } from "src/payment/rewards-pool/rewards-pool.dto"
 export class RewardPoolOnChainService {
     private readonly logger = new Logger(RewardPoolOnChainService.name)
     private readonly settleWallet: string
+    private readonly platformWallet: string
     private readonly rpcUrl: string
     private readonly authToken: string
     private readonly rewardOnChainHttpService: HttpService
@@ -51,6 +52,10 @@ export class RewardPoolOnChainService {
         this.authToken = process.env.REWARD_ON_CHAIN_TOKEN
         if (!this.authToken) {
             throw new Error("Auth token is not set")
+        }
+        this.platformWallet = process.env.PLATFORM_WALLET
+        if (!this.platformWallet) {
+            throw new Error("Platform wallet is not set")
         }
 
         this.rewardOnChainHttpService = new HttpService(
@@ -788,6 +793,8 @@ export class RewardPoolOnChainService {
             if (userReward.role === RewardAllocateRoles.BUYBACK) {
                 //get buyback wallet from reward pool
                 walletAddress = statement.reward_pools.buyback_address
+            } else if (userReward.role === RewardAllocateRoles.PLATFORM) {
+                walletAddress = this.settleWallet
             } else if (userReward.user_info) {
                 walletAddress = userReward.user_info.wallet_address
             } else if (userReward.wallet_address) {

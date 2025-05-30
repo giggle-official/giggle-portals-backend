@@ -565,9 +565,8 @@ export class GiggleService {
     }
 
     async getTotalBalanceChange24h(username_in_be: string, currentBalance: number): Promise<number> {
-        const prismaService = new PrismaService()
-        const result = await prismaService.user_wallet_record_24h.findFirst({
-            where: { user: username_in_be },
+        const result = await this.prismaService.user_wallet_record_24h.findFirst({
+            where: { user: username_in_be, created_at: { lte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
             orderBy: { created_at: "desc" },
         })
         const record = result?.record as any as WalletDetailDto
@@ -577,7 +576,7 @@ export class GiggleService {
             return 0
         }
 
-        const balanceChange = (currentBalance / balanceBefore - 1) * 100
+        const balanceChange = ((currentBalance - balanceBefore) / balanceBefore) * 100
         return parseFloat(balanceChange.toFixed(2) || "0")
     }
 
