@@ -5,6 +5,7 @@ import {
     Injectable,
     InternalServerErrorException,
     UnauthorizedException,
+    Logger,
 } from "@nestjs/common"
 import {
     UserInfoDTO,
@@ -38,12 +39,11 @@ import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
-import { PinataSDK } from "pinata-web3"
-import { Readable } from "stream"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
 @Injectable()
 export class UserService {
+    private readonly logger = new Logger(UserService.name)
     constructor(
         private prisma: PrismaService,
         private readonly notificationService: NotificationService,
@@ -705,7 +705,9 @@ export class UserService {
             })
             return this.getProfile(userInfo)
         } catch (error) {
-            console.error(error)
+            this.logger.error(
+                `Error updating avatar: ${JSON.stringify(error)}, requested params: ${JSON.stringify(userInfo)}, email: ${userInfo.email}`,
+            )
             throw new BadRequestException("upload avatar failed")
         }
     }

@@ -300,7 +300,7 @@ export class AuthService {
                 message: "Verification code sent to your email",
             }
         } catch (error) {
-            console.error("Error sending bind code:", error)
+            this.logger.error("Error sending bind code:", error)
             throw new BadRequestException(error.message || "Failed to send verification code")
         }
     }
@@ -370,7 +370,9 @@ export class AuthService {
                 access_token: accessToken.access_token,
             }
         } catch (error) {
-            console.error("Error confirming bind:", error)
+            this.logger.error(
+                `Error confirming bind: ${JSON.stringify(error)}, requested params: ${JSON.stringify(body)}`,
+            )
             throw new BadRequestException(error.message || "Failed to confirm bind")
         }
     }
