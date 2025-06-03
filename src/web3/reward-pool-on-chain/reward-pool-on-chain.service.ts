@@ -636,7 +636,11 @@ export class RewardPoolOnChainService {
             // add count
             await this.prisma.reward_pools.update({
                 where: { id: rewardPools.id },
-                data: { on_chain_try_count: rewardPools.on_chain_try_count + 1, on_chain_error: null },
+                data: {
+                    on_chain_try_count: rewardPools.on_chain_try_count + 1,
+                    on_chain_error: null,
+                    on_chain_status: reward_pool_on_chain_status.ready,
+                },
             })
 
             // push to chain
