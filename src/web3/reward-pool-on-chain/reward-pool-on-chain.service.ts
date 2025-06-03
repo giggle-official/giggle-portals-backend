@@ -67,28 +67,33 @@ export class RewardPoolOnChainService {
     }
 
     async retrieve(token: string): Promise<RetrieveResponseDto | null> {
-        //retrieve first
-        const retrieveFunc = "/CreateFiInfo"
-        const requestParams = {
-            createFiToken: token,
-            __authToken: this.authToken,
-        }
-        const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
-            this.rewardOnChainHttpService.post(this.rpcUrl + retrieveFunc, requestParams),
-        )
-        if (!response.data?.isSucc || !response.data?.res?.content) {
-            this.logger.warn(
-                `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
-            return null
-        }
-
         try {
-            return JSON.parse(response.data.res.content) as RetrieveResponseDto
-        } catch (error) {
-            this.logger.warn(
-                `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            //retrieve first
+            const retrieveFunc = "/CreateFiInfo"
+            const requestParams = {
+                createFiToken: token,
+                __authToken: this.authToken,
+            }
+            const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
+                this.rewardOnChainHttpService.post(this.rpcUrl + retrieveFunc, requestParams),
             )
+            if (!response.data?.isSucc || !response.data?.res?.content) {
+                this.logger.warn(
+                    `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                )
+                return null
+            }
+
+            try {
+                return JSON.parse(response.data.res.content) as RetrieveResponseDto
+            } catch (error) {
+                this.logger.warn(
+                    `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                )
+                return null
+            }
+        } catch (error) {
+            this.logger.error(`Retrieve pool info failed: ${error}`)
             return null
         }
     }
@@ -315,21 +320,26 @@ export class RewardPoolOnChainService {
 
     //retrieve buyback wallet
     async retrieveBuybackWallet(token: string) {
-        const func = "/GetBuyback"
-        const requestParams = {
-            createFiToken: token,
-            __authToken: this.authToken,
-        }
-        const response: AxiosResponse<RpcResponseDto<{ addr: string }>> = await lastValueFrom(
-            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
-        )
-        if (!response.data?.isSucc || !response.data?.res?.addr) {
-            this.logger.error(
-                `RETRIEVE BUYBACK WALLET ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+        try {
+            const func = "/GetBuyback"
+            const requestParams = {
+                createFiToken: token,
+                __authToken: this.authToken,
+            }
+            const response: AxiosResponse<RpcResponseDto<{ addr: string }>> = await lastValueFrom(
+                this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
             )
+            if (!response.data?.isSucc || !response.data?.res?.addr) {
+                this.logger.error(
+                    `RETRIEVE BUYBACK WALLET ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                )
+                return null
+            }
+            return response.data.res.addr
+        } catch (error) {
+            this.logger.error(`RETRIEVE BUYBACK WALLET ERROR: ${error}`)
             return null
         }
-        return response.data.res.addr
     }
 
     //retrieve user token balance
