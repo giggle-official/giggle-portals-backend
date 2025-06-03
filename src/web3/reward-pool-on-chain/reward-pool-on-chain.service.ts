@@ -606,7 +606,7 @@ export class RewardPoolOnChainService {
     }
 
     //push current reward pool to chain
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_MINUTE)
     async pushToChain() {
         if (process.env.TASK_SLOT != "1") return
 
