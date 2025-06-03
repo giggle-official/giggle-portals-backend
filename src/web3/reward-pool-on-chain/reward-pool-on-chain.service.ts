@@ -602,7 +602,9 @@ export class RewardPoolOnChainService {
 
         const rewardPools = await this.prisma.reward_pools.findFirst({
             where: {
-                on_chain_status: reward_pool_on_chain_status.ready,
+                on_chain_status: {
+                    in: [reward_pool_on_chain_status.ready, reward_pool_on_chain_status.failed],
+                },
                 on_chain_try_count: {
                     lte: this.maxOnChainTryCount,
                 },
