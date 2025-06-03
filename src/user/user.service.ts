@@ -5,6 +5,7 @@ import {
     Injectable,
     InternalServerErrorException,
     UnauthorizedException,
+    Logger,
 } from "@nestjs/common"
 import {
     UserInfoDTO,
@@ -41,9 +42,12 @@ import { Prisma } from "@prisma/client"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
+import { Cron } from "@nestjs/schedule"
+import { CronExpression } from "@nestjs/schedule"
 
 @Injectable()
 export class UserService {
+    private readonly logger = new Logger(UserService.name)
     constructor(
         private prisma: PrismaService,
         private readonly notificationService: NotificationService,
@@ -131,7 +135,7 @@ export class UserService {
             usernameShorted: _userInfoFromDb.usernameShorted,
             email: _userInfoFromDb.email,
             emailConfirmed: _userInfoFromDb.emailConfirmed,
-            avatar: _userInfoFromDb.avatar || (await this.generateDefaultAvatar(userInfo)),
+            avatar: _userInfoFromDb.avatar,
             description: _userInfoFromDb.description,
             followers: _userInfoFromDb.followers,
             following: _userInfoFromDb.following,
@@ -502,10 +506,10 @@ export class UserService {
         })
     }
 
-    async generateDefaultAvatar(userInfo: UserJwtExtractDto): Promise<string> {
+    async generateDefaultAvatar(usernameShorted: string): Promise<string> {
         const user = await this.prisma.users.findUnique({
             where: {
-                username_in_be: userInfo.usernameShorted,
+                username_in_be: usernameShorted,
             },
         })
         if (!user) {
@@ -516,15 +520,14 @@ export class UserService {
                 const { createAvatar } = await import("@dicebear/core")
                 const { initials } = await import("@dicebear/collection")
                 const avatar = createAvatar(initials, {
-                    seed: userInfo.username,
-                    size: 256,
+                    seed: user.username,
                     radius: 50,
                     backgroundType: ["gradientLinear"],
                     fontSize: 36,
                 }).toString()
 
                 // Write SVG to temporary file using promises
-                const tempFilePath = `/tmp/${userInfo.usernameShorted}.svg`
+                const tempFilePath = `/tmp/${usernameShorted}.svg`
                 await new Promise<void>((resolve, reject) => {
                     fs.writeFile(tempFilePath, avatar, (err) => {
                         if (err) reject(err)
@@ -543,7 +546,7 @@ export class UserService {
                 // Create a mock file object for S3 upload
                 const mockFile: Express.Multer.File = {
                     buffer: fileBuffer,
-                    originalname: `${userInfo.usernameShorted}.svg`,
+                    originalname: `${usernameShorted}.svg`,
                     mimetype: "image/svg+xml",
                     fieldname: "avatar",
                     encoding: "7bit",
@@ -555,12 +558,12 @@ export class UserService {
                 }
 
                 // Upload to S3
-                const avatarUrl = await UtilitiesService.uploadToPublicS3(mockFile, userInfo.usernameShorted)
+                const avatarUrl = await UtilitiesService.uploadToPublicS3(mockFile, usernameShorted)
 
                 // Update user record with avatar URL
                 await this.prisma.users.update({
                     where: {
-                        username_in_be: userInfo.usernameShorted,
+                        username_in_be: usernameShorted,
                     },
                     data: { avatar: avatarUrl },
                 })
@@ -1013,5 +1016,16 @@ Message: ${contactInfo.message}
             minNumbers: 1,
             minSymbols: 0,
         })
+    }
+
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    async generateDefaultAvatarCron() {
+        const users = await this.prisma.users.findMany()
+        for (const user of users) {
+            if (!user.avatar) {
+                const avatar = await this.generateDefaultAvatar(user.username_in_be)
+                this.logger.log(`generate default avatar for ${user.username_in_be}`)
+            }
+        }
     }
 }
