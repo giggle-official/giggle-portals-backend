@@ -828,10 +828,11 @@ ORDER BY d.date;`
             })
         }
 
-        await this.rewardPoolOnChainService.create({
-            token_mint: tokenInfo.mint,
-            user_wallet: user_wallet,
-            email: email,
-        })
+        //this should compelete automatically, no need this
+        //await this.rewardPoolOnChainService.create({
+        //    token_mint: tokenInfo.mint,
+        //    user_wallet: user_wallet,
+        //    email: email,
+        //})
     }
 }

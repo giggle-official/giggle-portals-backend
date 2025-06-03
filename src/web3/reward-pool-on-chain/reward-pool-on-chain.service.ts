@@ -444,7 +444,7 @@ export class RewardPoolOnChainService {
     }
 
     //process withdraw token of history record
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_MINUTE)
     async processWithdrawToken() {
         if (process.env.TASK_SLOT != "1") return
 
