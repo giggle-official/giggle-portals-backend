@@ -643,10 +643,32 @@ export class RewardPoolOnChainService {
                 },
             })
 
+            let walletAddress = rewardPools.user_info.wallet_address
+            if (!rewardPools.user_info.wallet_address) {
+                const userWallet = await this.giggleService.getUsdcBalance({
+                    usernameShorted: rewardPools.user_info.username_in_be,
+                    email: rewardPools.user_info.email,
+                })
+                walletAddress = userWallet.address
+                if (userWallet.address) {
+                    await this.prisma.users.update({
+                        where: { id: rewardPools.user_info.id },
+                        data: { wallet_address: walletAddress },
+                    })
+                }
+            }
+
+            if (!walletAddress) {
+                this.logger.error(
+                    `CREATE POOL ERROR: No wallet address for settle statement: ${rewardPools.id}, pool: ${rewardPools.token}`,
+                )
+                return
+            }
+
             // push to chain
             await this.create({
                 token_mint: rewardPools.token,
-                user_wallet: rewardPools.user_info.wallet_address,
+                user_wallet: walletAddress,
                 email: rewardPools.user_info.email,
             })
             this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
