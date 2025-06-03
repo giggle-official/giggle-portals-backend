@@ -77,7 +77,7 @@ export class RewardPoolOnChainService {
             this.rewardOnChainHttpService.post(this.rpcUrl + retrieveFunc, requestParams),
         )
         if (!response.data?.isSucc || !response.data?.res?.content) {
-            this.logger.error(
+            this.logger.warn(
                 `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
             )
             return null
@@ -86,7 +86,7 @@ export class RewardPoolOnChainService {
         try {
             return JSON.parse(response.data.res.content) as RetrieveResponseDto
         } catch (error) {
-            this.logger.error(
+            this.logger.warn(
                 `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
             )
             return null
@@ -600,9 +600,12 @@ export class RewardPoolOnChainService {
     async pushToChain() {
         if (process.env.TASK_SLOT != "1") return
 
-        const rewardPools = await this.prisma.reward_pools.findMany({
+        const rewardPools = await this.prisma.reward_pools.findFirst({
             where: {
                 on_chain_status: reward_pool_on_chain_status.ready,
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
+                },
             },
             include: {
                 user_info: true,
@@ -610,16 +613,29 @@ export class RewardPoolOnChainService {
             orderBy: {
                 id: "desc",
             },
-            take: 1,
         })
 
-        for (const rewardPool of rewardPools) {
-            await this.create({
-                token_mint: rewardPool.token,
-                user_wallet: rewardPool.user_info.wallet_address,
-                email: rewardPool.user_info.email,
+        if (!rewardPools) {
+            this.logger.log("No reward pool need push to chain")
+            return
+        }
+
+        try {
+            // add count
+            await this.prisma.reward_pools.update({
+                where: { id: rewardPools.id },
+                data: { on_chain_try_count: rewardPools.on_chain_try_count + 1 },
             })
-            this.logger.log(`CREATE POOL: ${rewardPool.token} done`)
+
+            // push to chain
+            await this.create({
+                token_mint: rewardPools.token,
+                user_wallet: rewardPools.user_info.wallet_address,
+                email: rewardPools.user_info.email,
+            })
+            this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
+        } catch (error) {
+            this.logger.error(`CREATE POOL ERROR: ${error}`)
         }
     }
 

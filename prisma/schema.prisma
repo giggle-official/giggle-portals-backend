@@ -961,6 +961,7 @@ model reward_pools {
   revenue_ratio           Json?
   address                 String?                      @db.VarChar(1024)
   on_chain_status         reward_pool_on_chain_status? @default(ready)
+  on_chain_try_count      Int?                         @default(0)
   on_chain_detail         Json?
   on_chain_error          Json?
   buyback_address         String?                      @db.VarChar(64)
