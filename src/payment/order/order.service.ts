@@ -252,7 +252,7 @@ export class OrderService {
             base_rewards: 0,
             bonus_rewards: 0,
             total_rewards: 0,
-            limit_offer: order.rewards_model_snapshot.limit_offer,
+            limit_offer: order?.rewards_model_snapshot?.limit_offer,
         }
 
         if (!order?.rewards_model_snapshot) return rewards
