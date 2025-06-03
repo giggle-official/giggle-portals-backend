@@ -1018,14 +1018,14 @@ Message: ${contactInfo.message}
         })
     }
 
-    @Cron(CronExpression.EVERY_10_MINUTES)
-    async generateDefaultAvatarCron() {
-        const users = await this.prisma.users.findMany()
-        for (const user of users) {
-            if (!user.avatar) {
-                const avatar = await this.generateDefaultAvatar(user.username_in_be)
-                this.logger.log(`generate default avatar for ${user.username_in_be}`)
-            }
-        }
-    }
+    //@Cron(CronExpression.EVERY_10_MINUTES)
+    //async generateDefaultAvatarCron() {
+    //    const users = await this.prisma.users.findMany()
+    //    for (const user of users) {
+    //        if (!user.avatar) {
+    //            const avatar = await this.generateDefaultAvatar(user.username_in_be)
+    //            this.logger.log(`generate default avatar for ${user.username_in_be}`)
+    //        }
+    //    }
+    //}
 }
