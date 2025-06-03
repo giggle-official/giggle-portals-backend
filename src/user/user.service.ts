@@ -38,10 +38,10 @@ import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
-import { PinataSDK } from "pinata-web3"
-import { Readable } from "stream"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
+import * as fs from "fs"
+
 @Injectable()
 export class UserService {
     constructor(
@@ -131,7 +131,7 @@ export class UserService {
             usernameShorted: _userInfoFromDb.usernameShorted,
             email: _userInfoFromDb.email,
             emailConfirmed: _userInfoFromDb.emailConfirmed,
-            avatar: _userInfoFromDb.avatar,
+            avatar: _userInfoFromDb.avatar || (await this.generateDefaultAvatar(userInfo)),
             description: _userInfoFromDb.description,
             followers: _userInfoFromDb.followers,
             following: _userInfoFromDb.following,
@@ -500,6 +500,83 @@ export class UserService {
                 success: true,
             }
         })
+    }
+
+    async generateDefaultAvatar(userInfo: UserJwtExtractDto): Promise<string> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not exists")
+        }
+        if (!user.avatar) {
+            try {
+                const { createAvatar } = await import("@dicebear/core")
+                const { initials } = await import("@dicebear/collection")
+                const avatar = createAvatar(initials, {
+                    seed: userInfo.username,
+                    size: 256,
+                    radius: 50,
+                    backgroundType: ["gradientLinear"],
+                    fontSize: 36,
+                }).toString()
+
+                // Write SVG to temporary file using promises
+                const tempFilePath = `/tmp/${userInfo.usernameShorted}.svg`
+                await new Promise<void>((resolve, reject) => {
+                    fs.writeFile(tempFilePath, avatar, (err) => {
+                        if (err) reject(err)
+                        else resolve()
+                    })
+                })
+
+                // Read the file
+                const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
+                    fs.readFile(tempFilePath, (err, data) => {
+                        if (err) reject(err)
+                        else resolve(data)
+                    })
+                })
+
+                // Create a mock file object for S3 upload
+                const mockFile: Express.Multer.File = {
+                    buffer: fileBuffer,
+                    originalname: `${userInfo.usernameShorted}.svg`,
+                    mimetype: "image/svg+xml",
+                    fieldname: "avatar",
+                    encoding: "7bit",
+                    size: fileBuffer.length,
+                    stream: null,
+                    destination: "",
+                    filename: "",
+                    path: "",
+                }
+
+                // Upload to S3
+                const avatarUrl = await UtilitiesService.uploadToPublicS3(mockFile, userInfo.usernameShorted)
+
+                // Update user record with avatar URL
+                await this.prisma.users.update({
+                    where: {
+                        username_in_be: userInfo.usernameShorted,
+                    },
+                    data: { avatar: avatarUrl },
+                })
+
+                // Clean up temp file
+                fs.unlink(tempFilePath, (err) => {
+                    if (err) console.error(`Error deleting temp file: ${err.message}`)
+                })
+
+                return avatarUrl
+            } catch (error) {
+                throw new BadRequestException(`Failed to generate avatar: ${error.message}`)
+            }
+        }
+
+        return user.avatar
     }
 
     //reset password
