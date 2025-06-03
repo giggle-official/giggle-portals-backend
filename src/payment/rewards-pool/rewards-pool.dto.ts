@@ -59,6 +59,9 @@ export class Pool implements reward_pools {
     @ApiProperty({ description: "On chain status of the pool" })
     on_chain_status: reward_pool_on_chain_status
 
+    @ApiProperty({ description: "On chain try count of the pool" })
+    on_chain_try_count: number
+
     @ApiProperty({ description: "On chain detail of the pool" })
     on_chain_detail: any
 
@@ -92,6 +95,7 @@ export class PoolResponseDto extends OmitType(Pool, [
     "on_chain_error",
     "on_chain_status",
     "on_chain_detail",
+    "on_chain_try_count",
 ]) {
     @ApiProperty({ description: "Unit price of the token" })
     unit_price: string
