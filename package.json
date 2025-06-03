@@ -23,6 +23,8 @@
         "@anatine/zod-nestjs": "^2.0.8",
         "@anatine/zod-openapi": "^2.2.5",
         "@casl/ability": "^6.7.1",
+        "@dicebear/collection": "^9.2.2",
+        "@dicebear/core": "^9.2.2",
         "@nestjs/axios": "^3.0.0",
         "@nestjs/common": "^10.0.0",
         "@nestjs/config": "^3.1.1",

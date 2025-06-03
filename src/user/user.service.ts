@@ -41,6 +41,10 @@ import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
+import * as fs from "fs"
+import { Cron } from "@nestjs/schedule"
+import { CronExpression } from "@nestjs/schedule"
+
 @Injectable()
 export class UserService {
     private readonly logger = new Logger(UserService.name)
@@ -502,6 +506,82 @@ export class UserService {
         })
     }
 
+    async generateDefaultAvatar(usernameShorted: string): Promise<string> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not exists")
+        }
+        if (!user.avatar) {
+            try {
+                const { createAvatar } = await import("@dicebear/core")
+                const { initials } = await import("@dicebear/collection")
+                const avatar = createAvatar(initials, {
+                    seed: user.username,
+                    radius: 50,
+                    backgroundType: ["gradientLinear"],
+                    fontSize: 36,
+                }).toString()
+
+                // Write SVG to temporary file using promises
+                const tempFilePath = `/tmp/${usernameShorted}.svg`
+                await new Promise<void>((resolve, reject) => {
+                    fs.writeFile(tempFilePath, avatar, (err) => {
+                        if (err) reject(err)
+                        else resolve()
+                    })
+                })
+
+                // Read the file
+                const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
+                    fs.readFile(tempFilePath, (err, data) => {
+                        if (err) reject(err)
+                        else resolve(data)
+                    })
+                })
+
+                // Create a mock file object for S3 upload
+                const mockFile: Express.Multer.File = {
+                    buffer: fileBuffer,
+                    originalname: `${usernameShorted}.svg`,
+                    mimetype: "image/svg+xml",
+                    fieldname: "avatar",
+                    encoding: "7bit",
+                    size: fileBuffer.length,
+                    stream: null,
+                    destination: "",
+                    filename: "",
+                    path: "",
+                }
+
+                // Upload to S3
+                const avatarUrl = await UtilitiesService.uploadToPublicS3(mockFile, usernameShorted)
+
+                // Update user record with avatar URL
+                await this.prisma.users.update({
+                    where: {
+                        username_in_be: usernameShorted,
+                    },
+                    data: { avatar: avatarUrl },
+                })
+
+                // Clean up temp file
+                fs.unlink(tempFilePath, (err) => {
+                    if (err) console.error(`Error deleting temp file: ${err.message}`)
+                })
+
+                return avatarUrl
+            } catch (error) {
+                throw new BadRequestException(`Failed to generate avatar: ${error.message}`)
+            }
+        }
+
+        return user.avatar
+    }
+
     //reset password
     async resetPassword(email: ResetPasswordDto): Promise<any> {
         const userEmail: string = email.email
@@ -938,5 +1018,16 @@ Message: ${contactInfo.message}
             minNumbers: 1,
             minSymbols: 0,
         })
+    }
+
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    async generateDefaultAvatarCron() {
+        const users = await this.prisma.users.findMany()
+        for (const user of users) {
+            if (!user.avatar) {
+                const avatar = await this.generateDefaultAvatar(user.username_in_be)
+                this.logger.log(`generate default avatar for ${user.username_in_be}`)
+            }
+        }
     }
 }

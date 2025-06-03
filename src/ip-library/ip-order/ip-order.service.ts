@@ -208,6 +208,26 @@ export class IpOrderService {
             },
         })
 
+        const orders = await this.prisma.third_level_ip_orders.findMany({
+            where: {
+                top_level_ip: topLevelIpId,
+                ip_create_status: IpCreateStatus.CREATED,
+                current_status: { in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED] },
+            },
+            select: {
+                owner: true,
+                order_info: {
+                    include: {
+                        reward_pool_statement: {
+                            select: {
+                                amount: true,
+                            },
+                        },
+                    },
+                },
+            },
+        })
+
         const users = await this.prisma.users.findMany({
             where: {
                 username_in_be: { in: ipLibraries.map((ip) => ip.owner) },
@@ -223,6 +243,10 @@ export class IpOrderService {
             username: users.find((u) => u.username_in_be === ip.owner)?.username || "",
             avatar: users.find((u) => u.username_in_be === ip.owner)?.avatar || "",
             duration: ip._sum.duration || 0,
+            reward_amount:
+                orders
+                    .find((o) => o.owner === ip.owner)
+                    ?.order_info.reward_pool_statement.reduce((acc, curr) => acc + Number(curr.amount.mul(-1)), 0) || 0,
             rank: index + 1,
         }))
     }
