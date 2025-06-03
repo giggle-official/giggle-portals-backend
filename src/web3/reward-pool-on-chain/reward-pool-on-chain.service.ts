@@ -778,6 +778,13 @@ export class RewardPoolOnChainService {
             return
         }
 
+        if (!statement.reward_pools.buyback_address) {
+            this.logger.warn(
+                `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
+            )
+            return
+        }
+
         //append on_chain_try_count
         await this.prisma.reward_pool_statement.update({
             where: { id: statement.id },
