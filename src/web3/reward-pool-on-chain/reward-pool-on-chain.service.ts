@@ -571,14 +571,14 @@ export class RewardPoolOnChainService {
         )
         if (userBalance.length === 0) {
             this.logger.warn(
-                `PROCESS INJECT TOKEN ERROR: No token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
+                `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
             )
             return
         }
         const userBalanceAmount = new Decimal(userBalance[0].amount)
         if (userBalanceAmount.lt(injectToken.amount)) {
             this.logger.warn(
-                `PROCESS INJECT TOKEN ERROR: Insufficient token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
+                `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
             )
             return
         }
