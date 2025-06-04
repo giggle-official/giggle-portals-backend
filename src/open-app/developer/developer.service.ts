@@ -280,10 +280,10 @@ export class DeveloperService {
 
     async updateWidget(body: DeveloperWidgetUpdateDto, user: UserJwtExtractDto) {
         const widgetExists = await this.prisma.widgets.findUnique({
-            where: { tag: body.tag, author: user.usernameShorted, is_developing: true },
+            where: { tag: body.tag, author: user.usernameShorted },
         })
         if (!widgetExists) {
-            throw new NotFoundException("Widget not found or not developing")
+            throw new NotFoundException("Widget not found")
         }
         const updatedWidget = this._mapToUpdateWidgetDto(body, widgetExists)
 

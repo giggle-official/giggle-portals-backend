@@ -564,26 +564,20 @@ export class RewardPoolOnChainService {
             return
         }
 
-        //append on_chain_try_count
-        await this.prisma.reward_pool_statement.update({
-            where: { id: injectToken.id },
-            data: { on_chain_try_count: injectToken.on_chain_try_count + 1 },
-        })
-
         //check user wallet token balance
         const userBalance = await this.giggleService.getWalletBalance(
             injectToken.reward_pools.user_info.wallet_address,
             injectToken.reward_pools.token,
         )
         if (userBalance.length === 0) {
-            this.logger.error(
+            this.logger.warn(
                 `PROCESS INJECT TOKEN ERROR: No token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
             )
             return
         }
         const userBalanceAmount = new Decimal(userBalance[0].amount)
         if (userBalanceAmount.lt(injectToken.amount)) {
-            this.logger.error(
+            this.logger.warn(
                 `PROCESS INJECT TOKEN ERROR: Insufficient token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
             )
             return
@@ -592,6 +586,12 @@ export class RewardPoolOnChainService {
         this.logger.log(
             `PROCESS INJECT TOKEN: ${injectToken.token} $${injectToken.reward_pools.ticker}, need tokens: ${injectToken.amount}`,
         )
+
+        //append on_chain_try_count
+        await this.prisma.reward_pool_statement.update({
+            where: { id: injectToken.id },
+            data: { on_chain_try_count: injectToken.on_chain_try_count + 1 },
+        })
 
         const injectResult = await this.injectToken(
             {
