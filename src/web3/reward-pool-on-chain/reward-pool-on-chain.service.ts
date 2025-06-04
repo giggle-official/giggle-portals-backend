@@ -529,7 +529,7 @@ export class RewardPoolOnChainService {
     }
 
     //process inject token of history record
-    //@Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_MINUTE)
     async processInjectToken() {
         if (process.env.TASK_SLOT != "1") return
 
