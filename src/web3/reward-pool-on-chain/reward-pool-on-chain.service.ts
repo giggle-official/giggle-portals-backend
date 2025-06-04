@@ -978,7 +978,7 @@ export class RewardPoolOnChainService {
                     onChainDataMapped.lockedAmount.toString(),
                     onChainDataMapped.availableAmount.toString(),
                     availableDiff.gt(0) || availableDiff.abs().gt(0.1)
-                        ? "**" + availableDiff.toString() + "**"
+                        ? "** 🔴" + availableDiff.toString() + "🔴 **"
                         : availableDiff.toString(),
                 ].join("|") +
                 "\n"
