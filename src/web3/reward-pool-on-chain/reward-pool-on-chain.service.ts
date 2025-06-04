@@ -445,7 +445,7 @@ export class RewardPoolOnChainService {
     }
 
     //process withdraw token of history record
-    @Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_MINUTE)
     async processWithdrawToken() {
         if (process.env.TASK_SLOT != "1") return
 
@@ -529,7 +529,7 @@ export class RewardPoolOnChainService {
     }
 
     //process inject token of history record
-    @Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_MINUTE)
     async processInjectToken() {
         if (process.env.TASK_SLOT != "1") return
 
@@ -684,7 +684,7 @@ export class RewardPoolOnChainService {
     }
 
     //settle air drop statement to chain
-    @Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_MINUTE)
     async settleAirDropStatement() {
         if (process.env.TASK_SLOT != "1") return
         const airdropStatement = await this.prisma.reward_pool_statement.findFirst({
@@ -771,7 +771,7 @@ export class RewardPoolOnChainService {
     }
 
     //settle order statement to chain
-    @Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_MINUTE)
     async settleStatement() {
         if (process.env.TASK_SLOT != "1") return
         const statement = await this.prisma.reward_pool_statement.findFirst({
