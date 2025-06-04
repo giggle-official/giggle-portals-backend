@@ -66,6 +66,7 @@ model users {
   user_rewards                   user_rewards[]
   reward_pools                   reward_pools[]
   user_rewards_withdraw          user_rewards_withdraw[]
+  view_user_rewards_summary      view_user_rewards_summary[]
 }
 
 model user_request_log {
@@ -1115,6 +1116,7 @@ view view_user_rewards_summary {
   released   Decimal? @db.Decimal(65, 6)
   withdrawn  Decimal? @db.Decimal(65, 6)
   token_info Json?
+  user_info  users?   @relation(fields: [user], references: [username_in_be])
 }
 
 view view_ip_incomes {

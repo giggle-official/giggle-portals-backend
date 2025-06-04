@@ -823,6 +823,7 @@ export class GiggleService {
         )
         if (response.data.code !== 0) {
             this.logger.error("Failed to bind giggle wallet: " + JSON.stringify(response.data))
+            return
         }
 
         //update user wallet address
@@ -1060,5 +1061,20 @@ export class GiggleService {
             this.logger.log("Successfully toggled ip visibility: " + ip_id + " to " + is_public)
         }
         return
+    }
+
+    //check if user has no wallet_address, if so, bind it
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async checkUserWalletAddress() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
+        const users = await this.prismaService.users.findMany()
+        for (const user of users) {
+            if (!user.wallet_address) {
+                await this.bindGiggleWallet(user.email)
+            }
+        }
     }
 }

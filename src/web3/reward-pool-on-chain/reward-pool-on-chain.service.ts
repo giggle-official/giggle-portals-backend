@@ -911,6 +911,83 @@ export class RewardPoolOnChainService {
         })
     }
 
+    //settle with chain
+    @Cron(CronExpression.EVERY_DAY_AT_1AM)
+    //@Cron(CronExpression.EVERY_5_MINUTES)
+    async settleWithChain() {
+        if (process.env.TASK_SLOT != "1") return
+        //if (process.env.ENV != "product") return
+        const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
+        if (!notifyHook) {
+            this.logger.error("No notify hook for statement")
+            return
+        }
+
+        //get off chain data:
+        const offChainData = await this.prisma.view_user_rewards_summary.findMany({
+            include: {
+                user_info: true,
+            },
+        })
+        const tableField = [
+            "User",
+            "Wallet Address",
+            "Token",
+            "Ticker",
+            "Rewards(Off Chain)",
+            "Locked(Off Chain)",
+            "Released(Off Chain)",
+            "Withdrawn(Off Chain)",
+            "Available(Off Chain)",
+            "Rewards(On Chain)",
+            "Locked(On Chain)",
+            "Available(On Chain)",
+            "Available Diff(Off Chain - On Chain)",
+        ]
+        let tableContent = "|" + tableField.join("|") + "\n"
+        tableContent += "|" + tableField.map(() => "--------------").join("|") + "\n"
+        for (const data of offChainData) {
+            //get on chain data
+            if (!data.user || !data.user_info?.wallet_address) {
+                this.logger.warn(`User: ${data.user_info?.email || data.user} has no wallet address.`)
+                continue
+            }
+            const onChainData = await this.retrieveUserTokenBalance(data.token, data.user_info.wallet_address)
+            const offChainAvailable = data.released.minus(data.withdrawn)
+            if (!onChainData) continue
+            const onChainDataMapped: any = {
+                totalAmount: new Decimal(onChainData.totalAmount).div(10 ** 6),
+                lockedAmount: new Decimal(onChainData.lockedAmount).div(10 ** 6),
+                availableAmount: new Decimal(onChainData.availableAmount).div(10 ** 6),
+            }
+            onChainDataMapped.withdrawn = new Decimal(onChainData.totalAmount).minus(onChainData.availableAmount)
+            const availableDiff = offChainAvailable.minus(onChainDataMapped.availableAmount)
+            tableContent +=
+                "|" +
+                [
+                    data.user_info.email,
+                    data.user_info.wallet_address,
+                    data.token,
+                    data.ticker,
+                    data.rewards.toString(),
+                    data.locked.toString(),
+                    data.released.toString(),
+                    data.withdrawn.toString(),
+                    offChainAvailable.toString(),
+                    onChainDataMapped.totalAmount.toString(),
+                    onChainDataMapped.lockedAmount.toString(),
+                    onChainDataMapped.availableAmount.toString(),
+                    availableDiff.gt(0) || availableDiff.abs().gt(0.1)
+                        ? "**" + availableDiff.toString() + "**"
+                        : availableDiff.toString(),
+                ].join("|") +
+                "\n"
+        }
+        tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
+        await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
+        this.logger.log("SETTLE WITH CHAIN: Notify done")
+    }
+
     /*
     //update buyback wallet
     //@Cron(CronExpression.EVERY_5_MINUTES)

@@ -1585,7 +1585,7 @@ export class OrderService {
             const result = await this.prisma.$queryRaw`
 update user_rewards r join (select id,
                                    truncate(least(datediff(current_date, start_allocate) *
-                                                  (rewards / greatest(1, datediff(end_allocate, start_allocate))),
+                                                  truncate((rewards / greatest(1, datediff(end_allocate, start_allocate))),6),
                                                   rewards), 6) as r_amount
                             from user_rewards) u
     on r.id = u.id
