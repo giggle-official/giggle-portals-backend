@@ -822,7 +822,14 @@ export class GiggleService {
             }),
         )
         if (response.data.code !== 0) {
-            this.logger.error("Failed to bind giggle wallet: " + JSON.stringify(response.data))
+            this.logger.error(
+                "Failed to bind giggle wallet for user: " +
+                    email +
+                    ", request: " +
+                    JSON.stringify(signatureParams) +
+                    ", response: " +
+                    JSON.stringify(response.data),
+            )
             return
         }
 
