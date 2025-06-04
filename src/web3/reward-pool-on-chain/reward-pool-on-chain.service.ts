@@ -916,7 +916,7 @@ export class RewardPoolOnChainService {
     //@Cron(CronExpression.EVERY_5_MINUTES)
     async settleWithChain() {
         if (process.env.TASK_SLOT != "1") return
-        //if (process.env.ENV != "product") return
+        if (process.env.ENV != "product") return
         const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyHook) {
             this.logger.error("No notify hook for statement")
