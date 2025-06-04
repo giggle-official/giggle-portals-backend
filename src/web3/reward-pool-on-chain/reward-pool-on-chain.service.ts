@@ -353,6 +353,7 @@ export class RewardPoolOnChainService {
             user: user_wallet,
             __authToken: this.authToken,
         }
+        this.logger.log(`RETRIEVE USER TOKEN BALANCE: ${JSON.stringify(requestParams)}`)
         const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
@@ -456,7 +457,9 @@ export class RewardPoolOnChainService {
                 on_chain_try_count: {
                     lte: this.maxOnChainTryCount,
                 },
-                status: "pending",
+                status: {
+                    in: ["pending"],
+                },
             },
             include: {
                 user_info: true,
@@ -489,7 +492,7 @@ export class RewardPoolOnChainService {
             return
         }
 
-        const userBalanceAmount = new Decimal(userBalance.totalAmount)
+        const userBalanceAmount = new Decimal(userBalance.availableAmount).div(10 ** 6)
         if (userBalanceAmount.lt(withdrawToken.withdrawn)) {
             this.logger.error(
                 `PROCESS WITHDRAW TOKEN ERROR: Insufficient token balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
@@ -517,7 +520,10 @@ export class RewardPoolOnChainService {
             this.logger.error(`PROCESS WITHDRAW TOKEN ERROR: ${error}`)
             await this.prisma.user_rewards_withdraw.update({
                 where: { id: withdrawToken.id },
-                data: { status: "failed", transaction_error: JSON.stringify(error) },
+                data: {
+                    status: withdrawToken.on_chain_try_count > this.maxOnChainTryCount ? "failed" : "pending",
+                    transaction_error: JSON.stringify(error),
+                },
             })
         }
     }
