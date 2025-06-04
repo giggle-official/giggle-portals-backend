@@ -113,6 +113,9 @@ export class PoolResponseDto extends OmitType(Pool, [
     @ValidateNested({ each: true })
     @Type(() => LimitOffer)
     limit_offers: LimitOffer[]
+
+    @ApiProperty({ description: "Owed amount of the pool" })
+    owed_amount: number
 }
 
 export class RewardAllocateRatio {

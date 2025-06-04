@@ -268,7 +268,7 @@ export class RewardsPoolService {
             take: parseInt(query.page_size),
         })
         return {
-            pools: pools.map((pool) => this.mapToPoolData(pool)),
+            pools: await Promise.all(pools.map((pool) => this.mapToPoolData(pool))),
             total: pools.length,
         }
     }
@@ -726,7 +726,7 @@ ORDER BY d.date;`
         ]
     }
 
-    mapToPoolData(data: Pool & { reward_pool_limit_offer: reward_pool_limit_offer[] }): PoolResponseDto {
+    async mapToPoolData(data: Pool & { reward_pool_limit_offer: reward_pool_limit_offer[] }): Promise<PoolResponseDto> {
         return {
             id: data.id,
             token: data.token,
@@ -746,7 +746,19 @@ ORDER BY d.date;`
                 start_date: r.start_date,
                 end_date: r.end_date,
             })),
+            owed_amount: await this.getOwedAmount(data),
         }
+    }
+
+    //get owed amount of the pool
+    async getOwedAmount(pool: Pool): Promise<number> {
+        const userWallet = await this.prisma.reward_pool_statement.aggregate({
+            where: { token: pool.token, type: "injected", chain_transaction: { equals: Prisma.AnyNull } },
+            _sum: {
+                amount: true,
+            },
+        })
+        return userWallet._sum.amount?.toNumber() || 0
     }
 
     /*

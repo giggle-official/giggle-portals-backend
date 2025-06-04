@@ -24,7 +24,6 @@ import { ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { IsWidgetGuard } from "src/auth/is_widget"
-import { OrderRewardsDto } from "../order/order.dto"
 
 @Controller("/api/v1/rewards-pool")
 export class RewardsPoolController {
