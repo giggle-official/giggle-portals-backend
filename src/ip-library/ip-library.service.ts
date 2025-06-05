@@ -1065,9 +1065,6 @@ export class IpLibraryService {
                 message: "Validating data",
             },
         })
-        if (!(await this.validatePurchaseStrategy(body.purchase_strategy))) {
-            throw new BadRequestException("invalid purchase strategy")
-        }
 
         if (!(await this._checkCreateIpPermission(user, body))) {
             throw new BadRequestException("you have no permission or license to create this ip")
@@ -1123,6 +1120,12 @@ export class IpLibraryService {
                     throw new BadRequestException("you have no permission to use this parent ip")
                 }
             }
+
+            //we do not need check purchase strategy if ip is 3rd level ip
+            if (ipLevel !== 3 && !(await this.validatePurchaseStrategy(body.purchase_strategy))) {
+                throw new BadRequestException("invalid purchase strategy")
+            }
+
             //The period of a new ip without long term must be greater than now, marked at 2025-04-25
             const authSettings = this.processAuthSettings(body.authorization_settings as any)
 
