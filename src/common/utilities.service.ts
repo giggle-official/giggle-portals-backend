@@ -145,20 +145,26 @@ export class UtilitiesService {
         return (num / 1000000).toFixed(2) + "M"
     }
 
-    public static async checkTaskRunning(taskId: number): Promise<boolean> {
+    public static async checkTaskRunning(taskId: number, timeout: number = 1000 * 60 * 5): Promise<boolean> {
         const prisma = new PrismaService()
         let taskRunning = await prisma.ai_router_requesting.findUnique({
             where: {
                 id: taskId,
             },
         })
+
+        if (!taskRunning) {
+            return false
+        }
+
         //check update time
-        if (taskRunning && taskRunning.updated_at < new Date(Date.now() - 1000 * 60 * 5)) {
+        if (taskRunning && taskRunning.updated_at < new Date(Date.now() - timeout)) {
             //5 minutes
             //if task is running for more than 5 minutes, set is_requesting to false
-            taskRunning = await prisma.ai_router_requesting.update({
+            taskRunning = await prisma.ai_router_requesting.upsert({
                 where: { id: taskId },
-                data: { is_requesting: false },
+                update: { is_requesting: false },
+                create: { id: taskId, is_requesting: false },
             })
         }
         return taskRunning && taskRunning.is_requesting
@@ -166,11 +172,15 @@ export class UtilitiesService {
 
     public static async startTask(taskId: number): Promise<void> {
         const prisma = new PrismaService()
-        await prisma.ai_router_requesting.update({
+        await prisma.ai_router_requesting.upsert({
             where: {
                 id: taskId,
             },
-            data: {
+            update: {
+                is_requesting: true,
+            },
+            create: {
+                id: taskId,
                 is_requesting: true,
             },
         })
@@ -178,11 +188,15 @@ export class UtilitiesService {
 
     public static async stopTask(taskId: number): Promise<void> {
         const prisma = new PrismaService()
-        await prisma.ai_router_requesting.update({
+        await prisma.ai_router_requesting.upsert({
             where: {
                 id: taskId,
             },
-            data: {
+            update: {
+                is_requesting: false,
+            },
+            create: {
+                id: taskId,
                 is_requesting: false,
             },
         })

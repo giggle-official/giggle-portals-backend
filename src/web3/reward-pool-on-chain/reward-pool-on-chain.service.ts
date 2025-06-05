@@ -27,6 +27,7 @@ import { Cron } from "@nestjs/schedule"
 import { OrderStatus } from "src/payment/order/order.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { RewardAllocateRoles } from "src/payment/rewards-pool/rewards-pool.dto"
+import { UtilitiesService } from "src/common/utilities.service"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -38,6 +39,8 @@ export class RewardPoolOnChainService {
     private readonly rewardOnChainHttpService: HttpService
 
     private readonly maxOnChainTryCount: number = 3
+    private readonly onChainTaskTimeout: number = 1000 * 60 * 30 //30 minutes
+    private readonly onChainTaskId: number = 3
 
     constructor(
         private readonly prisma: PrismaService,
@@ -444,6 +447,78 @@ export class RewardPoolOnChainService {
         }
     }
 
+    //push current reward pool to chain
+    @Cron(CronExpression.EVERY_MINUTE)
+    async pushToChain() {
+        if (process.env.TASK_SLOT != "1") return
+
+        const rewardPools = await this.prisma.reward_pools.findFirst({
+            where: {
+                on_chain_status: {
+                    in: [reward_pool_on_chain_status.ready, reward_pool_on_chain_status.failed],
+                },
+                on_chain_try_count: {
+                    lte: this.maxOnChainTryCount,
+                },
+            },
+            include: {
+                user_info: true,
+            },
+            orderBy: {
+                id: "desc",
+            },
+        })
+
+        if (!rewardPools) {
+            this.logger.log("No reward pool need push to chain")
+            return
+        }
+
+        try {
+            // add count
+            await this.prisma.reward_pools.update({
+                where: { id: rewardPools.id },
+                data: {
+                    on_chain_try_count: rewardPools.on_chain_try_count + 1,
+                    on_chain_error: null,
+                    on_chain_status: reward_pool_on_chain_status.ready,
+                },
+            })
+
+            let walletAddress = rewardPools.user_info.wallet_address
+            if (!rewardPools.user_info.wallet_address) {
+                const userWallet = await this.giggleService.getUsdcBalance({
+                    usernameShorted: rewardPools.user_info.username_in_be,
+                    email: rewardPools.user_info.email,
+                })
+                walletAddress = userWallet.address
+                if (userWallet.address) {
+                    await this.prisma.users.update({
+                        where: { id: rewardPools.user_info.id },
+                        data: { wallet_address: walletAddress },
+                    })
+                }
+            }
+
+            if (!walletAddress) {
+                this.logger.error(
+                    `CREATE POOL ERROR: No wallet address for settle statement: ${rewardPools.id}, pool: ${rewardPools.token}`,
+                )
+                return
+            }
+
+            // push to chain
+            await this.create({
+                token_mint: rewardPools.token,
+                user_wallet: walletAddress,
+                email: rewardPools.user_info.email,
+            })
+            this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
+        } catch (error) {
+            this.logger.error(`CREATE POOL ERROR: ${error}`)
+        }
+    }
+
     //process withdraw token of history record
     @Cron(CronExpression.EVERY_MINUTE)
     async processWithdrawToken() {
@@ -529,11 +604,10 @@ export class RewardPoolOnChainService {
     }
 
     //process inject token of history record
-    @Cron(CronExpression.EVERY_MINUTE)
-    async processInjectToken() {
+    async settleInjectToken() {
         if (process.env.TASK_SLOT != "1") return
 
-        const injectToken = await this.prisma.reward_pool_statement.findFirst({
+        const injectToken = await this.prisma.reward_pool_statement.findMany({
             where: {
                 chain_transaction: {
                     equals: Prisma.AnyNull,
@@ -556,138 +630,73 @@ export class RewardPoolOnChainService {
             orderBy: {
                 id: "desc",
             },
-            take: 1,
         })
 
-        if (!injectToken) {
+        if (injectToken.length === 0) {
             this.logger.log("No inject token need process")
             return
         }
 
-        //check user wallet token balance
-        const userBalance = await this.giggleService.getWalletBalance(
-            injectToken.reward_pools.user_info.wallet_address,
-            injectToken.reward_pools.token,
-        )
-        if (userBalance.length === 0) {
-            this.logger.warn(
-                `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
+        for (const inject of injectToken) {
+            //check user wallet token balance
+            const userBalance = await this.giggleService.getWalletBalance(
+                inject.reward_pools.user_info.wallet_address,
+                inject.reward_pools.token,
             )
-            return
-        }
-        const userBalanceAmount = new Decimal(userBalance[0].amount)
-        if (userBalanceAmount.lt(injectToken.amount)) {
-            this.logger.warn(
-                `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${injectToken.token} $${injectToken.reward_pools.ticker}, wallet: ${injectToken.reward_pools.user_info.wallet_address}`,
-            )
-            return
-        }
-
-        this.logger.log(
-            `PROCESS INJECT TOKEN: ${injectToken.token} $${injectToken.reward_pools.ticker}, need tokens: ${injectToken.amount}`,
-        )
-
-        //append on_chain_try_count
-        await this.prisma.reward_pool_statement.update({
-            where: { id: injectToken.id },
-            data: { on_chain_try_count: injectToken.on_chain_try_count + 1 },
-        })
-
-        const injectResult = await this.injectToken(
-            {
-                token_mint: injectToken.reward_pools.token,
-                amount: injectToken.amount.toNumber(),
-                email: injectToken.reward_pools.user_info.email,
-                user_wallet: injectToken.reward_pools.user_info.wallet_address,
-            },
-            {
-                usernameShorted: injectToken.reward_pools.user_info.username_in_be,
-            },
-        )
-
-        await this.prisma.reward_pool_statement.update({
-            where: { id: injectToken.id },
-            data: { chain_transaction: injectResult as any },
-        })
-    }
-
-    //push current reward pool to chain
-    @Cron(CronExpression.EVERY_MINUTE)
-    async pushToChain() {
-        if (process.env.TASK_SLOT != "1") return
-
-        const rewardPools = await this.prisma.reward_pools.findFirst({
-            where: {
-                on_chain_status: {
-                    in: [reward_pool_on_chain_status.ready, reward_pool_on_chain_status.failed],
-                },
-                on_chain_try_count: {
-                    lte: this.maxOnChainTryCount,
-                },
-            },
-            include: {
-                user_info: true,
-            },
-            orderBy: {
-                id: "desc",
-            },
-        })
-
-        if (!rewardPools) {
-            this.logger.log("No reward pool need push to chain")
-            return
-        }
-
-        try {
-            // add count
-            await this.prisma.reward_pools.update({
-                where: { id: rewardPools.id },
-                data: {
-                    on_chain_try_count: rewardPools.on_chain_try_count + 1,
-                    on_chain_error: null,
-                    on_chain_status: reward_pool_on_chain_status.ready,
-                },
-            })
-
-            let walletAddress = rewardPools.user_info.wallet_address
-            if (!rewardPools.user_info.wallet_address) {
-                const userWallet = await this.giggleService.getUsdcBalance({
-                    usernameShorted: rewardPools.user_info.username_in_be,
-                    email: rewardPools.user_info.email,
-                })
-                walletAddress = userWallet.address
-                if (userWallet.address) {
-                    await this.prisma.users.update({
-                        where: { id: rewardPools.user_info.id },
-                        data: { wallet_address: walletAddress },
-                    })
-                }
+            if (userBalance.length === 0) {
+                this.logger.warn(
+                    `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
+                )
+                return
             }
-
-            if (!walletAddress) {
-                this.logger.error(
-                    `CREATE POOL ERROR: No wallet address for settle statement: ${rewardPools.id}, pool: ${rewardPools.token}`,
+            const userBalanceAmount = new Decimal(userBalance[0].amount)
+            if (userBalanceAmount.lt(inject.amount)) {
+                this.logger.warn(
+                    `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
                 )
                 return
             }
 
-            // push to chain
-            await this.create({
-                token_mint: rewardPools.token,
-                user_wallet: walletAddress,
-                email: rewardPools.user_info.email,
+            this.logger.log(
+                `PROCESS INJECT TOKEN: ${inject.token} $${inject.reward_pools.ticker}, need tokens: ${inject.amount}`,
+            )
+
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: inject.id },
+                data: { on_chain_try_count: inject.on_chain_try_count + 1 },
             })
-            this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
-        } catch (error) {
-            this.logger.error(`CREATE POOL ERROR: ${error}`)
+
+            try {
+                const injectResult = await this.injectToken(
+                    {
+                        token_mint: inject.reward_pools.token,
+                        amount: inject.amount.toNumber(),
+                        email: inject.reward_pools.user_info.email,
+                        user_wallet: inject.reward_pools.user_info.wallet_address,
+                    },
+                    {
+                        usernameShorted: inject.reward_pools.user_info.username_in_be,
+                    },
+                )
+
+                await this.prisma.reward_pool_statement.update({
+                    where: { id: inject.id },
+                    data: { chain_transaction: injectResult as any },
+                })
+                //sleep 2 seconds
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+            } catch (error) {
+                this.logger.error(`PROCESS INJECT TOKEN ERROR: ${error}`)
+                continue
+            }
         }
     }
 
     //settle air drop statement to chain
-    @Cron(CronExpression.EVERY_MINUTE)
     async settleAirDropStatement() {
         if (process.env.TASK_SLOT != "1") return
-        const airdropStatement = await this.prisma.reward_pool_statement.findFirst({
+        const airdropStatement = await this.prisma.reward_pool_statement.findMany({
             where: {
                 type: reward_pool_type.airdrop,
                 chain_transaction: {
@@ -714,67 +723,74 @@ export class RewardPoolOnChainService {
             },
         })
 
-        if (!airdropStatement) {
+        if (airdropStatement.length === 0) {
             this.logger.log("SETTLE AIRDROP: No airdrop statement need settle")
             return
         }
 
-        //append on_chain_try_count
-        await this.prisma.reward_pool_statement.update({
-            where: { id: airdropStatement.id },
-            data: { on_chain_try_count: airdropStatement.on_chain_try_count + 1 },
-        })
+        for (const statement of airdropStatement) {
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: statement.id },
+                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
+            })
 
-        if (airdropStatement.user_rewards.length === 0) {
-            this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${airdropStatement.id}`)
-            return
+            if (statement.user_rewards.length === 0) {
+                this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${statement.id}`)
+                continue
+            }
+
+            const userReward = new Decimal(statement.user_rewards[0].rewards)
+
+            //check reward pool token balance
+            const tokenBalance = await this.retrieve(statement.token)
+            if (!tokenBalance) {
+                this.logger.error(
+                    `SETTLE AIRDROP ERROR: No token balance for settle airdrop statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                )
+                continue
+            }
+
+            const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
+            if (tokenBalanceAmount.lt(userReward)) {
+                this.logger.error(
+                    `SETTLE AIRDROP ERROR: Insufficient token balance when settle airdrop statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${userReward.toNumber()}`,
+                )
+                continue
+            }
+
+            try {
+                //start settle
+                this.logger.log(
+                    `SETTLE AIRDROP: ${statement.id}, need tokens: ${userReward.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+                )
+                const reqParam = {
+                    user_wallet: statement.user_rewards[0].user_info.wallet_address,
+                    owner_wallet: statement.reward_pools.user_info.wallet_address,
+                    token: statement.token,
+                    amount: userReward.toNumber(),
+                    timestamp: statement.created_at.getTime() / 1000,
+                }
+
+                const transaction = await this.airdropStatementToChain(reqParam, statement.reward_pools.user_info.email)
+                await this.prisma.reward_pool_statement.update({
+                    where: { id: statement.id },
+                    data: { chain_transaction: transaction as any },
+                })
+                this.logger.log(`SETTLE AIRDROP: ${statement.id} done`)
+                //sleep 2 seconds
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+            } catch (error) {
+                this.logger.error(`SETTLE AIRDROP ERROR: ${error}`)
+                continue
+            }
         }
-
-        const userReward = new Decimal(airdropStatement.user_rewards[0].rewards)
-
-        //check reward pool token balance
-        const tokenBalance = await this.retrieve(airdropStatement.token)
-        if (!tokenBalance) {
-            this.logger.error(
-                `SETTLE AIRDROP ERROR: No token balance for settle airdrop statement: ${airdropStatement.id}, wallet: ${this.settleWallet}`,
-            )
-            return
-        }
-
-        const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
-        if (tokenBalanceAmount.lt(userReward)) {
-            this.logger.error(
-                `SETTLE AIRDROP ERROR: Insufficient token balance when settle airdrop statement: ${airdropStatement.id}, pool: ${airdropStatement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${userReward.toNumber()}`,
-            )
-            return
-        }
-
-        //start settle
-        this.logger.log(
-            `SETTLE AIRDROP: ${airdropStatement.id}, need tokens: ${userReward.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
-        )
-
-        const reqParam = {
-            user_wallet: airdropStatement.user_rewards[0].user_info.wallet_address,
-            owner_wallet: airdropStatement.reward_pools.user_info.wallet_address,
-            token: airdropStatement.token,
-            amount: userReward.toNumber(),
-            timestamp: airdropStatement.created_at.getTime() / 1000,
-        }
-
-        const transaction = await this.airdropStatementToChain(reqParam, airdropStatement.reward_pools.user_info.email)
-        await this.prisma.reward_pool_statement.update({
-            where: { id: airdropStatement.id },
-            data: { chain_transaction: transaction as any },
-        })
-        this.logger.log(`SETTLE AIRDROP: ${airdropStatement.id} done`)
     }
 
     //settle order statement to chain
-    @Cron(CronExpression.EVERY_MINUTE)
     async settleStatement() {
         if (process.env.TASK_SLOT != "1") return
-        const statement = await this.prisma.reward_pool_statement.findFirst({
+        const statementOrders = await this.prisma.reward_pool_statement.findMany({
             where: {
                 order_info: {
                     current_status: OrderStatus.REWARDS_RELEASED,
@@ -801,127 +817,144 @@ export class RewardPoolOnChainService {
             },
         })
 
-        if (!statement) {
+        if (statementOrders.length === 0) {
             this.logger.log("No statement need settle")
             return
         }
 
-        if (!statement.reward_pools.buyback_address) {
-            this.logger.warn(
-                `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
-            )
-            return
-        }
-
-        //append on_chain_try_count
-        await this.prisma.reward_pool_statement.update({
-            where: { id: statement.id },
-            data: { on_chain_try_count: statement.on_chain_try_count + 1 },
-        })
-
-        //check balance
-        const usdcBalance = await this.giggleService.getWalletBalance(this.settleWallet, process.env.GIGGLE_LEGAL_USDC)
-        if (usdcBalance.length === 0) {
-            this.logger.error(
-                `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
-            )
-            return
-        }
-        const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
-        if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
-            this.logger.error(
-                `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toNumber()} < ${statement.usd_revenue.toNumber()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
-            )
-            return
-        }
-
-        //check reward pool token balance
-        const tokenBalance = await this.retrieve(statement.token)
-        if (!tokenBalance) {
-            this.logger.error(
-                `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
-            )
-            return
-        }
-        const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
-        if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
-            this.logger.error(
-                `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${statement.amount.mul(-1).toNumber()}`,
-            )
-            return
-        }
-
-        const arr = []
-        let amountIn = new Decimal(0)
-        let needTokens = new Decimal(0)
-        for (const userReward of statement.user_rewards) {
-            //continue if userReward.rewards is 0
-            if (userReward.rewards.eq(0)) {
+        for (const statement of statementOrders) {
+            if (!statement.reward_pools.buyback_address) {
                 this.logger.warn(
-                    `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, user: ${userReward.user_info.email}`,
+                    `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
                 )
-                continue
+                return
             }
 
-            //determine wallet address
-            let walletAddress = ""
-            if (userReward.role === RewardAllocateRoles.BUYBACK) {
-                //get buyback wallet from reward pool
-                walletAddress = statement.reward_pools.buyback_address
-            } else if (userReward.role === RewardAllocateRoles.PLATFORM) {
-                walletAddress = this.settleWallet
-            } else if (userReward.user_info) {
-                walletAddress = userReward.user_info.wallet_address
-            } else if (userReward.wallet_address) {
-                walletAddress = userReward.wallet_address
-            } else {
-                this.logger.warn(`User reward has no user info or user: ${JSON.stringify(userReward)}`)
-                continue
-            }
-
-            arr.push({
-                wallet_address: walletAddress,
-                share: userReward.rewards,
-                token: userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : 1,
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: statement.id },
+                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
             })
-            amountIn = amountIn.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? userReward.rewards : 0)
-            needTokens = needTokens.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : userReward.rewards)
-        }
 
-        if (arr.length === 0) {
-            this.logger.error(
-                `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
+            //check balance
+            const usdcBalance = await this.giggleService.getWalletBalance(
+                this.settleWallet,
+                process.env.GIGGLE_LEGAL_USDC,
             )
-            return
+            if (usdcBalance.length === 0) {
+                this.logger.error(
+                    `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                )
+                return
+            }
+            const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
+            if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
+                this.logger.error(
+                    `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toNumber()} < ${statement.usd_revenue.toNumber()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                )
+                return
+            }
+
+            //check reward pool token balance
+            const tokenBalance = await this.retrieve(statement.token)
+            if (!tokenBalance) {
+                this.logger.error(
+                    `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                )
+                return
+            }
+            const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
+            if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
+                this.logger.error(
+                    `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${statement.amount.mul(-1).toNumber()}`,
+                )
+                return
+            }
+
+            const arr = []
+            let amountIn = new Decimal(0)
+            let needTokens = new Decimal(0)
+            for (const userReward of statement.user_rewards) {
+                //continue if userReward.rewards is 0
+                if (userReward.rewards.eq(0)) {
+                    this.logger.warn(
+                        `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, user: ${userReward.user_info.email}`,
+                    )
+                    continue
+                }
+
+                //determine wallet address
+                let walletAddress = ""
+                if (userReward.role === RewardAllocateRoles.BUYBACK) {
+                    //get buyback wallet from reward pool
+                    walletAddress = statement.reward_pools.buyback_address
+                } else if (userReward.role === RewardAllocateRoles.PLATFORM) {
+                    walletAddress = this.settleWallet
+                } else if (userReward.user_info) {
+                    walletAddress = userReward.user_info.wallet_address
+                } else if (userReward.wallet_address) {
+                    walletAddress = userReward.wallet_address
+                } else {
+                    this.logger.warn(`User reward has no user info or user: ${JSON.stringify(userReward)}`)
+                    continue
+                }
+
+                arr.push({
+                    wallet_address: walletAddress,
+                    share: userReward.rewards,
+                    token: userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : 1,
+                })
+                amountIn = amountIn.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? userReward.rewards : 0)
+                needTokens = needTokens.plus(
+                    userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : userReward.rewards,
+                )
+            }
+
+            if (arr.length === 0) {
+                this.logger.error(
+                    `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
+                )
+                return
+            }
+
+            this.logger.log(
+                `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toNumber()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toNumber()}`,
+            )
+
+            this.logger.log(
+                `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+            )
+
+            try {
+                const allocateParams: AllocateRevenueDto = {
+                    token_mint: statement.token,
+                    revenue: amountIn.toNumber(),
+                    paid_time: statement.order_info.paid_time.getTime() / 1000,
+                    revenue_allocate_details: arr,
+                }
+
+                const transaction = await this.allocateRevenue(allocateParams)
+                await this.prisma.reward_pool_statement.update({
+                    where: {
+                        id: statement.id,
+                    },
+                    data: { chain_transaction: transaction as any },
+                })
+                this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
+                //sleep 2 seconds
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+            } catch (error) {
+                this.logger.error(`SETTLE ORDER REWARD ERROR: ${error}`)
+                continue
+            }
         }
-
-        this.logger.log(
-            `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toNumber()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toNumber()}`,
-        )
-
-        this.logger.log(
-            `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
-        )
-
-        const allocateParams: AllocateRevenueDto = {
-            token_mint: statement.token,
-            revenue: amountIn.toNumber(),
-            paid_time: statement.order_info.paid_time.getTime() / 1000,
-            revenue_allocate_details: arr,
-        }
-
-        const transaction = await this.allocateRevenue(allocateParams)
-        await this.prisma.reward_pool_statement.update({
-            where: {
-                id: statement.id,
-            },
-            data: { chain_transaction: transaction as any },
-        })
     }
+
+    //check balance with chain
+    //todo:
 
     //settle with chain
     @Cron(CronExpression.EVERY_DAY_AT_1AM)
-    //@Cron(CronExpression.EVERY_5_MINUTES)
     async settleWithChain() {
         if (process.env.TASK_SLOT != "1") return
         if (process.env.ENV != "product") return
@@ -994,6 +1027,31 @@ export class RewardPoolOnChainService {
         tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
         this.logger.log("SETTLE WITH CHAIN: Notify done")
+    }
+
+    //settle statement
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async rewardToChain() {
+        if (process.env.TASK_SLOT != "1") return
+
+        if (await UtilitiesService.checkTaskRunning(this.onChainTaskId, this.onChainTaskTimeout)) {
+            this.logger.log("Reward to chain task is running, skip")
+            return
+        }
+
+        await UtilitiesService.startTask(this.onChainTaskId)
+
+        //settle inject
+        await this.settleInjectToken()
+
+        //settle statement
+        await this.settleStatement()
+
+        //settle airdrop
+        await this.settleAirDropStatement()
+
+        //stop task
+        await UtilitiesService.stopTask(this.onChainTaskId)
     }
 
     /*
