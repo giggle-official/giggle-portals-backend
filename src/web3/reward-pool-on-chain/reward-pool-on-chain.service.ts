@@ -855,6 +855,14 @@ export class RewardPoolOnChainService {
         let amountIn = new Decimal(0)
         let needTokens = new Decimal(0)
         for (const userReward of statement.user_rewards) {
+            //continue if userReward.rewards is 0
+            if (userReward.rewards.eq(0)) {
+                this.logger.warn(
+                    `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, user: ${userReward.user_info.email}`,
+                )
+                continue
+            }
+
             //determine wallet address
             let walletAddress = ""
             if (userReward.role === RewardAllocateRoles.BUYBACK) {
