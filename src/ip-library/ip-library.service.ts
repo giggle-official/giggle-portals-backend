@@ -1058,6 +1058,10 @@ export class IpLibraryService {
         }
     }
 
+    /**
+     * process create ip
+     * !!!IMPORTANT: consider 3 levels of ip if you want modify this function !!!
+     */
     async processCreateIp(user: UserJwtExtractDto, body: CreateIpDto, subscriber: any): Promise<void> {
         subscriber.next({
             event: "ip.data_validating",
@@ -1068,6 +1072,11 @@ export class IpLibraryService {
 
         if (!(await this._checkCreateIpPermission(user, body))) {
             throw new BadRequestException("you have no permission or license to create this ip")
+        }
+
+        //if share to giggle, we need check purchase strategy
+        if (body.share_to_giggle && !(await this.validatePurchaseStrategy(body.purchase_strategy))) {
+            throw new BadRequestException("invalid purchase strategy for share to giggle")
         }
 
         let consumeLicenseLogs: number[] = []
@@ -1119,11 +1128,6 @@ export class IpLibraryService {
                 } else if (parentIpInfo.owner !== user.usernameShorted) {
                     throw new BadRequestException("you have no permission to use this parent ip")
                 }
-            }
-
-            //we do not need check purchase strategy if ip is 3rd level ip
-            if (ipLevel !== 3 && !(await this.validatePurchaseStrategy(body.purchase_strategy))) {
-                throw new BadRequestException("invalid purchase strategy")
             }
 
             //The period of a new ip without long term must be greater than now, marked at 2025-04-25
