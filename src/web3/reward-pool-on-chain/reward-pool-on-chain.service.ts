@@ -647,14 +647,14 @@ export class RewardPoolOnChainService {
                 this.logger.warn(
                     `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
                 )
-                return
+                continue
             }
             const userBalanceAmount = new Decimal(userBalance[0].amount)
             if (userBalanceAmount.lt(inject.amount)) {
                 this.logger.warn(
                     `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
                 )
-                return
+                continue
             }
 
             this.logger.log(
@@ -827,7 +827,7 @@ export class RewardPoolOnChainService {
                 this.logger.warn(
                     `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
                 )
-                return
+                continue
             }
 
             //append on_chain_try_count
@@ -845,14 +845,14 @@ export class RewardPoolOnChainService {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
                 )
-                return
+                continue
             }
             const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
             if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toNumber()} < ${statement.usd_revenue.toNumber()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
                 )
-                return
+                continue
             }
 
             //check reward pool token balance
@@ -861,14 +861,14 @@ export class RewardPoolOnChainService {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
                 )
-                return
+                continue
             }
             const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
             if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${statement.amount.mul(-1).toNumber()}`,
                 )
-                return
+                continue
             }
 
             const arr = []
@@ -914,7 +914,7 @@ export class RewardPoolOnChainService {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
                 )
-                return
+                continue
             }
 
             this.logger.log(
