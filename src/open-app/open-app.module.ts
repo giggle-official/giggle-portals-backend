@@ -17,6 +17,7 @@ import { LinkController } from "./link/link.controller"
 import { LinkService } from "./link/link.service"
 import { PaymentModule } from "src/payment/payment.module"
 import { HttpModule } from "@nestjs/axios"
+import { UsersService } from "./developer/users.service"
 
 @Module({
     imports: [
@@ -31,7 +32,7 @@ import { HttpModule } from "@nestjs/axios"
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
     controllers: [OpenAppController, AuthController, DeveloperController, LinkController],
-    providers: [OpenAppService, PrismaService, AuthService, DeveloperService, LinkService],
+    providers: [OpenAppService, PrismaService, AuthService, DeveloperService, LinkService, UsersService],
     exports: [LinkService, OpenAppService],
 })
 export class OpenAppModule {}

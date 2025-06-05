@@ -170,6 +170,7 @@ export class AuthService {
             const userNameShorted = this.userService.generateShortName()
             const username = decoded.email.split("@")[0]
             const newUserInfo: CreateUserDto = {
+                user_id: userNameShorted,
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: decoded.email,
@@ -201,6 +202,7 @@ export class AuthService {
         }
 
         const userJwtInfo: UserJwtExtractDto = {
+            user_id: user.username_in_be,
             username: user.username,
             usernameShorted: user.username_in_be,
             email: user.email,
@@ -359,6 +361,7 @@ export class AuthService {
             })
 
             const accessToken = await this.authUserService.login({
+                user_id: user.username_in_be,
                 username: user.username,
                 email: user.email,
                 usernameShorted: user.username_in_be,

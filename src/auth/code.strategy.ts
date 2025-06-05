@@ -32,6 +32,7 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
             throw new ForbiddenException("Invalid code or code expired")
         }
         const result: UserJwtExtractDto = {
+            user_id: userInfo.username_in_be,
             username: userInfo.username,
             usernameShorted: userInfo.username_in_be,
             email: userInfo.email,

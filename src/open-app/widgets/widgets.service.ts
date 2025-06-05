@@ -632,6 +632,7 @@ export class WidgetsService {
         }
         const userInfo = await this.userService.getProfile(user)
         const userInfoForSign: UserJwtExtractDto = {
+            user_id: userInfo.usernameShorted,
             username: userInfo.username,
             usernameShorted: userInfo.usernameShorted,
             email: userInfo.email,

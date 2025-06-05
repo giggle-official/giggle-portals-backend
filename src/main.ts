@@ -176,6 +176,10 @@ To see how to process the event stream response, please refer to the [Event Stre
             name: "Web3",
             tags: ["IP Tokens", "Web3 Tools"],
         },
+        {
+            name: "Developer Utility",
+            tags: ["Developer Utility"],
+        },
     ]
 
     privateDocument["x-tagGroups"] = [

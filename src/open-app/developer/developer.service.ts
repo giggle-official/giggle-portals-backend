@@ -170,6 +170,7 @@ export class DeveloperService {
                 const userNameShorted = this.usersService.generateShortName()
                 const username = email.split("@")[0]
                 const newUserInfo: CreateUserDto = {
+                    user_id: userNameShorted,
                     username: username,
                     password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                     email: email,

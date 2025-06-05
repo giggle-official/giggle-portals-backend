@@ -46,6 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                         },
                     })
                     return {
+                        user_id: userInfo.username_in_be,
                         username: userInfo.username,
                         usernameShorted: userInfo.username_in_be,
                         email: userInfo.email,
@@ -79,6 +80,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
             }
 
             return {
+                user_id: userInfo.username_in_be,
                 username: userInfo.username,
                 usernameShorted: userInfo.username_in_be,
                 email: userInfo.email,

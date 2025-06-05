@@ -103,6 +103,9 @@ export class RegisterInfoDTO {
 
 export class UserInfoDTO extends LoginDTO {
     @ApiProperty()
+    user_id: string
+
+    @ApiProperty()
     usernameShorted: string
     @ApiProperty()
     email?: string
@@ -165,6 +168,7 @@ export class EmailUserCreateDto extends EmailLoginDto {
 } //todo: verify email
 
 export class UserJwtExtractDto extends PickType(UserInfoDTO, [
+    "user_id",
     "email",
     "username",
     "usernameShorted",
@@ -185,6 +189,7 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
 }
 
 export class CreateUserDto {
+    user_id: string
     username: string
     password: string
     email: string

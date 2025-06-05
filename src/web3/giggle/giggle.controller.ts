@@ -101,7 +101,7 @@ export class GiggleController {
     @ApiOperation({ summary: "Get user market cap" })
     @ApiResponse({ type: UserMarketCapDto, status: 200 })
     async getUserMarketCap(@Param("user_id") user_id: string) {
-        return this.giggleService.getUserMarketCap({ usernameShorted: user_id })
+        return this.giggleService.getUserMarketCap({ user_id: user_id, usernameShorted: user_id })
     }
 
     @Post("/trade")

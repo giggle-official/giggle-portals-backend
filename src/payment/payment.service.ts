@@ -63,7 +63,10 @@ export class PaymentService {
     }
 
     async processFreeSubscription(userId: string): Promise<SubscriptionResultDto> {
-        const existsSubscription = await this.getUserSubscriptionFromStripe({ usernameShorted: userId })
+        const existsSubscription = await this.getUserSubscriptionFromStripe({
+            usernameShorted: userId,
+            user_id: userId,
+        })
         if (existsSubscription) {
             throw new BadRequestException("User already has an active subscription, cancel it first")
         }

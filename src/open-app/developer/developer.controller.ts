@@ -1,6 +1,6 @@
 import { Controller, Post, Req, UseGuards, Body, Get, Param, Query } from "@nestjs/common"
 import { DeveloperService } from "./developer.service"
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import {
     DeveloperWidgetCreateDto,
     DeveloperWidgetDeleteDto,
@@ -10,15 +10,20 @@ import {
     WidgetAccessTokenDto,
     WidgetIdentityDto,
 } from "./developer.dto"
-import { UserJwtExtractDto } from "src/user/user.controller"
+import { UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetDetailDto } from "../widgets/widget.dto"
 import { IsDeveloperGuard } from "src/auth/is_developer.guard"
 import { Request } from "express"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
+import { UsersService } from "./users.service"
 
 @Controller("/api/v1/developer")
 @ApiTags("Widgets Management")
 export class DeveloperController {
-    constructor(private readonly developerService: DeveloperService) {}
+    constructor(
+        private readonly developerService: DeveloperService,
+        private readonly usersService: UsersService,
+    ) {}
 
     // widgets
     @Post("/widgets/create")
@@ -82,5 +87,16 @@ export class DeveloperController {
     @ApiResponse({ type: WidgetDetailDto })
     async getConfigs(@Param("tag") tag: string, @Req() req: Request) {
         return this.developerService.getWidgetDetail(tag, req.user as UserJwtExtractDto)
+    }
+    //below is developer utility
+    //get user info
+    @Get("/user-info")
+    @ApiBearerAuth("jwt")
+    @ApiTags("Developer Utility")
+    @ApiOperation({ summary: "get user info" })
+    @ApiResponse({ type: UserInfoDTO })
+    @UseGuards(IsWidgetGuard)
+    async getUserInfo(@Req() req: Request, @Query("email") email: string) {
+        return this.usersService.getUserInfo(req.user as UserJwtExtractDto, email)
     }
 }

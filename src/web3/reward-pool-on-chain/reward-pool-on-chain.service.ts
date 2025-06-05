@@ -488,6 +488,7 @@ export class RewardPoolOnChainService {
             let walletAddress = rewardPools.user_info.wallet_address
             if (!rewardPools.user_info.wallet_address) {
                 const userWallet = await this.giggleService.getUsdcBalance({
+                    user_id: rewardPools.user_info.username_in_be,
                     usernameShorted: rewardPools.user_info.username_in_be,
                     email: rewardPools.user_info.email,
                 })
@@ -619,6 +620,9 @@ export class RewardPoolOnChainService {
                 reward_pools: {
                     on_chain_status: reward_pool_on_chain_status.success,
                 },
+                amount: {
+                    gt: 0,
+                },
             },
             include: {
                 reward_pools: {
@@ -677,6 +681,7 @@ export class RewardPoolOnChainService {
                     },
                     {
                         usernameShorted: inject.reward_pools.user_info.username_in_be,
+                        user_id: inject.reward_pools.user_info.username_in_be,
                     },
                 )
 

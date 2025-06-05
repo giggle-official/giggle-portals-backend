@@ -353,7 +353,7 @@ export class IpOrderService {
             }
 
             //create ip
-            const user = await this.userService.getProfile({ usernameShorted: order.owner })
+            const user = await this.userService.getProfile({ user_id: order.owner, usernameShorted: order.owner })
             if (!user) {
                 await UtilitiesService.stopTask(taskId)
                 return

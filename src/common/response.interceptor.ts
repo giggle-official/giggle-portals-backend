@@ -58,7 +58,7 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
         if (request?.headers?.["x-api-key"]) {
             product = "openapi"
         }
-        this.logsService.create((request?.user as UserInfoDTO) || { usernameShorted: "" }, {
+        this.logsService.create((request?.user as UserInfoDTO) || { usernameShorted: "", user_id: "" }, {
             product: product,
             action: (request?.method + " " + request?.path).substring(0, 4095),
             detail: {

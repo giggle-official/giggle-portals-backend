@@ -131,6 +131,7 @@ export class UserService {
             throw new UnauthorizedException("user not exists")
         }
         const result: UserInfoDTO = {
+            user_id: _userInfoFromDb.usernameShorted,
             username: _userInfoFromDb.username,
             usernameShorted: _userInfoFromDb.usernameShorted,
             email: _userInfoFromDb.email,
@@ -884,6 +885,7 @@ Message: ${contactInfo.message}
             const userNameShorted = this.generateShortName()
             const username = userInfo.email.split("@")[0]
             const newUserInfo: CreateUserDto = {
+                user_id: userNameShorted,
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: userInfo.email,
@@ -950,6 +952,7 @@ Message: ${contactInfo.message}
 
     processUserInfo(record: any): UserInfoDTO {
         return {
+            user_id: record.username_in_be,
             address: record.address,
             username: record.username,
             usernameShorted: record.username_in_be,

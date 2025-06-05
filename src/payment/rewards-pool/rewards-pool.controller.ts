@@ -13,7 +13,6 @@ import {
     StatisticsSummaryDto,
     UpdateRewardsPoolDto,
     AirdropResponseDto,
-    StatementResponseDto,
     AirdropQueryDto,
     AirdropResponseListDto,
 } from "./rewards-pool.dto"
@@ -23,7 +22,7 @@ import { Request } from "express"
 import { ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
-import { IsWidgetGuard } from "src/auth/is_widget"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
 
 @Controller("/api/v1/rewards-pool")
 export class RewardsPoolController {

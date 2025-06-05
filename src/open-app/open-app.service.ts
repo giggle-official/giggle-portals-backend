@@ -751,6 +751,7 @@ export class OpenAppService {
             const userNameShorted = this.userService.generateShortName()
             const username = approveData.email.split("@")[0]
             const newUserInfo: CreateUserDto = {
+                user_id: userNameShorted,
                 username: username,
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: approveData.email,

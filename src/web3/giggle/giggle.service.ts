@@ -911,7 +911,11 @@ export class GiggleService {
                 take: batchSize,
             })
             for (const user of users) {
-                const walletDetail = await this.getUserWalletDetail({ usernameShorted: user.username_in_be }, 1, 100)
+                const walletDetail = await this.getUserWalletDetail(
+                    { user_id: user.username_in_be, usernameShorted: user.username_in_be },
+                    1,
+                    100,
+                )
                 if (walletDetail.total_balance === 0) {
                     continue
                 }
