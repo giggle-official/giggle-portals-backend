@@ -220,3 +220,18 @@ export class ClaimRewardsHistoryListDto {
     })
     total: number
 }
+
+export class InvitationsDetailDto {
+    inviter_id: string
+    inviter_name: string
+    inviter_avatar: string
+    message: string
+}
+
+export class InvitationsQueryDto {
+    @ApiProperty({
+        description: "Invitation code",
+    })
+    @IsString()
+    code: string
+}

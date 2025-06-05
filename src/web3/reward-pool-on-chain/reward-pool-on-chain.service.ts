@@ -14,6 +14,7 @@ import {
     AirdropResponseDto,
     WithdrawTokenToWalletDto,
     WithdrawTokenToWalletResponseDto,
+    BuybackRecordResponseDto,
 } from "./reward-pool-on-chain.dto"
 import { HttpService } from "@nestjs/axios"
 import axios, { AxiosResponse } from "axios"
@@ -407,6 +408,26 @@ export class RewardPoolOnChainService {
         }
     }
 
+    //backback record
+    async getBuybackRecord(token: string) {
+        const func = "/BuybackHistory"
+        const requestParams = {
+            createFiToken: token,
+            __authToken: this.authToken,
+        }
+        console.log(this.rpcUrl + func)
+        console.log(requestParams)
+        const response: AxiosResponse<RpcResponseDto<BuybackRecordResponseDto>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        console.log("--------------------------------")
+        console.log(response.data)
+        if (!response.data?.isSucc || !response.data?.res?.arr) {
+            throw new BadRequestException("Get buyback record failed")
+        }
+        return response.data.res.arr
+    }
+
     //airdrop statement to chain
     async airdropStatementToChain(airdropDto: AirdropStatementToChainDto, creator_email: string) {
         const func = "/CreateFiAirdrop"
@@ -597,7 +618,7 @@ export class RewardPoolOnChainService {
             await this.prisma.user_rewards_withdraw.update({
                 where: { id: withdrawToken.id },
                 data: {
-                    status: withdrawToken.on_chain_try_count > this.maxOnChainTryCount ? "failed" : "pending",
+                    status: withdrawToken.on_chain_try_count >= this.maxOnChainTryCount ? "failed" : "pending",
                     transaction_error: JSON.stringify(error),
                 },
             })
@@ -1032,6 +1053,34 @@ export class RewardPoolOnChainService {
         tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
         this.logger.log("SETTLE WITH CHAIN: Notify done")
+    }
+
+    //get buyback record
+    //@Cron(CronExpression.EVERY_MINUTE)
+    async processBuybackRecord() {
+        if (process.env.TASK_SLOT != "1") return
+        console.log("processBuybackRecord")
+        //const rewards_pool = await this.prisma.reward_pools.findMany({
+        //    where: {
+        //        buyback_address: {
+        //            not: null,
+        //        },
+        //        on_chain_status: reward_pool_on_chain_status.success,
+        //    },
+        //    include: {
+        //        user_info: true,
+        //    },
+        //})
+        const rewards_pool = [{ token: "5jicsjUFPCMMzWAyvStMxpPLGAsN6iFDhUXpUh3vgigg" }]
+        for (const reward_pool of rewards_pool) {
+            try {
+                const buybackRecord = await this.getBuybackRecord(reward_pool.token)
+                console.log(buybackRecord)
+            } catch (error) {
+                this.logger.error(`Get buyback record failed: ${error}`)
+                continue
+            }
+        }
     }
 
     //settle statement

@@ -47,6 +47,8 @@ import {
     ClaimRewardsDto,
     ClaimRewardsQueryDto,
     ClaimRewardsHistoryListDto,
+    InvitationsDetailDto,
+    InvitationsQueryDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -627,5 +629,18 @@ export class UserController {
     })
     async claimRewardsHistory(@Req() req: Request, @Query() query: ClaimRewardsQueryDto) {
         return await this.userService.getClaimRewardsHistory(req.user as UserJwtExtractDto, query)
+    }
+
+    @Get("/invitations")
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: "Get invitations",
+        description: "Get invitations",
+    })
+    @ApiResponse({
+        type: InvitationsDetailDto,
+    })
+    async getInvitations(@Query() query: InvitationsQueryDto) {
+        return await this.userService.getInvitations(query.code)
     }
 }

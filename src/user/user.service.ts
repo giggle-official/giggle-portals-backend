@@ -29,6 +29,7 @@ import {
     ClaimRewardsQueryDto,
     ClaimStatus,
     ContactDTO,
+    InvitationsDetailDto,
     LoginCodeReqDto,
     UserTokenRewardsListDto,
     UserTokenRewardsQueryDto,
@@ -944,6 +945,23 @@ Message: ${contactInfo.message}
             throw new InternalServerErrorException("Send login code failed")
         }
         return { success: true }
+    }
+
+    async getInvitations(code: string): Promise<InvitationsDetailDto> {
+        const record = await this.prisma.users.findFirst({
+            where: {
+                invite_code: code,
+            },
+        })
+        if (!record) {
+            throw new BadRequestException("invitation code not exists")
+        }
+        return {
+            inviter_id: record.username_in_be,
+            inviter_name: record.username,
+            inviter_avatar: record.avatar,
+            message: "Welcome to Giggle!",
+        }
     }
 
     generateShortName(): string {

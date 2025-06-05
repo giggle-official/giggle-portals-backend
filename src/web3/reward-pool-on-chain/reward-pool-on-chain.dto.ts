@@ -80,3 +80,7 @@ export class WithdrawTokenToWalletDto {
 export class WithdrawTokenToWalletResponseDto {
     tx: string
 }
+
+export class BuybackRecordResponseDto {
+    arr: { id: number; addr: string; number: string; time: number }[]
+}

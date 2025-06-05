@@ -365,6 +365,7 @@ export enum StatementType {
     RELEASED = "released",
     INJECTED = "injected",
     AIRDROP = "airdrop",
+    BUYBACK = "buyback",
 }
 
 export enum AirdropType {
