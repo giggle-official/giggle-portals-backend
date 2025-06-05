@@ -23,6 +23,7 @@ import {
     AirdropQueryDto,
     AirdropResponseListDto,
     AirdropType,
+    StatementStatus,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -41,6 +42,7 @@ import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
 import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
 import { RewardPoolOnChainService } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.service"
+import { TransactionDto } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.dto"
 
 @Injectable()
 export class RewardsPoolService {
@@ -701,6 +703,11 @@ ORDER BY d.date;`
     }
 
     mapStatementDetail(statement: reward_pool_statement & { order_info: orders }): StatementResponseDto {
+        const tx = statement?.chain_transaction as unknown as TransactionDto
+        const chainTxLink =
+            tx?.signature && process.env.SOLANA_EXPLORER && process.env.SOLANA_CLUSTER
+                ? process.env.SOLANA_EXPLORER + "/tx/" + tx.signature + "?cluster=" + process.env.SOLANA_CLUSTER
+                : null
         return {
             id: statement.id,
             date: statement.created_at,
@@ -711,6 +718,8 @@ ORDER BY d.date;`
             balance: statement.current_balance,
             type: statement.type as StatementType,
             airdrop_type: statement.airdrop_type as AirdropType,
+            status: tx ? StatementStatus.SETTLED : StatementStatus.CREATED,
+            chain_tx_link: chainTxLink,
         }
     }
 

@@ -394,6 +394,11 @@ export class RequestAirdropDto {
     type: AirdropType
 }
 
+export enum StatementStatus {
+    CREATED = "created",
+    SETTLED = "settled",
+}
+
 export class StatementResponseDto {
     @ApiProperty({ description: "id" })
     id: number
@@ -423,6 +428,13 @@ export class StatementResponseDto {
     @ApiProperty({ description: "airdrop type", enum: AirdropType })
     @IsEnum(AirdropType)
     airdrop_type: AirdropType
+
+    @ApiProperty({ description: "status", enum: StatementStatus })
+    @IsEnum(StatementStatus)
+    status: StatementStatus
+
+    @ApiProperty({ description: "chain tx link" })
+    chain_tx_link?: string
 }
 
 export class AirdropResponseDto extends StatementResponseDto {
