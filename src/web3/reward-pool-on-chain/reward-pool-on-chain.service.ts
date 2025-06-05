@@ -117,13 +117,13 @@ export class RewardPoolOnChainService {
             throw new BadRequestException("Pool not found")
         }
 
-        //check user's balance
-        const userBalance = await this.giggleService.getUserWalletDetail(user, 1, 1, dto.token_mint)
-        let balance = 0
-        if (userBalance.list?.[0]?.mint === dto.token_mint) {
-            balance = userBalance.list?.[0]?.holding_num
+        //check user's wallet balance
+        const walletBalance = await this.giggleService.getWalletBalance(dto.user_wallet, dto.token_mint)
+        let balance = new Decimal(0)
+        if (walletBalance.length > 0) {
+            balance = new Decimal(walletBalance[0].amount)
         }
-        if (balance < dto.amount) {
+        if (balance.lt(dto.amount)) {
             this.logger.error(
                 `INJECT TOKEN ERROR: Insufficient balance for inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
             )
