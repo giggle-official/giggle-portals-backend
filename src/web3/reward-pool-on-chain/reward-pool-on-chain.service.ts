@@ -853,12 +853,6 @@ export class RewardPoolOnChainService {
                 continue
             }
 
-            //append on_chain_try_count
-            await this.prisma.reward_pool_statement.update({
-                where: { id: statement.id },
-                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
-            })
-
             //check balance
             const usdcBalance = await this.giggleService.getWalletBalance(
                 this.settleWallet,
@@ -947,6 +941,12 @@ export class RewardPoolOnChainService {
             this.logger.log(
                 `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
             )
+
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: statement.id },
+                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
+            })
 
             try {
                 const allocateParams: AllocateRevenueDto = {
@@ -1172,6 +1172,42 @@ export class RewardPoolOnChainService {
             } catch (error) {
                 this.logger.error(`Get buyback record failed: ${error}`)
                 continue
+            }
+        }
+    }
+
+    //check reward pool balance every 10 minutes
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    async checkRewardPoolBalance() {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+        const notifyWebhook = process.env.STATEMENT_NOTIFY_ADDRESS
+        if (!notifyWebhook) {
+            this.logger.error("STATEMENT_NOTIFY_ADDRESS is not set")
+            return
+        }
+        const result = await this.prisma.$queryRaw<
+            {
+                token: string
+                balance: Decimal
+                current_balance: Decimal
+            }[]
+        >`
+    with t1 as (select token,sum(amount) as balance
+            from reward_pool_statement
+            group by token),
+     t2 as (select token, current_balance from reward_pools)
+    select a.*,b.current_balance
+    from t1 a
+         left join t2 b on a.token = b.token
+    where abs(a.balance - b.current_balance) > 0.1;
+        `
+        if (result && result.length > 0) {
+            for (const item of result) {
+                this.logger.error(
+                    `Reward pool balance error: ${item.token}, in statement: ${item.balance.toString()}, in pool summary: ${item.current_balance.toString()}`,
+                )
             }
         }
     }

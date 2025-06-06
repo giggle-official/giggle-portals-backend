@@ -44,6 +44,7 @@ import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
 import { RewardPoolOnChainService } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.service"
 import { TransactionDto } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.dto"
+import { lastValueFrom } from "rxjs"
 
 @Injectable()
 export class RewardsPoolService {
