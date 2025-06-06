@@ -853,6 +853,12 @@ export class RewardPoolOnChainService {
                 continue
             }
 
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: statement.id },
+                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
+            })
+
             //check balance
             const usdcBalance = await this.giggleService.getWalletBalance(
                 this.settleWallet,
@@ -941,12 +947,6 @@ export class RewardPoolOnChainService {
             this.logger.log(
                 `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
             )
-
-            //append on_chain_try_count
-            await this.prisma.reward_pool_statement.update({
-                where: { id: statement.id },
-                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
-            })
 
             try {
                 const allocateParams: AllocateRevenueDto = {
