@@ -56,6 +56,11 @@ export class LoginCodeReqDto {
     @IsEmail()
     @IsNotEmpty()
     email: string
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
+    invite_code?: string
 }
 
 export class LoginCodeResponseDto {
@@ -229,6 +234,14 @@ export class InvitationsDetailDto {
 }
 
 export class InvitationsQueryDto {
+    @ApiProperty({
+        description: "Invitation code",
+    })
+    @IsString()
+    code: string
+}
+
+export class GetInviteCodeDto {
     @ApiProperty({
         description: "Invitation code",
     })

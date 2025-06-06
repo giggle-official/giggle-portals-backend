@@ -906,7 +906,7 @@ export class RewardPoolOnChainService {
                     //get buyback wallet from reward pool
                     walletAddress = statement.reward_pools.buyback_address
                 } else if (userReward.role === RewardAllocateRoles.PLATFORM) {
-                    walletAddress = this.settleWallet
+                    walletAddress = this.platformWallet
                 } else if (userReward.user_info) {
                     walletAddress = userReward.user_info.wallet_address
                 } else if (userReward.wallet_address) {

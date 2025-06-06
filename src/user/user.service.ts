@@ -112,9 +112,11 @@ export class UserService {
             from_source_link: userInfo.from_source_link,
             from_device_id: userInfo.from_device_id,
             register_app_id: userInfo.app_id,
+            invited_by: userInfo.invited_by,
+            can_create_ip: !!userInfo.can_create_ip,
         }
 
-        await this.prisma.users.create({
+        const user = await this.prisma.users.create({
             data: data,
         })
 
@@ -572,11 +574,12 @@ export class UserService {
 
                 // Clean up temp file
                 fs.unlink(tempFilePath, (err) => {
-                    if (err) console.error(`Error deleting temp file: ${err.message}`)
+                    if (err) this.logger.error(`Error deleting temp file: ${err.message}`)
                 })
 
                 return avatarUrl
             } catch (error) {
+                this.logger.error(`Failed to generate avatar: ${error.message}`)
                 throw new BadRequestException(`Failed to generate avatar: ${error.message}`)
             }
         }
@@ -880,6 +883,19 @@ Message: ${contactInfo.message}
         if (!userInfo.email || !isEmail(userInfo.email)) {
             throw new BadRequestException("email is invalid")
         }
+
+        let inviteUser = null
+        let canCreateIp = false
+        if (userInfo.invite_code) {
+            const iUser = await this.prisma.users.findFirst({
+                where: {
+                    invite_code: userInfo.invite_code,
+                },
+            })
+            inviteUser = iUser?.username_in_be
+            canCreateIp = iUser?.can_create_ip || false
+        }
+
         let user = await this.getUserInfoByEmail(userInfo.email)
         if (!user) {
             //create user
@@ -894,6 +910,8 @@ Message: ${contactInfo.message}
                 app_id: appId,
                 from_source_link: "",
                 from_device_id: deviceId,
+                can_create_ip: canCreateIp,
+                invited_by: inviteUser,
             }
             if (deviceId) {
                 //update register source link
@@ -922,6 +940,7 @@ Message: ${contactInfo.message}
                 username_in_be: user.usernameShorted,
             },
             data: {
+                can_create_ip: userRecord.can_create_ip === false && canCreateIp ? true : userRecord.can_create_ip,
                 login_code: code,
                 login_code_requested_at: new Date(),
                 login_code_expired: new Date(Date.now() + 1000 * 60 * 5), //5 minutes
@@ -962,6 +981,32 @@ Message: ${contactInfo.message}
             inviter_avatar: record.avatar,
             message: "Welcome to Giggle!",
         }
+    }
+
+    async getInviteCode(userInfo: UserJwtExtractDto) {
+        const record = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+                is_blocked: false,
+            },
+        })
+        if (!record) {
+            throw new BadRequestException("user not exists")
+        }
+
+        let code = record.invite_code
+        if (!code) {
+            code = crypto.randomBytes(16).toString("hex").substring(0, 8)
+            await this.prisma.users.update({
+                where: {
+                    username_in_be: userInfo.usernameShorted,
+                },
+                data: {
+                    invite_code: code,
+                },
+            })
+        }
+        return { code: code }
     }
 
     generateShortName(): string {

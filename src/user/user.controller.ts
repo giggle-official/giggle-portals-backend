@@ -49,6 +49,7 @@ import {
     ClaimRewardsHistoryListDto,
     InvitationsDetailDto,
     InvitationsQueryDto,
+    GetInviteCodeDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -199,6 +200,8 @@ export class CreateUserDto {
     app_id: string
     from_source_link: string
     from_device_id: string
+    invited_by?: string
+    can_create_ip?: boolean
 }
 
 export class UserInfoExtraDTO {
@@ -642,5 +645,19 @@ export class UserController {
     })
     async getInvitations(@Query() query: InvitationsQueryDto) {
         return await this.userService.getInvitations(query.code)
+    }
+
+    @Get("/invite-code")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiOperation({
+        summary: "Get invite code",
+        description: "Get invite code",
+    })
+    @ApiResponse({
+        type: GetInviteCodeDto,
+    })
+    async getInviteCode(@Req() req: Request) {
+        return await this.userService.getInviteCode(req.user as UserJwtExtractDto)
     }
 }
