@@ -980,7 +980,8 @@ export class RewardPoolOnChainService {
     //todo:
 
     //settle with chain
-    @Cron(CronExpression.EVERY_DAY_AT_1AM)
+    @Cron(CronExpression.EVERY_DAY_AT_3AM)
+    //@Cron(CronExpression.EVERY_MINUTE)
     async settleWithChain() {
         if (process.env.TASK_SLOT != "1") return
         if (process.env.ENV != "product") return
@@ -992,8 +993,10 @@ export class RewardPoolOnChainService {
 
         //get off chain data:
         const offChainData = await this.prisma.view_user_rewards_summary.findMany({
-            include: {
-                user_info: true,
+            where: {
+                ticker: {
+                    not: "usdc",
+                },
             },
         })
         const tableField = [
@@ -1014,12 +1017,17 @@ export class RewardPoolOnChainService {
         let tableContent = "|" + tableField.join("|") + "\n"
         tableContent += "|" + tableField.map(() => "--------------").join("|") + "\n"
         for (const data of offChainData) {
-            //get on chain data
-            if (!data.user || !data.user_info?.wallet_address) {
-                this.logger.warn(`User: ${data.user_info?.email || data.user} has no wallet address.`)
+            //find user
+            const user_info = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: data.user,
+                },
+            })
+            if (!user_info || !user_info.wallet_address) {
+                this.logger.warn(`User: ${data.user} not found or has no wallet address.`)
                 continue
             }
-            const onChainData = await this.retrieveUserTokenBalance(data.token, data.user_info.wallet_address)
+            const onChainData = await this.retrieveUserTokenBalance(data.token, user_info.wallet_address)
             const offChainAvailable = data.released.minus(data.withdrawn)
             if (!onChainData) continue
             const onChainDataMapped: any = {
@@ -1032,8 +1040,8 @@ export class RewardPoolOnChainService {
             tableContent +=
                 "|" +
                 [
-                    data.user_info.email,
-                    data.user_info.wallet_address,
+                    user_info.email,
+                    user_info.wallet_address,
                     data.token,
                     data.ticker,
                     data.rewards.toString(),

@@ -1117,6 +1117,8 @@ view view_user_rewards_summary {
   withdrawn  Decimal? @db.Decimal(65, 6)
   token_info Json?
   user_info  users?   @relation(fields: [user], references: [username_in_be])
+
+  @@unique([user, token])
 }
 
 view view_ip_incomes {
