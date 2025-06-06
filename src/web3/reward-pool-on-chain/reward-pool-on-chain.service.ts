@@ -974,7 +974,7 @@ export class RewardPoolOnChainService {
     }
 
     //check balance with chain
-    @Cron(CronExpression.EVERY_DAY_AT_4AM)
+    @Cron(CronExpression.EVERY_DAY_AT_5AM)
     async settlePoolBalanceWithChain() {
         if (process.env.TASK_SLOT != "1") return
         if (process.env.ENV != "product") return
