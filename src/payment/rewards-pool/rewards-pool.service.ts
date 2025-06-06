@@ -33,6 +33,7 @@ import {
     reward_pool_limit_offer,
     reward_pool_on_chain_status,
     reward_pool_statement,
+    reward_pool_type,
 } from "@prisma/client"
 import { OpenAppService } from "src/open-app/open-app.service"
 import { Decimal } from "@prisma/client/runtime/library"
@@ -395,6 +396,17 @@ export class RewardsPoolService {
             },
         })
 
+        //buyback amount
+        const buybackAmount = await this.prisma.reward_pool_statement.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                token: query.token,
+                type: reward_pool_type.buyback,
+            },
+        })
+
         //tokenInfo
         const tokenInfo = await this.prisma.view_ip_token_prices.findFirst({
             where: {
@@ -416,6 +428,7 @@ export class RewardsPoolService {
             current_balance: pool.current_balance.toNumber(),
             injected_amount: pool.injected_amount.toNumber(),
             rewarded_amount: pool.rewarded_amount.toNumber(),
+            buyback_amount: buybackAmount._sum.amount?.toNumber() || 0,
             roles_income: roleIncomes.map((r) => ({
                 role: r.role as RewardAllocateRoles,
                 income: r._sum.rewards.toNumber(),

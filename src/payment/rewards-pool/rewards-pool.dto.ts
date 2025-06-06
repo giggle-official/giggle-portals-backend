@@ -347,6 +347,9 @@ export class StatisticsSummaryDto {
     @ApiProperty({ description: "injected amount" })
     injected_amount: number
 
+    @ApiProperty({ description: "buyback amount" })
+    buyback_amount: number
+
     @ApiProperty({ description: "rewarded amount" })
     rewarded_amount: number
 
