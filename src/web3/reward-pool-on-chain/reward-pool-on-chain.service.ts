@@ -409,19 +409,16 @@ export class RewardPoolOnChainService {
     }
 
     //backback record
-    async getBuybackRecord(token: string) {
+    async getBuybackRecord(token: string, startId: number) {
         const func = "/BuybackHistory"
         const requestParams = {
             createFiToken: token,
             __authToken: this.authToken,
+            startId: startId,
         }
-        console.log(this.rpcUrl + func)
-        console.log(requestParams)
         const response: AxiosResponse<RpcResponseDto<BuybackRecordResponseDto>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
-        console.log("--------------------------------")
-        console.log(response.data)
         if (!response.data?.isSucc || !response.data?.res?.arr) {
             throw new BadRequestException("Get buyback record failed")
         }
@@ -977,7 +974,46 @@ export class RewardPoolOnChainService {
     }
 
     //check balance with chain
-    //todo:
+    @Cron(CronExpression.EVERY_DAY_AT_4AM)
+    async settlePoolBalanceWithChain() {
+        if (process.env.TASK_SLOT != "1") return
+        if (process.env.ENV != "product") return
+        const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
+        if (!notifyHook) {
+            this.logger.error("No notify hook for statement")
+            return
+        }
+
+        //get off chain data:
+        const offChainData = await this.prisma.reward_pools.findMany({
+            where: {
+                on_chain_status: reward_pool_on_chain_status.success,
+            },
+        })
+
+        const tableField = ["Token", "Ticker", "Balance(Off Chain)", "Balance(On Chain)", "Diff"]
+        let tableContent = "|" + tableField.join("|") + "\n"
+        tableContent += "|" + tableField.map(() => "--------------").join("|") + "\n"
+        for (const pool of offChainData) {
+            const onChainData = await this.retrieve(pool.token)
+            if (!onChainData) continue
+            const onChainBalance = new Decimal(onChainData.totalAmount).div(10 ** 6)
+            const diff = onChainBalance.minus(pool.current_balance)
+            tableContent +=
+                "|" +
+                [
+                    pool.token,
+                    pool.ticker,
+                    pool.current_balance.toString(),
+                    onChainBalance.toString(),
+                    diff.abs().gt(0.1) ? "** 🔴" + diff.toString() + "🔴 **" : diff.toString(),
+                ].join("|") +
+                "\n"
+        }
+        tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
+        await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
+        this.logger.log("SETTLE WITH CHAIN: Notify done")
+    }
 
     //settle with chain
     @Cron(CronExpression.EVERY_DAY_AT_3AM)
@@ -1052,7 +1088,7 @@ export class RewardPoolOnChainService {
                     onChainDataMapped.totalAmount.toString(),
                     onChainDataMapped.lockedAmount.toString(),
                     onChainDataMapped.availableAmount.toString(),
-                    availableDiff.gt(0) || availableDiff.abs().gt(0.1)
+                    availableDiff.abs().gt(0.1)
                         ? "** 🔴" + availableDiff.toString() + "🔴 **"
                         : availableDiff.toString(),
                 ].join("|") +
@@ -1064,26 +1100,67 @@ export class RewardPoolOnChainService {
     }
 
     //get buyback record
-    //@Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_10_MINUTES)
     async processBuybackRecord() {
         if (process.env.TASK_SLOT != "1") return
-        console.log("processBuybackRecord")
-        //const rewards_pool = await this.prisma.reward_pools.findMany({
-        //    where: {
-        //        buyback_address: {
-        //            not: null,
-        //        },
-        //        on_chain_status: reward_pool_on_chain_status.success,
-        //    },
-        //    include: {
-        //        user_info: true,
-        //    },
-        //})
-        const rewards_pool = [{ token: "5jicsjUFPCMMzWAyvStMxpPLGAsN6iFDhUXpUh3vgigg" }]
-        for (const reward_pool of rewards_pool) {
+        if (process.env.ENV != "product") return
+        const rewards_pools = await this.prisma.reward_pool_statement.groupBy({
+            by: ["token"],
+            _sum: {
+                usd_revenue: true,
+            },
+            _max: {
+                buyback_id: true,
+            },
+            where: {
+                chain_transaction: {
+                    not: null,
+                },
+            },
+        })
+        for (const reward_pool of rewards_pools) {
             try {
-                const buybackRecord = await this.getBuybackRecord(reward_pool.token)
-                console.log(buybackRecord)
+                if (reward_pool._sum.usd_revenue.lt(10)) {
+                    this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
+                    continue
+                }
+                const buybackRecord = await this.getBuybackRecord(reward_pool.token, reward_pool._max.buyback_id)
+                if (buybackRecord.length === 0) {
+                    this.logger.log(`No buyback record found: ${reward_pool.token}`)
+                    continue
+                }
+                //get current balance of pool
+                const poolInfo = await this.prisma.reward_pools.findUnique({
+                    where: {
+                        token: reward_pool.token,
+                    },
+                })
+                let currentBalance = poolInfo.current_balance
+                for (const record of buybackRecord) {
+                    await this.prisma.$transaction(async (tx) => {
+                        const buyAmount = new Decimal(record.number).div(10 ** 6)
+                        currentBalance = currentBalance.plus(buyAmount)
+                        await tx.reward_pool_statement.create({
+                            data: {
+                                token: reward_pool.token,
+                                type: reward_pool_type.buyback,
+                                amount: buyAmount,
+                                buyback_id: record.id,
+                                chain_transaction: {
+                                    signature: record.sig,
+                                },
+                                current_balance: currentBalance,
+                            },
+                        })
+                    })
+                }
+                //update current balance
+                await this.prisma.reward_pools.update({
+                    where: {
+                        token: reward_pool.token,
+                    },
+                    data: { current_balance: currentBalance },
+                })
             } catch (error) {
                 this.logger.error(`Get buyback record failed: ${error}`)
                 continue

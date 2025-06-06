@@ -986,6 +986,7 @@ model reward_pool_statement {
   unit_price         Decimal?          @db.Decimal(65, 12)
   amount             Decimal?          @db.Decimal(65, 6)
   related_order_id   String?           @db.VarChar(36)
+  buyback_id         Int?
   type               reward_pool_type?
   chain_transaction  Json?
   on_chain_try_count Int?              @default(0)
@@ -1012,6 +1013,7 @@ enum reward_pool_type {
   released
   injected
   airdrop
+  buyback
 }
 
 model user_rewards {

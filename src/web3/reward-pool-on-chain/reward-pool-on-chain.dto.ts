@@ -82,5 +82,5 @@ export class WithdrawTokenToWalletResponseDto {
 }
 
 export class BuybackRecordResponseDto {
-    arr: { id: number; addr: string; number: string; time: number }[]
+    arr: { id: number; addr: string; number: string; sig: string; time: number }[]
 }
