@@ -1128,7 +1128,7 @@ export class RewardPoolOnChainService {
         })
         for (const reward_pool of rewards_pools) {
             try {
-                if (reward_pool._sum.usd_revenue.lt(10)) {
+                if (new Decimal(reward_pool._sum.usd_revenue || 0).lt(10)) {
                     this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
                     continue
                 }
