@@ -988,6 +988,14 @@ export class RewardPoolOnChainService {
         const offChainData = await this.prisma.reward_pools.findMany({
             where: {
                 on_chain_status: reward_pool_on_chain_status.success,
+                statement: {
+                    some: {
+                        type: reward_pool_type.injected,
+                        chain_transaction: {
+                            not: null,
+                        },
+                    },
+                },
             },
         })
 
@@ -1124,7 +1132,7 @@ export class RewardPoolOnChainService {
                     this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
                     continue
                 }
-                const buybackRecord = await this.getBuybackRecord(reward_pool.token, reward_pool._max.buyback_id)
+                const buybackRecord = await this.getBuybackRecord(reward_pool.token, reward_pool._max.buyback_id || 0)
                 if (buybackRecord.length === 0) {
                     this.logger.log(`No buyback record found: ${reward_pool.token}`)
                     continue
