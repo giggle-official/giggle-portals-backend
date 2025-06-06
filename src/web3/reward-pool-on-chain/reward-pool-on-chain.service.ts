@@ -853,12 +853,6 @@ export class RewardPoolOnChainService {
                 continue
             }
 
-            //append on_chain_try_count
-            await this.prisma.reward_pool_statement.update({
-                where: { id: statement.id },
-                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
-            })
-
             //check balance
             const usdcBalance = await this.giggleService.getWalletBalance(
                 this.settleWallet,
@@ -934,11 +928,17 @@ export class RewardPoolOnChainService {
             }
 
             if (arr.length === 0) {
-                this.logger.error(
+                this.logger.warn(
                     `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
                 )
                 continue
             }
+
+            //append on_chain_try_count
+            await this.prisma.reward_pool_statement.update({
+                where: { id: statement.id },
+                data: { on_chain_try_count: statement.on_chain_try_count + 1 },
+            })
 
             this.logger.log(
                 `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toNumber()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toNumber()}`,
