@@ -143,6 +143,7 @@ To see how to process the event stream response, please refer to the [Event Stre
 `,
         )
         .addServer("https://api.giggle.pro", "Production Environment")
+        .addServer("https://app.ggltest.com", "Test Environment")
         .addServer("https://api-dev.ggltest.com", "Development Environment")
         .addBearerAuth({
             type: "http",
