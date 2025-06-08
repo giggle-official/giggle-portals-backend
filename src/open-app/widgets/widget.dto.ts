@@ -241,7 +241,12 @@ export class SubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {
 }
 
 export class UnsubscribeWidgetDto extends PickType(WidgetDto, ["tag"]) {}
-export class GetAccessTokenDto extends PickType(WidgetDto, ["tag"]) {}
+export class GetAccessTokenDto extends PickType(WidgetDto, ["tag"]) {
+    @ApiProperty({ description: "app id" })
+    @IsNotEmpty()
+    @IsString()
+    app_id: string
+}
 
 export class WidgetConfigDto {
     @ApiProperty({ description: "public configuration for widget" })

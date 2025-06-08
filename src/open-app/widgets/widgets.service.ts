@@ -569,7 +569,6 @@ export class WidgetsService {
     async getAccessToken(
         body: GetAccessTokenDto,
         user: UserJwtExtractDto,
-        appId: string,
         deviceId: string,
     ): Promise<GetAccessTokenResponseDto> {
         const widget = await this.prisma.widgets.findUnique({ where: { tag: body.tag } })
@@ -587,10 +586,13 @@ export class WidgetsService {
         })
 
         //app is exists
-        if (appId) {
-            const app = await this.prisma.apps.findUnique({ where: { app_id: appId } })
+        let appId = ""
+        if (body.app_id) {
+            const app = await this.prisma.apps.findUnique({ where: { app_id: body.app_id } })
             if (!app) {
                 appId = ""
+            } else {
+                appId = app.app_id
             }
         } else {
             appId = ""
