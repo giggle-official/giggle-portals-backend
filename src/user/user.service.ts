@@ -112,7 +112,7 @@ export class UserService {
             from_source_link: userInfo.from_source_link,
             from_device_id: userInfo.from_device_id,
             register_app_id: userInfo.app_id,
-            invited_by: userInfo.invited_by,
+            invited_by: userInfo.invited_by || "",
             can_create_ip: !!userInfo.can_create_ip,
         }
 
@@ -884,7 +884,7 @@ Message: ${contactInfo.message}
             throw new BadRequestException("email is invalid")
         }
 
-        let inviteUser = null
+        let inviteUser = ""
         let canCreateIp = false
         if (userInfo.invite_code) {
             const iUser = await this.prisma.users.findFirst({
