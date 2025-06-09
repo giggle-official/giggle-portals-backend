@@ -245,11 +245,11 @@ export enum OrderCostType {
 
 export class OrderCostsAllocationDto {
     @ApiProperty({
-        description: "Cost amount of the order, must be integer, 100 means $1.00, min is 100($1.00)",
+        description: "Cost amount of the order, must be integer, 100 means $1.00, min is 1($0.01)",
     })
     @IsInt()
     @IsNotEmpty()
-    @Min(100)
+    @Min(1)
     amount: number
 
     @ApiProperty({
@@ -270,11 +270,11 @@ export class OrderCostsAllocationDto {
 
 export class CreateOrderDto {
     @ApiProperty({
-        description: "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)",
+        description: "The amount of the order, only accept integer, 100 means $1.00, min is 100($1.00)",
     })
     @IsInt()
     @IsNotEmpty()
-    @Min(1)
+    @Min(100)
     amount: number
 
     @ApiProperty({
