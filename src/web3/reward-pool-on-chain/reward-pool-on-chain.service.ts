@@ -1237,13 +1237,16 @@ export class RewardPoolOnChainService {
         await UtilitiesService.stopTask(this.onChainTaskId)
     }
 
-    /*
     //update buyback wallet
-    //@Cron(CronExpression.EVERY_5_MINUTES)
-    //despeciated
-    /*
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async updateBuybackWallet() {
         if (process.env.TASK_SLOT != "1") return
+        const taskId = 4
+        if (await UtilitiesService.checkTaskRunning(taskId, this.onChainTaskTimeout)) {
+            this.logger.log("Update buyback wallet task is running, skip")
+            return
+        }
+        await UtilitiesService.startTask(taskId)
 
         const rewardPools = await this.prisma.reward_pools.findMany({
             where: {
@@ -1284,6 +1287,6 @@ export class RewardPoolOnChainService {
                 continue
             }
         }
+        await UtilitiesService.stopTask(taskId)
     }
-    */
 }
