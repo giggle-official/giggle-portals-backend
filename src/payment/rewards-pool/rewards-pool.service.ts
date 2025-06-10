@@ -548,7 +548,7 @@ ORDER BY d.date;`
     }
 
     async airdrop(body: RequestAirdropDto, user: UserJwtExtractDto): Promise<AirdropResponseDto> {
-        if (body.usd_amount < 0 && body.token_amount < 0) {
+        if (body.usd_amount == 0 && body.token_amount == 0) {
             throw new BadRequestException(
                 "The amount of airdrop must be greater than 0 or token_amount must be greater than 0",
             )
