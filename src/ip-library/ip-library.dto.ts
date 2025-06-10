@@ -913,7 +913,7 @@ export class CreateIpDto {
     @IsOptional()
     @IsString()
     @ApiProperty({
-        description: "more options",
+        description: "twitter of the ip holder",
         required: false,
     })
     twitter?: string
@@ -921,7 +921,7 @@ export class CreateIpDto {
     @IsOptional()
     @IsString()
     @ApiProperty({
-        description: "website of the ip library",
+        description: "website of the ip holder",
         required: false,
     })
     website?: string
@@ -929,10 +929,26 @@ export class CreateIpDto {
     @IsOptional()
     @IsString()
     @ApiProperty({
-        description: "telegram of the ip library",
+        description: "telegram of the ip holder",
         required: false,
     })
     telegram?: string
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({
+        description: "tiktok of the ip holder",
+        required: false,
+    })
+    tiktok?: string
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({
+        description: "instagram of the ip holder",
+        required: false,
+    })
+    instagram?: string
 
     @ApiProperty({
         description: "purchase strategy of the ip library",

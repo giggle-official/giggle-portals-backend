@@ -841,35 +841,36 @@ model user_invited_record {
 }
 
 model orders {
-  id                         Int                     @id @default(autoincrement())
-  order_id                   String                  @unique(map: "order_id") @db.VarChar(36)
-  description                String?                 @db.Text
-  amount                     Int?
-  owner                      String                  @db.VarChar(32)
-  from_source_link           String?                 @db.VarChar(32)
-  widget_tag                 String?                 @db.VarChar(32)
-  app_id                     String?                 @db.VarChar(32)
-  current_status             String?                 @db.VarChar(32)
-  paid_method                String?                 @db.VarChar(32)
-  stripe_invoice_id          String?                 @db.VarChar(32)
-  stripe_invoice_detail      Json?
-  wallet_paid_detail         Json?
-  related_reward_id          Int?
-  rewards_model_snapshot     Json?
-  costs_allocation           Json?
-  release_rewards_after_paid Boolean?                @default(false)
-  supported_payment_method   Json?
-  callback_url               String?                 @db.VarChar(1024)
-  redirect_url               String?                 @db.VarChar(4096)
-  paid_time                  DateTime?               @db.DateTime(0)
-  cancelled_time             DateTime?               @db.DateTime(0)
-  expire_time                DateTime?               @db.DateTime(0)
-  cancelled_detail           Json?
-  created_at                 DateTime?               @default(now()) @db.Timestamp(0)
-  updated_at                 DateTime?               @default(now()) @db.Timestamp(0)
-  third_level_ip_orders      third_level_ip_orders[]
-  reward_pool_statement      reward_pool_statement[]
-  user_rewards               user_rewards[]
+  id                             Int                     @id @default(autoincrement())
+  order_id                       String                  @unique(map: "order_id") @db.VarChar(36)
+  description                    String?                 @db.Text
+  amount                         Int?
+  owner                          String                  @db.VarChar(32)
+  from_source_link               String?                 @db.VarChar(32)
+  widget_tag                     String?                 @db.VarChar(32)
+  app_id                         String?                 @db.VarChar(32)
+  current_status                 String?                 @db.VarChar(32)
+  paid_method                    String?                 @db.VarChar(32)
+  stripe_invoice_id              String?                 @db.VarChar(32)
+  stripe_invoice_detail          Json?
+  wallet_paid_detail             Json?
+  related_reward_id              Int?
+  rewards_model_snapshot         Json?
+  costs_allocation               Json?
+  ip_holder_revenue_reallocation Json?
+  release_rewards_after_paid     Boolean?                @default(false)
+  supported_payment_method       Json?
+  callback_url                   String?                 @db.VarChar(1024)
+  redirect_url                   String?                 @db.VarChar(4096)
+  paid_time                      DateTime?               @db.DateTime(0)
+  cancelled_time                 DateTime?               @db.DateTime(0)
+  expire_time                    DateTime?               @db.DateTime(0)
+  cancelled_detail               Json?
+  created_at                     DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at                     DateTime?               @default(now()) @db.Timestamp(0)
+  third_level_ip_orders          third_level_ip_orders[]
+  reward_pool_statement          reward_pool_statement[]
+  user_rewards                   user_rewards[]
 }
 
 model order_callback_record {
