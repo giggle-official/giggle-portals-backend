@@ -751,6 +751,8 @@ export class IpLibraryService {
                 twitter: extra_info?.twitter || "",
                 website: extra_info?.website || "",
                 telegram: extra_info?.telegram || "",
+                tiktok: extra_info?.tiktok || "",
+                instagram: extra_info?.instagram || "",
             },
             governance_right: this.getGovernanceRight(authSettings),
         }
@@ -836,11 +838,13 @@ export class IpLibraryService {
                     where: { id: parseInt(body.id.toString()) },
                     data: {
                         ...(body.description && { description: body.description }),
-                        ...((body.twitter || body.website || body.telegram) && {
+                        ...((body.twitter || body.website || body.telegram || body.tiktok || body.instagram) && {
                             extra_info: {
                                 twitter: body.twitter || "",
                                 website: body.website || "",
                                 telegram: body.telegram || "",
+                                tiktok: body.tiktok || "",
+                                instagram: body.instagram || "",
                             },
                         }),
                         ...(body.authorization_settings && {
@@ -1168,6 +1172,8 @@ export class IpLibraryService {
                             twitter: body?.twitter || "",
                             website: body?.website || "",
                             telegram: body?.telegram || "",
+                            tiktok: body?.tiktok || "",
+                            instagram: body?.instagram || "",
                         },
                         authorization_settings: authSettings as any,
                         cover_images: [
