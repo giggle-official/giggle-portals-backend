@@ -1164,14 +1164,14 @@ export class OrderService {
                     walletAddress = process.env.PLATFORM_WALLET
                 }
 
-                if (cost?.user_id) {
+                if (cost?.email) {
                     const user = await this.prisma.users.findUnique({
                         where: {
-                            username_in_be: cost.user_id,
+                            email: cost.email,
                         },
                     })
                     if (!user) {
-                        this.logger.error(`User ${cost.user_id} not found for order ${orderRecord.order_id}`)
+                        this.logger.error(`User ${cost.email} not found for order ${orderRecord.order_id}`)
                         continue
                     }
                     walletAddress = user.wallet_address
@@ -1266,21 +1266,25 @@ export class OrderService {
                 if (actualAllocateRole === RewardAllocateRoles.IPHOLDER) {
                     const ipHolderRevenueReallocation =
                         orderRecord.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
-                    for (const reallocation of ipHolderRevenueReallocation) {
-                        if (reallocation.percent > 100 || reallocation.percent < 1) {
+                    for (const reAllocation of ipHolderRevenueReallocation) {
+                        if (reAllocation.percent > 100 || reAllocation.percent < 1) {
                             this.logger.error(
                                 `Ip holder revenue re-allocation percent is not valid for order ${orderRecord.order_id}`,
                             )
                             continue
                         }
-                        const reAllocatedAmount = rewardUSDAmount.mul(new Decimal(reallocation.percent)).div(100)
-                        const user = await this.userService.getUserInfoByUsernameShorted(reallocation.user_id)
+                        const reAllocatedAmount = rewardUSDAmount.mul(new Decimal(reAllocation.percent)).div(100)
+                        const user = await this.prisma.users.findUnique({
+                            where: {
+                                email: reAllocation.email,
+                            },
+                        })
                         if (!user) continue
                         rewards.push({
                             order_id: orderRecord.order_id,
-                            user: user.usernameShorted,
-                            role: reallocation.allocate_role,
-                            expected_role: reallocation.allocate_role,
+                            user: user.username_in_be,
+                            role: reAllocation.allocate_role,
+                            expected_role: reAllocation.allocate_role,
                             token: process.env.GIGGLE_LEGAL_USDC,
                             ticker: "usdc",
                             wallet_address: user.wallet_address,
@@ -1292,7 +1296,7 @@ export class OrderService {
                             locked_rewards: 0,
                             allocate_snapshot: modelSnapshot as any,
                             withdraw_rewards: 0,
-                            note: `Allocated to ${user.usernameShorted} ${reallocation.percent}% of the ip holder revenue`,
+                            note: `Allocated to ${user.username_in_be} ${reAllocation.percent}% of the ip holder revenue`,
                         })
                         usdcRewards = usdcRewards.minus(reAllocatedAmount)
                     }

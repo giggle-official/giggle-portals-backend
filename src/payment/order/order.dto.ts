@@ -1,7 +1,7 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator"
+import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
 import { LimitOffer, PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
@@ -265,11 +265,11 @@ export enum IpHolderRevenueReallocationRole {
 
 export class IpHolderRevenueReallocationDto {
     @ApiProperty({
-        description: "The user id of the ip holder",
+        description: "The user email of the ip holder, if not exists, this record will be ignored",
     })
     @IsNotEmpty()
-    @IsString()
-    user_id: string
+    @IsEmail()
+    email: string
 
     @ApiProperty({
         description: "The allocate role of the ip holder revenue",
@@ -308,12 +308,12 @@ export class OrderCostsAllocationDto {
 
     @ApiProperty({
         description:
-            "The user id of the cost, when order paid, the cost will be distributed to this user, default is developer",
+            "The user of the cost, when order paid, the cost will be distributed to this user, default is developer",
         required: false,
     })
     @IsOptional()
     @IsString()
-    user_id?: string
+    email?: string
 }
 
 export class CreateOrderDto {
