@@ -1,7 +1,7 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from "class-validator"
+import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
 import { LimitOffer, PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
@@ -96,6 +96,11 @@ export class OrderDto implements orders {
     costs_allocation: JsonValue
 
     @ApiProperty({
+        description: "The ip holder revenue re-allocation of the order",
+    })
+    ip_holder_revenue_reallocation: JsonValue
+
+    @ApiProperty({
         description: "The release rewards after paid of the order",
     })
     release_rewards_after_paid: boolean
@@ -178,6 +183,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "stripe_invoice_id",
     "wallet_paid_detail",
     "costs_allocation",
+    "ip_holder_revenue_reallocation",
     "rewards_model_snapshot",
     "callback_url",
 ]) {
@@ -213,6 +219,13 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     costs_allocation: OrderCostsAllocationDto[]
 
     @ApiProperty({
+        description: "The ip holder revenue re-allocation of the order",
+        type: () => [IpHolderRevenueReallocationDto],
+        required: false,
+    })
+    ip_holder_revenue_reallocation: IpHolderRevenueReallocationDto[]
+
+    @ApiProperty({
         description: "The estimated rewards of the order",
         type: () => EstimatedRewardsDto,
     })
@@ -243,6 +256,39 @@ export enum OrderCostType {
     PLATFORM = "platform",
 }
 
+export enum IpHolderRevenueReallocationRole {
+    CREATOR = "creator",
+    UPLOADER = "uploader",
+    REMIXER = "remixer",
+    OTHER = "other",
+}
+
+export class IpHolderRevenueReallocationDto {
+    @ApiProperty({
+        description: "The user email of the ip holder, if not exists, this record will be ignored",
+    })
+    @IsNotEmpty()
+    @IsEmail()
+    email: string
+
+    @ApiProperty({
+        description: "The allocate role of the ip holder revenue",
+        enum: IpHolderRevenueReallocationRole,
+    })
+    @IsEnum(IpHolderRevenueReallocationRole)
+    @IsNotEmpty()
+    allocate_role: string
+
+    @ApiProperty({
+        description: "The percent of the ip holder revenue, must be integer, 1 means 100%, min is 1(1%)",
+    })
+    @IsInt()
+    @IsNotEmpty()
+    @Min(1)
+    @Max(100)
+    percent: number
+}
+
 export class OrderCostsAllocationDto {
     @ApiProperty({
         description: "Cost amount of the order, must be integer, 100 means $1.00, min is 1($0.01)",
@@ -260,12 +306,14 @@ export class OrderCostsAllocationDto {
     @IsNotEmpty()
     type: OrderCostType
 
-    //@ApiProperty({
-    //    description: "The wallet address of the cost, when order paid, the cost will be distributed to this wallet",
-    //})
-    //@IsNotEmpty()
-    //@IsString()
-    //distribute_wallet: string
+    @ApiProperty({
+        description:
+            "The user of the cost, when order paid, the cost will be distributed to this user, default is developer",
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    email?: string
 }
 
 export class CreateOrderDto {
@@ -308,7 +356,14 @@ export class CreateOrderDto {
     callback_url?: string
 
     @ApiProperty({
+        description: "The user jwt, this parameter is required if requester is from developer",
+        required: false,
+    })
+    user_jwt?: string
+
+    @ApiProperty({
         description: `The costs of the order.
+    This parameter is only allowed when requester is developer.
     Can be multiple costs and the total amount of the costs must be less than the 90% of the amount of the order.
     The costs will be distributed to the distribute_wallet provided.`,
         type: () => [OrderCostsAllocationDto],
@@ -318,6 +373,33 @@ export class CreateOrderDto {
     @ValidateNested({ each: true })
     @Type(() => OrderCostsAllocationDto)
     costs_allocation?: OrderCostsAllocationDto[]
+
+    @ApiProperty({
+        description: `The ip holder revenue re-allocation of the order,
+    This parameter is only allowed when requester is developer.
+    For example, if the order amount is $100, the ip holder revenue re-allocation is:
+
+\`\`\`json
+[
+    {
+        user_id: "123",
+        percent: 50
+    },
+    {
+        user_id: "456",
+        percent: 50
+    }
+]
+\`\`\`
+
+The order revenue will be distributed to the user 123 and 456, all of them will get 50%($50.00) of the order revenue. ip holder will get **$0** of the this order but also need to release token if order paid.`,
+        type: () => [IpHolderRevenueReallocationDto],
+        required: false,
+    })
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => IpHolderRevenueReallocationDto)
+    ip_holder_revenue_reallocation?: IpHolderRevenueReallocationDto[]
 }
 
 export class OrderListDto {

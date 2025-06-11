@@ -548,8 +548,14 @@ ORDER BY d.date;`
     }
 
     async airdrop(body: RequestAirdropDto, user: UserJwtExtractDto): Promise<AirdropResponseDto> {
-        if (body.usd_amount < 0) {
-            throw new BadRequestException("The amount of airdrop must be greater than 0")
+        if (body.usd_amount == 0 && body.token_amount == 0) {
+            throw new BadRequestException(
+                "The amount of airdrop must be greater than 0 or token_amount must be greater than 0",
+            )
+        }
+
+        if (body.usd_amount > 0 && body.token_amount > 0) {
+            throw new BadRequestException("You can only provide usd_amount or token_amount, not both")
         }
 
         const rewardsPools = await this.prisma.reward_pools.findFirst({
@@ -583,22 +589,30 @@ ORDER BY d.date;`
             throw new BadRequestException("Rewards pool is not subscribed to this widget")
         }
 
-        const tokenInfo = await this.giggleService.getIpTokenList({
-            mint: body.token,
-            page: "1",
-            page_size: "1",
-            site: "3body",
-        })
-        if (!tokenInfo || !tokenInfo.data || !tokenInfo.data.length) {
-            throw new BadRequestException("Token not found")
-        }
+        let amount = new Decimal(0)
+        if (body.usd_amount > 0) {
+            const tokenInfo = await this.giggleService.getIpTokenList({
+                mint: body.token,
+                page: "1",
+                page_size: "1",
+                site: "3body",
+            })
+            if (!tokenInfo || !tokenInfo.data || !tokenInfo.data.length) {
+                throw new BadRequestException("Token not found")
+            }
 
-        const unitPrice = tokenInfo.data?.[0]?.price
-        if (!unitPrice) {
-            throw new BadRequestException("Token price not found")
-        }
+            const unitPrice = tokenInfo.data?.[0]?.price
+            if (!unitPrice) {
+                throw new BadRequestException("Token price not found")
+            }
 
-        const amount = new Decimal(body.usd_amount).div(unitPrice)
+            amount = new Decimal(body.usd_amount).div(unitPrice)
+        } else {
+            if (body.token_amount < 1) {
+                throw new BadRequestException("The minimum amount of airdrop is 1")
+            }
+            amount = new Decimal(body.token_amount)
+        }
 
         if (rewardsPools.current_balance.lt(amount)) {
             this.logger.error(

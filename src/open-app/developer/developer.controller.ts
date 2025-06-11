@@ -88,6 +88,7 @@ export class DeveloperController {
     async getConfigs(@Param("tag") tag: string, @Req() req: Request) {
         return this.developerService.getWidgetDetail(tag, req.user as UserJwtExtractDto)
     }
+
     //below is developer utility
     //get user info
     @Get("/user-info")

@@ -388,10 +388,21 @@ export class RequestAirdropDto {
     @IsNotEmpty()
     email: string
 
-    @ApiProperty({ description: "usd amount of tokens to be airdropped, if set, token_amount will be ignored" })
+    @ApiProperty({
+        description:
+            "USDC valued amount of tokens, if you want airdrop specific amount of tokens, set this to 0 and provide token_amount.",
+    })
     @IsNumber()
-    @IsPositive()
+    @Min(0)
     usd_amount: number
+
+    @ApiProperty({
+        description:
+            "Amount of tokens to be airdropped, if you want airdrop USDC valued amount, set this to 0 and provide usd_amount.",
+    })
+    @IsNumber()
+    @Min(0)
+    token_amount: number
 
     @ApiProperty({ description: "type of airdrop", enum: AirdropType })
     @IsEnum(AirdropType)

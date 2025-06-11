@@ -12,6 +12,7 @@ import {
 import {
     BindRewardPoolDto,
     EstimatedRewardsDto,
+    IpHolderRevenueReallocationDto,
     OrderCallbackDto,
     OrderCostsAllocationDto,
     OrderCostType,
@@ -42,7 +43,7 @@ import Stripe from "stripe"
 import { InjectStripe } from "nestjs-stripe"
 import { Request } from "express"
 import { HttpService } from "@nestjs/axios"
-import { async, lastValueFrom } from "rxjs"
+import { lastValueFrom } from "rxjs"
 import { LinkService } from "src/open-app/link/link.service"
 import { RewardsPoolService } from "../rewards-pool/rewards-pool.service"
 import {
@@ -77,82 +78,111 @@ export class OrderService {
 
     async createOrder(
         order: CreateOrderDto,
-        userInfo: UserJwtExtractDto,
+        requester: UserJwtExtractDto,
         app_id: string = "", // this value will replaced if app_id exists in the user's widget info
     ): Promise<OrderDetailDto> {
-        const userProfile = await this.userService.getProfile(userInfo)
+        let userProfile = null
+        let owner = ""
         let appId = app_id
-        const orderId = uuidv4()
-        let relatedRewardId = null
-        let rewardsModelSnapshot = null
         let widgetTag = ""
 
-        if (userProfile?.widget_info?.app_id) {
-            const app = await this.prisma.apps.findUnique({
-                where: { app_id: userProfile.widget_info.app_id },
-            })
-            if (!app) {
-                throw new BadRequestException("App not found")
+        const isDeveloperRequester = requester.developer_info ? true : false
+
+        if (isDeveloperRequester) {
+            if (!order.user_jwt) {
+                throw new BadRequestException("user_jwt is required when requester is developer")
             }
-            appId = app.app_id
+
+            const user = await this.jwtService.verifyAsync(order.user_jwt, {
+                secret: process.env.SESSION_SECRET,
+            })
+            if (!user) {
+                throw new BadRequestException("Invalid user jwt")
+            }
+
+            userProfile = await this.userService.getProfile(user)
+            //check if widget tag not valid
+            owner = userProfile.username_in_be
+            appId = userProfile.widget_info?.app_id
+            widgetTag = userProfile.widget_info?.widget_tag
+
+            if (widgetTag !== requester.developer_info.tag) {
+                throw new BadRequestException("Widget tag is not valid in user jwt")
+            }
+        } else {
+            userProfile = await this.userService.getProfile(requester)
+            owner = userProfile.usernameShorted
+            appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
         }
 
-        if (appId) {
-            const appBindIp = await this.prisma.app_bind_ips.findFirst({
+        //check app id
+        if (!appId) {
+            throw new BadRequestException("App id is required")
+        }
+
+        const app = await this.prisma.apps.findUnique({
+            where: { app_id: appId },
+        })
+        if (!app) {
+            throw new BadRequestException("App not found")
+        }
+
+        const appBindIp = await this.prisma.app_bind_ips.findFirst({
+            where: {
+                app_id: appId,
+            },
+        })
+
+        if (!appBindIp) {
+            throw new BadRequestException("App bind ip not found")
+        }
+
+        const orderId = uuidv4()
+        let relatedRewardId = null
+        let rewardsModelSnapshot = null
+
+        if (order.reward_token) {
+            const pool = await this.rewardsPoolService.getPools({
+                token: order.reward_token,
+                page: "1",
+                page_size: "1",
+            })
+            if (!pool || pool.pools.length === 0) {
+                throw new BadRequestException("Rewards token not found")
+            }
+
+            const tokenIp = await this.prisma.ip_library.findFirst({
                 where: {
-                    app_id: appId,
+                    token_mint: order.reward_token,
                 },
             })
 
-            if (!appBindIp) {
-                throw new BadRequestException("App bind ip not found")
+            if (!tokenIp) {
+                throw new BadRequestException("Can not find ip info for this rewards token")
             }
 
-            if (order.reward_token) {
-                const pool = await this.rewardsPoolService.getPools({
-                    token: order.reward_token,
-                    page: "1",
-                    page_size: "1",
-                })
-                if (!pool || pool.pools.length === 0) {
-                    throw new BadRequestException("Rewards token not found")
-                }
+            const IpRelations = await this.prisma.ip_library_child.findFirst({
+                where: {
+                    ip_id: tokenIp.id,
+                },
+            })
 
-                const tokenIp = await this.prisma.ip_library.findFirst({
-                    where: {
-                        token_mint: order.reward_token,
-                    },
-                })
+            if (tokenIp.id !== appBindIp.ip_id && IpRelations?.parent_ip !== appBindIp.ip_id) {
+                throw new ForbiddenException("This ip is not allowed to be use in current app")
+            }
 
-                if (!tokenIp) {
-                    throw new BadRequestException("Can not find ip info for this rewards token")
-                }
-
-                const IpRelations = await this.prisma.ip_library_child.findFirst({
-                    where: {
-                        ip_id: tokenIp.id,
-                    },
-                })
-
-                if (tokenIp.id !== appBindIp.ip_id && IpRelations?.parent_ip !== appBindIp.ip_id) {
-                    throw new BadRequestException("This ip is not allowed to be use in current app")
-                }
-
-                relatedRewardId = pool.pools[0].id
-                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
-            } else {
-                const rewardPool = await this.rewardsPoolService.getPools({
-                    app_id: appId,
-                    page: "1",
-                    page_size: "1",
-                })
-                if (rewardPool && rewardPool.pools.length > 0) {
-                    relatedRewardId = rewardPool?.pools?.[0]?.id
-                    rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(
-                        rewardPool?.pools?.[0]?.token,
-                    )
-                }
+            relatedRewardId = pool.pools[0].id
+            rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
+        } else {
+            const rewardPool = await this.rewardsPoolService.getPools({
+                app_id: appId,
+                page: "1",
+                page_size: "1",
+            })
+            if (rewardPool && rewardPool.pools.length > 0) {
+                relatedRewardId = rewardPool?.pools?.[0]?.id
+                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
             }
         }
 
@@ -160,6 +190,9 @@ export class OrderService {
         const costsAllocation = order.costs_allocation || []
         let costSum = new Decimal(0)
         for (const cost of costsAllocation) {
+            if (!isDeveloperRequester) {
+                throw new ForbiddenException("You have no permission to provide costs allocation")
+            }
             if (!widgetTag) {
                 throw new BadRequestException("Widget tag is required when costs allocation is provided.")
             }
@@ -171,6 +204,25 @@ export class OrderService {
             //ensure platform has enough usdc revenue
             throw new BadRequestException(
                 "The total cost of the order is greater than or equal to the 90% of the amount of the order, please check the costs allocation",
+            )
+        }
+
+        //process ip-holder revenue re-allocation
+        const ipHolderRevenueReallocation = order.ip_holder_revenue_reallocation || []
+        if (ipHolderRevenueReallocation.length > 0 && !isDeveloperRequester) {
+            throw new ForbiddenException("You have no permission to provide ip holder revenue re-allocation")
+        }
+
+        let ipHolderRevenueReallocationPercent = new Decimal(0)
+        for (const reallocation of ipHolderRevenueReallocation) {
+            ipHolderRevenueReallocationPercent = ipHolderRevenueReallocationPercent.plus(
+                new Decimal(reallocation.percent),
+            )
+        }
+
+        if (ipHolderRevenueReallocationPercent.gt(100)) {
+            throw new BadRequestException(
+                "The total percent of the ip holder revenue re-allocation is greater than 100%",
             )
         }
 
@@ -187,6 +239,7 @@ export class OrderService {
                 related_reward_id: relatedRewardId,
                 rewards_model_snapshot: rewardsModelSnapshot as any,
                 costs_allocation: costsAllocation as any,
+                ip_holder_revenue_reallocation: ipHolderRevenueReallocation as any,
                 release_rewards_after_paid: order?.release_rewards_after_paid,
                 current_status: OrderStatus.PENDING,
                 supported_payment_method: OrderService.paymentMethod,
@@ -242,6 +295,8 @@ export class OrderService {
                 total_rewards: 0,
                 limit_offer: null,
             },
+            ip_holder_revenue_reallocation:
+                data.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[],
         }
 
         return { ...order, estimated_rewards: await this.mapEstimatedRewards(order) }
@@ -1109,6 +1164,19 @@ export class OrderService {
                     walletAddress = process.env.PLATFORM_WALLET
                 }
 
+                if (cost?.email) {
+                    const user = await this.prisma.users.findUnique({
+                        where: {
+                            email: cost.email,
+                        },
+                    })
+                    if (!user) {
+                        this.logger.error(`User ${cost.email} not found for order ${orderRecord.order_id}`)
+                        continue
+                    }
+                    walletAddress = user.wallet_address
+                }
+
                 const costAmount = new Decimal(cost.amount).div(100)
                 rewards.push({
                     order_id: orderRecord.order_id,
@@ -1182,7 +1250,7 @@ export class OrderService {
             if (reward.role === RewardAllocateRoles.PLATFORM) {
                 continue
             }
-            const rewardUSDAmount = this._calculateUSDCRewards(reward, orderAmount)
+            const rewardUSDAmount = this._calculateUSDCRewards(reward, orderAmount.plus(platformRewards))
             const rewardType = reward.allocate_type as unknown as RewardAllocateType
 
             const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
@@ -1193,24 +1261,67 @@ export class OrderService {
             )
             if (rewardType === RewardAllocateType.USDC) {
                 const currentDate = new Date()
-                rewards.push({
-                    order_id: orderRecord.order_id,
-                    user: user,
-                    role: actualAllocateRole,
-                    expected_role: expectedAllocateRole,
-                    token: process.env.GIGGLE_LEGAL_USDC,
-                    ticker: "usdc",
-                    wallet_address: address,
-                    rewards: rewardUSDAmount,
-                    start_allocate: currentDate,
-                    end_allocate: currentDate, //usdc is released immediately
-                    released_per_day: rewardUSDAmount,
-                    released_rewards: rewardUSDAmount,
-                    locked_rewards: 0,
-                    allocate_snapshot: modelSnapshot as any,
-                    withdraw_rewards: 0,
-                    note: note,
-                })
+                //process ip holder revenue re-allocation
+                let usdcRewards = rewardUSDAmount
+                if (actualAllocateRole === RewardAllocateRoles.IPHOLDER) {
+                    const ipHolderRevenueReallocation =
+                        orderRecord.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
+                    for (const reAllocation of ipHolderRevenueReallocation) {
+                        if (reAllocation.percent > 100 || reAllocation.percent < 1) {
+                            this.logger.error(
+                                `Ip holder revenue re-allocation percent is not valid for order ${orderRecord.order_id}`,
+                            )
+                            continue
+                        }
+                        const reAllocatedAmount = rewardUSDAmount.mul(new Decimal(reAllocation.percent)).div(100)
+                        const user = await this.prisma.users.findUnique({
+                            where: {
+                                email: reAllocation.email,
+                            },
+                        })
+                        if (!user) continue
+                        rewards.push({
+                            order_id: orderRecord.order_id,
+                            user: user.username_in_be,
+                            role: reAllocation.allocate_role,
+                            expected_role: reAllocation.allocate_role,
+                            token: process.env.GIGGLE_LEGAL_USDC,
+                            ticker: "usdc",
+                            wallet_address: user.wallet_address,
+                            rewards: reAllocatedAmount,
+                            start_allocate: currentDate,
+                            end_allocate: currentDate, //usdc is released immediately
+                            released_per_day: reAllocatedAmount,
+                            released_rewards: reAllocatedAmount,
+                            locked_rewards: 0,
+                            allocate_snapshot: modelSnapshot as any,
+                            withdraw_rewards: 0,
+                            note: `Allocated to ${user.username_in_be} ${reAllocation.percent}% of the ip holder revenue`,
+                        })
+                        usdcRewards = usdcRewards.minus(reAllocatedAmount)
+                    }
+                    usdcRewards = Decimal.max(usdcRewards, new Decimal(0))
+                }
+                if (usdcRewards.gt(0)) {
+                    rewards.push({
+                        order_id: orderRecord.order_id,
+                        user: user,
+                        role: actualAllocateRole,
+                        expected_role: expectedAllocateRole,
+                        token: process.env.GIGGLE_LEGAL_USDC,
+                        ticker: "usdc",
+                        wallet_address: address,
+                        rewards: usdcRewards,
+                        start_allocate: currentDate,
+                        end_allocate: currentDate, //usdc is released immediately
+                        released_per_day: usdcRewards,
+                        released_rewards: usdcRewards,
+                        locked_rewards: 0,
+                        allocate_snapshot: modelSnapshot as any,
+                        withdraw_rewards: 0,
+                        note: note,
+                    })
+                }
             } else {
                 let buybackNote = note
                 //we only allocate token to user not buyback
