@@ -687,22 +687,22 @@ export class OpenAppService {
         // Prepare email template context for admin
         const adminEmailContext = {
             subject: "New Creator Application",
-            full_name: requestData.full_name,
+            full_name: requestData.full_name || "",
             email: requestData.email,
             company: requestData.company || "",
             website: requestData.website || "",
             social_media: requestData.social_media || "",
-            description: requestData.description,
+            description: requestData.description || "",
         }
 
         await this.prisma.creator_applications.create({
             data: {
-                full_name: requestData.full_name,
+                full_name: requestData.full_name || "",
                 email: requestData.email,
                 company: requestData.company || "",
                 website: requestData.website || "",
                 social_media: requestData.social_media || "",
-                description: requestData.description,
+                description: requestData.description || "",
             },
         })
 
