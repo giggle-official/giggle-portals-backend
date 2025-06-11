@@ -318,11 +318,11 @@ export class OrderCostsAllocationDto {
 
 export class CreateOrderDto {
     @ApiProperty({
-        description: "The amount of the order, only accept integer, 100 means $1.00, min is 100($1.00)",
+        description: "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)",
     })
     @IsInt()
     @IsNotEmpty()
-    @Min(100)
+    @Min(1)
     amount: number
 
     @ApiProperty({

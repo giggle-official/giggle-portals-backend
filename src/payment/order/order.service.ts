@@ -228,6 +228,12 @@ export class OrderService {
 
         const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
 
+        //check if order amount is valid
+        let paymentMethod = OrderService.paymentMethod
+        if (order.amount < 100) {
+            paymentMethod = [PaymentMethod.WALLET]
+        }
+
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
@@ -242,7 +248,7 @@ export class OrderService {
                 ip_holder_revenue_reallocation: ipHolderRevenueReallocation as any,
                 release_rewards_after_paid: order?.release_rewards_after_paid,
                 current_status: OrderStatus.PENDING,
-                supported_payment_method: OrderService.paymentMethod,
+                supported_payment_method: paymentMethod,
                 redirect_url: order.redirect_url,
                 callback_url: order.callback_url,
                 expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
