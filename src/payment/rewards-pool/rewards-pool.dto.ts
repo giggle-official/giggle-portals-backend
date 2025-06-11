@@ -116,6 +116,9 @@ export class PoolResponseDto extends OmitType(Pool, [
 
     @ApiProperty({ description: "Owed amount of the pool" })
     owed_amount: number
+
+    @ApiProperty({ description: "Buyback burn ratio of the pool" })
+    buyback_burn_ratio: number
 }
 
 export class RewardAllocateRatio {
@@ -173,6 +176,13 @@ export class CreateRewardsPoolDto {
     @Type(() => LimitOffer)
     limit_offers?: LimitOffer[]
 
+    @ApiProperty({ description: "Buyback burn ratio of the pool", required: false })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(20)
+    buyback_burn_ratio?: number
+
     @ApiProperty({
         description: "Revenue ratio of the pool, all revenue will be allocated depends on this ratio",
         isArray: true,
@@ -222,7 +232,12 @@ export class CreateRewardsPoolDto {
     revenue_ratio: RewardAllocateRatio[]
 }
 
-export class UpdateRewardsPoolDto extends PickType(CreateRewardsPoolDto, ["revenue_ratio", "token", "limit_offers"]) {}
+export class UpdateRewardsPoolDto extends PickType(CreateRewardsPoolDto, [
+    "revenue_ratio",
+    "token",
+    "limit_offers",
+    "buyback_burn_ratio",
+]) {}
 
 export class InjectTokensDto {
     @ApiProperty({ description: "Token address" })

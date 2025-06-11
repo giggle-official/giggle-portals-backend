@@ -465,6 +465,45 @@ export class RewardPoolOnChainService {
         }
     }
 
+    //get buyback burn ratio
+    async getBuybackBurnRatio(token: string) {
+        const func = "/GetBurnRate"
+        const requestParams = {
+            createFiToken: token,
+            __authToken: this.authToken,
+        }
+        const response: AxiosResponse<RpcResponseDto<{ rate: number }>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        if (!response.data?.isSucc || response.data?.res?.rate === undefined) {
+            this.logger.error(
+                `GET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return 0
+        }
+        return Number(response.data.res.rate) / 100
+    }
+
+    //set buyback burn ratio
+    async setBuybackBurnRatio(token: string, rate: number): Promise<boolean> {
+        const func = "/SetBurnRate"
+        const requestParams = {
+            createFiToken: token,
+            rate: Math.round(rate * 100),
+            __authToken: this.authToken,
+        }
+        const response: AxiosResponse<RpcResponseDto<{}>> = await lastValueFrom(
+            this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
+        )
+        if (!response.data?.isSucc) {
+            this.logger.error(
+                `SET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            )
+            return false
+        }
+        return true
+    }
+
     //push current reward pool to chain
     @Cron(CronExpression.EVERY_MINUTE)
     async pushToChain() {

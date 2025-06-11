@@ -179,6 +179,11 @@ export class RewardsPoolService {
                     reward_pool_limit_offer: true,
                 },
             })
+
+            //update buyback burn ratio
+            if (!(await this.rewardPoolOnChainService.setBuybackBurnRatio(body.token, body.buyback_burn_ratio))) {
+                throw new BadRequestException("Failed to update buyback burn ratio")
+            }
             return this.mapToPoolData(poolUpdated)
         })
     }
@@ -764,8 +769,11 @@ ORDER BY d.date;`
     }
 
     async mapToPoolData(data: Pool & { reward_pool_limit_offer: reward_pool_limit_offer[] }): Promise<PoolResponseDto> {
+        //get buyback burn ratio
+        const buybackBurnRatio = await this.rewardPoolOnChainService.getBuybackBurnRatio(data.token)
         return {
             id: data.id,
+            buyback_burn_ratio: buybackBurnRatio,
             token: data.token,
             ticker: data.ticker,
             owner: data.owner,
