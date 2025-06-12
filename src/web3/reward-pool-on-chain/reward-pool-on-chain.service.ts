@@ -422,7 +422,7 @@ export class RewardPoolOnChainService {
         if (!response.data?.isSucc || !response.data?.res?.arr) {
             throw new BadRequestException("Get buyback record failed")
         }
-        return response.data.res.arr
+        return response.data.res.arr.filter((r) => r.status === 2)
     }
 
     //airdrop statement to chain
