@@ -116,7 +116,7 @@ export class UserService {
             can_create_ip: !!userInfo.can_create_ip,
         }
 
-        const user = await this.prisma.users.create({
+        await this.prisma.users.create({
             data: data,
         })
 
@@ -885,7 +885,6 @@ Message: ${contactInfo.message}
         }
 
         let inviteUser = ""
-        let canCreateIp = false
         if (userInfo.invite_code) {
             const iUser = await this.prisma.users.findFirst({
                 where: {
@@ -893,7 +892,6 @@ Message: ${contactInfo.message}
                 },
             })
             inviteUser = iUser?.username_in_be
-            canCreateIp = iUser?.can_create_ip || false
         }
 
         let user = await this.getUserInfoByEmail(userInfo.email)
@@ -910,7 +908,7 @@ Message: ${contactInfo.message}
                 app_id: appId,
                 from_source_link: "",
                 from_device_id: deviceId,
-                can_create_ip: canCreateIp,
+                can_create_ip: inviteUser ? true : false,
                 invited_by: inviteUser,
             }
             if (deviceId) {
@@ -940,7 +938,7 @@ Message: ${contactInfo.message}
                 username_in_be: user.usernameShorted,
             },
             data: {
-                can_create_ip: userRecord.can_create_ip === false && canCreateIp ? true : userRecord.can_create_ip,
+                can_create_ip: inviteUser ? true : userRecord.can_create_ip,
                 login_code: code,
                 login_code_requested_at: new Date(),
                 login_code_expired: new Date(Date.now() + 1000 * 60 * 5), //5 minutes

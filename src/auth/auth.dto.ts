@@ -61,3 +61,10 @@ export class LoginWithCodeReqDto {
     @IsString()
     code: string
 }
+
+export class GoogleLoginConfigDto {
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    code: string
+}

@@ -1,11 +1,10 @@
-import { Controller, Get, Post, HttpCode, HttpStatus, UseGuards, Req, Res, Body } from "@nestjs/common"
+import { Controller, Get, Post, HttpCode, HttpStatus, UseGuards, Req, Body, Headers } from "@nestjs/common"
 import { ApiResponse, ApiBody, ApiOperation, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger"
-import { LoginDTO, EmailLoginDto, UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
+import { LoginDTO, EmailLoginDto, UserJwtExtractDto } from "src/user/user.controller"
 import { AuthService } from "./auth.service"
 import { AuthGuard } from "@nestjs/passport"
-import { Request, Response } from "express"
-import { AppTokenDto, EmailConfirmationDto, LoginResponseDTO, LoginWithCodeReqDto } from "./auth.dto"
-import { BypassInterceptor } from "src/common/bypass-interceptor.decorator"
+import { Request } from "express"
+import { EmailConfirmationDto, GoogleLoginConfigDto, LoginResponseDTO, LoginWithCodeReqDto } from "./auth.dto"
 
 @ApiTags("Auth")
 @Controller({ path: "api/v1/auth" })
@@ -53,31 +52,22 @@ export class AuthController {
     */
 
     @ApiExcludeEndpoint()
-    @Get("google/login")
-    @BypassInterceptor()
-    async googleLogin(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        res.cookie("redirectUrl", req.query.redirect_to || "/")
-        return res.redirect(process.env.FRONTEND_URL + "/api/v1/auth/google")
+    @Get("/google/get-config")
+    async googleLogin() {
+        return {
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+        }
     }
 
     @ApiExcludeEndpoint()
-    @Get("google")
-    @UseGuards(AuthGuard("google"))
-    async googleAuth(@Req() req: Request) {}
-
-    @ApiExcludeEndpoint()
-    @Get("google/callback")
-    @UseGuards(AuthGuard("google"))
-    @BypassInterceptor()
-    async googleAuthRedirect(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        const loginResponse = await this.authService.login(req.user as UserJwtExtractDto)
-        let to = process.env.FRONTEND_URL + "/user/login?token=" + loginResponse.access_token
-        if (req.cookies.redirectUrl && req.cookies.redirectUrl !== "null") {
-            const redirectUrl = req.cookies.redirectUrl
-            res.clearCookie("redirectUrl")
-            to += "&redirect_to=" + redirectUrl
-        }
-        return res.redirect(to)
+    @Post("/google/exchange-code")
+    async googleAuth(
+        @Body() body: GoogleLoginConfigDto,
+        @Headers("app-id") app_id: string,
+        @Headers("x-device-id") device_id: string,
+    ) {
+        return await this.authService.exchangeCode(body.code, app_id, device_id)
     }
 
     @ApiExcludeEndpoint()

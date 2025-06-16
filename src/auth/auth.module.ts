@@ -11,6 +11,9 @@ import { PassportModule } from "@nestjs/passport"
 import { AppStrategy } from "./app.strategy"
 import { CodeStrategy } from "./code.strategy"
 import { NotificationModule } from "src/notification/notification.module"
+import { HttpModule } from "@nestjs/axios"
+import { OpenAppModule } from "src/open-app/open-app.module"
+
 @Module({
     imports: [
         forwardRef(() => UserModule),
@@ -20,6 +23,8 @@ import { NotificationModule } from "src/notification/notification.module"
             secret: process.env.SESSION_SECRET,
             signOptions: { expiresIn: "7d" },
         }),
+        HttpModule,
+        OpenAppModule,
     ],
     controllers: [AuthController],
     providers: [AuthService, PrismaService, GoogleStrategy, JwtStrategy, LocalStrategy, AppStrategy, CodeStrategy],
