@@ -26,31 +26,6 @@ export class AuthController {
         return await this.authService.login(req.user as UserJwtExtractDto)
     }
 
-    /*
-    @ApiExcludeEndpoint()
-    @Post("/app-token")
-    @ApiBody({
-        type: AppTokenDto,
-    })
-    @ApiResponse({
-        status: 200,
-        type: LoginDTO,
-    })
-    @ApiOperation({
-        summary: "Get a token for app user",
-        deprecated: true,
-        description: `
-        This api only use for app user, to get app id and app secret, please [contact us](https://3bodylabs.ai/contact-us).
-        
-        `,
-    })
-    @UseGuards(AuthGuard("app"))
-    @HttpCode(HttpStatus.OK)
-    async loginWithAppToken(@Req() req: Request) {
-        return {}
-    }
-    */
-
     @ApiExcludeEndpoint()
     @Get("/google/get-config")
     async googleLogin() {
