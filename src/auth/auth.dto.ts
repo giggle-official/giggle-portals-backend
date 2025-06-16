@@ -67,4 +67,9 @@ export class GoogleLoginConfigDto {
     @IsString()
     @IsNotEmpty()
     code: string
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
+    invite_code?: string
 }

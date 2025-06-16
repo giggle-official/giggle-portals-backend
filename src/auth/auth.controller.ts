@@ -42,7 +42,7 @@ export class AuthController {
         @Headers("app-id") app_id: string,
         @Headers("x-device-id") device_id: string,
     ) {
-        return await this.authService.exchangeCode(body.code, app_id, device_id)
+        return await this.authService.exchangeCode(body.code, app_id, device_id, body.invite_code)
     }
 
     @ApiExcludeEndpoint()

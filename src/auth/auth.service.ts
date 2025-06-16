@@ -108,7 +108,7 @@ export class AuthService {
         return {}
     }
 
-    async exchangeCode(code: string, app_id: string, device_id: string) {
+    async exchangeCode(code: string, app_id: string, device_id: string, invite_code?: string) {
         try {
             const tokenResponse = await lastValueFrom(
                 this.googleLoginhttpService.post(
@@ -156,6 +156,16 @@ export class AuthService {
 
             const userInfo = userResponse.data
 
+            let invited_by = ""
+            if (invite_code) {
+                const inviteUser = await this.prismaService.users.findFirst({
+                    where: {
+                        invite_code: invite_code,
+                    },
+                })
+                invited_by = inviteUser?.username_in_be || ""
+            }
+
             let user = await this.prismaService.users.findFirst({
                 where: {
                     email: userInfo.email,
@@ -173,8 +183,8 @@ export class AuthService {
                     app_id: app_id,
                     from_source_link: "",
                     from_device_id: device_id,
-                    can_create_ip: false,
-                    invited_by: "",
+                    can_create_ip: invited_by ? true : false,
+                    invited_by: invited_by,
                 }
                 if (device_id) {
                     //update register source link
@@ -185,6 +195,18 @@ export class AuthService {
                 user = await this.prismaService.users.findUnique({
                     where: {
                         username_in_be: createdUser.usernameShorted,
+                    },
+                })
+            }
+
+            //we need to update the can_create_ip to true if the user is invited by someone
+            if (!user.can_create_ip && invited_by) {
+                await this.prismaService.users.update({
+                    where: {
+                        username_in_be: user.username_in_be,
+                    },
+                    data: {
+                        can_create_ip: true,
                     },
                 })
             }
