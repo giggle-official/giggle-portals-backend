@@ -210,14 +210,15 @@ export class RewardsPoolService {
             user,
         )
 
-        const newBalance = poolExists.current_balance.plus(body.append_amount)
         const newInjectedAmount = poolExists.injected_amount.plus(body.append_amount)
         return await this.prisma.$transaction(async (tx) => {
             const poolUpdated = await tx.reward_pools.update({
                 where: { token: body.token },
                 data: {
                     injected_amount: newInjectedAmount,
-                    current_balance: newBalance,
+                    current_balance: {
+                        increment: body.append_amount,
+                    },
                 },
                 include: {
                     reward_pool_limit_offer: true,
@@ -228,7 +229,7 @@ export class RewardsPoolService {
                     token: body.token,
                     amount: body.append_amount,
                     type: "injected",
-                    current_balance: newBalance,
+                    current_balance: poolUpdated.current_balance,
                     chain_transaction: transaction as any,
                 },
             })
@@ -626,16 +627,20 @@ ORDER BY d.date;`
             throw new BadRequestException("Insufficient balance")
         }
 
-        const newBalance = rewardsPools.current_balance.minus(amount)
         const releasePerDay = amount.div(180)
         const currentDate = new Date(Date.now())
         const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
 
         const { statement, userRewards } = await this.prisma.$transaction(async (tx) => {
-            await tx.reward_pools.update({
+            const newPoolInfo = await tx.reward_pools.update({
                 where: { token: body.token },
-                data: { current_balance: newBalance },
+                data: {
+                    current_balance: {
+                        decrement: amount,
+                    },
+                },
             })
+
             const statement = await tx.reward_pool_statement.create({
                 data: {
                     token: body.token,
@@ -643,7 +648,7 @@ ORDER BY d.date;`
                     type: "airdrop",
                     widget_tag: user.developer_info.tag,
                     airdrop_type: body.type,
-                    current_balance: newBalance,
+                    current_balance: newPoolInfo.current_balance,
                 },
                 include: {
                     order_info: true,

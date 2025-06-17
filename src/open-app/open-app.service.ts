@@ -247,7 +247,7 @@ export class OpenAppService {
 
         const app_id = crypto.randomBytes(16).toString("hex")
         const app_secret = crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex")
-        return await this.prisma.$transaction(async (tx) => {
+        const appCreated = await this.prisma.$transaction(async (tx) => {
             const app = await tx.apps.create({
                 data: {
                     app_id: app_id,
@@ -321,6 +321,9 @@ export class OpenAppService {
             )
             return app
         })
+        //notify to giggle.pro
+
+        return appCreated
     }
 
     async previewApp(

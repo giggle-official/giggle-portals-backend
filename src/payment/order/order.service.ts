@@ -1415,9 +1415,6 @@ export class OrderService {
         if (rewardPool.current_balance.lt(allocatedTokenAmount)) {
             throw new BadRequestException("Reward pool balance is not enough")
         }
-        const newPoolBalance = rewardPool.current_balance.minus(allocatedTokenAmount)
-        const newRewardedAmount = rewardPool.rewarded_amount.plus(allocatedTokenAmount)
-
         //create rewards for the order
         await this.prisma.$transaction(async (tx) => {
             await tx.orders.update({
@@ -1426,10 +1423,14 @@ export class OrderService {
                     current_status: OrderStatus.REWARDS_RELEASED,
                 },
             })
-            await tx.reward_pools.update({
+            const newPoolInfo = await tx.reward_pools.update({
                 data: {
-                    current_balance: newPoolBalance,
-                    rewarded_amount: newRewardedAmount,
+                    current_balance: {
+                        decrement: allocatedTokenAmount,
+                    },
+                    rewarded_amount: {
+                        increment: allocatedTokenAmount,
+                    },
                 },
                 where: {
                     id: rewardPool.id,
@@ -1444,7 +1445,7 @@ export class OrderService {
                     unit_price: modelSnapshot.unit_price,
                     related_order_id: orderRecord.order_id,
                     type: "released",
-                    current_balance: newPoolBalance,
+                    current_balance: newPoolInfo.current_balance,
                 },
             })
             await tx.user_rewards.createMany({

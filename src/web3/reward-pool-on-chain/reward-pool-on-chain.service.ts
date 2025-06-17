@@ -1182,11 +1182,20 @@ export class RewardPoolOnChainService {
                         token: reward_pool.token,
                     },
                 })
-                let currentBalance = poolInfo.current_balance
                 for (const record of buybackRecord) {
                     await this.prisma.$transaction(async (tx) => {
                         const buyAmount = new Decimal(record.number).div(10 ** 6)
-                        currentBalance = currentBalance.plus(buyAmount)
+                        const newPoolInfo = await tx.reward_pools.update({
+                            where: {
+                                token: reward_pool.token,
+                            },
+                            data: {
+                                current_balance: {
+                                    increment: buyAmount,
+                                },
+                            },
+                        })
+
                         await tx.reward_pool_statement.create({
                             data: {
                                 token: reward_pool.token,
@@ -1196,18 +1205,11 @@ export class RewardPoolOnChainService {
                                 chain_transaction: {
                                     signature: record.sig,
                                 },
-                                current_balance: currentBalance,
+                                current_balance: newPoolInfo.current_balance,
                             },
                         })
                     })
                 }
-                //update current balance
-                await this.prisma.reward_pools.update({
-                    where: {
-                        token: reward_pool.token,
-                    },
-                    data: { current_balance: currentBalance },
-                })
             } catch (error) {
                 this.logger.error(`Get buyback record failed: ${error}`)
                 continue
