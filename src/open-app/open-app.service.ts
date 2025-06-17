@@ -340,7 +340,7 @@ export class OpenAppService {
                 const data = {
                     event: "widget.bind",
                     env: process.env.ENV || "local",
-                    mint: ip.token_mint,
+                    mint: ip.token_mint || "",
                     ipId: ip.id,
                     widgetAppId: app_id,
                     appJumpUrl: `${process.env.FRONTEND_URL}/embed/${app_id}`,
