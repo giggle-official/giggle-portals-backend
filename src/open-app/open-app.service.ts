@@ -332,7 +332,11 @@ export class OpenAppService {
         //notify to giggle.pro
         try {
             const notifyUrl = process.env.IP_STATUS_NOTIFY_ENDPOINT
-            if (notifyUrl) {
+            if (
+                notifyUrl &&
+                !widgetDetail.is_developing && // not notify developing widget
+                !widgetDetail.is_private // not notify private widget
+            ) {
                 const data = {
                     event: "widget.bind",
                     env: process.env.ENV || "local",
@@ -585,6 +589,9 @@ export class OpenAppService {
 
         const appBindWidgets = await this.prisma.app_bind_widgets.findMany({
             where: { app_id: deleteData.app_id },
+            include: {
+                widget_detail: true,
+            },
         })
 
         await this.prisma.$transaction(async (tx) => {
@@ -608,7 +615,13 @@ export class OpenAppService {
                     env: process.env.ENV || "local",
                     ipId: appBindIps?.[0]?.ip_id,
                     tag: appBindWidgets
-                        .filter((item) => item.enabled && item.widget_tag !== "login_from_external")
+                        .filter(
+                            (item) =>
+                                item.enabled && // not notify disabled widget
+                                item.widget_tag !== "login_from_external" && // not notify login widget
+                                !item.widget_detail.is_developing && // not notify developing widget
+                                !item.widget_detail.is_private, // not notify private widget
+                        )
                         .map((item) => item.widget_tag),
                 }
                 const signedParams = this.giggleService.generateSignature(data)

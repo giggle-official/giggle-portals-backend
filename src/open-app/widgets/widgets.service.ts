@@ -19,7 +19,7 @@ import {
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
     UpdateWidgetDto,
-    WidgetBindAppInfoDto,
+    WidgetBindAppDto,
     WidgetConfigDto,
     WidgetDetailDto,
     WidgetSettingsDto,
@@ -143,6 +143,11 @@ export class WidgetsService {
         const widget = await this.prisma.widgets.findUnique({
             where: { tag, is_private: false, OR: [{ is_developing: false }, { demo_url: { not: null } }] },
             include: {
+                app_bind_widgets: {
+                    where: {
+                        enabled: true,
+                    },
+                },
                 _count: {
                     select: { user_subscribed_widgets: true },
                 },
@@ -157,10 +162,12 @@ export class WidgetsService {
         if (!widget) {
             throw new NotFoundException("Widget not found")
         }
-
-        const subscribedWidgets = await this.prisma.user_subscribed_widgets.findFirst({
-            where: { user: user.usernameShorted, widget_tag: widget.tag },
-        })
+        let subscribedWidgets: user_subscribed_widgets | null = null
+        if (user) {
+            subscribedWidgets = await this.prisma.user_subscribed_widgets.findFirst({
+                where: { user: user.usernameShorted, widget_tag: widget.tag },
+            })
+        }
 
         return this.mapToDetailResponse(widget, subscribedWidgets)
     }
@@ -349,10 +356,29 @@ export class WidgetsService {
     async mapToDetailResponse(
         widget: widgets & {
             _count: { user_subscribed_widgets: number }
+            app_bind_widgets: app_bind_widgets[]
             author_info: { username: string; avatar: string }
         },
         subscribedWidgets: user_subscribed_widgets,
     ): Promise<WidgetDetailDto> {
+        let bindApps: WidgetBindAppDto[] = []
+        const appBindIps = widget.app_bind_widgets.map((appBind) => {
+            return appBind.app_id
+        })
+        const ips = await this.prisma.app_bind_ips.findMany({
+            where: {
+                app_id: {
+                    in: appBindIps,
+                },
+                is_temp: false,
+            },
+        })
+        widget.app_bind_widgets.map((appBind) => {
+            bindApps.push({
+                app_id: appBind.app_id,
+                ip_id: ips.find((ip) => ip.app_id === appBind.app_id)?.ip_id,
+            })
+        })
         return {
             tag: widget.tag,
             name: widget.name,
@@ -380,6 +406,7 @@ export class WidgetsService {
             demo_url: widget.demo_url,
             test_users: widget.test_users as string[],
             subscribed_detail: subscribedWidgets,
+            bind_apps: bindApps,
         }
     }
 

@@ -585,6 +585,31 @@ export class IpSignatureClipDto {
     asset_id: number
 }
 
+export class AppBindWidgetDto {
+    @ApiProperty({
+        description: "tag of the widget",
+    })
+    tag: string
+
+    @ApiProperty({
+        description: "name of the widget",
+    })
+    name: string
+}
+
+export class IpBindAppsDto {
+    @ApiProperty({
+        description: "id of the app",
+    })
+    app_id: string
+
+    @ApiProperty({
+        description: "bind widget of the app",
+        type: () => [AppBindWidgetDto],
+    })
+    bind_widgets: AppBindWidgetDto[]
+}
+
 export class IpSummaryDto {
     @ApiProperty({
         description: "id of the ip library",
@@ -720,6 +745,12 @@ export class IpSummaryDto {
         description: "authorization settings of the ip library",
     })
     authorization_settings: AuthorizationSettingsDto
+
+    @ApiProperty({
+        description: "apps of the ip library",
+        type: () => [IpBindAppsDto],
+    })
+    apps: IpBindAppsDto[]
 }
 export type OnchainStatusDto = ip_library_on_chain_status
 

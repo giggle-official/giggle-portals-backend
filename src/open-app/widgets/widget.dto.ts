@@ -219,8 +219,18 @@ export class MyWidgetsSummaryDto extends WidgetSummaryDto {
     @ApiProperty({ description: "widget bind app info", type: () => WidgetBindAppInfoDto, required: false })
     app_info: WidgetBindAppInfoDto | null
 }
+export class WidgetBindAppDto {
+    @ApiProperty({ description: "app id" })
+    app_id: string
+
+    @ApiProperty({ description: "ip id" })
+    ip_id: number
+}
 
 export class WidgetDetailDto extends WidgetSummaryDto {
+    @ApiProperty({ description: "widget bind app info", type: () => [WidgetBindAppDto] })
+    bind_apps: WidgetBindAppDto[]
+
     @ApiProperty({ description: "widget created at" })
     created_at: Date
     @ApiProperty({ description: "widget updated at" })
