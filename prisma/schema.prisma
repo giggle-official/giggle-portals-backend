@@ -1095,6 +1095,17 @@ model launch_agents {
   ip_library           ip_library[]
 }
 
+model event_notify {
+  id         Int       @id @default(autoincrement())
+  url        String?   @db.VarChar(1024)
+  event      String?   @db.VarChar(64)
+  data       Json?
+  res        Json?
+  res_code   Int?
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?

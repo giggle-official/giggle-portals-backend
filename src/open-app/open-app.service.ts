@@ -25,11 +25,10 @@ import {
     RequestCreatorResponseDto,
     TopIpSummaryDto,
     UpdateAppDto,
-    UploadIconDto,
 } from "./open-app.dto"
 import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
-import { ip_library, Prisma } from "@prisma/client"
+import { ip_library } from "@prisma/client"
 import { AuthService } from "src/auth/auth.service"
 import * as crypto from "crypto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
@@ -43,6 +42,7 @@ import { WidgetConfigDto } from "./widgets/widget.dto"
 import { IpLibraryDetailDto } from "src/ip-library/ip-library.dto"
 import { WidgetsService } from "./widgets/widgets.service"
 import { UtilitiesService } from "src/common/utilities.service"
+import { EventsNotifyService } from "src/notification/events-notify/events-notify.service"
 
 @Injectable()
 export class OpenAppService {
@@ -64,6 +64,12 @@ export class OpenAppService {
 
         @Inject(forwardRef(() => NotificationService))
         private readonly notificationService: NotificationService,
+
+        @Inject(forwardRef(() => EventsNotifyService))
+        private readonly eventsNotifyService: EventsNotifyService,
+
+        @Inject(forwardRef(() => GiggleService))
+        private readonly giggleService: GiggleService,
     ) {}
 
     async getAppDetail(appId: string, userToken: string): Promise<AppInfoDto> {
@@ -247,6 +253,21 @@ export class OpenAppService {
 
         const app_id = crypto.randomBytes(16).toString("hex")
         const app_secret = crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex")
+
+        //now we only support every app bind one widget
+        if (createData.widgets.length !== 1) {
+            throw new BadRequestException("Only one widget is supported for now")
+        }
+
+        const widget = createData.widgets[0]
+        const widgetDetail = await this.prisma.widgets.findUnique({
+            where: { tag: widget.tag },
+        })
+        if (!widgetDetail) {
+            this.logger.error(`user: ${userInfo.usernameShorted} widget: ${widget.tag} not found, ignore it`)
+            throw new BadRequestException("Widget not found")
+        }
+
         const appCreated = await this.prisma.$transaction(async (tx) => {
             const app = await tx.apps.create({
                 data: {
@@ -279,49 +300,58 @@ export class OpenAppService {
                 },
             })
 
-            //process widgets
-            await Promise.all(
-                createData.widgets.map(async (widget) => {
-                    const widgetDetail = await this.prisma.widgets.findUnique({
-                        where: { tag: widget.tag },
-                    })
-                    if (!widgetDetail) {
-                        this.logger.error(
-                            `user: ${userInfo.usernameShorted} widget: ${widget.tag} not found, ignore it`,
-                        )
-                        return
-                    }
-                    const subscription = await this.prisma.user_subscribed_widgets.findFirst({
-                        where: { user: userInfo.usernameShorted, widget_tag: widget.tag },
-                    })
-                    if (!subscription) {
-                        // not subscribed, ignore it
-                        this.logger.error(
-                            `user: ${userInfo.usernameShorted} not subscribed to widget: ${widget.tag}, ignore it`,
-                        )
-                        return
-                    }
+            const subscription = await this.prisma.user_subscribed_widgets.findFirst({
+                where: { user: userInfo.usernameShorted, widget_tag: widget.tag },
+            })
+            if (!subscription) {
+                // not subscribed, reject it
+                this.logger.error(
+                    `user: ${userInfo.usernameShorted} not subscribed to widget: ${widget.tag}, reject it`,
+                )
+                throw new BadRequestException("you are not subscribed to this widget")
+            }
 
-                    const widgetConfigs = {
-                        public: subscription.public_config,
-                        private: subscription.private_config,
-                    }
+            const widgetConfigs = {
+                public: subscription.public_config,
+                private: subscription.private_config,
+            }
 
-                    await this.prisma.app_bind_widgets.create({
-                        data: {
-                            app_id: app_id,
-                            widget_tag: widget.tag,
-                            widget_configs: widgetConfigs,
-                            subscription_id: subscription.id,
-                            enabled: widget.enabled,
-                            order: widget.order || 999,
-                        },
-                    })
-                }),
-            )
+            await this.prisma.app_bind_widgets.create({
+                data: {
+                    app_id: app_id,
+                    widget_tag: widget.tag,
+                    widget_configs: widgetConfigs,
+                    subscription_id: subscription.id,
+                    enabled: widget.enabled,
+                    order: widget.order || 999,
+                },
+            })
+
             return app
         })
         //notify to giggle.pro
+        try {
+            const notifyUrl = process.env.IP_STATUS_NOTIFY_ENDPOINT
+            if (notifyUrl) {
+                const data = {
+                    event: "widget.bind",
+                    env: process.env.ENV || "local",
+                    mint: ip.token_mint,
+                    ipId: ip.id,
+                    widgetAppId: app_id,
+                    appJumpUrl: `${process.env.FRONTEND_URL}/embed/${app_id}`,
+                    widgetName: widgetDetail.name,
+                    widgetType: widgetDetail.category,
+                    tag: widgetDetail.tag,
+                }
+                const signedParams = this.giggleService.generateSignature(data)
+                await this.eventsNotifyService.sendEvent(notifyUrl, signedParams)
+            } else {
+                this.logger.warn("IP_STATUS_NOTIFY_ENDPOINT is not set, skip notify")
+            }
+        } catch (error) {
+            this.logger.error(`notify to giggle.pro failed: ${error}`)
+        }
 
         return appCreated
     }
@@ -548,6 +578,15 @@ export class OpenAppService {
         if (!app) {
             throw new NotFoundException("App not found")
         }
+
+        const appBindIps = await this.prisma.app_bind_ips.findMany({
+            where: { app_id: deleteData.app_id },
+        })
+
+        const appBindWidgets = await this.prisma.app_bind_widgets.findMany({
+            where: { app_id: deleteData.app_id },
+        })
+
         await this.prisma.$transaction(async (tx) => {
             await tx.apps.delete({
                 where: { app_id: deleteData.app_id },
@@ -559,6 +598,27 @@ export class OpenAppService {
                 where: { app_id: deleteData.app_id },
             })
         })
+
+        try {
+            //notify to giggle.pro
+            const notifyUrl = process.env.IP_STATUS_NOTIFY_ENDPOINT
+            if (notifyUrl) {
+                const data = {
+                    event: "widget.unbind",
+                    env: process.env.ENV || "local",
+                    ipId: appBindIps?.[0]?.ip_id,
+                    tag: appBindWidgets
+                        .filter((item) => item.enabled && item.widget_tag !== "login_from_external")
+                        .map((item) => item.widget_tag),
+                }
+                const signedParams = this.giggleService.generateSignature(data)
+                await this.eventsNotifyService.sendEvent(notifyUrl, signedParams)
+            } else {
+                this.logger.warn("IP_STATUS_NOTIFY_ENDPOINT is not set, skip notify")
+            }
+        } catch (error) {
+            this.logger.error(`notify to giggle.pro failed: ${error}`)
+        }
         return {
             success: true,
         }
