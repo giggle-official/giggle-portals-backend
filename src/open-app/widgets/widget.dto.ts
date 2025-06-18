@@ -5,6 +5,7 @@ import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
 import { JwtPermissions, ROLES } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 import { AppInfoDto } from "../open-app.dto"
+import { PaginationDto } from "src/common/common.dto"
 
 export class WidgetSettingsDto {
     @ApiProperty({ description: "widget tag" })
@@ -176,6 +177,52 @@ export class AuthorInfoDto {
     avatar: string
 }
 
+export class WidgetIpInfoDto {
+    @ApiProperty({ description: "ip name" })
+    name: string
+
+    @ApiProperty({ description: "ip ticker" })
+    ticker: string
+
+    @ApiProperty({ description: "ip mint" })
+    mint: string
+
+    @ApiProperty({ description: "ip market cap" })
+    market_cap: string
+
+    @ApiProperty({ description: "ip trade volume" })
+    trade_volume: string
+
+    @ApiProperty({ description: "ip price" })
+    price: string
+
+    @ApiProperty({ description: "ip cover" })
+    cover: string
+
+    @ApiProperty({ description: "ip price change 5m" })
+    change_5m: string
+
+    @ApiProperty({ description: "ip price change 1h" })
+    change_1h: string
+
+    @ApiProperty({ description: "ip price change 1d" })
+    change_1d: string
+
+    @ApiProperty({ description: "ip child ips", type: () => [WidgetIpInfoDto], required: false })
+    child_ips?: WidgetIpInfoDto[]
+}
+
+export class WidgetBindAppDto {
+    @ApiProperty({ description: "app id" })
+    app_id: string
+
+    @ApiProperty({ description: "ip id" })
+    ip_id: number
+
+    @ApiProperty({ description: "ip summary", type: () => WidgetIpInfoDto })
+    ip_info: WidgetIpInfoDto
+}
+
 export class WidgetSummaryDto extends PickType(WidgetDto, [
     "tag",
     "name",
@@ -205,9 +252,20 @@ export class WidgetSummaryDto extends PickType(WidgetDto, [
 
     @ApiProperty({ description: "widget subscribed detail" })
     subscribed_detail: UserWidgetSubscribedResponseDto
+
+    @ApiProperty({ description: "widget bind app info", type: () => [WidgetBindAppDto] })
+    bind_apps: WidgetBindAppDto[]
 }
 
-export class WidgetBindAppInfoDto {
+export class WidgetListResponseDto {
+    @ApiProperty({ description: "total records" })
+    total: number
+
+    @ApiProperty({ description: "widgets", type: () => [WidgetSummaryDto] })
+    widgets: WidgetSummaryDto[]
+}
+
+export class MyWidgetsBindAppInfoDto {
     @ApiProperty({ description: "app id" })
     app_id: string
 
@@ -215,24 +273,23 @@ export class WidgetBindAppInfoDto {
     sub_domain: string
 }
 
-export class MyWidgetsSummaryDto extends WidgetSummaryDto {
-    @ApiProperty({ description: "widget bind app info", type: () => WidgetBindAppInfoDto, required: false })
-    app_info: WidgetBindAppInfoDto | null
+export class MyWidgetsSummaryDto extends OmitType(WidgetSummaryDto, ["bind_apps"]) {
+    @ApiProperty({ description: "widget bind app info", type: () => MyWidgetsBindAppInfoDto, required: false })
+    app_info: MyWidgetsBindAppInfoDto | null
 }
-export class WidgetBindAppDto {
-    @ApiProperty({ description: "app id" })
-    app_id: string
 
-    @ApiProperty({ description: "ip id" })
-    ip_id: number
+export class MyWidgetsListResponseDto {
+    @ApiProperty({ description: "total records" })
+    total: number
+
+    @ApiProperty({ description: "widgets", type: () => [MyWidgetsSummaryDto] })
+    widgets: MyWidgetsSummaryDto[]
 }
 
 export class WidgetDetailDto extends WidgetSummaryDto {
-    @ApiProperty({ description: "widget bind app info", type: () => [WidgetBindAppDto] })
-    bind_apps: WidgetBindAppDto[]
-
     @ApiProperty({ description: "widget created at" })
     created_at: Date
+
     @ApiProperty({ description: "widget updated at" })
     updated_at: Date
 
@@ -290,14 +347,14 @@ export class UnbindWidgetConfigFromAppsDto extends PickType(WidgetDto, ["tag"]) 
     app_id: string
 }
 
-export class GetWidgetsRequestDto {
+export class GetWidgetsRequestDto extends PaginationDto {
     @ApiProperty({ description: "category", required: false })
     category?: string
 
-    @ApiProperty({ description: "limit", required: false })
-    limit?: number
+    @ApiProperty({ description: "include tags, use comma to separate", required: false })
+    include?: string
 
-    @ApiProperty({ description: "exclude tags", required: false })
+    @ApiProperty({ description: "exclude tags, use comma to separate", required: false })
     exclude?: string
 
     @ApiProperty({ description: "type", required: false, enum: ["iframe", "system"] })

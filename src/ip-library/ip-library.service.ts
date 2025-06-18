@@ -2304,6 +2304,8 @@ export class IpLibraryService {
                     tag: {
                         not: "login_from_external",
                     },
+                    is_private: false,
+                    is_developing: false,
                 },
             },
             include: {

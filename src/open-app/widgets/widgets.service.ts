@@ -14,7 +14,7 @@ import {
     GetAccessTokenDto,
     GetAccessTokenResponseDto,
     GetWidgetsRequestDto,
-    MyWidgetsSummaryDto,
+    MyWidgetsListResponseDto,
     SubscribeWidgetDto,
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
@@ -22,6 +22,8 @@ import {
     WidgetBindAppDto,
     WidgetConfigDto,
     WidgetDetailDto,
+    WidgetIpInfoDto,
+    WidgetListResponseDto,
     WidgetSettingsDto,
     WidgetSummaryDto,
 } from "./widget.dto"
@@ -87,7 +89,7 @@ export class WidgetsService {
         })
     }
 
-    async getWidgets(query: GetWidgetsRequestDto, user?: UserJwtExtractDto): Promise<WidgetSummaryDto[]> {
+    async getWidgets(query: GetWidgetsRequestDto, user?: UserJwtExtractDto): Promise<WidgetListResponseDto> {
         const where: Prisma.widgetsWhereInput = {
             OR: [
                 { is_developing: false },
@@ -106,7 +108,9 @@ export class WidgetsService {
             where.tag = { notIn: query.exclude.split(",") }
         }
 
-        const limit = parseInt(query?.limit?.toString() || "999")
+        if (query.include) {
+            where.tag = { in: query.include.split(",") }
+        }
 
         const widgets = await this.prisma.widgets.findMany({
             where,
@@ -116,6 +120,11 @@ export class WidgetsService {
                         user_subscribed_widgets: true,
                     },
                 },
+                app_bind_widgets: {
+                    where: {
+                        enabled: true,
+                    },
+                },
                 author_info: {
                     select: {
                         username: true,
@@ -123,10 +132,15 @@ export class WidgetsService {
                     },
                 },
             },
-            take: limit,
+            skip: (parseInt(query.page) - 1) * parseInt(query.page_size),
+            take: parseInt(query.page_size),
             orderBy: {
                 priority: "desc",
             },
+        })
+
+        const widgetsCount = await this.prisma.widgets.count({
+            where,
         })
 
         let subscribedWidgets: user_subscribed_widgets[] = []
@@ -136,7 +150,10 @@ export class WidgetsService {
             })
         }
 
-        return this._mapToSummaryResponse(widgets, subscribedWidgets)
+        return {
+            total: widgetsCount,
+            widgets: await this._mapToSummaryResponse(widgets, subscribedWidgets),
+        }
     }
 
     async getWidgetByTag(tag: string, user: UserJwtExtractDto): Promise<WidgetDetailDto> {
@@ -243,7 +260,7 @@ export class WidgetsService {
         }
     }
 
-    async getMyWidgets(user: UserJwtExtractDto, query: GetWidgetsRequestDto): Promise<MyWidgetsSummaryDto[]> {
+    async getMyWidgets(user: UserJwtExtractDto, query: GetWidgetsRequestDto): Promise<MyWidgetsListResponseDto> {
         const filterWhere: Prisma.widgetsWhereInput = {}
 
         if (query.type) {
@@ -295,19 +312,31 @@ export class WidgetsService {
             },
         })
 
+        const subscribedWidgetsCount = await this.prisma.user_subscribed_widgets.count({
+            where: { user: user.usernameShorted, widget_info: filterWhere },
+        })
+
         const subscribedWidgets = await this.prisma.user_subscribed_widgets.findMany({
             where: { user: user.usernameShorted },
         })
 
-        const res = await this._mapToSummaryResponse(
+        const mappedWidgets = await this._mapToSummaryResponse(
             widgets.map((widget) => widget.widget_info),
             subscribedWidgets,
         )
 
-        return res.map((widget) => ({
-            ...widget,
-            app_info: widgets.find((w) => w.widget_tag === widget.tag)?.app_bind_widgets?.[0]?.app_detail || null,
-        }))
+        const res = mappedWidgets.map((widget: WidgetSummaryDto) => {
+            delete widget.bind_apps
+            return {
+                ...widget,
+                app_info: widgets.find((w) => w.widget_tag === widget.tag)?.app_bind_widgets?.[0]?.app_detail || null,
+            }
+        })
+
+        return {
+            total: subscribedWidgetsCount,
+            widgets: res,
+        }
     }
 
     async _mapToSummaryResponse(
@@ -317,6 +346,7 @@ export class WidgetsService {
         })[],
         subscribedWidgets: user_subscribed_widgets[],
     ): Promise<WidgetSummaryDto[]> {
+        const bindApps = await this.getWidgetsBindApps(widgets)
         return widgets.map((widget) => {
             const subscribedDetail = subscribedWidgets.find(
                 (subscribedWidget) => subscribedWidget.widget_tag === widget.tag,
@@ -349,6 +379,7 @@ export class WidgetsService {
                 subscribed_detail: subscribedDetail,
                 demo_url: widget.demo_url,
                 settings: this.parseSettings(widget.settings) as any,
+                bind_apps: bindApps,
             }
         })
     }
@@ -361,24 +392,6 @@ export class WidgetsService {
         },
         subscribedWidgets: user_subscribed_widgets,
     ): Promise<WidgetDetailDto> {
-        let bindApps: WidgetBindAppDto[] = []
-        const appBindIps = widget.app_bind_widgets.map((appBind) => {
-            return appBind.app_id
-        })
-        const ips = await this.prisma.app_bind_ips.findMany({
-            where: {
-                app_id: {
-                    in: appBindIps,
-                },
-                is_temp: false,
-            },
-        })
-        widget.app_bind_widgets.map((appBind) => {
-            bindApps.push({
-                app_id: appBind.app_id,
-                ip_id: ips.find((ip) => ip.app_id === appBind.app_id)?.ip_id,
-            })
-        })
         return {
             tag: widget.tag,
             name: widget.name,
@@ -406,8 +419,104 @@ export class WidgetsService {
             demo_url: widget.demo_url,
             test_users: widget.test_users as string[],
             subscribed_detail: subscribedWidgets,
-            bind_apps: bindApps,
+            bind_apps: await this.getWidgetsBindApps([widget]),
         }
+    }
+
+    async getWidgetsBindApps(widgets: widgets[]): Promise<WidgetBindAppDto[]> {
+        const appBindIps = await this.prisma.app_bind_widgets.findMany({
+            where: {
+                widget_tag: {
+                    in: widgets.map((widget) => widget.tag),
+                },
+                enabled: true,
+            },
+            include: {
+                app_detail: {
+                    include: {
+                        app_bind_ips: {
+                            include: {
+                                ip: {
+                                    where: {
+                                        ip_levels: 1,
+                                        is_public: true,
+                                    },
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        ticker: true,
+                                        token_mint: true,
+                                        current_token_info: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        })
+        const res = await Promise.all(
+            appBindIps
+                .filter((appBind) => appBind?.app_detail?.app_bind_ips?.[0]?.ip)
+                .map(async (appBind) => {
+                    const ipInfo = appBind.app_detail.app_bind_ips[0].ip
+                    const tokenInfo = ipInfo.current_token_info as any
+                    //get child ip
+                    const childIps = await this.prisma.ip_library_child.findMany({
+                        where: {
+                            parent_ip: ipInfo.id,
+                            ip_info: {
+                                is_public: true,
+                            },
+                        },
+                        select: {
+                            ip_info: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    ticker: true,
+                                    token_mint: true,
+                                    current_token_info: true,
+                                },
+                            },
+                        },
+                    })
+                    const childIpInfos = childIps.map((childIp) => {
+                        const currentChildTokenInfo = childIp.ip_info.current_token_info as any
+                        return {
+                            name: childIp.ip_info.name,
+                            ticker: childIp.ip_info.ticker,
+                            mint: childIp.ip_info.token_mint,
+                            market_cap: (currentChildTokenInfo?.market_cap as string) || "",
+                            trade_volume: (currentChildTokenInfo?.tradeVolume as string) || "",
+                            price: (currentChildTokenInfo?.price as string) || "",
+                            cover: (currentChildTokenInfo?.coverUrl as string) || "",
+                            change_5m: (currentChildTokenInfo?.change5m as string) || "",
+                            change_1h: (currentChildTokenInfo?.change1h as string) || "",
+                            change_1d: (currentChildTokenInfo?.change24h as string) || "",
+                        }
+                    })
+
+                    return {
+                        app_id: appBind.app_detail.app_id,
+                        ip_id: appBind.app_detail.app_bind_ips[0].ip_id,
+                        ip_info: {
+                            name: ipInfo.name,
+                            ticker: ipInfo.ticker,
+                            mint: ipInfo.token_mint,
+                            market_cap: (tokenInfo?.market_cap as string) || "",
+                            trade_volume: (tokenInfo?.tradeVolume as string) || "",
+                            price: (tokenInfo?.price as string) || "",
+                            cover: (tokenInfo?.coverUrl as string) || "",
+                            change_5m: (tokenInfo?.change5m as string) || "",
+                            change_1h: (tokenInfo?.change1h as string) || "",
+                            change_1d: (tokenInfo?.change24h as string) || "",
+                            child_ips: childIpInfos,
+                        } as WidgetIpInfoDto,
+                    }
+                }),
+        )
+        return res
     }
 
     parseSettings(settings: any, createDto?: CreateWidgetDto): WidgetSettingsDto {

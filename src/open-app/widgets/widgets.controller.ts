@@ -23,13 +23,13 @@ import {
     UnsubscribeWidgetDto,
     ApplyWidgetConfigToAppsDto,
     WidgetConfigDto,
-    WidgetSummaryDto,
     UnbindWidgetConfigFromAppsDto,
     UpdateWidgetDto,
     GetWidgetsRequestDto,
     GetAccessTokenDto,
     GetAccessTokenResponseDto,
-    MyWidgetsSummaryDto,
+    WidgetListResponseDto,
+    MyWidgetsListResponseDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -43,7 +43,7 @@ export class WidgetsController {
 
     @Get("/")
     @ApiOperation({ summary: "get all widgets" })
-    @ApiResponse({ type: WidgetSummaryDto, isArray: true })
+    @ApiResponse({ type: WidgetListResponseDto })
     @UseGuards(OptionalJwtAuthGuard)
     async getWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
         return this.widgetService.getWidgets(query, req?.user as UserJwtExtractDto)
@@ -52,7 +52,7 @@ export class WidgetsController {
     @Get("/my")
     @ApiExcludeEndpoint()
     @ApiOperation({ summary: "get all my widgets" })
-    @ApiResponse({ type: MyWidgetsSummaryDto, isArray: true })
+    @ApiResponse({ type: MyWidgetsListResponseDto })
     @UseGuards(AuthGuard("jwt"))
     async getMyWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
         return this.widgetService.getMyWidgets(req.user as UserJwtExtractDto, query)

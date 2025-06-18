@@ -232,7 +232,7 @@ export class OpenAppService {
 
         /*if (!ip.token_info) {
             throw new BadRequestException("IP token info not found, please share to giggle first")
-        }*/
+        }
 
         const hasParentIp = await this.prisma.ip_library_child.findFirst({
             where: { ip_id: ip.id },
@@ -241,6 +241,7 @@ export class OpenAppService {
         if (hasParentIp) {
             throw new BadRequestException("Can not create app for ip with parent ip")
         }
+        */
 
         if (createData.sub_domain) {
             const appAlreadyExists = await this.prisma.apps.findFirst({
@@ -334,6 +335,7 @@ export class OpenAppService {
             const notifyUrl = process.env.IP_STATUS_NOTIFY_ENDPOINT
             if (
                 notifyUrl &&
+                widgetDetail.tag !== "login_from_external" && // not notify login widget
                 !widgetDetail.is_developing && // not notify developing widget
                 !widgetDetail.is_private // not notify private widget
             ) {
