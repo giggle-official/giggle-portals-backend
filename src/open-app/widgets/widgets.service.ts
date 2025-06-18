@@ -507,7 +507,7 @@ export class WidgetsService {
                         child_ips: childIps
                             .filter((childIp) => childIp.parent_ip === ipInfo.id)
                             .map((childIp) => {
-                                const childTokenInfo = childIp.ip_info.current_token_info as any
+                                const childTokenInfo = childIp?.ip_info?.current_token_info as any
                                 return {
                                     id: childIp.ip_info.id,
                                     name: childIp.ip_info.name,
