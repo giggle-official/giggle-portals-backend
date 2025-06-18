@@ -32,7 +32,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
-import { orders, Prisma, reward_pools, user_rewards, users } from "@prisma/client"
+import { orders, Prisma, user_rewards, users } from "@prisma/client"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
