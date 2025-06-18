@@ -32,7 +32,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
-import { orders, Prisma, reward_pools, user_rewards, users } from "@prisma/client"
+import { orders, Prisma, user_rewards, users } from "@prisma/client"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
@@ -339,7 +339,8 @@ export class OrderService {
         for (const cost of order.costs_allocation) {
             orderAmount = orderAmount.minus(new Decimal(cost.amount).div(100))
         }
-        const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
+        //const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
+        const baseRewards = Math.round(new Decimal(order.amount).div(100).div(unitPrice).toNumber())
 
         // Check if limit offer exists and is active
         const ration = Number(rewards.limit_offer?.external_ratio || 100) / 100
@@ -1210,10 +1211,13 @@ export class OrderService {
 
         //allocate order creator's rewards and minus the costs allocation
         let creatorNote = ""
-        let orderCreatorRewards = orderAmount.div(unitPrice)
+        //let orderCreatorRewards = orderAmount.div(unitPrice)
+        const orderAmountInUSD = new Decimal(orderRecord.amount).div(100)
+        let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
         if (modelSnapshot?.limit_offer?.external_ratio) {
-            orderCreatorRewards = orderAmount
+            // orderCreatorRewards = orderAmount
+            orderCreatorRewards = orderAmountInUSD
                 .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
                 .div(unitPrice)
                 .div(100)

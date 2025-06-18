@@ -258,6 +258,11 @@ export class RewardsPoolService {
                 const appInfo = await this.openAppService.getAppDetail(query.app_id, "")
                 if (appInfo?.ip_info?.token_info?.mint) {
                     where.token = appInfo.ip_info.token_info.mint
+                } else {
+                    return {
+                        pools: [],
+                        total: 0,
+                    }
                 }
             } catch (error) {
                 return {
