@@ -178,6 +178,9 @@ export class AuthorInfoDto {
 }
 
 export class WidgetIpInfoDto {
+    @ApiProperty({ description: "ip id" })
+    id: number
+
     @ApiProperty({ description: "ip name" })
     name: string
 
