@@ -463,13 +463,14 @@ export class WidgetsService {
                 parent_ip: {
                     in: parentIpIds,
                 },
+                ip_info: {
+                    is_public: true,
+                },
             },
             select: {
                 parent_ip: true,
+                ip_id: true,
                 ip_info: {
-                    where: {
-                        is_public: true,
-                    },
                     select: {
                         id: true,
                         name: true,
