@@ -611,20 +611,21 @@ export class OpenAppService {
         try {
             //notify to giggle.pro
             const notifyUrl = process.env.IP_STATUS_NOTIFY_ENDPOINT
-            if (notifyUrl) {
+            const unbindWidgets = appBindWidgets
+                .filter(
+                    (item) =>
+                        item.enabled && // not notify disabled widget
+                        item.widget_tag !== "login_from_external" && // not notify login widget
+                        !item.widget_detail.is_developing && // not notify developing widget
+                        !item.widget_detail.is_private, // not notify private widget
+                )
+                .map((item) => item.widget_tag)
+            if (notifyUrl && unbindWidgets.length > 0) {
                 const data = {
                     event: "widget.unbind",
                     env: process.env.ENV || "local",
                     ipId: appBindIps?.[0]?.ip_id,
-                    tag: appBindWidgets
-                        .filter(
-                            (item) =>
-                                item.enabled && // not notify disabled widget
-                                item.widget_tag !== "login_from_external" && // not notify login widget
-                                !item.widget_detail.is_developing && // not notify developing widget
-                                !item.widget_detail.is_private, // not notify private widget
-                        )
-                        .map((item) => item.widget_tag),
+                    tag: unbindWidgets,
                 }
                 const signedParams = this.giggleService.generateSignature(data)
                 await this.eventsNotifyService.sendEvent(notifyUrl, signedParams)
