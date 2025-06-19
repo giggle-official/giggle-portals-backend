@@ -91,12 +91,7 @@ export class WidgetsService {
 
     async getWidgets(query: GetWidgetsRequestDto, user?: UserJwtExtractDto): Promise<WidgetListResponseDto> {
         const where: Prisma.widgetsWhereInput = {
-            OR: [
-                { is_developing: false },
-                {
-                    demo_url: { not: null },
-                },
-            ],
+            is_developing: false,
             is_private: false,
         }
 
@@ -429,6 +424,10 @@ export class WidgetsService {
             where: {
                 widget_tag: widget.tag,
                 enabled: true,
+                widget_detail: {
+                    is_developing: false,
+                    is_private: false,
+                },
             },
             include: {
                 app_detail: {
