@@ -839,15 +839,7 @@ ORDER BY d.date;`
     */
 
     //create rewards pool if not exists
-    async createRewardsPool(ip_id: number, user_wallet: string, email: string, subscriber?: any): Promise<void> {
-        if (subscriber) {
-            subscriber.next({
-                event: "ip.create_rewards_pool",
-                data: {
-                    message: "Creating rewards pool",
-                },
-            })
-        }
+    async createRewardsPool(ip_id: number, user_wallet: string, email: string): Promise<void> {
         const ip = await this.prisma.ip_library.findUnique({
             where: {
                 token_info: {
@@ -885,15 +877,6 @@ ORDER BY d.date;`
                 on_chain_status: reward_pool_on_chain_status.ready,
             },
         })
-
-        if (subscriber) {
-            subscriber.next({
-                event: "ip.create_rewards_pool_on_chain",
-                data: {
-                    message: "Creating rewards pool on chain",
-                },
-            })
-        }
 
         //this should compelete automatically, no need this
         //await this.rewardPoolOnChainService.create({

@@ -1,7 +1,7 @@
 import { HttpService } from "@nestjs/axios"
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common"
 import * as crypto from "crypto"
-import { async, lastValueFrom, Observable } from "rxjs"
+import { async, lastValueFrom, Observable, Subscriber } from "rxjs"
 import {
     ConfirmStatus,
     CreateIpTokenDto,
@@ -39,6 +39,7 @@ import FormData from "form-data"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import axios from "axios"
 import https from "https"
+import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
 
 @Injectable()
 export class GiggleService {
@@ -210,7 +211,7 @@ export class GiggleService {
         userInfo: UserJwtExtractDto,
         ipId: number,
         params: CreateIpTokenDto,
-        subscriber: any,
+        subscriber: Subscriber<SSEMessage>,
         completeSubscriber: boolean = true,
     ): Promise<CreateIpTokenGiggleResponseDto> {
         let mintParams: CreateIpTokenGiggleRequestDto | null = null
@@ -263,7 +264,10 @@ export class GiggleService {
                 mintParams.coverUrl = uploadResult.url
             }
 
-            subscriber.next({ event: "meme.creating", data: 0 })
+            subscriber.next({
+                event: IpEvents.IP_TOKEN_CREATING,
+                message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].summary,
+            })
 
             this.logger.log("mintParams:" + JSON.stringify(mintParams))
 
@@ -312,7 +316,11 @@ export class GiggleService {
                 status: "success",
             })
 
-            subscriber.next({ event: "meme.created", data: mintRes.visitLink })
+            subscriber.next({
+                event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+                message: IpEventsDetail[IpEvents.IP_TOKEN_CREATED_ON_CHAIN].summary,
+                data: mintRes,
+            })
             if (completeSubscriber) {
                 subscriber.complete()
             }
@@ -334,7 +342,7 @@ export class GiggleService {
         }
     }
 
-    private async uploadAsset(path: string, subscriber: any): Promise<string> {
+    private async uploadAsset(path: string, subscriber: Subscriber<SSEMessage>): Promise<string> {
         const fileName = path.split("/").pop()
         if (!fileName.endsWith(".mp4") && !fileName.endsWith(".mov") && !fileName.endsWith(".mkv")) {
             throw new BadRequestException("File is not a mp4 or mov or mkv video")
@@ -368,10 +376,29 @@ export class GiggleService {
             headers: { "Content-Type": contentType, "Content-Length": totalSize.toString() },
         })
 
+        let currentProgress = 0
+        let progressInterval: NodeJS.Timeout
+
+        progressInterval = setInterval(() => {
+            subscriber.next({
+                event: IpEvents.IP_ASSET_TO_IPFS,
+                message: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
+                data: currentProgress,
+            })
+        }, 100)
+
         fileStream.on("data", (chunk) => {
             uploadedSize += chunk.length
-            const progress = (uploadedSize / totalSize) * 100
-            subscriber.next({ event: "asset.uploading", data: progress })
+            currentProgress = (uploadedSize / totalSize) * 100
+        })
+
+        fileStream.on("end", () => {
+            clearInterval(progressInterval)
+            subscriber.next({
+                event: IpEvents.IP_ASSET_TO_IPFS,
+                message: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
+                data: 100,
+            })
         })
 
         const response = await lastValueFrom(uploadReq)

@@ -19,7 +19,6 @@ import {
     UnbindWidgetConfigFromAppsDto,
     UnsubscribeWidgetDto,
     UpdateWidgetDto,
-    WidgetBindAppInfoDto,
     WidgetConfigDto,
     WidgetDetailDto,
     WidgetSettingsDto,

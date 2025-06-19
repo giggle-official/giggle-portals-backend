@@ -1,15 +1,12 @@
-import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Ip, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     AddShareCountDto,
-    AuthorizationSettingsCanPurchase,
-    AuthorizationSettingsDto,
     AvailableParentIpDto,
     CreateIpDto,
     EditIpDto,
     GenreDto,
     GetListParams,
-    GovernanceType,
     IpLibraryDetailDto,
     IpLibraryListDto,
     IpNameCheckDto,
@@ -21,11 +18,12 @@ import {
     PurchasedIpDto,
     PurchaseStrategyDto,
     PurchaseStrategyType,
-    RegisterTokenDto,
     SetVisibilityDto,
-    ShareToGiggleDto,
-    TerritoryDto,
+    LaunchIpTokenDto,
     UntokenizeDto,
+    IpEvents,
+    IpEventsDetail,
+    StepDto,
 } from "./ip-library.dto"
 import { assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -35,10 +33,9 @@ import { UserService } from "src/user/user.service"
 import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
-import { async, Observable } from "rxjs"
+import { Observable, Subscriber } from "rxjs"
 import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { PinataSDK } from "pinata-web3"
-import { LicenseService } from "./license/license.service"
 import { AssetDetailDto } from "src/assets/assets.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
@@ -60,9 +57,6 @@ export class IpLibraryService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly utilitiesService: UtilitiesService,
-
-        @Inject(forwardRef(() => LicenseService))
-        private readonly licenseService: LicenseService,
 
         @Inject(forwardRef(() => AssetsService))
         private readonly assetsService: AssetsService,
@@ -88,6 +82,53 @@ export class IpLibraryService {
         @Inject(forwardRef(() => LaunchAgentService))
         private readonly launchAgentService: LaunchAgentService,
     ) {}
+
+    getShareToGiggleSteps(ip_is_new: boolean): StepDto[] {
+        let steps = [
+            {
+                event: IpEvents.DATA_VALIDATING,
+                label: IpEventsDetail[IpEvents.DATA_VALIDATING].label,
+                is_progress: false,
+            },
+        ]
+
+        if (ip_is_new) {
+            steps.push({
+                event: IpEvents.IP_CREATION,
+                label: IpEventsDetail[IpEvents.IP_CREATION].label,
+                is_progress: false,
+            })
+        }
+
+        return [
+            ...steps,
+            {
+                event: IpEvents.IP_ASSET_TO_IPFS,
+                label: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
+                is_progress: true,
+            },
+            {
+                event: IpEvents.IP_TOKEN_CREATING,
+                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].label,
+                is_progress: false,
+            },
+            {
+                event: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
+                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATING_REWARD_POOL].label,
+                is_progress: false,
+            },
+            {
+                event: IpEvents.IP_TOKEN_RUN_STRATEGY,
+                label: IpEventsDetail[IpEvents.IP_TOKEN_RUN_STRATEGY].label,
+                is_progress: false,
+            },
+            {
+                event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATED_ON_CHAIN].label,
+                is_progress: false,
+            },
+        ]
+    }
 
     getGenres(): GenreDto[] {
         return [
@@ -142,7 +183,7 @@ export class IpLibraryService {
         ]
     }
 
-    getTerritories(): TerritoryDto[] {
+    getTerritories() {
         return [
             {
                 name: "Asia",
@@ -548,7 +589,7 @@ export class IpLibraryService {
                         : null
                 const cover_hash = cover_images?.[0]?.hash || null
                 const cover_asset_id = await this.getCoverAssetId(item.id)
-                const authSettings = this.processAuthSettings(item.authorization_settings as any)
+                const meta_data = item.meta_data as any
                 const child_ip_info = await this._getChildIps({
                     ip_id: item.id,
                     is_public,
@@ -566,9 +607,8 @@ export class IpLibraryService {
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     share_count: item.ip_share_count?.share_count || 0,
                     cover_asset_id,
-                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
+                    can_purchase: false,
                     on_chain_detail: item.on_chain_detail as any,
-                    genre: item.genre as { name: string }[],
                     cover_image: cover_image,
                     cover_hash,
                     creation_guide_lines: item.creation_guide_lines,
@@ -576,13 +616,13 @@ export class IpLibraryService {
                     ip_level: item.ip_levels,
                     is_public: item.is_public,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
-                    authorization_settings: authSettings,
+                    meta_data,
                     creator_id: item.user_info?.username_in_be || "",
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
                     creator_avatar: item.user_info?.avatar || "",
-                    governance_right: this.getGovernanceRight(authSettings),
+                    governance_right: true,
                     child_ip_info,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                 }
@@ -674,13 +714,12 @@ export class IpLibraryService {
                     ? await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
                     : null
                 cover_hash = coverImage?.hash
-                const authSettings = this.processAuthSettings(item.authorization_settings as any)
                 parentIpInfo.push({
                     id: item.id,
                     name: item.name,
                     ticker: item.ticker,
                     description: item.description,
-                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
+                    can_purchase: false,
                     cover_asset_id: await this.getCoverAssetId(item.id),
                     cover_image,
                     cover_hash,
@@ -694,13 +733,13 @@ export class IpLibraryService {
                     is_public: item.is_public,
                     on_chain_detail: item.on_chain_detail as any,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
-                    authorization_settings: authSettings,
+                    meta_data: item.meta_data as any,
                     creator_id: item.user_info?.username_in_be || "",
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
                     creator_avatar: item.user_info?.avatar || "",
-                    governance_right: this.getGovernanceRight(authSettings),
+                    governance_right: true,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                 })
             }
@@ -709,7 +748,7 @@ export class IpLibraryService {
         //extra info
         const extra_info = data.extra_info as any
 
-        const authSettings = this.processAuthSettings(data.authorization_settings as any)
+        const meta_data = data.meta_data as any
         const child_ip_info = await this._getChildIps({
             ip_id: data.id,
             is_public,
@@ -741,11 +780,11 @@ export class IpLibraryService {
             creator_followers: data.user_info?.followers || 0,
             creator_avatar: data.user_info?.avatar || "",
             cover_asset_id: await this.getCoverAssetId(data.id),
-            authorization_settings: authSettings,
+            meta_data,
             ip_signature_clips: await this._processIpSignatureClips(data.ip_signature_clips as any[]),
             parent_ip_info: parentIpInfo,
             on_chain_detail: data.on_chain_detail as any,
-            can_purchase: await this.ipCanPurchase(data.id, authSettings, data.token_info as any),
+            can_purchase: false,
             child_ip_info,
             extra_info: {
                 twitter: extra_info?.twitter || "",
@@ -754,180 +793,102 @@ export class IpLibraryService {
                 tiktok: extra_info?.tiktok || "",
                 instagram: extra_info?.instagram || "",
             },
-            governance_right: this.getGovernanceRight(authSettings),
+            governance_right: true,
         }
         return res
     }
 
-    processAuthSettings(authSettings: any): AuthorizationSettingsDto {
-        return {
-            can_purchase: authSettings?.can_purchase || "open-access",
-            license: authSettings?.license || [{ name: "web3" }],
-            territory: authSettings?.territory || "",
-            revenue_distribution: authSettings?.revenue_distribution || {
-                licensor: IpLibraryService.DEFAULT_LICENSOR_RATIO,
-                platform: IpLibraryService.DEFAULT_PLATFORM_RATIO,
-                community: IpLibraryService.DEFAULT_COMMUNITY_RATIO,
-                treasury: IpLibraryService.DEFAULT_TREASURY_RATIO,
-            },
-            governance_types: authSettings?.governance_types || [{ name: "governance_right" }],
-            long_term_license: authSettings?.long_term_license || true,
-            valid_date: authSettings?.valid_date || {
-                start_date: "",
-                end_date: "",
-            },
-            license_price: authSettings?.license_price || IpLibraryService.DEFAULT_LICENSE_PRICE,
-            notes: authSettings?.notes || "",
-
-            child_ip_extra_settings: authSettings?.child_ip_extra_settings || {
-                on_chain_revenue_creator: 50,
-                on_chain_revenue_ip_holder: 40,
-                on_chain_revenue_platform: 10,
-                commercial_pass_threshold: 10000,
-                license_duration: 24,
-                external_revenue_creator: 50,
-                external_revenue_ip_holder: 40,
-                external_revenue_platform: 10,
-            },
-
-            customization_settings: authSettings?.customization_settings || {},
+    processMetaData(meta_data: any): Record<string, any> {
+        if (JSON.stringify(meta_data).length > 1024 * 1024 * 2) {
+            //2mb
+            throw new BadRequestException("Meta data is too large")
         }
+        return meta_data
     }
 
-    editIp(user: UserJwtExtractDto, body: EditIpDto): Observable<SSEMessage> {
-        return new Observable((subscriber) => {
-            this.processEditIp(user, body, subscriber).catch((error) => {
-                subscriber.error(error)
-            })
+    async editIp(user: UserJwtExtractDto, body: EditIpDto): Promise<IpLibraryDetailDto> {
+        const data = await this.prismaService.ip_library.findUnique({
+            where: { id: parseInt(body.id.toString()), owner: user.usernameShorted },
         })
-    }
-
-    async processEditIp(user: UserJwtExtractDto, body: EditIpDto, subscriber: any): Promise<void> {
-        try {
-            subscriber.next({
-                event: "ip.data_validating",
-                data: {
-                    message: "Validating data",
-                },
-            })
-
-            const data = await this.prismaService.ip_library.findUnique({
-                where: { id: parseInt(body.id.toString()), owner: user.usernameShorted },
-            })
-            if (!data) {
-                throw new NotFoundException("IP library not found")
-            }
-
-            if (data.token_info) {
-                throw new BadRequestException("Cannot edit ip on chain or token info")
-            }
-
-            const { imageAsset, videoAsset } = await this.processAssets(
-                user,
-                subscriber,
-                "edit",
-                parseInt(body.image_id.toString()),
-                parseInt(body.video_id?.toString() || "0"),
-                parseInt(body.id.toString()),
-            )
-
-            const ipDetailBeforeUpdate = await this.detail(body.id.toString(), null)
-
-            const result = await this.prismaService.$transaction(async (tx) => {
-                const ipLibrary = await tx.ip_library.update({
-                    where: { id: parseInt(body.id.toString()) },
-                    data: {
-                        ...(body.description && { description: body.description }),
-                        ...((body.twitter || body.website || body.telegram || body.tiktok || body.instagram) && {
-                            extra_info: {
-                                twitter: body.twitter || "",
-                                website: body.website || "",
-                                telegram: body.telegram || "",
-                                tiktok: body.tiktok || "",
-                                instagram: body.instagram || "",
-                            },
-                        }),
-                        ...(body.authorization_settings && {
-                            authorization_settings: body.authorization_settings as any,
-                        }),
-                        ...(imageAsset && {
-                            cover_images: [
-                                {
-                                    key: imageAsset.path,
-                                    hash: imageAsset.ipfs_key,
-                                },
-                            ],
-                        }),
-                        ...(body.genre && { genre: body.genre as any }),
-                        ...(body.creation_guide_lines && {
-                            creation_guide_lines: body.creation_guide_lines,
-                        }),
-                    },
-                })
-
-                //remove old ip signature clips
-                await tx.ip_signature_clips.deleteMany({
-                    where: { ip_id: ipLibrary.id },
-                })
-                //remove old related ip
-                await this.assetsService.clearRelatedIp(user, ipDetailBeforeUpdate.id)
-
-                if (videoAsset) {
-                    await tx.ip_signature_clips.create({
-                        data: {
-                            ip_id: ipLibrary.id,
-                            name: ipLibrary.name,
-                            description: ipLibrary.description,
-                            object_key: videoAsset.path,
-                            ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
-                            thumbnail: videoAsset.thumbnail,
-                            asset_id: videoAsset.id,
-                            video_info: (videoAsset.asset_info as any)?.videoInfo,
-                        },
-                    })
-
-                    //relate to new ip
-                    await this.assetsService.relateToIp(user, {
-                        ip_id: ipDetailBeforeUpdate.id,
-                        asset_id: videoAsset.id,
-                    })
-                }
-
-                return ipLibrary
-            })
-
-            subscriber.next({
-                event: "ip.on_chain_updating",
-                data: {
-                    message: "Updating on chain",
-                },
-            })
-
-            let onChainUpdated = true
-            /*const onChainInfo = await this.ipOnChainService.pushIpToChain(user, result.id)
-            if (onChainInfo?.isSucc) {
-                onChainUpdated = true
-            }*/
-
-            subscriber.next({
-                event: "ip.updated",
-                data: await this.detail(result.id.toString(), null),
-            })
-
-            if (!onChainUpdated) {
-                subscriber.next({
-                    event: "ip.warning",
-                    data: {
-                        message: "IP updated, but on chain is not updated, please contact-us to get help.",
-                    },
-                })
-            }
-            subscriber.complete()
-        } catch (error) {
-            this.logger.error("Error editing ip:", error, `user: ${user.email}, body: ${JSON.stringify(body)}`)
-            subscriber.error(error)
-            subscriber.complete()
+        if (!data) {
+            throw new NotFoundException("IP library not found")
         }
+
+        if (data.token_info) {
+            throw new BadRequestException("Cannot edit ip on chain or token info")
+        }
+
+        const meta_data = this.processMetaData(body.meta_data as any)
+
+        const { imageAsset, videoAsset } = await this.processAssets(
+            user,
+            "edit",
+            parseInt(body.image_id.toString()),
+            parseInt(body.video_id?.toString() || "0"),
+            parseInt(body.id.toString()),
+        )
+
+        const ipDetailBeforeUpdate = await this.detail(body.id.toString(), null)
+
+        const result = await this.prismaService.$transaction(async (tx) => {
+            const ipLibrary = await tx.ip_library.update({
+                where: { id: parseInt(body.id.toString()) },
+                data: {
+                    ...(body.description && { description: body.description }),
+                    ...((body.twitter || body.website || body.telegram || body.tiktok || body.instagram) && {
+                        extra_info: {
+                            twitter: body.twitter || "",
+                            website: body.website || "",
+                            telegram: body.telegram || "",
+                            tiktok: body.tiktok || "",
+                            instagram: body.instagram || "",
+                        },
+                    }),
+                    ...(body.meta_data && {
+                        meta_data,
+                    }),
+                    ...(imageAsset && {
+                        cover_images: [
+                            {
+                                key: imageAsset.path,
+                                hash: imageAsset.ipfs_key,
+                            },
+                        ],
+                    }),
+                },
+            })
+
+            //remove old ip signature clips
+            await tx.ip_signature_clips.deleteMany({
+                where: { ip_id: ipLibrary.id },
+            })
+            //remove old related ip
+            await this.assetsService.clearRelatedIp(user, ipDetailBeforeUpdate.id)
+
+            if (videoAsset) {
+                await tx.ip_signature_clips.create({
+                    data: {
+                        ip_id: ipLibrary.id,
+                        name: ipLibrary.name,
+                        description: ipLibrary.description,
+                        object_key: videoAsset.path,
+                        ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
+                        thumbnail: videoAsset.thumbnail,
+                        asset_id: videoAsset.id,
+                        video_info: (videoAsset.asset_info as any)?.videoInfo,
+                    },
+                })
+
+                //relate to new ip
+                await this.assetsService.relateToIp(user, {
+                    ip_id: ipDetailBeforeUpdate.id,
+                    asset_id: videoAsset.id,
+                })
+            }
+
+            return ipLibrary
+        })
+        return await this.detail(body.id.toString(), null, user)
     }
 
     async signatureClipDetail(id: string) {
@@ -986,36 +947,40 @@ export class IpLibraryService {
         return assetRecord
     }
 
-    createIp(user: UserJwtExtractDto, body: CreateIpDto): Observable<SSEMessage> {
-        return new Observable((subscriber) => {
-            this.processCreateIp(user, body, subscriber).catch((error) => {
-                subscriber.error(error)
-            })
-        })
-    }
-
     async processAssets(
         user: UserJwtExtractDto,
-        subscriber: any,
         type: "create" | "edit",
         image_id: number,
         video_id?: number,
         ip_id?: number,
     ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
-        const imageAsset = await this.assetsService.getAsset(user, image_id)
-        if (!imageAsset) {
-            throw new NotFoundException("Image asset not found")
+        let imageAsset: AssetDetailDto | null = null
+        try {
+            imageAsset = await this.assetsService.getAsset(user, image_id)
+
+            if (imageAsset.type !== "image") {
+                throw new BadRequestException("Image asset is not an image")
+            }
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw new NotFoundException("Image asset not found")
+            } else {
+                throw error
+            }
         }
 
-        if (imageAsset.type !== "image") {
-            throw new BadRequestException("Image asset is not an image")
-        }
         let videoAsset: AssetDetailDto | null = null
         if (video_id) {
-            videoAsset = await this.assetsService.getAsset(user, video_id)
-            if (!videoAsset) {
-                throw new NotFoundException("Video asset not found")
+            try {
+                videoAsset = await this.assetsService.getAsset(user, video_id)
+            } catch (error) {
+                if (error instanceof NotFoundException) {
+                    throw new NotFoundException("Video asset not found")
+                } else {
+                    throw error
+                }
             }
+
             if (videoAsset.type !== "video") {
                 throw new BadRequestException("Video asset is not a video")
             }
@@ -1031,7 +996,7 @@ export class IpLibraryService {
                 }
             }
         }
-        return await this.uploadAssetToIpfs(subscriber, imageAsset, videoAsset)
+        return await this.uploadAssetToIpfs(imageAsset, videoAsset)
     }
 
     async validatePurchaseStrategy(purchase_strategy: PurchaseStrategyDto) {
@@ -1066,245 +1031,120 @@ export class IpLibraryService {
      * process create ip
      * !!!IMPORTANT: consider 3 levels of ip if you want modify this function !!!
      */
-    async processCreateIp(user: UserJwtExtractDto, body: CreateIpDto, subscriber: any): Promise<void> {
-        subscriber.next({
-            event: "ip.data_validating",
-            data: {
-                message: "Validating data",
-            },
-        })
-
+    async createIp(user: UserJwtExtractDto, body: CreateIpDto): Promise<IpLibraryDetailDto> {
         if (!(await this._checkCreateIpPermission(user, body))) {
             throw new BadRequestException("you have no permission or license to create this ip")
         }
+        const meta_data = this.processMetaData(body.meta_data as any)
 
-        //if share to giggle, we need check purchase strategy
-        if (body.share_to_giggle && !(await this.validatePurchaseStrategy(body.purchase_strategy))) {
-            throw new BadRequestException("invalid purchase strategy for share to giggle")
-        }
-
-        let consumeLicenseLogs: number[] = []
-        let ipId: number | undefined = undefined
-        let ipPushedToChain: boolean = false
-        let ipTokenCreated: boolean = false
-        let ipTokenRegistered: boolean = false
         let ipLevel: number = 1
-        try {
-            if (body.parent_ip_library_id) {
-                const parentIpInfo = await this.prismaService.ip_library.findUnique({
-                    where: { id: body.parent_ip_library_id },
-                })
-                if (!parentIpInfo) {
-                    throw new BadRequestException("Parent ip not found")
-                }
 
-                ipLevel = 2
-
-                //is 3rd ip
-                const is3rdLevelIp = await this.prismaService.ip_library_child.findFirst({
-                    where: { ip_id: parentIpInfo.id },
-                })
-
-                /**
-                 *
-                 * all 3rd level ip need to paid
-                 *
-                 */
-                if (is3rdLevelIp) {
-                    const ipOrder = await this.prismaService.third_level_ip_orders.findFirst({
-                        where: {
-                            creation_data: {
-                                path: "$.name",
-                                equals: body.name,
-                            },
-                        },
-                    })
-                    if (!ipOrder) {
-                        throw new BadRequestException("ip order not found")
-                    }
-                    if (
-                        ipOrder.current_status !== OrderStatus.COMPLETED &&
-                        ipOrder.current_status !== OrderStatus.REWARDS_RELEASED
-                    ) {
-                        throw new BadRequestException("ip order status error")
-                    }
-                    ipLevel = 3
-                } else if (parentIpInfo.owner !== user.usernameShorted) {
-                    throw new BadRequestException("you have no permission to use this parent ip")
-                }
+        if (body.parent_ip_library_id) {
+            const parentIpInfo = await this.prismaService.ip_library.findUnique({
+                where: { id: body.parent_ip_library_id },
+            })
+            if (!parentIpInfo) {
+                throw new BadRequestException("Parent ip not found")
             }
 
-            //The period of a new ip without long term must be greater than now, marked at 2025-04-25
-            const authSettings = this.processAuthSettings(body.authorization_settings as any)
+            ipLevel = 2
 
-            /*if (!authSettings.long_term_license) {
-                const startDate = new Date(authSettings.valid_date.start_date).toDateString()
-                const now = new Date().toDateString()
-                if (new Date(startDate) < new Date(now)) {
-                    throw new BadRequestException("Start date must be greater than now")
-                }
-            }*/
-
-            const { imageAsset, videoAsset } = await this.processAssets(
-                user,
-                subscriber,
-                "create",
-                parseInt(body.image_id.toString()),
-                parseInt(body.video_id?.toString() || "0"),
-            )
-
-            subscriber.next({
-                event: "ip.ip_library_creating",
-                data: {
-                    message: "Creating ip library",
-                },
+            const is3rdLevelIp = await this.prismaService.ip_library_child.findFirst({
+                where: { ip_id: parentIpInfo.id },
             })
 
-            const result = await this.prismaService.$transaction(async (tx) => {
-                const ipLibrary = await tx.ip_library.create({
-                    data: {
-                        owner: user.usernameShorted,
-                        name: body.name,
-                        ticker: body.ticker,
-                        description: body.description,
-                        ip_levels: ipLevel,
-                        extra_info: {
-                            twitter: body?.twitter || "",
-                            website: body?.website || "",
-                            telegram: body?.telegram || "",
-                            tiktok: body?.tiktok || "",
-                            instagram: body?.instagram || "",
+            if (is3rdLevelIp) {
+                const ipOrder = await this.prismaService.third_level_ip_orders.findFirst({
+                    where: {
+                        creation_data: {
+                            path: "$.name",
+                            equals: body.name,
                         },
-                        authorization_settings: authSettings as any,
-                        cover_images: [
-                            {
-                                key: imageAsset.path,
-                                hash: imageAsset.ipfs_key,
-                                asset_id: imageAsset.id,
-                            },
-                        ],
-                        is_public: true,
-                        on_chain_status: "ready",
-                        genre: body.genre as any,
-                        creation_guide_lines: body.creation_guide_lines || "",
                     },
                 })
-                if (videoAsset) {
-                    await tx.ip_signature_clips.create({
-                        data: {
-                            ip_id: ipLibrary.id,
-                            name: body.name,
-                            description: body.description,
-                            object_key: videoAsset.path,
-                            ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
-                            thumbnail: videoAsset.thumbnail,
-                            asset_id: videoAsset.id,
-                            video_info: (videoAsset.asset_info as any)?.videoInfo,
-                        },
-                    })
+                if (!ipOrder) {
+                    throw new BadRequestException("ip order not found")
                 }
-                if (body.parent_ip_library_id) {
-                    await tx.ip_library_child.create({
-                        data: {
-                            parent_ip: body.parent_ip_library_id,
-                            ip_id: ipLibrary.id,
-                        },
-                    })
+                if (
+                    ipOrder.current_status !== OrderStatus.COMPLETED &&
+                    ipOrder.current_status !== OrderStatus.REWARDS_RELEASED
+                ) {
+                    throw new BadRequestException("ip order status error")
                 }
-
-                return ipLibrary
-            })
-
-            if (videoAsset) {
-                await this.assetsService.relateToIp(user, {
-                    ip_id: result.id,
-                    asset_id: videoAsset.id,
-                })
-            }
-
-            ipId = result.id
-
-            //push ip to chain
-            subscriber.next({
-                event: "ip.push_ip_to_chain",
-                data: {
-                    message: "pushing ip to chain",
-                },
-            })
-
-            //const onChainInfo = await this.ipOnChainService.pushIpToChain(user, ipId)
-            //if (!onChainInfo.isSucc) {
-            //    throw new BadRequestException("Failed to push ip to chain")
-            //}
-            ipPushedToChain = true
-
-            let shareWarning: string | null = null
-
-            if (body.share_to_giggle) {
-                const shareResult = await this.processShareToGiggle(
-                    user,
-                    {
-                        id: ipId,
-                        purchase_strategy: body.purchase_strategy,
-                    },
-                    subscriber,
-                    false, //do not complete subscriber here
-                )
-                ipTokenCreated = shareResult.ipTokenCreated
-                ipTokenRegistered = shareResult.ipTokenRegistered
-                if (shareResult?.error) {
-                    shareWarning = "IP created successfully, but there is an warning: " + shareResult?.error
-                }
-            }
-
-            subscriber.next({
-                event: "ip.created",
-                data: await this.detail(ipId.toString(), null),
-            })
-
-            if (shareWarning) {
-                subscriber.next({
-                    event: "ip.warning",
-                    data: { message: shareWarning },
-                })
-            }
-            subscriber.complete()
-        } catch (error) {
-            this.logger.error("Error creating ip:" + error + " user: " + user.email + " body: " + JSON.stringify(body))
-            if (ipId && !ipPushedToChain) {
-                //all block chain process failed, remove ip and refund parent ip license
-                this.logger.error("IP is not pushed to chain, remove it", `ip_id: ${ipId}`)
-                await this._removeIp(ipId)
-                if (consumeLicenseLogs.length > 0) {
-                    await this.licenseService.refund(consumeLicenseLogs)
-                    this.logger.error("Refunded license" + consumeLicenseLogs.join(","))
-                }
-                subscriber.error(error)
-                subscriber.complete()
-            } else if (ipId && ipPushedToChain && !ipTokenCreated) {
-                //ip on chain is created, but giggle token is not created, refund payment
-                subscriber.next({
-                    event: "ip.created",
-                    data: await this.detail(ipId.toString(), null),
-                })
-                subscriber.next({
-                    event: "ip.warning",
-                    data: {
-                        message:
-                            "Ip created, but giggle token is not created, you can create it on your ip page or contact-us to get help.",
-                    },
-                })
-                subscriber.complete()
-            } else {
-                if (consumeLicenseLogs.length > 0) {
-                    await this.licenseService.refund(consumeLicenseLogs)
-                    this.logger.error("Refunded license" + consumeLicenseLogs.join(","))
-                }
-                this.logger.error("Error creating ip", `ip_id: ${ipId}`, error)
-                subscriber.error(error?.message || "Failed to create ip")
-                subscriber.complete()
+                ipLevel = 3
+            } else if (parentIpInfo.owner !== user.usernameShorted) {
+                throw new BadRequestException("you have no permission to use this parent ip")
             }
         }
+
+        const { imageAsset, videoAsset } = await this.processAssets(
+            user,
+            "create",
+            parseInt(body.image_id.toString()),
+            parseInt(body.video_id?.toString() || "0"),
+        )
+
+        const result = await this.prismaService.$transaction(async (tx) => {
+            const ipLibrary = await tx.ip_library.create({
+                data: {
+                    owner: user.usernameShorted,
+                    name: body.name,
+                    ticker: body.ticker,
+                    description: body.description,
+                    ip_levels: ipLevel,
+                    extra_info: {
+                        twitter: body?.twitter || "",
+                        website: body?.website || "",
+                        telegram: body?.telegram || "",
+                        tiktok: body?.tiktok || "",
+                        instagram: body?.instagram || "",
+                    },
+                    meta_data,
+                    cover_images: [
+                        {
+                            key: imageAsset.path,
+                            hash: imageAsset.ipfs_key,
+                            asset_id: imageAsset.id,
+                        },
+                    ],
+                    is_public: true,
+                    on_chain_status: "ready",
+                },
+            })
+            if (videoAsset) {
+                await tx.ip_signature_clips.create({
+                    data: {
+                        ip_id: ipLibrary.id,
+                        name: body.name,
+                        description: body.description,
+                        object_key: videoAsset.path,
+                        ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
+                        thumbnail: videoAsset.thumbnail,
+                        asset_id: videoAsset.id,
+                        video_info: (videoAsset.asset_info as any)?.videoInfo,
+                    },
+                })
+            }
+            if (body.parent_ip_library_id) {
+                await tx.ip_library_child.create({
+                    data: {
+                        parent_ip: body.parent_ip_library_id,
+                        ip_id: ipLibrary.id,
+                    },
+                })
+            }
+
+            return ipLibrary
+        })
+
+        if (videoAsset) {
+            await this.assetsService.relateToIp(user, {
+                ip_id: result.id,
+                asset_id: videoAsset.id,
+            })
+        }
+
+        return await this.detail(result.id.toString(), null, user)
     }
 
     async clearIpWhenConnectionClosed(ipId: number) {
@@ -1316,9 +1156,9 @@ export class IpLibraryService {
         }
     }
 
-    shareToGiggle(user: UserJwtExtractDto, body: ShareToGiggleDto): Observable<SSEMessage> {
+    launchIpToken(user: UserJwtExtractDto, body: LaunchIpTokenDto): Observable<SSEMessage> {
         return new Observable((subscriber) => {
-            this.processShareToGiggle(user, body, subscriber).catch((error) => {
+            this.processLaunchIpToken(user, body, subscriber).catch((error) => {
                 subscriber.error(error)
             })
         })
@@ -1356,69 +1196,75 @@ export class IpLibraryService {
         return await this.detail(dto.id.toString(), null, null, user)
     }
 
-    async processShareToGiggle(
+    async processLaunchIpToken(
         user: UserJwtExtractDto,
-        body: ShareToGiggleDto,
-        subscriber: any,
-        complete: boolean = true,
-    ): Promise<IpProcessStepsDto> {
-        let ipProcessStepsDto: IpProcessStepsDto = {
-            ipId: body.id,
-            ipPushedToChain: false,
-            ipTokenCreated: false,
-            ipTokenRegistered: false,
-            error: null,
-        }
-
+        body: LaunchIpTokenDto,
+        subscriber: Subscriber<SSEMessage>,
+    ): Promise<void> {
         //validate purchase strategy
+        subscriber.next({
+            event: IpEvents.CREATION_STEPS,
+            data: [...this.getShareToGiggleSteps(body.ip_is_new)],
+        })
+
+        subscriber.next({
+            event: IpEvents.DATA_VALIDATING,
+            data: {
+                message: IpEventsDetail[IpEvents.DATA_VALIDATING].label,
+            },
+        })
+
         if (!(await this.validatePurchaseStrategy(body.purchase_strategy))) {
             throw new BadRequestException("invalid purchase strategy")
         }
 
         const { create_amount, buy_amount } = await this._computeNeedUsdc(body.purchase_strategy)
+        let ipId = null
 
         try {
-            const ipOwner = await this.prismaService.ip_library.findFirst({
-                where: { id: body.id, owner: user.usernameShorted },
-            })
+            if (!body.ip_is_new) {
+                if (!body.ip_id) {
+                    throw new BadRequestException("ip_id is required when ip is not new")
+                }
+                const ipOwner = await this.prismaService.ip_library.findFirst({
+                    where: { id: body.ip_id, owner: user.usernameShorted },
+                })
 
-            if (!ipOwner) {
-                throw new NotFoundException("IP not found")
+                if (!ipOwner) {
+                    throw new NotFoundException("IP not found")
+                }
+                ipId = body.ip_id
+            } else {
+                ipId = await this.createIp(user, body.ip_info)
             }
 
-            const ip = await this.detail(body.id.toString(), null)
+            const ipDetail = await this.detail(ipId.toString(), null)
 
             const existingTokenInfo = await this.prismaService.asset_to_meme_record.findFirst({
                 where: {
                     ip_id: {
                         array_contains: {
-                            ip_id: ip.id,
+                            ip_id: ipId,
                         },
                     },
                 },
             })
 
-            if (existingTokenInfo || ip.token_info) {
+            if (existingTokenInfo || ipDetail.token_info) {
                 throw new BadRequestException("IP already shared to giggle")
             }
 
-            if (!ip.cover_hash) {
-                throw new BadRequestException("IP does not have cover image")
-            }
-
-            const ipLibrary = await this.prismaService.ip_library.findUnique({
-                where: { id: ip.id },
+            const ipCoverKey = await this.prismaService.ip_library.findUnique({
+                where: { id: ipId },
                 select: { cover_images: true },
             })
 
-            if (!ipLibrary?.cover_images?.[0]?.key) {
+            if (!ipCoverKey?.cover_images?.[0]?.key) {
                 throw new BadRequestException("IP does not have cover image")
             }
 
-            const ipDetail = await this.detail(body.id.toString(), null)
-
             //step1 > push ip to chain if not on chain
-            ipProcessStepsDto.ipPushedToChain = true
+            //ipProcessStepsDto.ipPushedToChain = true
             /*
             if (ipDetail.on_chain_status === "onChain" && ipDetail.on_chain_detail) {
                 ipProcessStepsDto.ipPushedToChain = true
@@ -1434,9 +1280,9 @@ export class IpLibraryService {
 
             //step2 > share to giggle
             subscriber.next({
-                event: "ip.share_to_giggle",
+                event: IpEvents.IP_TOKEN_CREATING,
                 data: {
-                    message: "Share to giggle",
+                    message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].label,
                 },
             })
 
@@ -1453,7 +1299,7 @@ export class IpLibraryService {
             }
 
             const mintParams: CreateIpTokenDto = {
-                asset_id: ip.ip_signature_clips?.[0]?.asset_id || null,
+                asset_id: ipDetail.ip_signature_clips?.[0]?.asset_id || null,
                 name: ipDetail.name,
                 ticker: ipDetail.ticker,
                 description: ipDetail.description,
@@ -1461,7 +1307,7 @@ export class IpLibraryService {
                 twitter: ipDetail.extra_info?.twitter,
                 telegram: ipDetail.extra_info?.telegram,
                 website: ipDetail.extra_info?.website,
-                cover_s3_key: ipLibrary?.cover_images?.[0]?.key,
+                cover_s3_key: ipCoverKey?.cover_images?.[0]?.key,
                 createAmount: create_amount,
             }
 
@@ -1471,7 +1317,7 @@ export class IpLibraryService {
 
             const tokenRes = await this.giggleService.processIpToken(
                 user,
-                ip.id,
+                ipId,
                 mintParams,
                 subscriber,
                 false, //do not complete subscriber here
@@ -1481,7 +1327,7 @@ export class IpLibraryService {
                 where: {
                     ip_id: {
                         array_contains: {
-                            ip_id: ip.id,
+                            ip_id: ipId,
                         },
                     },
                 },
@@ -1497,20 +1343,20 @@ export class IpLibraryService {
             }
 
             await this.prismaService.ip_library.update({
-                where: { id: ip.id },
+                where: { id: ipId },
                 data: {
                     token_info: tokenInfo?.token_info,
                     token_mint: tokenMint,
                 },
             })
 
-            ipProcessStepsDto.ipTokenCreated = true
+            //ipProcessStepsDto.ipTokenCreated = true
 
             //step3 > register token on chain
             subscriber.next({
-                event: "ip.update_token_data_on_chain",
+                event: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
                 data: {
-                    message: "Registering token on chain",
+                    message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING_REWARD_POOL].label,
                 },
             })
 
@@ -1525,16 +1371,16 @@ export class IpLibraryService {
             }
             */
 
-            ipProcessStepsDto.ipTokenRegistered = true
+            //ipProcessStepsDto.ipTokenRegistered = true
 
             //create rewards pool if not exists
-            await this.rewardsPoolService.createRewardsPool(ip.id, userWalletAddr, user.email, subscriber)
+            await this.rewardsPoolService.createRewardsPool(ipId, userWalletAddr, user.email)
 
             //run strategy if purchase strategy is agent
 
             if (body.purchase_strategy.type === PurchaseStrategyType.AGENT) {
                 subscriber.next({
-                    event: "ip.start_launch_agent",
+                    event: IpEvents.IP_TOKEN_RUN_STRATEGY,
                     data: tokenMint,
                 })
                 await this.launchAgentService.start(
@@ -1542,61 +1388,26 @@ export class IpLibraryService {
                     {
                         token_mint: tokenMint,
                         user_email: user.email,
-                        ip_id: ip.id,
+                        ip_id: ipId,
                     },
                     user,
                     subscriber,
                 )
             }
-
-            if (complete) {
-                subscriber.next({
-                    event: "ip.token_created_on_chain",
-                    data: await this.detail(ip.id.toString(), null),
-                })
-                subscriber.complete()
-            }
-
-            return ipProcessStepsDto
+            subscriber.next({
+                event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+                data: await this.detail(ipId.toString(), null),
+            })
+            subscriber.complete()
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"
             this.logger.error("Error sharing to giggle", error, `user: ${user.email}, body: ${JSON.stringify(body)}`)
-            if (!ipProcessStepsDto.ipPushedToChain) {
-                //ip not on chain, throw error
-                returnError = error?.message || "Failed to push ip to chain"
-                if (complete) {
-                    subscriber.error(returnError)
-                    subscriber.complete()
-                }
-            } else if (!ipProcessStepsDto.ipTokenCreated) {
-                //ip on chain, but token not registered, throw error
-                returnError = error?.message || "Failed to register token"
-                if (complete) {
-                    subscriber.error(returnError)
-                    subscriber.complete()
-                }
-            } else if (!ipProcessStepsDto.ipTokenRegistered) {
-                //ip on chain, token created, but not registered, throw warning and complete payment
-                returnError =
-                    "IP shared successfully, but ip token is not registered! you can create it on your ip page or contact-us to get help."
-                if (complete) {
-                    subscriber.next({
-                        event: "ip.warning",
-                        data: {
-                            message: returnError,
-                        },
-                    })
-                    subscriber.complete()
-                }
-            } else {
-                returnError = error?.message || "Failed to share to giggle"
-                if (complete) {
-                    subscriber.error(returnError)
-                    subscriber.complete()
-                }
+            //remove ip if ip is new
+            if (body.ip_is_new && ipId) {
+                await this._removeIp(ipId)
             }
-
-            return { ...ipProcessStepsDto, error: returnError }
+            subscriber.error(returnError)
+            subscriber.complete()
         }
     }
 
@@ -1662,7 +1473,6 @@ export class IpLibraryService {
                 if (coverImage) {
                     coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
                 }
-                const authSettings = this.processAuthSettings(item.authorization_settings as any)
                 const res: IpSummaryWithChildDto = {
                     id: item.id,
                     name: item.name,
@@ -1681,14 +1491,14 @@ export class IpLibraryService {
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     on_chain_detail: onChainDetail,
-                    authorization_settings: authSettings,
-                    can_purchase: await this.ipCanPurchase(item.id, authSettings, item.token_info as any),
+                    meta_data: item.meta_data as any,
+                    can_purchase: false,
                     creator_id: item.user_info?.username_in_be || "",
                     creator: item.user_info?.username || "",
                     creator_description: item.user_info?.description || "",
                     creator_followers: item.user_info?.followers || 0,
                     creator_avatar: item.user_info?.avatar || "",
-                    governance_right: this.getGovernanceRight(authSettings),
+                    governance_right: true,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                     child_ip_info: await this._getChildIps({
                         ip_id: item.id,
@@ -1726,10 +1536,10 @@ export class IpLibraryService {
         return `create-ip-${ip_id}`
     }
 
-    async registerToken(user: UserJwtExtractDto, body: RegisterTokenDto) {
+    async registerToken(user: UserJwtExtractDto, ip_id: number) {
         const ip = await this.prismaService.ip_library.findUnique({
             where: {
-                id: body.id,
+                id: ip_id,
             },
         })
 
@@ -1772,54 +1582,14 @@ export class IpLibraryService {
         }
     }
 
-    async ipCanPurchase(
-        ip_id: number,
-        authSettings: AuthorizationSettingsDto,
-        tokenInfo: CreateIpTokenGiggleResponseDto | null,
-    ): Promise<boolean> {
-        //return false if ip is top ip or ip has 2 level of parent ip
-        const ip = await this.prismaService.ip_library_child.findFirst({
-            where: { ip_id: ip_id },
-        })
-        if (!ip) {
-            return false
-        }
-
-        //parent has parent ip
-        const parentIp = await this.prismaService.ip_library_child.findFirst({
-            where: { ip_id: ip.parent_ip },
-        })
-        if (parentIp) {
-            return false
-        }
-
-        const now = new Date()
-        let validDate = false
-        let isOpenAccess = false
-        if (authSettings?.can_purchase === AuthorizationSettingsCanPurchase.OPEN_ACCESS) {
-            isOpenAccess = true
-        }
-        if (authSettings?.long_term_license) {
-            validDate = true
-        } else {
-            validDate =
-                new Date(authSettings?.valid_date?.end_date) >= now &&
-                new Date(authSettings?.valid_date?.start_date) <= now
-        }
-        //return isOpenAccess && validDate && !!tokenInfo
-        return isOpenAccess && validDate
-    }
-
     async uploadAssetToIpfs(
-        subscriber: any,
         imageAsset: AssetDetailDto,
         videoAsset?: AssetDetailDto,
     ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
-        subscriber.next({
-            event: "ip.asset_processing",
-            data: {
-                message: "Processing asset",
-            },
+        return { imageAsset, videoAsset }
+        /*subscriber.next({
+            event: IpEvents.ASSET_PROCESSING,
+            message: IpEventsDetail[IpEvents.ASSET_PROCESSING].summary,
         })
 
         if (!imageAsset.ipfs_key) {
@@ -1866,10 +1636,29 @@ export class IpLibraryService {
                     .getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
                     .createReadStream()
 
+                let currentProgress = 0
+                let progressInterval: NodeJS.Timeout
+
+                progressInterval = setInterval(() => {
+                    subscriber.next({
+                        event: IpEvents.VIDEO_UPLOADING,
+                        message: IpEventsDetail[IpEvents.VIDEO_UPLOADING].label,
+                        data: currentProgress,
+                    })
+                }, 100)
+
                 fileStream.on("data", (chunk) => {
                     uploadedSize += chunk.length
-                    const progress = (uploadedSize / totalSize) * 100
-                    subscriber.next({ event: "ip.video_uploading", data: progress })
+                    currentProgress = (uploadedSize / totalSize) * 100
+                })
+
+                fileStream.on("end", () => {
+                    clearInterval(progressInterval)
+                    subscriber.next({
+                        event: IpEvents.VIDEO_UPLOADING,
+                        message: IpEventsDetail[IpEvents.VIDEO_UPLOADING].label,
+                        data: 100,
+                    })
                 })
 
                 const pinataResult = await pinata.upload.stream(fileStream)
@@ -1887,6 +1676,7 @@ export class IpLibraryService {
             }
         }
         return { imageAsset, videoAsset }
+        */
     }
 
     async getCoverAssetId(ip_id: number): Promise<number> {
@@ -2073,10 +1863,6 @@ export class IpLibraryService {
             owned: ownedIpTree,
             purchased: purchasedIpList,
         }
-    }
-
-    getGovernanceRight(authSettings: AuthorizationSettingsDto): boolean {
-        return Boolean(authSettings.governance_types.find((item) => item.name === GovernanceType.GOVERNANCE_RIGHT))
     }
 
     private async _computeNeedUsdc(

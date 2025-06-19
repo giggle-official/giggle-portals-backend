@@ -7,13 +7,15 @@ import {
     StartLaunchAgentRequestDto,
 } from "./launch-agent.dto"
 import { HttpService } from "@nestjs/axios"
-import { lastValueFrom } from "rxjs"
+import { lastValueFrom, Subscriber } from "rxjs"
 import { AxiosResponse } from "axios"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { PriceService } from "src/web3/price/price.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
+import { SSEMessage } from "../giggle/giggle.dto"
+import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
 
 @Injectable()
 export class LaunchAgentService {
@@ -126,7 +128,12 @@ export class LaunchAgentService {
         return estimatedUsdc
     }
 
-    async start(agentId: string, initParams: StartLaunchAgentRequestDto, user: UserJwtExtractDto, subscriber?: any) {
+    async start(
+        agentId: string,
+        initParams: StartLaunchAgentRequestDto,
+        user: UserJwtExtractDto,
+        subscriber?: Subscriber<SSEMessage>,
+    ) {
         const userInfo = await this.prisma.users.findUnique({
             where: {
                 username_in_be: user.usernameShorted,
@@ -150,7 +157,7 @@ export class LaunchAgentService {
 
         if (subscriber) {
             subscriber.next({
-                event: "ip.start_launch_agent.calculate_cost",
+                event: IpEvents.IP_STRATEGY_CALCULATE_COST,
                 data: {
                     estimated_sol: estimated_cost?.total_estimated_sol,
                 },
@@ -163,7 +170,7 @@ export class LaunchAgentService {
         if (estimatedUsdc > 0 && !this.launchAgentDebug) {
             if (subscriber) {
                 subscriber.next({
-                    event: "ip.start_launch_agent.check_balance",
+                    event: IpEvents.IP_STRATEGY_CHECK_BALANCE,
                     data: {
                         estimated_usdc: estimatedUsdc,
                     },
@@ -177,7 +184,7 @@ export class LaunchAgentService {
             //transfer to launch agent wallet
             if (subscriber) {
                 subscriber.next({
-                    event: "ip.start_launch_agent.transfer_usdc",
+                    event: IpEvents.IP_STRATEGY_TRANSFER_USDC,
                     data: {
                         estimated_usdc: estimatedUsdc,
                     },
@@ -214,10 +221,8 @@ export class LaunchAgentService {
 
         if (subscriber) {
             subscriber.next({
-                event: "ip.start_launch_agent.start_agent",
-                data: {
-                    message: "Start launch agent",
-                },
+                event: IpEvents.IP_STRATEGY_START_AGENT,
+                message: IpEventsDetail[IpEvents.IP_STRATEGY_START_AGENT].summary,
             })
         }
 
@@ -247,10 +252,8 @@ export class LaunchAgentService {
 
         if (subscriber) {
             subscriber.next({
-                event: "ip.start_launch_agent.agent_started",
-                data: {
-                    message: "Agent started",
-                },
+                event: IpEvents.IP_STRATEGY_AGENT_STARTED,
+                message: IpEventsDetail[IpEvents.IP_STRATEGY_AGENT_STARTED].summary,
             })
         }
 

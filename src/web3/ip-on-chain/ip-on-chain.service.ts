@@ -68,7 +68,7 @@ export class IpOnChainService {
                 ipMetadata.video_hash = ip.ip_signature_clips[0].ipfs_hash
             }
 
-            const authorizationSettings = ip.authorization_settings
+            const meta_data = ip.meta_data as any
 
             const pinata = new PinataSDK({
                 pinataJwt: process.env.PINATA_JWT,
@@ -76,7 +76,7 @@ export class IpOnChainService {
             })
 
             const metaUriResponse = await pinata.upload.json(ipMetadata)
-            const authorizationUriResponse = await pinata.upload.json(authorizationSettings)
+            const authorizationUriResponse = await pinata.upload.json(meta_data)
 
             onChainRequestParams = {
                 ipData: {

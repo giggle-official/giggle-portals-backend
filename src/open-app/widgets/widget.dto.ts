@@ -1,10 +1,9 @@
-import { ApiExcludeEndpoint, ApiProperty, OmitType, PartialType } from "@nestjs/swagger"
+import { ApiProperty, OmitType, PartialType } from "@nestjs/swagger"
 import { user_subscribed_widgets, widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
 import { JwtPermissions, ROLES } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
-import { AppInfoDto } from "../open-app.dto"
 
 export class WidgetSettingsDto {
     @ApiProperty({ description: "widget tag" })

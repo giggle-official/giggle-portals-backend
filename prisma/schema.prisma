@@ -279,7 +279,7 @@ model ip_library {
   ip_levels               Int?                        @default(1)
   extra_info              Json?
   creation_guide_lines    String?                     @db.Text
-  authorization_settings  Json?
+  meta_data               Json?
   token_mint              String?                     @db.VarChar(64)
   token_info              Json?
   current_token_info      Json?

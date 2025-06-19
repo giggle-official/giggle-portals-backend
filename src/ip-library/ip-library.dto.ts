@@ -14,23 +14,162 @@ import {
     IsObject,
     MaxLength,
     Validate,
-    IsDateString,
+    IsUrl,
     ArrayMinSize,
     ArrayMaxSize,
-    Matches,
-    IsUrl,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { VideoInfoTaskResponseDto } from "src/task/task.dto"
 import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
 import { Type } from "class-transformer"
-import {
-    IpNameValidator,
-    IpPeriodValidator,
-    RevenueDistributionValidator,
-    TickerValidator,
-} from "./ip-library.validator"
+import { IpNameValidator, TickerValidator } from "./ip-library.validator"
+
+export enum PurchaseStrategyType {
+    DIRECT = "direct",
+    AGENT = "agent",
+    NONE = "none",
+}
+
+export enum IpEvents {
+    CREATION_STEPS = "ip.creation_steps",
+    DATA_VALIDATING = "ip.data_validating",
+    ASSET_PROCESSING = "ip.asset_processing",
+    VIDEO_UPLOADING = "ip.video_uploading",
+    IP_CREATION = "ip.created",
+
+    //token creation
+    IP_ASSET_TO_IPFS = "ip.asset_to_ipfs",
+    IP_TOKEN_CREATING = "ip.token_creating",
+    IP_TOKEN_CREATING_REWARD_POOL = "ip.token_creating_reward_pool",
+
+    //strategy
+    IP_TOKEN_RUN_STRATEGY = "ip.start_launch_agent.starting",
+    IP_STRATEGY_CALCULATE_COST = "ip.start_launch_agent.calculate_cost",
+    IP_STRATEGY_CHECK_BALANCE = "ip.start_launch_agent.check_balance",
+    IP_STRATEGY_TRANSFER_USDC = "ip.start_launch_agent.transfer_usdc",
+    IP_STRATEGY_START_AGENT = "ip.start_launch_agent.start_agent",
+    IP_STRATEGY_AGENT_STARTED = "ip.start_launch_agent.agent_started",
+
+    //edit ip
+    IP_UPDATED = "ip.updated",
+
+    // created on chain
+    IP_TOKEN_CREATED_ON_CHAIN = "ip.token_created_on_chain",
+
+    //warning
+    IP_WARNING = "ip.warning",
+}
+
+export const IpEventsDetail = {
+    [IpEvents.CREATION_STEPS]: {
+        id: IpEvents.CREATION_STEPS,
+        label: "Creation steps",
+        summary: "When started a creation process, this event will return the creation steps in `data` structure.",
+    },
+    [IpEvents.DATA_VALIDATING]: {
+        id: IpEvents.DATA_VALIDATING,
+        label: "Data verification",
+        summary: "Validating IP creation data.",
+    },
+    [IpEvents.ASSET_PROCESSING]: {
+        id: IpEvents.ASSET_PROCESSING,
+        label: "Asset processing",
+        summary: "Processing IP asset.",
+    },
+    [IpEvents.VIDEO_UPLOADING]: {
+        id: IpEvents.VIDEO_UPLOADING,
+        label: "Video processing",
+        summary: "Uploading IP video, at current step, data in `data` is the progress of video uploading",
+    },
+
+    [IpEvents.IP_CREATION]: {
+        id: IpEvents.IP_CREATION,
+        label: "IP Creation",
+        summary: "IP library is creating",
+    },
+    [IpEvents.IP_ASSET_TO_IPFS]: {
+        id: IpEvents.IP_ASSET_TO_IPFS,
+        label: "Asset to ipfs",
+        summary: "Uploading IP asset to ipfs, at current step, data in `data` is the progress of asset uploading",
+    },
+    [IpEvents.IP_TOKEN_CREATING]: {
+        id: IpEvents.IP_TOKEN_CREATING,
+        label: "Creating IP Token",
+        summary: "Creating IP token, this event only exists when `share_to_giggle` is true in request body",
+    },
+    [IpEvents.IP_TOKEN_CREATING_REWARD_POOL]: {
+        id: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
+        label: "Creating Reward Pool",
+        summary:
+            "Creating reward pool for IP token, this event only exists when `share_to_giggle` is true in request body",
+    },
+    [IpEvents.IP_TOKEN_RUN_STRATEGY]: {
+        id: IpEvents.IP_TOKEN_RUN_STRATEGY,
+        label: "IP Token Run Strategy",
+        summary: "Running strategy for IP token, this event only exists when `share_to_giggle` is true in request body",
+    },
+    [IpEvents.IP_TOKEN_CREATED_ON_CHAIN]: {
+        id: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+        label: "IP Token Created On Chain",
+        summary:
+            "IP token is created successfully, this event only exists when `share_to_giggle` is true in request body. The data in `data` is the IP token info.",
+    },
+
+    [IpEvents.IP_STRATEGY_CALCULATE_COST]: {
+        id: IpEvents.IP_STRATEGY_CALCULATE_COST,
+        label: "Calculate Cost for Purchase Strategy",
+        summary: `Calculating cost for purchase strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
+    },
+    [IpEvents.IP_STRATEGY_CHECK_BALANCE]: {
+        id: IpEvents.IP_STRATEGY_CHECK_BALANCE,
+        label: "Check Balance for Purchase Strategy",
+        summary: `Checking balance for IP strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
+    },
+    [IpEvents.IP_STRATEGY_TRANSFER_USDC]: {
+        id: IpEvents.IP_STRATEGY_TRANSFER_USDC,
+        label: "Transfer USDC for Purchase Strategy",
+        summary: `Transferring USDC for IP strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
+    },
+    [IpEvents.IP_STRATEGY_START_AGENT]: {
+        id: IpEvents.IP_STRATEGY_START_AGENT,
+        label: "Start Purchase Strategy Agent",
+        summary: `Starting purchase strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
+    },
+    [IpEvents.IP_STRATEGY_AGENT_STARTED]: {
+        id: IpEvents.IP_STRATEGY_AGENT_STARTED,
+        label: "Purchase Strategy Agent Started",
+        summary: `Purchase strategy agent started, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
+    },
+
+    [IpEvents.IP_UPDATED]: {
+        id: IpEvents.IP_UPDATED,
+        label: "IP Updated",
+        summary: "IP updated, this event exists when edit ip",
+    },
+
+    [IpEvents.IP_WARNING]: {
+        id: IpEvents.IP_WARNING,
+        label: "IP Warning",
+        summary: "IP warning, `data` is the warning info.",
+    },
+}
+export class StepDto {
+    @ApiProperty({
+        description: "id of the step",
+    })
+    event: IpEvents
+
+    @ApiProperty({
+        description: "label of the step",
+    })
+    label: string
+
+    @ApiProperty({
+        description: "is progress",
+    })
+    is_progress: boolean
+}
 
 export class CreateIpLibraryDto {
     @IsOptional()
@@ -297,246 +436,6 @@ export class IpSignatureClipMetadataDto extends VideoInfoTaskResponseDto {
     size: number
 }
 
-export class RevenueDistributionDto {
-    @ApiProperty({
-        description: "licensor percentage of the revenue distribution",
-    })
-    licensor: number
-
-    @ApiProperty({
-        description: "platform percentage of the revenue distribution",
-    })
-    platform: number
-
-    @ApiProperty({
-        description: "community percentage of the revenue distribution",
-    })
-    community: number
-
-    @ApiProperty({
-        description: "treasury percentage of the revenue distribution",
-    })
-    treasury: number
-}
-
-export class IpPeriodDto {
-    @IsDateString()
-    @ApiProperty({
-        description: "start date of the ip library",
-        required: false,
-    })
-    start_date: Date | null
-
-    @IsDateString()
-    @ApiProperty({
-        description: "end date of the ip library",
-        required: false,
-    })
-    end_date: Date | null
-}
-
-export class LicenseDto {
-    @IsNotEmpty()
-    @IsString()
-    @ApiProperty({
-        description: "name of the license",
-    })
-    name: string
-}
-
-export enum AuthorizationSettingsCanPurchase {
-    OPEN_ACCESS = "open-access",
-    RESTRICTED = "restricted",
-}
-
-export enum GovernanceType {
-    GOVERNANCE_RIGHT = "governance_right",
-    EXCLUSIVE_NFT_ACCESS = "exclusive_nft_access",
-    GAME_FILM_ROYALTIES = "game_film_royalties",
-    IP_REVENUE_SHARE = "ip_revenue_share",
-    FAN_PARTICIPATION_IP_EXPANSION = "fan_participation_ip_expansion",
-}
-
-export class GovernanceTypeDto {
-    @IsEnum(GovernanceType)
-    @ApiProperty({
-        description: "name of the governance type",
-        enum: GovernanceType,
-    })
-    name: GovernanceType
-}
-
-export class TerritoryDto {
-    @IsString()
-    @ApiProperty({
-        description: "name of the territory",
-    })
-    name: string
-
-    @IsString()
-    @ApiProperty({
-        description: "value of the territory",
-    })
-    value: string
-
-    @IsArray()
-    @ApiProperty({
-        description: "children of the territory",
-        type: () => [TerritoryDto],
-    })
-    children?: TerritoryDto[]
-}
-
-export class ChildIpExtraAuthSettingsDto {
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    on_chain_revenue_creator?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    on_chain_revenue_ip_holder?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    on_chain_revenue_platform?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    commercial_pass_threshold?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    license_duration?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    external_revenue_creator?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    external_revenue_ip_holder?: number
-
-    @ApiProperty({
-        required: false,
-    })
-    @IsNumber()
-    @IsOptional()
-    external_revenue_platform?: number
-}
-
-export class AuthorizationSettingsDto {
-    @IsEnum(AuthorizationSettingsCanPurchase)
-    @ApiProperty({
-        description: "is license of the ip library can be purchased by users",
-        enum: AuthorizationSettingsCanPurchase,
-    })
-    can_purchase: AuthorizationSettingsCanPurchase
-
-    @Type(() => LicenseDto)
-    @IsArray()
-    @ArrayMinSize(1)
-    @ApiProperty({
-        type: () => [LicenseDto],
-        description: "licenses of the ip library",
-    })
-    @ValidateNested({ each: true })
-    license: LicenseDto[]
-
-    @IsOptional()
-    @ApiProperty({
-        description: "territory of the authorization settings",
-        required: false,
-        isArray: true,
-        type: () => TerritoryDto,
-    })
-    territory?: TerritoryDto[] | string
-
-    @IsObject()
-    @ApiProperty({
-        type: () => RevenueDistributionDto,
-        description:
-            "revenue distribution of the authorization settings, all the numbers must be between 0 and 100 and the sum must be 100",
-    })
-    @Validate(RevenueDistributionValidator)
-    revenue_distribution: RevenueDistributionDto
-
-    @IsArray()
-    @ApiProperty({
-        description: "governance types of the authorization settings",
-        type: () => [GovernanceTypeDto],
-    })
-    governance_types: GovernanceTypeDto[]
-
-    @IsBoolean()
-    @IsNotEmpty()
-    @ApiProperty({
-        description: "is long term license",
-    })
-    long_term_license: boolean
-
-    @IsObject()
-    @Validate(IpPeriodValidator)
-    @ApiProperty({
-        type: () => IpPeriodDto,
-        description: "valid date of the ip library, this field is required if long_term_license is false",
-    })
-    valid_date: IpPeriodDto
-
-    @IsOptional()
-    @IsNumber()
-    @ApiProperty({
-        description: "price of the license",
-        required: true,
-    })
-    license_price: number
-
-    @IsOptional()
-    @IsString()
-    @ApiProperty({
-        description: "notes of the authorization settings",
-        required: false,
-    })
-    notes?: string
-
-    @IsOptional()
-    @IsObject()
-    @ApiProperty({
-        description: "extra settings of the authorization settings, this field is only used for child ip",
-        required: false,
-        type: () => ChildIpExtraAuthSettingsDto,
-    })
-    child_ip_extra_settings?: ChildIpExtraAuthSettingsDto
-
-    @IsOptional()
-    @IsObject()
-    @ApiProperty({
-        description: "customization settings of the authorization settings",
-        required: false,
-    })
-    customization_settings?: Record<string, any>
-}
-
 //uses for get detail of frontend
 export class IpSignatureClipDto {
     @ApiProperty({
@@ -705,7 +604,7 @@ export class IpSummaryDto {
 
     @ApiProperty({
         description: "token info",
-        type: CreateIpTokenGiggleResponseDto,
+        type: () => CreateIpTokenGiggleResponseDto,
     })
     token_info: CreateIpTokenGiggleResponseDto
 
@@ -716,10 +615,10 @@ export class IpSummaryDto {
     ip_signature_clips: IpSignatureClipDto[]
 
     @ApiProperty({
-        type: () => AuthorizationSettingsDto,
-        description: "authorization settings of the ip library",
+        description: "meta data of the ip library",
+        required: false,
     })
-    authorization_settings: AuthorizationSettingsDto
+    meta_data?: Record<string, any>
 }
 export type OnchainStatusDto = ip_library_on_chain_status
 
@@ -775,12 +674,6 @@ export class IpLibraryListDto {
         description: "total count of ip libraries",
     })
     count: number
-}
-
-export enum PurchaseStrategyType {
-    DIRECT = "direct",
-    AGENT = "agent",
-    NONE = "none",
 }
 
 export class PurchaseStrategyDto {
@@ -869,38 +762,13 @@ export class CreateIpDto {
     })
     video_id?: number
 
-    @IsNotEmpty()
-    @IsBoolean()
     @ApiProperty({
-        description: "share this ip to giggle",
-    })
-    share_to_giggle: boolean
-
-    @IsOptional()
-    @IsString()
-    @ApiProperty({
-        description: "creation guide lines of the ip library",
+        description: "meta data",
         required: false,
     })
-    creation_guide_lines?: string
-
     @IsOptional()
-    @IsOptional()
-    @IsEnum(["solana", "base"])
-    @ApiProperty({
-        description: "chain name of the ip library, currently only support solana",
-        default: "solana",
-        required: false,
-    })
-    chain_name?: "solana" | "base"
-
-    @ApiProperty({
-        type: () => AuthorizationSettingsDto,
-        description: "authorization settings",
-    })
-    @ValidateNested()
-    @Type(() => AuthorizationSettingsDto)
-    authorization_settings: AuthorizationSettingsDto
+    @IsObject()
+    meta_data?: Record<string, any>
 
     @IsOptional()
     @IsNumber()
@@ -949,6 +817,41 @@ export class CreateIpDto {
         required: false,
     })
     instagram?: string
+}
+
+export class EditIpDto extends OmitType(CreateIpDto, ["parent_ip_library_id", "name", "ticker"]) {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+}
+
+export class LaunchIpTokenDto {
+    @IsNotEmpty()
+    @IsBoolean()
+    @ApiProperty({
+        description: "ip is new, if true, will create a new ip and launch ip token",
+    })
+    ip_is_new: boolean
+
+    @IsOptional()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+        required: false,
+    })
+    ip_id?: number
+
+    @ApiProperty({
+        description: "ip info",
+        type: () => CreateIpDto,
+    })
+    @ValidateNested()
+    @IsOptional()
+    @Type(() => CreateIpDto)
+    ip_info?: CreateIpDto
 
     @ApiProperty({
         description: "purchase strategy of the ip library",
@@ -956,41 +859,7 @@ export class CreateIpDto {
     })
     @ValidateNested()
     @Type(() => PurchaseStrategyDto)
-    purchase_strategy: PurchaseStrategyDto
-}
-
-export class EditIpDto extends OmitType(CreateIpDto, [
-    "share_to_giggle",
-    "parent_ip_library_id",
-    "chain_name",
-    "name",
-    "ticker",
-    "purchase_strategy",
-]) {
-    @IsNotEmpty()
-    @IsNumber()
-    @ApiProperty({
-        description: "id of the ip library",
-    })
-    id: number
-}
-
-export class ShareToGiggleDto extends PickType(CreateIpDto, ["purchase_strategy"]) {
-    @IsNotEmpty()
-    @IsNumber()
-    @ApiProperty({
-        description: "id of the ip library",
-    })
-    id: number
-}
-
-export class RegisterTokenDto {
-    @IsNotEmpty()
-    @IsNumber()
-    @ApiProperty({
-        description: "id of the ip library",
-    })
-    id: number
+    purchase_strategy?: PurchaseStrategyDto
 }
 
 export class IpProcessStepsDto {

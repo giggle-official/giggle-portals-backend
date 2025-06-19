@@ -25,11 +25,8 @@ import {
     IpLibraryListDto,
     IpNameCheckDto,
     LikeIpDto,
-    RegisterTokenDto,
-    RemixClipsDto,
     SetVisibilityDto,
-    ShareToGiggleDto,
-    TerritoryDto,
+    LaunchIpTokenDto,
     UnlikeIpDto,
     UntokenizeDto,
 } from "./ip-library.dto"
@@ -105,13 +102,6 @@ export class IpLibraryController {
     @ApiResponse({ type: [GenreDto], status: 200 })
     async getGenres(): Promise<GenreDto[]> {
         return this.ipLibraryService.getGenres()
-    }
-
-    @Get("/territories")
-    @ApiOperation({ summary: "Get territories" })
-    @ApiResponse({ type: [TerritoryDto], status: 200 })
-    async getTerritories(): Promise<TerritoryDto[]> {
-        return this.ipLibraryService.getTerritories()
     }
 
     @Post("/add-share-count")
@@ -190,105 +180,16 @@ export class IpLibraryController {
     }
 
     @Post("/create-ip")
-    @Sse("/create-ip")
     @ApiBody({ type: CreateIpDto })
-    @ApiResponse({
-        status: 200,
-        content: {
-            "text/event-stream": {
-                schema: {
-                    type: "object",
-                    properties: {
-                        event: { type: "string" },
-                        data: { type: "object", properties: { message: { type: "string" } } },
-                    },
-                },
-            },
-        },
-    })
+    @ApiResponse({ status: 200, type: IpLibraryDetailDto })
     @ApiOperation({
         summary: "Create ip library",
-        description: `
-Returns SSE stream with progress updates and final result, 
-sse event:
-
-**data structure:**
-\`
-{
-  event: string,
-  data: {
-    message: string
-  } | number
-}
-\`
-
-**event list:**
-- ip.data_validating
-
-this event indicate the data is validating
-- ip.asset_processing
-
-this event indicate the asset is processing
-- ip.video_uploading
-
-this event indicate the video is uploading, at current step, data in \`data\` is the progress of video uploading
-- ip.ip_library_creating
-
-this event indicate the ip library is creating
-- ip.push_ip_to_chain
-
-this event indicate the ip is pushing to chain
-- ip.share_to_giggle
-  
-this event indicate the ip is sharing to giggle, this event only exists when \`share_to_giggle\` is true in request body
-- asset.uploading
-  
-this event indicate the asset of creating meme is uploading, at current step, data in \`data\` is the progress of asset uploading, this event only exists when \`share_to_giggle\` is true in request body
-- meme.creating
-
-this event indicate the meme is creating, this event only exists when \`share_to_giggle\` is true in request body
-- meme.created
-
-this event indicate the meme is created, this event only exists when \`share_to_giggle\` is true in request body
-- ip.update_token_data_on_chain
-
-this event indicate the ip is updating token data which just created to chain, this event only exists when \`share_to_giggle\` is true in request body
-- ip.payment_processing
-
-this event indicate the ip is processing payment, this event only exists when \`share_to_giggle\` is true in request body
-- ip.payment_confirmed
-
-this event indicate the ip is confirmed payment, this event only exists when \`share_to_giggle\` is true in request body
-- ip.payment_refunded
-
-this event indicate the ip is refunded payment, this event only exists when \`share_to_giggle\` is true in request body
-- ip.created
-
-this event indicate the ip is created, and the data in \`data\` is the detail of ip
-
-- ip.warning
-
-this event indicate the ip is created, but some warning occurs, this may ip token is created failed or ip token is registered failed, the data in \`data\` is the warning message
-
-**error event:**
-
-if error occurs, the event will be \`error\` and the data in \`data\` is the error message, subscriber will be completed.
-data structure:
-
-\`
-event: error
-id: 2
-data: some error message
-\`
-
-`,
+        description: `create a new ip but do not launch ip token`,
     })
-    @ApiResponse({ type: SSEMessage, status: 200 })
     @ApiBearerAuth()
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
-    @NologInterceptor()
-    createIp(@Req() req: Request, @ValidEventBody() body: CreateIpDto) {
+    createIp(@Req() req: Request, @Body() body: CreateIpDto) {
         return this.ipLibraryService.createIp(req.user as UserJwtExtractDto, body)
     }
 
@@ -352,9 +253,9 @@ data: some error message
         return this.ipLibraryService.editIp(req.user as UserJwtExtractDto, body)
     }
 
-    @Post("/share-to-giggle")
-    @Sse("/share-to-giggle")
-    @ApiBody({ type: ShareToGiggleDto })
+    @Post("/launch-ip-token")
+    @Sse("/launch-ip-token")
+    @ApiBody({ type: LaunchIpTokenDto })
     @ApiResponse({ type: SSEMessage, status: 200 })
     @ApiOperation({
         summary: "Share an existing ip to giggle",
@@ -431,8 +332,8 @@ data: some error message
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @NologInterceptor()
-    shareToGiggle(@Req() req: Request, @ValidEventBody() body: ShareToGiggleDto) {
-        return this.ipLibraryService.shareToGiggle(req.user as UserJwtExtractDto, body)
+    launchIpToken(@Req() req: Request, @ValidEventBody() body: LaunchIpTokenDto) {
+        return this.ipLibraryService.launchIpToken(req.user as UserJwtExtractDto, body)
     }
 
     @Get("/:id")
@@ -446,14 +347,13 @@ data: some error message
 
     @Post("/register-token")
     @ApiOperation({ summary: "Register token for an ip" })
-    @ApiBody({ type: RegisterTokenDto })
     @ApiResponse({ status: 200 })
     @ApiBearerAuth()
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
-    //@ApiExcludeEndpoint()
-    registerToken(@Req() req: Request, @Body() body: RegisterTokenDto) {
-        return this.ipLibraryService.registerToken(req.user as UserJwtExtractDto, body)
+    @ApiExcludeEndpoint()
+    registerToken(@Req() req: Request, @Body() body: { id: number }) {
+        return this.ipLibraryService.registerToken(req.user as UserJwtExtractDto, body.id)
     }
 
     @Get("/signature-clips/:id")

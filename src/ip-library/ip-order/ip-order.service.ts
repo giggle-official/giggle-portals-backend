@@ -63,9 +63,6 @@ export class IpOrderService {
             throw new BadRequestException("ip name already exists in pending orders")
         }
 
-        if (body.share_to_giggle) {
-            throw new BadRequestException("share_to_giggle is not allowed for 3rd level ip")
-        }
         const parentIp = await this.ipLibraryService.detail(body.parent_ip_library_id.toString(), null, null, user)
         if (!parentIp) {
             throw new BadRequestException("parent ip not found")
@@ -87,7 +84,7 @@ export class IpOrderService {
         let amount = 1
         let duration = 1
         if (!body.video_id) {
-            amount = parentIp.authorization_settings.license_price
+            amount = parentIp.meta_data.license_price
             duration = 1
         } else {
             const asset = await this.assetsService.getAsset(user, body.video_id)
@@ -95,10 +92,10 @@ export class IpOrderService {
                 throw new BadRequestException("asset not found or is not a video")
             }
             duration = Math.ceil(asset?.asset_info?.videoInfo?.duration / 60)
-            amount = duration * parentIp.authorization_settings.license_price
+            amount = duration * parentIp.meta_data.license_price
         }
 
-        if (amount < parentIp.authorization_settings.license_price) {
+        if (amount < parentIp.meta_data.license_price) {
             throw new BadRequestException("get video duration failed, please try again later")
         }
 
@@ -369,29 +366,14 @@ export class IpOrderService {
             })
 
             try {
-                const result = new Observable<SSEMessage>((subscriber) => {
-                    this.ipLibraryService
-                        .processCreateIp(user, order.creation_data as any as CreateIpDto, subscriber)
-                        .catch((error) => {
-                            subscriber.error(error)
-                        })
-                })
-                let allResponse = []
-                const response = await lastValueFrom(
-                    result.pipe(
-                        tap((message) => {
-                            allResponse.push(message.data)
-                        }),
-                        toArray(),
-                    ),
-                )
+                const result = await this.ipLibraryService.createIp(user, order.creation_data as any as CreateIpDto)
                 this.logger.warn("processOrder finished", order)
                 //set status to created
                 await this.prisma.third_level_ip_orders.update({
                     where: { id: order.id },
                     data: {
                         ip_create_status: IpCreateStatus.CREATED,
-                        ip_create_response: JSON.stringify(response.slice(-5)),
+                        ip_create_response: JSON.stringify(result),
                     },
                 })
             } catch (error) {
