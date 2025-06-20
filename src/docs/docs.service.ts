@@ -1,12 +1,9 @@
 import { ForbiddenException, Injectable, OnModuleInit } from "@nestjs/common"
 import { UserJwtExtractDto } from "../user/user.controller"
-import path from "path"
-import fs from "fs"
+import * as specJson from "./openapi-public-spec.json"
 
 @Injectable()
 export class DocsService implements OnModuleInit {
-    private publicDocument: any
-
     async onModuleInit() {
         this.initializePublicDocument()
     }
@@ -17,8 +14,6 @@ export class DocsService implements OnModuleInit {
         if (!userInfo.is_developer) {
             throw new ForbiddenException("You are not authorized to access this resource")
         }
-        const spec = fs.readFileSync(path.join(process.cwd(), "openapi-public-spec.json"), "utf8")
-        const specJson = JSON.parse(spec)
         //filter with tags
         const availableTags = specJson["x-tagGroups"].flatMap((tagGroup: any) => tagGroup.tags)
         let filteredPaths = {}

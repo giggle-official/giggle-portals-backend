@@ -277,7 +277,7 @@ To see how to process the event stream response, please refer to the [Event Stre
     //fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
     //
     if (process.env.ENV === "local") {
-        const publicOutputPath = path.join(process.cwd(), "openapi-public-spec.json")
+        const publicOutputPath = path.join(process.cwd(), "src/docs/openapi-public-spec.json")
         fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
     }
 
