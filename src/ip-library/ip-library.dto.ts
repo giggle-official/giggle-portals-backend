@@ -34,9 +34,6 @@ export enum PurchaseStrategyType {
 export enum IpEvents {
     CREATION_STEPS = "ip.creation_steps",
     DATA_VALIDATING = "ip.data_validating",
-    ASSET_PROCESSING = "ip.asset_processing",
-    VIDEO_UPLOADING = "ip.video_uploading",
-    IP_CREATION = "ip.created",
 
     //token creation
     IP_ASSET_TO_IPFS = "ip.asset_to_ipfs",
@@ -61,100 +58,123 @@ export enum IpEvents {
     IP_WARNING = "ip.warning",
 }
 
-export const IpEventsDetail = {
-    [IpEvents.CREATION_STEPS]: {
-        id: IpEvents.CREATION_STEPS,
+export const IpEventsDetail: EventDto[] = [
+    {
+        order: 1,
+        event: IpEvents.CREATION_STEPS,
         label: "Creation steps",
         summary: "When started a creation process, this event will return the creation steps in `data` structure.",
+        is_progress: false,
+        is_completed: false,
     },
-    [IpEvents.DATA_VALIDATING]: {
-        id: IpEvents.DATA_VALIDATING,
+    {
+        order: 2,
+        event: IpEvents.DATA_VALIDATING,
         label: "Data verification",
         summary: "Validating IP creation data.",
+        is_progress: false,
+        is_completed: false,
     },
-    [IpEvents.ASSET_PROCESSING]: {
-        id: IpEvents.ASSET_PROCESSING,
-        label: "Asset processing",
-        summary: "Processing IP asset.",
-    },
-    [IpEvents.VIDEO_UPLOADING]: {
-        id: IpEvents.VIDEO_UPLOADING,
-        label: "Video processing",
-        summary: "Uploading IP video, at current step, data in `data` is the progress of video uploading",
+    {
+        order: 3,
+        event: IpEvents.IP_ASSET_TO_IPFS,
+        label: "Asset to IPFS",
+        summary: "Uploading IP asset to IPFS, at current step, the data in `data` is the progress of asset uploading",
+        is_progress: true,
+        is_completed: false,
     },
 
-    [IpEvents.IP_CREATION]: {
-        id: IpEvents.IP_CREATION,
-        label: "IP Creation",
-        summary: "IP library is creating",
-    },
-    [IpEvents.IP_ASSET_TO_IPFS]: {
-        id: IpEvents.IP_ASSET_TO_IPFS,
-        label: "Asset to ipfs",
-        summary: "Uploading IP asset to ipfs, at current step, data in `data` is the progress of asset uploading",
-    },
-    [IpEvents.IP_TOKEN_CREATING]: {
-        id: IpEvents.IP_TOKEN_CREATING,
+    {
+        order: 14,
+        event: IpEvents.IP_TOKEN_CREATING,
         label: "Creating IP Token",
-        summary: "Creating IP token, this event only exists when `share_to_giggle` is true in request body",
+        summary: "Creating IP token, this may take a while depends on the network condition",
+        is_progress: false,
+        is_completed: false,
     },
-    [IpEvents.IP_TOKEN_CREATING_REWARD_POOL]: {
-        id: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
+    {
+        order: 15,
+        event: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
         label: "Creating Reward Pool",
-        summary:
-            "Creating reward pool for IP token, this event only exists when `share_to_giggle` is true in request body",
+        summary: "Creating reward pool for IP token.",
+        is_progress: false,
+        is_completed: false,
     },
-    [IpEvents.IP_TOKEN_RUN_STRATEGY]: {
-        id: IpEvents.IP_TOKEN_RUN_STRATEGY,
+    {
+        order: 116,
+        event: IpEvents.IP_TOKEN_RUN_STRATEGY,
         label: "IP Token Run Strategy",
-        summary: "Running strategy for IP token, this event only exists when `share_to_giggle` is true in request body",
+        summary: "Starting to run strategy for IP token if your purchase strategy is `agent`",
+        is_progress: false,
+        is_completed: false,
     },
-    [IpEvents.IP_TOKEN_CREATED_ON_CHAIN]: {
-        id: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+
+    {
+        order: 118,
+        event: IpEvents.IP_STRATEGY_CALCULATE_COST,
+        label: "Calculate Cost for Purchase Strategy",
+        summary: `Calculating cost for purchase strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+    {
+        order: 119,
+        event: IpEvents.IP_STRATEGY_CHECK_BALANCE,
+        label: "Check Balance for Purchase Strategy",
+        summary: `Checking balance for IP strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+    {
+        order: 110,
+        event: IpEvents.IP_STRATEGY_TRANSFER_USDC,
+        label: "Transfer USDC for Purchase Strategy",
+        summary: `Transferring USDC for IP strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+    {
+        order: 111,
+        event: IpEvents.IP_STRATEGY_START_AGENT,
+        label: "Start Purchase Strategy Agent",
+        summary: `Starting purchase strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+    {
+        order: 112,
+        event: IpEvents.IP_STRATEGY_AGENT_STARTED,
+        label: "Purchase Strategy Agent Started",
+        summary: `Purchase strategy agent started, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: true,
+    },
+
+    {
+        order: 1007,
+        event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
         label: "IP Token Created On Chain",
         summary:
-            "IP token is created successfully, this event only exists when `share_to_giggle` is true in request body. The data in `data` is the IP token info.",
+            "IP token is created successfully, this event will be triggered when the IP token is created successfully, and the data in `data` is the IP info.",
+        is_progress: false,
+        is_completed: true,
     },
 
-    [IpEvents.IP_STRATEGY_CALCULATE_COST]: {
-        id: IpEvents.IP_STRATEGY_CALCULATE_COST,
-        label: "Calculate Cost for Purchase Strategy",
-        summary: `Calculating cost for purchase strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
-    },
-    [IpEvents.IP_STRATEGY_CHECK_BALANCE]: {
-        id: IpEvents.IP_STRATEGY_CHECK_BALANCE,
-        label: "Check Balance for Purchase Strategy",
-        summary: `Checking balance for IP strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
-    },
-    [IpEvents.IP_STRATEGY_TRANSFER_USDC]: {
-        id: IpEvents.IP_STRATEGY_TRANSFER_USDC,
-        label: "Transfer USDC for Purchase Strategy",
-        summary: `Transferring USDC for IP strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
-    },
-    [IpEvents.IP_STRATEGY_START_AGENT]: {
-        id: IpEvents.IP_STRATEGY_START_AGENT,
-        label: "Start Purchase Strategy Agent",
-        summary: `Starting purchase strategy, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
-    },
-    [IpEvents.IP_STRATEGY_AGENT_STARTED]: {
-        id: IpEvents.IP_STRATEGY_AGENT_STARTED,
-        label: "Purchase Strategy Agent Started",
-        summary: `Purchase strategy agent started, this event only exists when \`share_to_giggle\` is true and strategy is \`${PurchaseStrategyType.AGENT}\``,
-    },
-
-    [IpEvents.IP_UPDATED]: {
-        id: IpEvents.IP_UPDATED,
-        label: "IP Updated",
-        summary: "IP updated, this event exists when edit ip",
-    },
-
-    [IpEvents.IP_WARNING]: {
-        id: IpEvents.IP_WARNING,
+    {
+        order: 1008,
+        event: IpEvents.IP_WARNING,
         label: "IP Warning",
         summary: "IP warning, `data` is the warning info.",
+        is_progress: false,
+        is_completed: false,
     },
-}
-export class StepDto {
+]
+export class EventDto {
+    @ApiProperty({
+        description: "order of the step",
+    })
+    order: number
+
     @ApiProperty({
         description: "id of the step",
     })
@@ -166,9 +186,19 @@ export class StepDto {
     label: string
 
     @ApiProperty({
+        description: "summary of the step",
+    })
+    summary: string
+
+    @ApiProperty({
         description: "is progress",
     })
     is_progress: boolean
+
+    @ApiProperty({
+        description: "is completed",
+    })
+    is_completed: boolean
 }
 
 export class CreateIpLibraryDto {
@@ -829,37 +859,19 @@ export class EditIpDto extends OmitType(CreateIpDto, ["parent_ip_library_id", "n
 }
 
 export class LaunchIpTokenDto {
-    @IsNotEmpty()
-    @IsBoolean()
-    @ApiProperty({
-        description: "ip is new, if true, will create a new ip and launch ip token",
-    })
-    ip_is_new: boolean
-
     @IsOptional()
     @IsNumber()
     @ApiProperty({
         description: "id of the ip library",
-        required: false,
     })
-    ip_id?: number
-
-    @ApiProperty({
-        description: "ip info",
-        type: () => CreateIpDto,
-    })
-    @ValidateNested()
-    @IsOptional()
-    @Type(() => CreateIpDto)
-    ip_info?: CreateIpDto
+    ip_id: number
 
     @ApiProperty({
         description: "purchase strategy of the ip library",
-        required: false,
     })
     @ValidateNested()
     @Type(() => PurchaseStrategyDto)
-    purchase_strategy?: PurchaseStrategyDto
+    purchase_strategy: PurchaseStrategyDto
 }
 
 export class IpProcessStepsDto {

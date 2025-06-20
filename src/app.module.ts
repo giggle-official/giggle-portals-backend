@@ -16,6 +16,7 @@ import { IpLibraryModule } from "./ip-library/ip-library.module"
 import { Web3Module } from "./web3/web3.module"
 import { OpenAppModule } from "./open-app/open-app.module"
 import { DashboardModule } from "./dashboard/dashboard.module"
+import { DocsModule } from "./docs/docs.module"
 
 @Module({
     imports: [
@@ -38,6 +39,7 @@ import { DashboardModule } from "./dashboard/dashboard.module"
         Web3Module,
         OpenAppModule,
         DashboardModule,
+        DocsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

@@ -158,6 +158,7 @@ export class LaunchAgentService {
         if (subscriber) {
             subscriber.next({
                 event: IpEvents.IP_STRATEGY_CALCULATE_COST,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_CALCULATE_COST),
                 data: {
                     estimated_sol: estimated_cost?.total_estimated_sol,
                 },
@@ -171,6 +172,7 @@ export class LaunchAgentService {
             if (subscriber) {
                 subscriber.next({
                     event: IpEvents.IP_STRATEGY_CHECK_BALANCE,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_CHECK_BALANCE),
                     data: {
                         estimated_usdc: estimatedUsdc,
                     },
@@ -185,6 +187,7 @@ export class LaunchAgentService {
             if (subscriber) {
                 subscriber.next({
                     event: IpEvents.IP_STRATEGY_TRANSFER_USDC,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_TRANSFER_USDC),
                     data: {
                         estimated_usdc: estimatedUsdc,
                     },
@@ -222,7 +225,7 @@ export class LaunchAgentService {
         if (subscriber) {
             subscriber.next({
                 event: IpEvents.IP_STRATEGY_START_AGENT,
-                message: IpEventsDetail[IpEvents.IP_STRATEGY_START_AGENT].summary,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_START_AGENT),
             })
         }
 
@@ -253,7 +256,7 @@ export class LaunchAgentService {
         if (subscriber) {
             subscriber.next({
                 event: IpEvents.IP_STRATEGY_AGENT_STARTED,
-                message: IpEventsDetail[IpEvents.IP_STRATEGY_AGENT_STARTED].summary,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_AGENT_STARTED),
             })
         }
 

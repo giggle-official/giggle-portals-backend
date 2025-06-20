@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
-import { IsEnum, IsNumber, IsString, Min, MinLength } from "class-validator"
-import { IpEvents } from "src/ip-library/ip-library.dto"
+import { IsEnum, IsNumber, IsString, MinLength } from "class-validator"
+import { EventDto, IpEvents } from "src/ip-library/ip-library.dto"
 
 export class UploadCoverImageResponseDto {
     @ApiProperty({
@@ -344,10 +344,10 @@ export class SSEMessage {
     data?: any
 
     @ApiProperty({
-        description: " message of event",
+        description: "event detail of the message",
         required: false,
     })
-    message?: string
+    event_detail: EventDto
 }
 
 export class WalletCoinSummaryDto {

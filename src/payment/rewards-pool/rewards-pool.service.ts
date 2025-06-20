@@ -40,11 +40,8 @@ import { Decimal } from "@prisma/client/runtime/library"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { OrderService } from "src/payment/order/order.service"
 import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
-import { CronExpression } from "@nestjs/schedule"
-import { Cron } from "@nestjs/schedule"
 import { RewardPoolOnChainService } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.service"
 import { TransactionDto } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.dto"
-import { lastValueFrom } from "rxjs"
 
 @Injectable()
 export class RewardsPoolService {

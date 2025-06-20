@@ -10,7 +10,6 @@ import {
     IpLibraryDetailDto,
     IpLibraryListDto,
     IpNameCheckDto,
-    IpProcessStepsDto,
     IpSignatureClipDto,
     IpSignatureClipMetadataDto,
     IpSummaryDto,
@@ -23,7 +22,7 @@ import {
     UntokenizeDto,
     IpEvents,
     IpEventsDetail,
-    StepDto,
+    EventDto,
 } from "./ip-library.dto"
 import { assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -83,51 +82,17 @@ export class IpLibraryService {
         private readonly launchAgentService: LaunchAgentService,
     ) {}
 
-    getShareToGiggleSteps(ip_is_new: boolean): StepDto[] {
-        let steps = [
-            {
-                event: IpEvents.DATA_VALIDATING,
-                label: IpEventsDetail[IpEvents.DATA_VALIDATING].label,
-                is_progress: false,
-            },
-        ]
-
-        if (ip_is_new) {
-            steps.push({
-                event: IpEvents.IP_CREATION,
-                label: IpEventsDetail[IpEvents.IP_CREATION].label,
-                is_progress: false,
-            })
-        }
-
-        return [
-            ...steps,
-            {
-                event: IpEvents.IP_ASSET_TO_IPFS,
-                label: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
-                is_progress: true,
-            },
-            {
-                event: IpEvents.IP_TOKEN_CREATING,
-                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].label,
-                is_progress: false,
-            },
-            {
-                event: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
-                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATING_REWARD_POOL].label,
-                is_progress: false,
-            },
-            {
-                event: IpEvents.IP_TOKEN_RUN_STRATEGY,
-                label: IpEventsDetail[IpEvents.IP_TOKEN_RUN_STRATEGY].label,
-                is_progress: false,
-            },
-            {
-                event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
-                label: IpEventsDetail[IpEvents.IP_TOKEN_CREATED_ON_CHAIN].label,
-                is_progress: false,
-            },
-        ]
+    getLaunchIpTokenSteps(): EventDto[] {
+        return IpEventsDetail.filter((item) =>
+            [
+                IpEvents.DATA_VALIDATING,
+                IpEvents.IP_ASSET_TO_IPFS,
+                IpEvents.IP_TOKEN_CREATING,
+                IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
+                IpEvents.IP_TOKEN_RUN_STRATEGY,
+                IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+            ].includes(item.event),
+        )
     }
 
     getGenres(): GenreDto[] {
@@ -1118,7 +1083,7 @@ export class IpLibraryService {
                         name: body.name,
                         description: body.description,
                         object_key: videoAsset.path,
-                        ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
+                        ipfs_hash: videoAsset?.ipfs_key?.split("/").pop(),
                         thumbnail: videoAsset.thumbnail,
                         asset_id: videoAsset.id,
                         video_info: (videoAsset.asset_info as any)?.videoInfo,
@@ -1204,14 +1169,13 @@ export class IpLibraryService {
         //validate purchase strategy
         subscriber.next({
             event: IpEvents.CREATION_STEPS,
-            data: [...this.getShareToGiggleSteps(body.ip_is_new)],
+            data: this.getLaunchIpTokenSteps(),
+            event_detail: IpEventsDetail.find((item) => item.event === IpEvents.CREATION_STEPS),
         })
 
         subscriber.next({
             event: IpEvents.DATA_VALIDATING,
-            data: {
-                message: IpEventsDetail[IpEvents.DATA_VALIDATING].label,
-            },
+            event_detail: IpEventsDetail.find((item) => item.event === IpEvents.DATA_VALIDATING),
         })
 
         if (!(await this.validatePurchaseStrategy(body.purchase_strategy))) {
@@ -1219,23 +1183,15 @@ export class IpLibraryService {
         }
 
         const { create_amount, buy_amount } = await this._computeNeedUsdc(body.purchase_strategy)
-        let ipId = null
+        let ipId = body.ip_id
 
         try {
-            if (!body.ip_is_new) {
-                if (!body.ip_id) {
-                    throw new BadRequestException("ip_id is required when ip is not new")
-                }
-                const ipOwner = await this.prismaService.ip_library.findFirst({
-                    where: { id: body.ip_id, owner: user.usernameShorted },
-                })
+            const ipOwner = await this.prismaService.ip_library.findFirst({
+                where: { id: body.ip_id, owner: user.usernameShorted },
+            })
 
-                if (!ipOwner) {
-                    throw new NotFoundException("IP not found")
-                }
-                ipId = body.ip_id
-            } else {
-                ipId = await this.createIp(user, body.ip_info)
+            if (!ipOwner) {
+                throw new NotFoundException("IP not found")
             }
 
             const ipDetail = await this.detail(ipId.toString(), null)
@@ -1262,29 +1218,6 @@ export class IpLibraryService {
             if (!ipCoverKey?.cover_images?.[0]?.key) {
                 throw new BadRequestException("IP does not have cover image")
             }
-
-            //step1 > push ip to chain if not on chain
-            //ipProcessStepsDto.ipPushedToChain = true
-            /*
-            if (ipDetail.on_chain_status === "onChain" && ipDetail.on_chain_detail) {
-                ipProcessStepsDto.ipPushedToChain = true
-            } else {
-                //push ip to chain
-                const onChainInfo = await this.ipOnChainService.pushIpToChain(user, ip.id)
-                if (!onChainInfo.isSucc) {
-                    throw new BadRequestException("Failed to push ip to chain")
-                }
-                ipProcessStepsDto.ipPushedToChain = true
-            }
-            */
-
-            //step2 > share to giggle
-            subscriber.next({
-                event: IpEvents.IP_TOKEN_CREATING,
-                data: {
-                    message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].label,
-                },
-            })
 
             //consume usdt
             const needUsdt = create_amount + buy_amount
@@ -1350,30 +1283,14 @@ export class IpLibraryService {
                 },
             })
 
-            //ipProcessStepsDto.ipTokenCreated = true
-
-            //step3 > register token on chain
+            //create pool
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATING_REWARD_POOL,
-                data: {
-                    message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING_REWARD_POOL].label,
-                },
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATING_REWARD_POOL),
             })
-
-            /*
-            const registerTokenResponse = await this.ipOnChainService.registerToken({
-                ip_id: ip.id,
-                record_id: tokenInfo?.id,
-            })
-
-            if (!registerTokenResponse.isSucc) {
-                throw new BadRequestException("Failed to register token" + registerTokenResponse.err.message)
-            }
-            */
-
-            //ipProcessStepsDto.ipTokenRegistered = true
 
             //create rewards pool if not exists
+
             await this.rewardsPoolService.createRewardsPool(ipId, userWalletAddr, user.email)
 
             //run strategy if purchase strategy is agent
@@ -1382,6 +1299,7 @@ export class IpLibraryService {
                 subscriber.next({
                     event: IpEvents.IP_TOKEN_RUN_STRATEGY,
                     data: tokenMint,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_RUN_STRATEGY),
                 })
                 await this.launchAgentService.start(
                     body.purchase_strategy.agent_id,
@@ -1396,16 +1314,13 @@ export class IpLibraryService {
             }
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATED_ON_CHAIN),
                 data: await this.detail(ipId.toString(), null),
             })
             subscriber.complete()
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"
             this.logger.error("Error sharing to giggle", error, `user: ${user.email}, body: ${JSON.stringify(body)}`)
-            //remove ip if ip is new
-            if (body.ip_is_new && ipId) {
-                await this._removeIp(ipId)
-            }
             subscriber.error(returnError)
             subscriber.complete()
         }

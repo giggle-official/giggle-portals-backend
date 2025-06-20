@@ -11,9 +11,8 @@ import { PrismaService } from "./common/prisma.service"
 import { LogsService } from "./user/logs/logs.service"
 import { useContainer } from "class-validator"
 import { apiReference } from "@scalar/nestjs-api-reference"
-import * as fs from "fs"
-import { join } from "path"
-import { title } from "process"
+import path from "path"
+import fs from "fs"
 
 declare module "express-session" {
     interface Session {
@@ -152,6 +151,7 @@ To see how to process the event stream response, please refer to the [Event Stre
             name: "Authorization",
             description: "JWT Authorization",
         })
+
         .build()
     const privateDocument = SwaggerModule.createDocument(app, config)
     const publicDocument = SwaggerModule.createDocument(app, publicConfig)
@@ -233,6 +233,14 @@ To see how to process the event stream response, please refer to the [Event Stre
         })
     }
 
+    app.use("/api/reference", (req, res, next) => {
+        if (req.path === "/" || req.path === "") {
+            const FRONTEND_URL = process.env.FRONTEND_URL
+            return res.redirect(301, `${FRONTEND_URL}/developer/api-reference`)
+        }
+        next()
+    })
+
     app.use(
         "/api/reference-private",
         apiReference({
@@ -245,31 +253,33 @@ To see how to process the event stream response, please refer to the [Event Stre
         }),
     )
 
-    app.use(
-        "/api/reference",
-        apiReference({
-            spec: {
-                content: publicDocument,
-            },
-            hideClientButton: true,
-            hideModels: true,
-            hideDownloadButton: true,
-            favicon: "https://app.giggle.pro/favicon.svg",
-            metaData: {
-                title: "Giggle.Pro Developer API Reference",
-                description: "This is the API reference for Giggle.Pro",
-                keywords: "Giggle.Pro, API, Reference, Developer, Documentation",
-                author: "Giggle.Pro",
-                ogImage: "https://app.giggle.pro/images/open-app/og-image.jpg",
-            },
-        }),
-    )
+    //app.use(
+    //    "/api/reference",
+    //    apiReference({
+    //        spec: {
+    //            content: publicDocument,
+    //        },
+    //        hideClientButton: true,
+    //        hideModels: true,
+    //        hideDownloadButton: true,
+    //        favicon: "https://app.giggle.pro/favicon.svg",
+    //        metaData: {
+    //            title: "Giggle.Pro Developer API Reference",
+    //            description: "This is the API reference for Giggle.Pro",
+    //            keywords: "Giggle.Pro, API, Reference, Developer, Documentation",
+    //            author: "Giggle.Pro",
+    //            ogImage: "https://app.giggle.pro/images/open-app/og-image.jpg",
+    //        },
+    //    }),
+    //)
 
-    //const privateOutputPath = join(process.cwd(), "openapi-private-spec.json")
+    //const privateOutputPath = path.join(process.cwd(), "openapi-private-spec.json")
     //fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
     //
-    //const publicOutputPath = join(process.cwd(), "openapi-public-spec.json")
-    //fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
+    if (process.env.ENV === "local") {
+        const publicOutputPath = path.join(process.cwd(), "openapi-public-spec.json")
+        fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
+    }
 
     await app.listen(process.env.RUN_PORT || 3000, "0.0.0.0")
 }

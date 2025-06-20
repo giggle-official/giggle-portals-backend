@@ -29,6 +29,7 @@ import {
     LaunchIpTokenDto,
     UnlikeIpDto,
     UntokenizeDto,
+    IpEventsDetail,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -194,62 +195,16 @@ export class IpLibraryController {
     }
 
     @Post("/update-ip")
-    @Sse("/update-ip")
     @ApiBody({ type: EditIpDto })
-    @ApiResponse({ type: SSEMessage, status: 200 })
+    @ApiResponse({ type: IpLibraryDetailDto, status: 200 })
     @ApiOperation({
-        summary: "Update ip",
-        description: `
-Update an existing ip, do not allow to update if ip is on chain or token info is already created.
-Returns SSE stream with progress updates and final result, 
-sse event:
-
-**data structure:**
-\`
-{
-  event: string,
-  data: {
-    message: string
-  } | number
-}
-\`
-
-**event list:**
-- ip.data_validating
-
-this event indicate the data is validating
-
-- ip.on_chain_updating
-
-this event indicate the ip is updating on chain.
-
-- ip.updated
-
-this event indicate the ip is updated, and the data in \`data\` is the detail of ip
-
-- ip.warning
-
-this event indicate the ip is updated, but some warning occurs, this may ip token is created failed or ip token is registered failed, the data in \`data\` is the warning message
-
-**error event:**
-
-if error occurs, the event will be \`error\` and the data in \`data\` is the error message, subscriber will be completed.
-data structure:
-
-\`
-event: error
-id: 2
-data: some error message
-\`
-
-`,
+        summary: "Update an ip",
+        description: `update an ip, only un-launch ip can be updated`,
     })
-    @ApiResponse({ type: SSEMessage, status: 200 })
     @ApiBearerAuth()
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
-    @NologInterceptor()
-    editIp(@Req() req: Request, @ValidEventBody() body: EditIpDto) {
+    editIp(@Req() req: Request, @Body() body: EditIpDto) {
         return this.ipLibraryService.editIp(req.user as UserJwtExtractDto, body)
     }
 
@@ -258,73 +213,18 @@ data: some error message
     @ApiBody({ type: LaunchIpTokenDto })
     @ApiResponse({ type: SSEMessage, status: 200 })
     @ApiOperation({
-        summary: "Share an existing ip to giggle",
+        summary: "Launch ip token",
         description: `
 Returns SSE stream with progress updates and final result, 
-sse event:
-
-**data structure:**
-\`
-{
-  event: string,
-  data: {
-    message: string
-  } | number
-}
-\`
+sse event: 
 
 **event list:**
-- ip.data_validating
 
-this event indicate the data is validating
-
-- asset.uploading
-  
-this event indicate the asset of creating meme is uploading, at current step, data in \`data\` is the progress of asset uploading.
-
-- meme.creating
-
-this event indicate the meme is creating.
-
-- meme.created
-
-this event indicate the meme is created.
-
-- ip.update_token_data_on_chain
-
-this event indicate the ip is updating token data which just created to chain.
-
-- ip.payment_processing
-
-this event indicate the ip is processing payment, this event only exists when \`share_to_giggle\` is true in request body
-
-- ip.payment_confirmed
-
-this event indicate the ip is confirmed payment, this event only exists when \`share_to_giggle\` is true in request body
-
-- ip.payment_refunded
-
-this event indicate the ip is refunded payment, this event only exists when \`share_to_giggle\` is true in request body
-
-- ip.shared
-
-this event indicate the ip is shared, and the data in \`data\` is the detail of ip
-
-- ip.warning
-
-this event indicate the ip is created, but some warning occurs, this may ip token is created failed or ip token is registered failed, the data in \`data\` is the warning message
+${IpEventsDetail.map((item) => `- ${item.event}\n\n \`\`\`json\n${JSON.stringify(item, null, 2)}\n\`\`\``).join("\n")}
 
 **error event:**
 
-if error occurs, the event will be \`error\` and the data in \`data\` is the error message, subscriber will be completed.
-data structure:
-
-\`
-event: error
-id: 2
-data: some error message
-\`
-
+if error occurs, the event will be \`error\` and the data in \`data\` is the error message, sse will be closed.
 `,
     })
     @ApiResponse({ type: SSEMessage, status: 200 })

@@ -266,7 +266,7 @@ export class GiggleService {
 
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATING,
-                message: IpEventsDetail[IpEvents.IP_TOKEN_CREATING].summary,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATING),
             })
 
             this.logger.log("mintParams:" + JSON.stringify(mintParams))
@@ -318,7 +318,7 @@ export class GiggleService {
 
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
-                message: IpEventsDetail[IpEvents.IP_TOKEN_CREATED_ON_CHAIN].summary,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATED_ON_CHAIN),
                 data: mintRes,
             })
             if (completeSubscriber) {
@@ -382,10 +382,10 @@ export class GiggleService {
         progressInterval = setInterval(() => {
             subscriber.next({
                 event: IpEvents.IP_ASSET_TO_IPFS,
-                message: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_ASSET_TO_IPFS),
                 data: currentProgress,
             })
-        }, 100)
+        }, 500)
 
         fileStream.on("data", (chunk) => {
             uploadedSize += chunk.length
@@ -396,7 +396,7 @@ export class GiggleService {
             clearInterval(progressInterval)
             subscriber.next({
                 event: IpEvents.IP_ASSET_TO_IPFS,
-                message: IpEventsDetail[IpEvents.IP_ASSET_TO_IPFS].label,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_ASSET_TO_IPFS),
                 data: 100,
             })
         })

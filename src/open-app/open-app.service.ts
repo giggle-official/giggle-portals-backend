@@ -25,11 +25,10 @@ import {
     RequestCreatorResponseDto,
     TopIpSummaryDto,
     UpdateAppDto,
-    UploadIconDto,
 } from "./open-app.dto"
 import { CreateUserDto, UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
-import { ip_library, Prisma } from "@prisma/client"
+import { ip_library } from "@prisma/client"
 import { AuthService } from "src/auth/auth.service"
 import * as crypto from "crypto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
