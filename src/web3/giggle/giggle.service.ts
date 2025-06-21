@@ -1,7 +1,7 @@
 import { HttpService } from "@nestjs/axios"
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common"
 import * as crypto from "crypto"
-import { async, lastValueFrom, Observable, Subscriber } from "rxjs"
+import { lastValueFrom, Observable, Subscriber } from "rxjs"
 import {
     ConfirmStatus,
     CreateIpTokenDto,

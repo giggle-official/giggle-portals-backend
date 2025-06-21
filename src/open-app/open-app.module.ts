@@ -18,6 +18,7 @@ import { LinkService } from "./link/link.service"
 import { PaymentModule } from "src/payment/payment.module"
 import { HttpModule } from "@nestjs/axios"
 import { UsersService } from "./developer/users.service"
+import { Web3Module } from "src/web3/web3.module"
 
 @Module({
     imports: [
@@ -29,6 +30,7 @@ import { UsersService } from "./developer/users.service"
         forwardRef(() => NotificationModule),
         forwardRef(() => WidgetsModule),
         forwardRef(() => PaymentModule),
+        forwardRef(() => Web3Module),
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
     controllers: [OpenAppController, AuthController, DeveloperController, LinkController],

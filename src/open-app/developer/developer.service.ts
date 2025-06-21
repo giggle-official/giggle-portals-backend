@@ -252,6 +252,11 @@ export class DeveloperService {
         const widget = await this.prisma.widgets.findUnique({
             where: { tag: tag, author: user.usernameShorted },
             include: {
+                app_bind_widgets: {
+                    where: {
+                        enabled: true,
+                    },
+                },
                 _count: {
                     select: {
                         user_subscribed_widgets: true,

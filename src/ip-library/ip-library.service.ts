@@ -23,8 +23,9 @@ import {
     IpEvents,
     IpEventsDetail,
     EventDto,
+    IpBindAppsDto,
 } from "./ip-library.dto"
-import { assets, Prisma } from "@prisma/client"
+import { app_bind_ips, assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
@@ -374,6 +375,7 @@ export class IpLibraryService {
             ip_signature_clips: true,
             ip_library_child: true,
             ip_share_count: true,
+            app_bind_ips: true,
             _count: {
                 select: {
                     ip_comments: true,
@@ -562,6 +564,8 @@ export class IpLibraryService {
                     user,
                     request_user,
                 })
+
+                const apps = await this.getIpBindApps(item.app_bind_ips)
                 const res = {
                     id: item.id,
                     name: item.name,
@@ -590,6 +594,7 @@ export class IpLibraryService {
                     governance_right: true,
                     child_ip_info,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
+                    apps,
                 }
                 return res
             }),
@@ -623,6 +628,7 @@ export class IpLibraryService {
                 ip_signature_clips: true,
                 ip_share_count: true,
                 ip_library_child: true,
+                app_bind_ips: true,
                 _count: {
                     select: {
                         ip_comments: true,
@@ -663,6 +669,7 @@ export class IpLibraryService {
                     ip_signature_clips: true,
                     ip_library_child: true,
                     ip_share_count: true,
+                    app_bind_ips: true,
                     user_info: true,
                     _count: {
                         select: {
@@ -706,6 +713,7 @@ export class IpLibraryService {
                     creator_avatar: item.user_info?.avatar || "",
                     governance_right: true,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
+                    apps: await this.getIpBindApps(item.app_bind_ips),
                 })
             }
         }
@@ -759,6 +767,7 @@ export class IpLibraryService {
                 instagram: extra_info?.instagram || "",
             },
             governance_right: true,
+            apps: await this.getIpBindApps(data.app_bind_ips),
         }
         return res
     }
@@ -1371,6 +1380,7 @@ export class IpLibraryService {
                 ip_signature_clips: true,
                 ip_share_count: true,
                 user_info: true,
+                app_bind_ips: true,
                 _count: {
                     select: {
                         ip_comments: true,
@@ -1422,6 +1432,7 @@ export class IpLibraryService {
                         user,
                         request_user,
                     }),
+                    apps: await this.getIpBindApps(item.app_bind_ips),
                 }
                 childIpsSummary.push(res)
             }),
@@ -1980,5 +1991,36 @@ export class IpLibraryService {
             where: { ip_id, user: user.usernameShorted },
         })
         return !!like
+    }
+
+    async getIpBindApps(app_bind_ips: app_bind_ips[]): Promise<IpBindAppsDto[]> {
+        //filter ids
+        const app_ids = app_bind_ips.filter((item) => !item.is_temp).map((item) => item.app_id)
+        const appBindWidgets = await this.prismaService.app_bind_widgets.findMany({
+            where: {
+                app_id: { in: app_ids },
+                enabled: true,
+                widget_detail: {
+                    tag: {
+                        not: "login_from_external",
+                    },
+                    is_private: false,
+                    is_developing: false,
+                },
+            },
+            include: {
+                widget_detail: true,
+            },
+        })
+        return app_bind_ips.map((item) => {
+            const bindWidgets = appBindWidgets.filter((widget) => widget.app_id === item.app_id)
+            return {
+                app_id: item.app_id,
+                bind_widgets: bindWidgets.map((widget) => ({
+                    tag: widget.widget_tag,
+                    name: widget.widget_detail.name,
+                })),
+            }
+        })
     }
 }

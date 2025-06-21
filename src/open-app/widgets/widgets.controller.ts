@@ -12,7 +12,7 @@ import {
     Headers,
 } from "@nestjs/common"
 import { WidgetsService } from "./widgets.service"
-import { ApiResponse } from "@nestjs/swagger"
+import { ApiExcludeController, ApiExcludeEndpoint, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { LoginResponseDto } from "../auth/auto.dto"
 import { ApiOperation, ApiTags } from "@nestjs/swagger"
@@ -23,13 +23,13 @@ import {
     UnsubscribeWidgetDto,
     ApplyWidgetConfigToAppsDto,
     WidgetConfigDto,
-    WidgetSummaryDto,
     UnbindWidgetConfigFromAppsDto,
     UpdateWidgetDto,
     GetWidgetsRequestDto,
     GetAccessTokenDto,
     GetAccessTokenResponseDto,
-    MyWidgetsSummaryDto,
+    WidgetListResponseDto,
+    MyWidgetsListResponseDto,
 } from "./widget.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -43,15 +43,16 @@ export class WidgetsController {
 
     @Get("/")
     @ApiOperation({ summary: "get all widgets" })
-    @ApiResponse({ type: WidgetSummaryDto, isArray: true })
+    @ApiResponse({ type: WidgetListResponseDto })
     @UseGuards(OptionalJwtAuthGuard)
     async getWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
         return this.widgetService.getWidgets(query, req?.user as UserJwtExtractDto)
     }
 
     @Get("/my")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "get all my widgets" })
-    @ApiResponse({ type: MyWidgetsSummaryDto, isArray: true })
+    @ApiResponse({ type: MyWidgetsListResponseDto })
     @UseGuards(AuthGuard("jwt"))
     async getMyWidgets(@Req() req: Request, @Query() query: GetWidgetsRequestDto) {
         return this.widgetService.getMyWidgets(req.user as UserJwtExtractDto, query)
@@ -60,6 +61,7 @@ export class WidgetsController {
     @Get("/getConfigs")
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "get a widget config" })
+    @ApiExcludeEndpoint()
     @ApiResponse({ type: [ApplyWidgetConfigToAppsDto], isArray: true })
     async getWidgetConfig(
         @Query("widget_tag") tag: string,
@@ -70,6 +72,7 @@ export class WidgetsController {
     }
 
     @Post("/create")
+    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "create a widget" })
     @ApiBody({ type: CreateWidgetDto })
@@ -80,6 +83,7 @@ export class WidgetsController {
     }
 
     @Post("/getAccessToken")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "get access token for a widget" })
     @ApiBody({ type: GetAccessTokenDto })
     @ApiResponse({ type: GetAccessTokenResponseDto })
@@ -94,6 +98,7 @@ export class WidgetsController {
     }
 
     @Post("/update")
+    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "update a widget" })
     @ApiBody({ type: UpdateWidgetDto })
@@ -104,6 +109,7 @@ export class WidgetsController {
     }
 
     @Post("/delete")
+    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "delete a widget" })
     @ApiBody({ type: DeleteWidgetDto })
@@ -113,6 +119,7 @@ export class WidgetsController {
     }
 
     @Post("/applyConfigToApps")
+    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "apply a widget config to apps" })
     @ApiBody({ type: ApplyWidgetConfigToAppsDto })
@@ -125,6 +132,7 @@ export class WidgetsController {
     }
 
     @Post("/unbindConfigFromApps")
+    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiOperation({ summary: "unbind a widget config from apps" })
     @ApiBody({ type: UnbindWidgetConfigFromAppsDto })
@@ -145,6 +153,7 @@ export class WidgetsController {
     }
 
     @Post("/subscribe")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "subscribe a widget" })
     @ApiBody({ type: SubscribeWidgetDto })
     @ApiResponse({ type: LoginResponseDto })
@@ -155,6 +164,7 @@ export class WidgetsController {
     }
 
     @Post("/unsubscribe")
+    @ApiExcludeEndpoint()
     @ApiOperation({ summary: "unsubscribe a widget" })
     @ApiBody({ type: UnsubscribeWidgetDto })
     @ApiResponse({ type: LoginResponseDto })
