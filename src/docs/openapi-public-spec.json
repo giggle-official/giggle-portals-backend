@@ -8129,6 +8129,10 @@
             "type": "string",
             "description": "ip price change 1d"
           },
+          "trade24hSol": {
+            "type": "string",
+            "description": "ip trade volume 24h in sol"
+          },
           "child_ips": {
             "description": "ip child ips",
             "type": "array",
@@ -8148,7 +8152,8 @@
           "cover",
           "change_5m",
           "change_1h",
-          "change_1d"
+          "change_1d",
+          "trade24hSol"
         ]
       },
       "WidgetBindAppDto": {
