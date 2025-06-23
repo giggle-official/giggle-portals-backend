@@ -504,6 +504,7 @@ export class WidgetsService {
                         change_5m: (tokenInfo?.change5m as string) || "",
                         change_1h: (tokenInfo?.change1h as string) || "",
                         change_1d: (tokenInfo?.change24h as string) || "",
+                        trade24hSol: (tokenInfo?.trade24hSol as string) || "",
                         child_ips: childIps
                             .filter((childIp) => childIp.parent_ip === ipInfo.id)
                             .map((childIp) => {
@@ -520,6 +521,7 @@ export class WidgetsService {
                                     change_5m: (childTokenInfo?.change5m as string) || "",
                                     change_1h: (childTokenInfo?.change1h as string) || "",
                                     change_1d: (childTokenInfo?.change24h as string) || "",
+                                    trade24hSol: (childTokenInfo?.trade24hSol as string) || "",
                                 }
                             }),
                     },
