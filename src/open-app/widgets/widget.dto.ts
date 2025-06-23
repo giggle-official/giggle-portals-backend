@@ -210,6 +210,9 @@ export class WidgetIpInfoDto {
     @ApiProperty({ description: "ip price change 1d" })
     change_1d: string
 
+    @ApiProperty({ description: "ip trade volume 24h in sol" })
+    trade24hSol: string
+
     @ApiProperty({ description: "ip child ips", type: () => [WidgetIpInfoDto], required: false })
     child_ips?: WidgetIpInfoDto[]
 }
