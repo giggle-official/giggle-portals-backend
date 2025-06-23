@@ -1120,26 +1120,28 @@ export class RewardPoolOnChainService {
             }
             onChainDataMapped.withdrawn = new Decimal(onChainData.totalAmount).minus(onChainData.availableAmount)
             const availableDiff = offChainAvailable.minus(onChainDataMapped.availableAmount)
-            tableContent +=
-                "|" +
-                [
-                    user_info.email,
-                    user_info.wallet_address,
-                    data.token,
-                    data.ticker,
-                    data.rewards.toString(),
-                    data.locked.toString(),
-                    data.released.toString(),
-                    data.withdrawn.toString(),
-                    offChainAvailable.toString(),
-                    onChainDataMapped.totalAmount.toString(),
-                    onChainDataMapped.lockedAmount.toString(),
-                    onChainDataMapped.availableAmount.toString(),
-                    availableDiff.abs().gt(0.1)
-                        ? "** 🔴" + availableDiff.toString() + "🔴 **"
-                        : availableDiff.toString(),
-                ].join("|") +
-                "\n"
+            if (availableDiff.abs().gt(0.1)) {
+                tableContent +=
+                    "|" +
+                    [
+                        user_info.email,
+                        user_info.wallet_address,
+                        data.token,
+                        data.ticker,
+                        data.rewards.toString(),
+                        data.locked.toString(),
+                        data.released.toString(),
+                        data.withdrawn.toString(),
+                        offChainAvailable.toString(),
+                        onChainDataMapped.totalAmount.toString(),
+                        onChainDataMapped.lockedAmount.toString(),
+                        onChainDataMapped.availableAmount.toString(),
+                        availableDiff.abs().gt(0.1)
+                            ? "** 🔴" + availableDiff.toString() + "🔴 **"
+                            : availableDiff.toString(),
+                    ].join("|") +
+                    "\n"
+            }
         }
         tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
