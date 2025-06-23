@@ -3858,6 +3858,24 @@
         "operationId": "WidgetsController_getWidgets",
         "parameters": [
           {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "category",
             "required": false,
             "in": "query",
@@ -3867,19 +3885,19 @@
             }
           },
           {
-            "name": "limit",
+            "name": "include",
             "required": false,
             "in": "query",
-            "description": "limit",
+            "description": "include tags, use comma to separate",
             "schema": {
-              "type": "number"
+              "type": "string"
             }
           },
           {
             "name": "exclude",
             "required": false,
             "in": "query",
-            "description": "exclude tags",
+            "description": "exclude tags, use comma to separate",
             "schema": {
               "type": "string"
             }
@@ -3913,339 +3931,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WidgetSummaryDto"
-                  }
+                  "$ref": "#/components/schemas/WidgetListResponseDto"
                 }
               }
             }
           }
         },
         "summary": "get all widgets",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/my": {
-      "get": {
-        "operationId": "WidgetsController_getMyWidgets",
-        "parameters": [
-          {
-            "name": "category",
-            "required": false,
-            "in": "query",
-            "description": "category",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "limit",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "exclude",
-            "required": false,
-            "in": "query",
-            "description": "exclude tags",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "type",
-            "required": false,
-            "in": "query",
-            "description": "type",
-            "schema": {
-              "enum": [
-                "iframe",
-                "system"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "ip_id",
-            "required": false,
-            "in": "query",
-            "description": "ip id",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MyWidgetsSummaryDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "get all my widgets",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/getConfigs": {
-      "get": {
-        "operationId": "WidgetsController_getWidgetConfig",
-        "parameters": [
-          {
-            "name": "widget_tag",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "app_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "get a widget config",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/create": {
-      "post": {
-        "operationId": "WidgetsController_createWidget",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateWidgetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "create a widget",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/getAccessToken": {
-      "post": {
-        "operationId": "WidgetsController_getAccessToken",
-        "parameters": [
-          {
-            "name": "x-device-id",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GetAccessTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetAccessTokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "get access token for a widget",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/update": {
-      "post": {
-        "operationId": "WidgetsController_updateWidget",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateWidgetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "update a widget",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/delete": {
-      "post": {
-        "operationId": "WidgetsController_deleteWidget",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteWidgetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "delete a widget",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/applyConfigToApps": {
-      "post": {
-        "operationId": "WidgetsController_applyWidgetConfigToApps",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApplyWidgetConfigToAppsDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "apply a widget config to apps",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/unbindConfigFromApps": {
-      "post": {
-        "operationId": "WidgetsController_unbindWidgetConfigFromApps",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UnbindWidgetConfigFromAppsDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "unbind a widget config from apps",
         "tags": [
           "Widgets"
         ]
@@ -4277,70 +3969,6 @@
           }
         },
         "summary": "get a widget by tag",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/subscribe": {
-      "post": {
-        "operationId": "WidgetsController_subscribeWidget",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscribeWidgetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "subscribe a widget",
-        "tags": [
-          "Widgets"
-        ]
-      }
-    },
-    "/api/v1/app/widgets/unsubscribe": {
-      "post": {
-        "operationId": "WidgetsController_unsubscribeWidget",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UnsubscribeWidgetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "unsubscribe a widget",
         "tags": [
           "Widgets"
         ]
@@ -5437,6 +5065,43 @@
           "asset_id"
         ]
       },
+      "AppBindWidgetDto": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "tag of the widget"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the widget"
+          }
+        },
+        "required": [
+          "tag",
+          "name"
+        ]
+      },
+      "IpBindAppsDto": {
+        "type": "object",
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "description": "id of the app"
+          },
+          "bind_widgets": {
+            "description": "bind widget of the app",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppBindWidgetDto"
+            }
+          }
+        },
+        "required": [
+          "app_id",
+          "bind_widgets"
+        ]
+      },
       "GenreDto": {
         "type": "object",
         "properties": {
@@ -5575,6 +5240,13 @@
           "meta_data": {
             "type": "object",
             "description": "meta data of the ip library"
+          },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
           }
         },
         "required": [
@@ -5602,7 +5274,8 @@
           "ip_level",
           "creator_followers",
           "token_info",
-          "ip_signature_clips"
+          "ip_signature_clips",
+          "apps"
         ]
       },
       "IpLibraryDetailDto": {
@@ -5728,6 +5401,13 @@
             "type": "object",
             "description": "meta data of the ip library"
           },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
+          },
           "genre": {
             "description": "genre of the ip library",
             "type": "array",
@@ -5784,6 +5464,7 @@
           "creator_followers",
           "token_info",
           "ip_signature_clips",
+          "apps",
           "genre",
           "parent_ip_info",
           "child_ip_info",
@@ -6192,6 +5873,13 @@
             "type": "object",
             "description": "meta data of the ip library"
           },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
+          },
           "child_ip_info": {
             "description": "child ip library, only return 100 items",
             "type": "array",
@@ -6226,6 +5914,7 @@
           "creator_followers",
           "token_info",
           "ip_signature_clips",
+          "apps",
           "child_ip_info"
         ]
       },
@@ -7628,6 +7317,13 @@
             "type": "object",
             "description": "meta data of the ip library"
           },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
+          },
           "genre": {
             "description": "genre of the ip library",
             "type": "array",
@@ -7677,6 +7373,7 @@
           "creator_followers",
           "token_info",
           "ip_signature_clips",
+          "apps",
           "genre",
           "parent_ip_info",
           "on_chain_status",
@@ -8385,6 +8082,101 @@
           "subscription_id"
         ]
       },
+      "WidgetIpInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "ip id"
+          },
+          "name": {
+            "type": "string",
+            "description": "ip name"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "ip ticker"
+          },
+          "mint": {
+            "type": "string",
+            "description": "ip mint"
+          },
+          "market_cap": {
+            "type": "string",
+            "description": "ip market cap"
+          },
+          "trade_volume": {
+            "type": "string",
+            "description": "ip trade volume"
+          },
+          "price": {
+            "type": "string",
+            "description": "ip price"
+          },
+          "cover": {
+            "type": "string",
+            "description": "ip cover"
+          },
+          "change_5m": {
+            "type": "string",
+            "description": "ip price change 5m"
+          },
+          "change_1h": {
+            "type": "string",
+            "description": "ip price change 1h"
+          },
+          "change_1d": {
+            "type": "string",
+            "description": "ip price change 1d"
+          },
+          "child_ips": {
+            "description": "ip child ips",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetIpInfoDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ticker",
+          "mint",
+          "market_cap",
+          "trade_volume",
+          "price",
+          "cover",
+          "change_5m",
+          "change_1h",
+          "change_1d"
+        ]
+      },
+      "WidgetBindAppDto": {
+        "type": "object",
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "description": "app id"
+          },
+          "ip_id": {
+            "type": "number",
+            "description": "ip id"
+          },
+          "ip_info": {
+            "description": "ip summary",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WidgetIpInfoDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "app_id",
+          "ip_id",
+          "ip_info"
+        ]
+      },
       "WidgetDetailDto": {
         "type": "object",
         "properties": {
@@ -8472,6 +8264,13 @@
               }
             ]
           },
+          "bind_apps": {
+            "description": "widget bind app info",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetBindAppDto"
+            }
+          },
           "created_at": {
             "format": "date-time",
             "type": "string",
@@ -8507,6 +8306,7 @@
           "is_subscribed",
           "author_info",
           "subscribed_detail",
+          "bind_apps",
           "created_at",
           "updated_at",
           "test_users"
@@ -9821,138 +9621,13 @@
                 "$ref": "#/components/schemas/UserWidgetSubscribedResponseDto"
               }
             ]
-          }
-        },
-        "required": [
-          "tag",
-          "name",
-          "settings",
-          "is_featured",
-          "is_new",
-          "is_official",
-          "category",
-          "icon",
-          "description",
-          "coming_soon",
-          "priority",
-          "demo_url",
-          "subscribers",
-          "is_subscribed",
-          "author_info",
-          "subscribed_detail"
-        ]
-      },
-      "WidgetBindAppInfoDto": {
-        "type": "object",
-        "properties": {
-          "app_id": {
-            "type": "string",
-            "description": "app id"
           },
-          "sub_domain": {
-            "type": "string",
-            "description": "app sub domain"
-          }
-        },
-        "required": [
-          "app_id",
-          "sub_domain"
-        ]
-      },
-      "MyWidgetsSummaryDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "name": {
-            "type": "string",
-            "description": "widget name"
-          },
-          "summary": {
-            "type": "string",
-            "description": "widget summary"
-          },
-          "pricing": {
-            "type": "object",
-            "description": "widget pricing"
-          },
-          "settings": {
-            "description": "widget settings",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WidgetSettingsDto"
-              }
-            ]
-          },
-          "is_featured": {
-            "type": "boolean",
-            "description": "widget is featured"
-          },
-          "is_new": {
-            "type": "boolean",
-            "description": "widget is new"
-          },
-          "is_official": {
-            "type": "boolean",
-            "description": "widget is official"
-          },
-          "category": {
-            "type": "string",
-            "description": "widget category"
-          },
-          "icon": {
-            "type": "string",
-            "description": "widget icon"
-          },
-          "description": {
-            "type": "string",
-            "description": "widget description"
-          },
-          "coming_soon": {
-            "type": "boolean",
-            "description": "widget coming soon"
-          },
-          "priority": {
-            "type": "number",
-            "description": "widget priority"
-          },
-          "demo_url": {
-            "type": "string",
-            "description": "widget demo url"
-          },
-          "subscribers": {
-            "type": "number",
-            "description": "widget subscribers"
-          },
-          "is_subscribed": {
-            "type": "boolean",
-            "description": "widget is subscribed"
-          },
-          "author_info": {
-            "description": "widget author info",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthorInfoDto"
-              }
-            ]
-          },
-          "subscribed_detail": {
-            "description": "widget subscribed detail",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/UserWidgetSubscribedResponseDto"
-              }
-            ]
-          },
-          "app_info": {
+          "bind_apps": {
             "description": "widget bind app info",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WidgetBindAppInfoDto"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetBindAppDto"
+            }
           }
         },
         "required": [
@@ -9971,281 +9646,38 @@
           "subscribers",
           "is_subscribed",
           "author_info",
-          "subscribed_detail"
+          "subscribed_detail",
+          "bind_apps"
         ]
       },
-      "CreateWidgetDto": {
+      "WidgetListResponseDto": {
         "type": "object",
         "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "name": {
-            "type": "string",
-            "description": "widget name"
-          },
-          "summary": {
-            "type": "string",
-            "description": "widget summary"
-          },
-          "pricing": {
-            "type": "object",
-            "description": "widget pricing"
-          },
-          "settings": {
-            "description": "widget settings",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WidgetSettingsDto"
-              }
-            ]
-          },
-          "is_featured": {
-            "type": "boolean",
-            "description": "widget is featured"
-          },
-          "is_new": {
-            "type": "boolean",
-            "description": "widget is new"
-          },
-          "is_official": {
-            "type": "boolean",
-            "description": "widget is official"
-          },
-          "category": {
-            "type": "string",
-            "description": "widget category"
-          },
-          "author": {
-            "type": "string",
-            "description": "widget author"
-          },
-          "icon": {
-            "type": "string",
-            "description": "widget icon"
-          },
-          "description": {
-            "type": "string",
-            "description": "widget description"
-          },
-          "coming_soon": {
-            "type": "boolean",
-            "description": "widget coming soon"
-          },
-          "priority": {
+          "total": {
             "type": "number",
-            "description": "widget priority"
+            "description": "total records"
+          },
+          "widgets": {
+            "description": "widgets",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetSummaryDto"
+            }
           }
         },
         "required": [
-          "tag",
-          "name",
-          "settings",
-          "is_featured",
-          "is_new",
-          "is_official",
-          "category",
-          "author",
-          "icon",
-          "description",
-          "coming_soon",
-          "priority"
-        ]
-      },
-      "GetAccessTokenDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "app_id": {
-            "type": "string",
-            "description": "app id"
-          }
-        },
-        "required": [
-          "tag",
-          "app_id"
-        ]
-      },
-      "GetAccessTokenResponseDto": {
-        "type": "object",
-        "properties": {
-          "access_token": {
-            "type": "string",
-            "description": "access token"
-          }
-        },
-        "required": [
-          "access_token"
-        ]
-      },
-      "UpdateWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "name": {
-            "type": "string",
-            "description": "widget name"
-          },
-          "summary": {
-            "type": "string",
-            "description": "widget summary"
-          },
-          "pricing": {
-            "type": "object",
-            "description": "widget pricing"
-          },
-          "settings": {
-            "description": "widget settings",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WidgetSettingsDto"
-              }
-            ]
-          },
-          "is_featured": {
-            "type": "boolean",
-            "description": "widget is featured"
-          },
-          "is_new": {
-            "type": "boolean",
-            "description": "widget is new"
-          },
-          "is_official": {
-            "type": "boolean",
-            "description": "widget is official"
-          },
-          "category": {
-            "type": "string",
-            "description": "widget category"
-          },
-          "author": {
-            "type": "string",
-            "description": "widget author"
-          },
-          "icon": {
-            "type": "string",
-            "description": "widget icon"
-          },
-          "description": {
-            "type": "string",
-            "description": "widget description"
-          },
-          "coming_soon": {
-            "type": "boolean",
-            "description": "widget coming soon"
-          },
-          "priority": {
-            "type": "number",
-            "description": "widget priority"
-          }
-        }
-      },
-      "DeleteWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          }
-        },
-        "required": [
-          "tag"
-        ]
-      },
-      "ApplyWidgetConfigToAppsDto": {
-        "type": "object",
-        "properties": {
-          "public": {
-            "type": "object",
-            "description": "public configuration for widget"
-          },
-          "private": {
-            "type": "object",
-            "description": "private configuration for widget"
-          },
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "app_id": {
-            "type": "string",
-            "description": "app id"
-          },
-          "enabled": {
-            "type": "boolean",
-            "description": "enabled"
-          }
-        },
-        "required": [
-          "public",
-          "private",
-          "tag",
-          "app_id"
-        ]
-      },
-      "UnbindWidgetConfigFromAppsDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "app_id": {
-            "type": "string",
-            "description": "app id"
-          }
-        },
-        "required": [
-          "tag",
-          "app_id"
-        ]
-      },
-      "SubscribeWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          },
-          "publicConfig": {
-            "type": "object",
-            "description": "public configuration for widget"
-          },
-          "privateConfig": {
-            "type": "object",
-            "description": "private configuration for widget"
-          }
-        },
-        "required": [
-          "tag"
-        ]
-      },
-      "UnsubscribeWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "widget tag"
-          }
-        },
-        "required": [
-          "tag"
+          "total",
+          "widgets"
         ]
       }
     }
   },
   "x-tagGroups": [
     {
-      "name": "Portals",
+      "name": "Apps",
       "tags": [
-        "IP Portal"
+        "IP Portal",
+        "Widgets"
       ]
     },
     {
