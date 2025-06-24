@@ -22,6 +22,7 @@ export class PaymentAsiaService {
     private readonly paymentAsiaUrl = process.env.PAYMENT_ASIA_PAGE_URL
     private readonly paymentAsiaApiKey = process.env.PAYMENT_ASIA_MERCHANT_TOKEN
     private readonly paymentAsiaSecretKey = process.env.PAYMENT_ASIA_MERCHANT_SECRET
+    private readonly hkdToUsd = 8
 
     constructor(
         private readonly httpService: HttpService,
@@ -57,7 +58,6 @@ export class PaymentAsiaService {
         userInfo: UserJwtExtractDto,
         req: Request,
     ): Promise<PayWithPaymentAsiaResponseDto> {
-        const hkdToUsd = 8
         const userProfile = await this.userService.getProfile(userInfo)
         const orderId = orderDto.order_id
         const {
@@ -91,15 +91,15 @@ export class PaymentAsiaService {
             },
         })
 
-        //const returnUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}&payment_asia_uuid=${paymentAsiaUuid}`
-        const returnUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/redirect`
-        //const notifyUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/callback`
-        const notifyUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/callback`
+        const returnUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/redirect`
+        //const returnUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/redirect`
+        const notifyUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/callback`
+        //const notifyUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/callback`
 
         const createPaymentOrderRequest: CreatePaymentOrderRequestDto = {
             merchant_reference: orderId,
             currency: "HKD",
-            amount: ((orderRecord.amount * hkdToUsd) / 100).toString(),
+            amount: this.covertUsdToHkd(orderRecord.amount),
             return_url: returnUrl,
             customer_ip: ip,
             customer_first_name: userProfile.username,
@@ -124,6 +124,18 @@ export class PaymentAsiaService {
 
     async processPaymentAsiaCallback(body: PaymentAsiaCallbackDto) {
         this.logger.log(`Received payment asia callback: ${JSON.stringify(body)}`)
+        //check sign
+        const expecetdSign = this.signParams(body)
+        if (expecetdSign !== body.sign) {
+            this.logger.warn(`sign incorrect, ignore this callback: ${JSON.stringify(body)}`)
+            return
+        }
+
+        if (body.status !== PaymentAsiaOrderStatus.SUCCESS) {
+            this.logger.warn(`payment status is not success, ignore this callback: ${JSON.stringify(body)}`)
+            return
+        }
+
         const order = await this.prisma.orders.findUnique({
             where: {
                 order_id: body.merchant_reference,
@@ -133,8 +145,23 @@ export class PaymentAsiaService {
             throw new BadRequestException("Order not found")
         }
 
-        if (body.status !== PaymentAsiaOrderStatus.SUCCESS) {
-            this.logger.warn(`payment status is not success, ignore this callback: ${JSON.stringify(body)}`)
+        //check amount
+        const amount = this.covertUsdToHkd(order.amount)
+        if (amount !== body.amount) {
+            this.logger.error(
+                `amount incorrect, ignore this callback: ${JSON.stringify(body)} ${amount} ${body.amount}`,
+            )
+            return
+        }
+
+        //check currency
+        if (body.currency !== "HKD") {
+            this.logger.error(`currency incorrect, ignore this callback: ${JSON.stringify(body)}`)
+            return
+        }
+
+        if (order.current_status !== OrderStatus.PENDING) {
+            this.logger.error(`order status incorrect, ignore this callback: ${JSON.stringify(body)}`)
             return
         }
 
@@ -179,5 +206,9 @@ export class PaymentAsiaService {
         }
         const url = `${process.env.FRONTEND_URL}/order?orderId=${order.order_id}&payment_asia_status=${body.status}`
         res.redirect(301, url)
+    }
+
+    covertUsdToHkd(amount: number) {
+        return ((amount * this.hkdToUsd) / 100).toFixed(2)
     }
 }
