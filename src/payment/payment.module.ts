@@ -15,6 +15,7 @@ import { Web3Module } from "src/web3/web3.module"
 import { OpenAppModule } from "src/open-app/open-app.module"
 import { RewardsPoolService } from "./rewards-pool/rewards-pool.service"
 import { JwtModule } from "@nestjs/jwt"
+import { PaymentAsiaService } from "./payment-asia/payment-asia.service"
 
 @Module({
     imports: [
@@ -29,7 +30,15 @@ import { JwtModule } from "@nestjs/jwt"
         JwtModule.register({}),
     ],
     controllers: [PaymentController, OrderController, RewardsPoolController],
-    providers: [PaymentService, PrismaService, ConfigService, CreditService, OrderService, RewardsPoolService],
+    providers: [
+        PaymentService,
+        PrismaService,
+        ConfigService,
+        CreditService,
+        OrderService,
+        RewardsPoolService,
+        PaymentAsiaService,
+    ],
     exports: [OrderService, RewardsPoolService],
 })
 export class PaymentModule {}

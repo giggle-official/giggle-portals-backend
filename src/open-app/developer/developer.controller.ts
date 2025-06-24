@@ -6,6 +6,7 @@ import {
     DeveloperWidgetDeleteDto,
     DeveloperWidgetDeleteResponseDto,
     DeveloperWidgetUpdateDto,
+    NationCodeDto,
     RequestWidgetAccessTokenDto,
     WidgetAccessTokenDto,
     WidgetIdentityDto,
@@ -16,6 +17,7 @@ import { IsDeveloperGuard } from "src/auth/is_developer.guard"
 import { Request } from "express"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
 import { UsersService } from "./users.service"
+import * as nationCodes from "./nation-codes.json"
 
 @Controller("/api/v1/developer")
 @ApiTags("Widgets Management")
@@ -71,6 +73,14 @@ export class DeveloperController {
     @ApiResponse({ type: WidgetAccessTokenDto })
     async getAccessToken(@Body() body: RequestWidgetAccessTokenDto) {
         return this.developerService.getWidgetAccessToken(body)
+    }
+
+    @Get("/get-nation-codes")
+    @ApiOperation({ summary: "get nation codes" })
+    @ApiResponse({ type: NationCodeDto })
+    @ApiTags("Developer Utility")
+    async getNationCodes() {
+        return nationCodes["countries"].sort((a, b) => a.code.localeCompare(b.code))
     }
 
     @Get("/widgets")

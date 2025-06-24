@@ -150,6 +150,12 @@ export class UserInfoDTO extends LoginDTO {
     device_id?: string
 
     @ApiProperty()
+    phone_number?: string
+
+    @ApiProperty()
+    phone_national?: string
+
+    @ApiProperty()
     widget_info?: {
         user_subscribed: boolean
         widget_tag: string

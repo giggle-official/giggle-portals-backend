@@ -180,3 +180,25 @@ export class WidgetAccessTokenDto {
     })
     access_token: string
 }
+
+export class NationCodeItemDto {
+    @ApiProperty({
+        description: "The code of the nation",
+        example: "+1",
+    })
+    code: string
+
+    @ApiProperty({
+        description: "The name of the nation",
+        example: "United States",
+    })
+    name: string
+}
+
+export class NationCodeDto {
+    @ApiProperty({
+        description: "The nation codes",
+        type: () => [NationCodeItemDto],
+    })
+    countries: NationCodeItemDto[]
+}

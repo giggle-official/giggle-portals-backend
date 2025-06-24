@@ -2,6 +2,7 @@ import { PrismaService } from "./prisma.service"
 import { BadRequestException, InternalServerErrorException, Logger } from "@nestjs/common"
 import * as AWS from "aws-sdk"
 import { Injectable } from "@nestjs/common"
+import { Request } from "express"
 
 export class S3InfoDto {
     s3_bucket: string
@@ -228,5 +229,17 @@ export class UtilitiesService {
             .promise()
 
         return `${process.env.S3_PUBLIC_CDN_DOMAIN}/${keyWithoutPrefix}`
+    }
+
+    public static async getUsersIp(req: Request): Promise<string> {
+        if (typeof req.headers["x-forwarded-for"] === "string") {
+            return req.headers["x-forwarded-for"].split(",")[0]
+        }
+
+        if (typeof req.headers["x-real-ip"] === "string") {
+            return req.headers["x-real-ip"]
+        }
+
+        return req.socket.remoteAddress
     }
 }

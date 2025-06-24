@@ -149,6 +149,8 @@ export class UserService {
             device_id: userInfo?.device_id,
             is_developer: _userInfoFromDb?.is_developer,
             register_info: await this.getRegisterInfo(userInfo),
+            phone_number: _userInfoFromDb.phone_number,
+            phone_national: _userInfoFromDb.phone_national,
         }
 
         //if widget session is setting, we need to get the widget info
@@ -1025,6 +1027,8 @@ Message: ${contactInfo.message}
             following: record.following,
             can_create_ip: record?.can_create_ip || false,
             is_developer: record?.is_developer || false,
+            phone_number: record?.phone_number || "",
+            phone_national: record?.phone_national || "",
         }
     }
 

@@ -42,6 +42,8 @@ model users {
   login_code_requested_at        DateTime?                     @db.DateTime(0)
   register_app_id                String?                       @db.VarChar(32)
   wallet_address                 String?                       @db.VarChar(64)
+  phone_number                   String?                       @db.VarChar(32)
+  phone_national                 String?                       @db.VarChar(16)
   universal_stimulator_videos    universal_stimulator_videos[]
   stripe_orders                  stripe_orders[]
   assets                         assets[]
@@ -846,13 +848,17 @@ model orders {
   description                    String?                 @db.Text
   amount                         Int?
   owner                          String                  @db.VarChar(32)
+  phone_number                   String?                 @db.VarChar(32)
+  phone_national                 String?                 @db.VarChar(16)
   from_source_link               String?                 @db.VarChar(32)
+  customer_ip                    String?                 @db.VarChar(32)
   widget_tag                     String?                 @db.VarChar(32)
   app_id                         String?                 @db.VarChar(32)
   current_status                 String?                 @db.VarChar(32)
   paid_method                    String?                 @db.VarChar(32)
   stripe_invoice_id              String?                 @db.VarChar(32)
   stripe_invoice_detail          Json?
+  payment_asia_callback          Json?
   wallet_paid_detail             Json?
   related_reward_id              Int?
   rewards_model_snapshot         Json?

@@ -57,7 +57,7 @@ import { JwtService } from "@nestjs/jwt"
 @Injectable()
 export class OrderService {
     public readonly logger = new Logger(OrderService.name)
-    public static readonly paymentMethod = [PaymentMethod.STRIPE, PaymentMethod.WALLET]
+    public static readonly paymentMethod = [PaymentMethod.STRIPE, PaymentMethod.WALLET, PaymentMethod.WECHAT]
     constructor(
         private readonly prisma: PrismaService,
 
@@ -231,7 +231,7 @@ export class OrderService {
         //check if order amount is valid
         let paymentMethod = OrderService.paymentMethod
         if (order.amount < 100) {
-            paymentMethod = [PaymentMethod.WALLET]
+            paymentMethod = [PaymentMethod.WALLET, PaymentMethod.WECHAT]
         }
 
         const record = await this.prisma.orders.create({

@@ -1,6 +1,4 @@
-import { ApiProperty, OmitType } from "@nestjs/swagger"
-import { user_rewards_withdraw } from "@prisma/client"
-import { Decimal } from "@prisma/client/runtime/library"
+import { ApiProperty } from "@nestjs/swagger"
 import { IsString, IsEmail, IsNotEmpty, IsOptional, IsNumber, Min, IsPositive } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { CreateIpTokenGiggleResponseDto, WalletDetailDto } from "src/web3/giggle/giggle.dto"

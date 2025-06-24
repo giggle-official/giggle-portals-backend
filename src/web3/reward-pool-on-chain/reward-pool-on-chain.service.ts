@@ -467,6 +467,7 @@ export class RewardPoolOnChainService {
 
     //get buyback burn ratio
     async getBuybackBurnRatio(token: string) {
+        return 0
         const func = "/GetBurnRate"
         const requestParams = {
             createFiToken: token,

@@ -2843,6 +2843,29 @@
         ]
       }
     },
+    "/api/v1/developer/get-nation-codes": {
+      "get": {
+        "operationId": "DeveloperController_getNationCodes",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NationCodeDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "get nation codes",
+        "tags": [
+          "Widgets Management",
+          "Developer Utility"
+        ]
+      }
+    },
     "/api/v1/developer/widgets": {
       "get": {
         "operationId": "DeveloperController_getWidgets",
@@ -4029,20 +4052,6 @@
           "Dashboard"
         ]
       }
-    },
-    "/api/v1/docs/content": {
-      "get": {
-        "operationId": "DocsController_getContent",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Developer Utility"
-        ]
-      }
     }
   },
   "info": {
@@ -4228,6 +4237,12 @@
           "device_id": {
             "type": "string"
           },
+          "phone_number": {
+            "type": "string"
+          },
+          "phone_national": {
+            "type": "string"
+          },
           "widget_info": {
             "type": "object"
           },
@@ -4251,6 +4266,8 @@
           "is_developer",
           "permissions",
           "device_id",
+          "phone_number",
+          "phone_national",
           "widget_info",
           "register_info"
         ]
@@ -8462,6 +8479,40 @@
         },
         "required": [
           "access_token"
+        ]
+      },
+      "NationCodeItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The code of the nation",
+            "example": "+1"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the nation",
+            "example": "United States"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "NationCodeDto": {
+        "type": "object",
+        "properties": {
+          "countries": {
+            "description": "The nation codes",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NationCodeItemDto"
+            }
+          }
+        },
+        "required": [
+          "countries"
         ]
       },
       "CreateLinkRequestDto": {

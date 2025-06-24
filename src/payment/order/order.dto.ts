@@ -1,7 +1,18 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
-import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator"
+import {
+    IsEmail,
+    IsEnum,
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    Matches,
+    Max,
+    Min,
+    ValidateNested,
+} from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
 import { LimitOffer, PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
@@ -18,6 +29,7 @@ export enum OrderStatus {
 export enum PaymentMethod {
     STRIPE = "stripe",
     WALLET = "wallet",
+    WECHAT = "wechat",
 }
 
 export class OrderDto implements orders {
@@ -153,6 +165,26 @@ export class OrderDto implements orders {
         description: "The source link of the order",
     })
     from_source_link: string
+
+    @ApiProperty({
+        description: "The phone number of the order",
+    })
+    phone_number: string
+
+    @ApiProperty({
+        description: "The phone national code of the order",
+    })
+    phone_national: string
+
+    @ApiProperty({
+        description: "The customer ip of the order",
+    })
+    customer_ip: string
+
+    @ApiProperty({
+        description: "The payment asia callback of the order",
+    })
+    payment_asia_callback: JsonValue
 }
 
 export class EstimatedRewardsDto {
@@ -186,6 +218,10 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "ip_holder_revenue_reallocation",
     "rewards_model_snapshot",
     "callback_url",
+    "phone_number",
+    "phone_national",
+    "customer_ip",
+    "payment_asia_callback",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",
@@ -434,6 +470,36 @@ export class PayWithStripeRequestDto {
         description: "The order id",
     })
     order_id: string
+}
+
+export class PayWithPaymentAsiaRequestDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+
+    @ApiProperty({
+        description: "The phone national code of the user",
+    })
+    phone_national: string
+
+    @ApiProperty({
+        description: "The phone number of the user",
+    })
+    @IsNotEmpty()
+    @Matches(/^\d{1,15}$/, { message: "Phone number must be 1-15 digits" })
+    phone_number: string
+
+    @ApiProperty({
+        description: "The method of the payment",
+        enum: ["Wechat", "Alipay"],
+    })
+    method: "Wechat" | "Alipay"
+}
+
+export class PayWithPaymentAsiaResponseDto {
+    url: string
+    params: Record<string, string>
 }
 
 export class PayWithStripeResponseDto {

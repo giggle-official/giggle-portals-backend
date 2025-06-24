@@ -10,6 +10,7 @@ import {
     RawBodyRequest,
     HttpCode,
     HttpStatus,
+    Res,
 } from "@nestjs/common"
 import {
     BindRewardPoolDto,
@@ -20,6 +21,8 @@ import {
     OrderListDto,
     OrderListQueryDto,
     OrderRewardsDto,
+    PayWithPaymentAsiaRequestDto,
+    PayWithPaymentAsiaResponseDto,
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
@@ -31,13 +34,18 @@ import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse }
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { Request } from "express"
+import { Request, Response } from "express"
 import Stripe from "stripe"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
+import { PaymentAsiaService } from "src/payment/payment-asia/payment-asia.service"
+import { PaymentAsiaCallbackDto } from "../payment-asia/payment-asia.dto"
 
 @Controller({ path: "/api/v1/order" })
 export class OrderController {
-    constructor(private readonly orderService: OrderService) {}
+    constructor(
+        private readonly orderService: OrderService,
+        private readonly paymentAsiaService: PaymentAsiaService,
+    ) {}
 
     @Get("/list")
     @ApiOperation({
@@ -133,6 +141,35 @@ export class OrderController {
         @Req() req: Request,
     ): Promise<PayWithStripeResponseDto> {
         return await this.orderService.payOrderWithStripe(order, req.user as UserJwtExtractDto)
+    }
+
+    //payment asia
+    @Post("/payWithPaymentAsia")
+    @ApiExcludeEndpoint()
+    @ApiOperation({ summary: "Pay an order with payment asia", tags: ["Order"] })
+    @ApiBody({ type: PayWithPaymentAsiaRequestDto })
+    @ApiResponse({ type: PayWithPaymentAsiaResponseDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payWithPaymentAsia(
+        @Body() order: PayWithPaymentAsiaRequestDto,
+        @Req() req: Request,
+    ): Promise<PayWithPaymentAsiaResponseDto> {
+        return await this.paymentAsiaService.payWithPaymentAsia(order, req.user as UserJwtExtractDto, req)
+    }
+
+    @Post("/payment-asia/callback")
+    @ApiExcludeEndpoint()
+    @HttpCode(HttpStatus.OK)
+    async paymentAsiaCallback(@Body() body: PaymentAsiaCallbackDto) {
+        return await this.paymentAsiaService.processPaymentAsiaCallback(body)
+    }
+
+    @Post("/payment-asia/redirect")
+    @ApiExcludeEndpoint()
+    @HttpCode(HttpStatus.OK)
+    async paymentAsiaRedirect(@Body() body: PaymentAsiaCallbackDto, @Res() res: Response) {
+        await this.paymentAsiaService.processPaymentAsiaRedirect(body, res)
     }
 
     @Get("/rewards-detail")
