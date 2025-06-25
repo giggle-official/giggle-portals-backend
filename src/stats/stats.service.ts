@@ -295,7 +295,7 @@ group by register_app_id, c.name, e.name
      * Example: BOSS_EMAIL_LIST=boss1@company.com,boss2@company.com,ceo@company.com
      */
     //@Cron(CronExpression.EVERY_DAY_AT_9AM) // Uncomment to enable daily reports at 9 AM
-    @Cron(CronExpression.EVERY_5_MINUTES) //for testing
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT) //for testing
     async sendRevenueStatsEmail(): Promise<void> {
         try {
             if (process.env.TASK_SLOT != "1") return
