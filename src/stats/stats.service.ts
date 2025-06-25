@@ -79,13 +79,13 @@ export class StatsService {
                            sum(case when role = 'customized' then rewards else 0 end) as customized_total_allocated
                             ,
                            sum(case
-                                   when is_cost = true and date(created_at) = current_date then rewards
+                                   when is_cost = true and role != 'platform' and date(created_at) = current_date then rewards
                                    else 0 end)                                        as developer_day_allocated,
                            sum(case
-                                   when is_cost = true and year(created_at) = year(current_date) and
+                                   when is_cost = true and role != 'platform' and year(created_at) = year(current_date) and
                                         month(created_at) = month(current_date) then rewards
                                    else 0 end)                                        as developer_month_allocated,
-                           sum(case when is_cost = true then rewards else 0 end)      as developer_total_allocated
+                           sum(case when is_cost = true and role != 'platform' then rewards else 0 end)      as developer_total_allocated
                             ,
                            sum(case
                                    when is_cost = false and
