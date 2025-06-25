@@ -21,7 +21,7 @@ export class AuthController {
     @ApiBody({ type: LoginDto })
     @HttpCode(HttpStatus.OK)
     @ApiResponse({ type: LoginResponseDto })
-    async login(@Body() body: LoginDto, @Headers("origin") origin: string) {
+    async login(@Body() body: LoginDto, @Headers("origin") origin: string, @Req() req: Request) {
         return this.authService.login(body, origin)
     }
 

@@ -17,6 +17,7 @@ import { Web3Module } from "./web3/web3.module"
 import { OpenAppModule } from "./open-app/open-app.module"
 import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
+import { StatsModule } from './stats/stats.module';
 
 @Module({
     imports: [
@@ -40,6 +41,7 @@ import { DocsModule } from "./docs/docs.module"
         OpenAppModule,
         DashboardModule,
         DocsModule,
+        StatsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

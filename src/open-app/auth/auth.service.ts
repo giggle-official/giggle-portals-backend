@@ -80,10 +80,9 @@ export class AuthService {
             throw new UnauthorizedException("App not allowed")
         }
 
-        const appAllowdDomains = widgetConfig.public.allowed_domains
-
+        const appAllowdDomains = [...widgetConfig.public.allowed_domains, ...this.appDomainWhiteList]
         const foundedDomain = appAllowdDomains.find((domain) => host.endsWith(domain))
-        if (!foundedDomain && !this.appDomainWhiteList.includes(host)) {
+        if (!foundedDomain) {
             this.logger.error(`requested host not allowed: ${host}, requested params: ${JSON.stringify(requestParams)}`)
             throw new UnauthorizedException("Host not allowed")
         }
