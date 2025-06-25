@@ -332,12 +332,6 @@ export class UserService {
             return registerInfo
         }
 
-        if (user.register_app_id) {
-            registerInfo.type = "app"
-            registerInfo.app_id = user.register_app_id
-        }
-
-        //if user register from source link
         if (sourceLinkDetail.redirect_to_widget) {
             registerInfo.type = "widget"
             registerInfo.source_link_summary = {
@@ -347,15 +341,8 @@ export class UserService {
             }
             registerInfo.source_link = user.from_source_link
             registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
-        } else {
-            registerInfo.type = "link"
-            registerInfo.source_link_summary = {
-                creator: sourceLinkDetail.creator,
-                short_link: sourceLinkDetail.short_link,
-                link_pic: sourceLinkDetail.link_pic,
-            }
-            registerInfo.source_link = user.from_source_link
         }
+
         return registerInfo
     }
 
@@ -917,6 +904,16 @@ Message: ${contactInfo.message}
                 //update register source link
                 const sourceLink = await this.linkService.getLinkByDeviceId(deviceId)
                 newUserInfo.from_source_link = sourceLink
+                if (sourceLink) {
+                    const linkDetail = await this.prisma.app_links.findUnique({
+                        where: {
+                            unique_str: sourceLink,
+                        },
+                    })
+                    if (linkDetail) {
+                        newUserInfo.app_id = linkDetail.app_id
+                    }
+                }
             }
             user = await this.createUser(newUserInfo)
         }

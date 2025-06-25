@@ -4150,9 +4150,7 @@
             "type": "string",
             "description": "The type of the register info",
             "enum": [
-              "link",
               "direct",
-              "app",
               "widget",
               "other"
             ]

@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from "@nestjs/common"
+import { Controller, Post, Body, Get } from "@nestjs/common"
 import { StatsService } from "./stats.service"
 import { ApiExcludeController } from "@nestjs/swagger"
 import { AppendAccessLogDto } from "./stats.dto"

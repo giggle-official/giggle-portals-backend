@@ -190,6 +190,16 @@ export class AuthService {
                     //update register source link
                     const sourceLink = await this.linkService.getLinkByDeviceId(device_id)
                     newUserInfo.from_source_link = sourceLink
+                    if (sourceLink) {
+                        const linkDetail = await this.prismaService.app_links.findUnique({
+                            where: {
+                                unique_str: sourceLink,
+                            },
+                        })
+                        if (linkDetail) {
+                            newUserInfo.app_id = linkDetail.app_id
+                        }
+                    }
                 }
                 const createdUser = await this.userService.createUser(newUserInfo)
                 user = await this.prismaService.users.findUnique({

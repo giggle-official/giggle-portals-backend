@@ -1,0 +1,511 @@
+<html
+    xmlns="http://www.w3.org/1999/xhtml"
+    style="
+        font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+        box-sizing: border-box;
+        font-size: 14px;
+        margin: 0;
+    "
+>
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Revenue & Allocation Report</title>
+
+        <style type="text/css">
+            img { max-width: 100%; } body { -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; width:
+            100% !important; height: 100%; line-height: 1.6em; background-color: #f6f6f6; } .report-table { width: 100%;
+            border-collapse: collapse; margin: 20px 0; background-color: #fff; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); } .report-table th { background-color: #4f46e5; color: white;
+            padding: 12px 8px; text-align: center; font-weight: 600; font-size: 12px; border-bottom: 2px solid #3730a3;
+            } .report-table td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #e5e7eb; font-size:
+            11px; } .report-table tbody tr:hover { background-color: #f9fafb; } .allocation-header { background-color:
+            #6366f1 !important; color: white !important; } .revenue-header { background-color: #059669 !important;
+            color: white !important; } .widget-tag { font-weight: 600; color: #374151; background-color: #f3f4f6; }
+            .currency { color: #059669; font-weight: 500; } .summary-section { margin: 30px 0; padding: 20px;
+            background-color: #fff; border-radius: 8px; border-left: 4px solid #4f46e5; } .summary-title { font-size:
+            18px; font-weight: 600; color: #374151; margin-bottom: 15px; } .summary-grid { display: grid;
+            grid-template-columns: repeat(3, 1fr); gap: 20px; } .summary-item { text-align: center; padding: 15px;
+            background-color: #f9fafb; border-radius: 6px; } .summary-label { font-size: 12px; color: #6b7280;
+            margin-bottom: 5px; } .summary-value { font-size: 16px; font-weight: 600; color: #059669; } @media only
+            screen and (max-width: 640px) { .report-table th, .report-table td { padding: 8px 4px; font-size: 10px; }
+            .summary-grid { grid-template-columns: 1fr; } }
+        </style>
+    </head>
+
+    <body
+        style="
+            font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+            box-sizing: border-box;
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -webkit-text-size-adjust: none;
+            width: 100% !important;
+            height: 100%;
+            line-height: 1.6em;
+            background-color: #f6f6f6;
+            margin: 0;
+        "
+    >
+        <table
+            class="body-wrap"
+            style="
+                font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+                box-sizing: border-box;
+                font-size: 14px;
+                width: 100%;
+                background-color: #f6f6f6;
+                margin: 0;
+            "
+        >
+            <tr>
+                <td></td>
+                <td
+                    class="container"
+                    width="800"
+                    style="
+                        font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+                        box-sizing: border-box;
+                        font-size: 14px;
+                        vertical-align: top;
+                        display: block !important;
+                        max-width: 800px !important;
+                        clear: both !important;
+                        margin: 0 auto;
+                    "
+                    valign="top"
+                >
+                    <div
+                        class="content"
+                        style="
+                            font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+                            box-sizing: border-box;
+                            font-size: 14px;
+                            max-width: 800px;
+                            display: block;
+                            margin: 0 auto;
+                            padding: 20px;
+                        "
+                    >
+                        <table
+                            class="main"
+                            width="100%"
+                            cellpadding="0"
+                            cellspacing="0"
+                            style="
+                                font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+                                box-sizing: border-box;
+                                font-size: 14px;
+                                border-radius: 8px;
+                                background-color: #fff;
+                                margin: 0;
+                                border: 1px solid #e9e9e9;
+                            "
+                        >
+                            <tr>
+                                <td
+                                    class="content-wrap"
+                                    style="
+                                        font-family: &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;
+                                        box-sizing: border-box;
+                                        font-size: 14px;
+                                        vertical-align: top;
+                                        margin: 0;
+                                        padding: 30px;
+                                    "
+                                    valign="top"
+                                >
+                                    <!-- Header -->
+                                    <div style="text-align: center; margin-bottom: 30px;">
+                                        <h1
+                                            style="color: #374151; margin: 0 0 10px 0; font-size: 28px; font-weight: 700;"
+                                        >
+                                            📊 Revenue & Allocation Report
+                                        </h1>
+                                        <p style="color: #6b7280; margin: 0; font-size: 16px;">
+                                            Generated on
+                                            {{reportDate}}
+                                            | Period:
+                                            {{period}}
+                                        </p>
+                                    </div>
+
+                                    <!-- Summary Section -->
+                                    <div class="summary-section">
+                                        <div class="summary-title">📈 Revenue Summary</div>
+                                        <div class="summary-grid">
+                                            <div class="summary-item">
+                                                <div class="summary-label">Today's Revenue</div>
+                                                <div class="summary-value">${{totalDayRevenue}}</div>
+                                            </div>
+                                            <div class="summary-item">
+                                                <div class="summary-label">This Month</div>
+                                                <div class="summary-value">${{totalMonthRevenue}}</div>
+                                            </div>
+                                            <div class="summary-item">
+                                                <div class="summary-label">Total Revenue</div>
+                                                <div class="summary-value">${{totalRevenue}}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Main Report Table -->
+                                    <table class="report-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 20%; vertical-align: middle;">Widget Name</th>
+                                                <th style="width: 26.67%; text-align: center;" class="revenue-header">📅
+                                                    Today</th>
+                                                <th style="width: 26.67%; text-align: center;" class="revenue-header">📆
+                                                    This Month</th>
+                                                <th style="width: 26.67%; text-align: center;" class="revenue-header">📊
+                                                    Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {{#each revenueData}}
+                                                <tr>
+                                                    <td
+                                                        class="widget-name"
+                                                        style="vertical-align: top; font-weight: 600;"
+                                                    >{{widget_name}}</td>
+
+                                                    <!-- Day Column -->
+                                                    <td
+                                                        style="vertical-align: top; padding: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef;"
+                                                    >
+                                                        <div
+                                                            style="text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #059669;"
+                                                        >
+                                                            <div
+                                                                style="font-weight: 700; color: #059669; font-size: 18px;"
+                                                            >${{day_usd_revenue}}</div>
+                                                            <div
+                                                                style="font-size: 11px; color: #666; text-transform: uppercase;"
+                                                            >Revenue</div>
+                                                        </div>
+                                                        <div style="font-size: 13px; line-height: 1.8;">
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">💰 Buyback</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{buyback_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">🏢 Platform</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{platform_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👤 IP Holder</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{ip_holder_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">⚙️ Customized</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{customized_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👨‍💻 Developer</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{developer_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div>
+                                                                <span style="float: left;">📦 Other</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{other_day_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <!-- Month Column -->
+                                                    <td
+                                                        style="vertical-align: top; padding: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef;"
+                                                    >
+                                                        <div
+                                                            style="text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #059669;"
+                                                        >
+                                                            <div
+                                                                style="font-weight: 700; color: #059669; font-size: 18px;"
+                                                            >${{month_usd_revenue}}</div>
+                                                            <div
+                                                                style="font-size: 11px; color: #666; text-transform: uppercase;"
+                                                            >Revenue</div>
+                                                        </div>
+                                                        <div style="font-size: 13px; line-height: 1.8;">
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">💰 Buyback</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{buyback_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">🏢 Platform</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{platform_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👤 IP Holder</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{ip_holder_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">⚙️ Customized</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{customized_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👨‍💻 Developer</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{developer_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div>
+                                                                <span style="float: left;">📦 Other</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{other_month_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <!-- Total Column -->
+                                                    <td
+                                                        style="vertical-align: top; padding: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef;"
+                                                    >
+                                                        <div
+                                                            style="text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #059669;"
+                                                        >
+                                                            <div
+                                                                style="font-weight: 700; color: #059669; font-size: 18px;"
+                                                            >${{total_usd_revenue}}</div>
+                                                            <div
+                                                                style="font-size: 11px; color: #666; text-transform: uppercase;"
+                                                            >Revenue</div>
+                                                        </div>
+                                                        <div style="font-size: 13px; line-height: 1.8;">
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">💰 Buyback</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{buyback_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">🏢 Platform</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{platform_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👤 IP Holder</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{ip_holder_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">⚙️ Customized</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{customized_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div
+                                                                style="margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;"
+                                                            >
+                                                                <span style="float: left;">👨‍💻 Developer</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{developer_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                            <div>
+                                                                <span style="float: left;">📦 Other</span>
+                                                                <span
+                                                                    style="float: right; font-weight: 600;"
+                                                                >${{other_total_allocated}}</span>
+                                                                <div style="clear: both;"></div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {{/each}}
+                                        </tbody>
+                                    </table>
+
+                                    <!-- IP Revenue Details Section -->
+                                    {{#if ipRevenueData}}
+                                        <div class="summary-section" style="margin-top: 40px;">
+                                            <div class="summary-title">🏢 Revenue by IP</div>
+                                            <table class="report-table" style="margin-top: 20px;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 30%; vertical-align: middle;">IP Name</th>
+                                                        <th style="width: 20%; vertical-align: middle;">Widget Name</th>
+                                                        <th style="width: 16.67%; text-align: center;">📅 Today</th>
+                                                        <th style="width: 16.67%; text-align: center;">📆 This Month</th>
+                                                        <th style="width: 16.67%; text-align: center;">📊 Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{#each ipRevenueData}}
+                                                        <tr>
+                                                            <td
+                                                                style="vertical-align: middle; font-weight: 600; color: #4f46e5;"
+                                                            >
+                                                                {{ip_name}}
+                                                            </td>
+                                                            <td
+                                                                style="vertical-align: middle; color: #6b7280; font-size: 12px;"
+                                                            >
+                                                                {{widget_name}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #059669; font-weight: 600;"
+                                                            >
+                                                                ${{day_usd_revenue}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #059669; font-weight: 600;"
+                                                            >
+                                                                ${{month_usd_revenue}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #059669; font-weight: 600;"
+                                                            >
+                                                                ${{total_usd_revenue}}
+                                                            </td>
+                                                        </tr>
+                                                    {{/each}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {{/if}}
+
+                                    <!-- IP User Registration Section -->
+                                    {{#if ipUserData}}
+                                        <div class="summary-section" style="margin-top: 40px;">
+                                            <div class="summary-title">👥 User Registrations by IP</div>
+                                            <table class="report-table" style="margin-top: 20px;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 30%; vertical-align: middle;">IP Name</th>
+                                                        <th style="width: 25%; vertical-align: middle;">Widget Name</th>
+                                                        <th style="width: 15%; text-align: center;">📅 Today</th>
+                                                        <th style="width: 15%; text-align: center;">📆 This Month</th>
+                                                        <th style="width: 15%; text-align: center;">📊 Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{#each ipUserData}}
+                                                        <tr>
+                                                            <td
+                                                                style="vertical-align: middle; font-weight: 600; color: #4f46e5;"
+                                                            >
+                                                                {{ip_name}}
+                                                            </td>
+                                                            <td
+                                                                style="vertical-align: middle; color: #6b7280; font-size: 12px;"
+                                                            >
+                                                                {{widget_name}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #6366f1; font-weight: 600;"
+                                                            >
+                                                                {{day_registered}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #6366f1; font-weight: 600;"
+                                                            >
+                                                                {{month_registered}}
+                                                            </td>
+                                                            <td
+                                                                style="text-align: center; color: #6366f1; font-weight: 600;"
+                                                            >
+                                                                {{total_registered}}
+                                                            </td>
+                                                        </tr>
+                                                    {{/each}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {{/if}}
+
+                                    <!-- Footer -->
+                                    <div
+                                        style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;"
+                                    >
+                                        <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                                            This report was automatically generated by the Giggle Portals Revenue System<br
+                                            />
+                                            <strong>Total Widgets Tracked:</strong>
+                                            {{totalWidgets}}
+                                            |
+                                            <strong>Total IPs:</strong>
+                                            {{totalIPs}}
+                                            |
+                                            <strong>Report Generated:</strong>
+                                            {{reportDate}}
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+        </table>
+    </body>
+</html>

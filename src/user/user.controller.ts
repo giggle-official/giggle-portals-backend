@@ -78,9 +78,9 @@ export class LoginDTO {
 export class RegisterInfoDTO {
     @ApiProperty({
         description: "The type of the register info",
-        enum: ["link", "direct", "app", "widget", "other"],
+        enum: ["direct", "widget", "other"],
     })
-    type: "link" | "direct" | "app" | "widget" | "other"
+    type: "direct" | "widget" | "other"
 
     @ApiProperty({
         description: "The source link summary of the register info",
