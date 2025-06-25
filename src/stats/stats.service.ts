@@ -109,9 +109,25 @@ export class StatsService {
                     where a.statement_id in (select id from statements)
                       and a.ticker = 'usdc'
                     group by b.widget_tag)
-                    select a.*,c.name as widget_name, b.day_usd_revenue, b.month_usd_revenue, b.total_usd_revenue
+                    select a.*,
+       c.name                                                                               as widget_name,
+       b.day_usd_revenue,
+       b.month_usd_revenue,
+       b.total_usd_revenue,
+       b.day_usd_revenue -
+       (a.buyback_day_allocated + a.customized_day_allocated + a.developer_day_allocated +
+        a.ip_holder_day_allocated + a.other_day_allocated + a.platform_day_allocated)       as unsetted_day_allocation,
+       b.month_usd_revenue -
+       (a.buyback_month_allocated + a.customized_month_allocated + a.developer_month_allocated +
+        a.ip_holder_month_allocated + a.other_month_allocated +
+        a.platform_month_allocated)                                                         as unsetted_month_allocation,
+       b.total_usd_revenue -
+       (a.buyback_total_allocated + a.customized_total_allocated + a.developer_total_allocated +
+        a.ip_holder_total_allocated + a.other_total_allocated + a.platform_total_allocated) as unsetted_total_allocation
+
 from allocation a
-         left join revenue b on a.widget_tag = b.widget_tag left join widgets c on c.tag=a.widget_tag ;
+         left join revenue b on a.widget_tag = b.widget_tag
+         left join widgets c on c.tag = a.widget_tag
 `
 
         return revenueStats
@@ -209,6 +225,10 @@ group by register_app_id, c.name, e.name
             other_day_allocated: Number(stat.other_day_allocated || 0).toFixed(2),
             other_month_allocated: Number(stat.other_month_allocated || 0).toFixed(2),
             other_total_allocated: Number(stat.other_total_allocated || 0).toFixed(2),
+            // Unsetted allocations (unallocated revenue in wallet)
+            unsetted_day_allocated: Number(stat.unsetted_day_allocation || 0).toFixed(2),
+            unsetted_month_allocated: Number(stat.unsetted_month_allocation || 0).toFixed(2),
+            unsetted_total_allocated: Number(stat.unsetted_total_allocation || 0).toFixed(2),
         }))
     }
 

@@ -10,23 +10,29 @@ export class AppendAccessLogDto {
 
 export class RevenueStatsDto {
     buyback_day_allocated: Decimal
-    buyback_month_allocated: Decimal
-    buyback_total_allocated: Decimal
     platform_day_allocated: Decimal
-    platform_month_allocated: Decimal
-    platform_total_allocated: Decimal
     ip_holder_day_allocated: Decimal
-    ip_holder_month_allocated: Decimal
-    ip_holder_total_allocated: Decimal
     customized_day_allocated: Decimal
-    customized_month_allocated: Decimal
-    customized_total_allocated: Decimal
     developer_day_allocated: Decimal
-    developer_month_allocated: Decimal
-    developer_total_allocated: Decimal
     other_day_allocated: Decimal
+    unsetted_day_allocation: Decimal
+
+    buyback_month_allocated: Decimal
+    platform_month_allocated: Decimal
+    ip_holder_month_allocated: Decimal
+    customized_month_allocated: Decimal
+    developer_month_allocated: Decimal
     other_month_allocated: Decimal
+    unsetted_month_allocation: Decimal
+
+    buyback_total_allocated: Decimal
+    platform_total_allocated: Decimal
+    ip_holder_total_allocated: Decimal
+    customized_total_allocated: Decimal
+    developer_total_allocated: Decimal
     other_total_allocated: Decimal
+    unsetted_total_allocation: Decimal
+
     widget_tag: string
     day_usd_revenue: Decimal
     month_usd_revenue: Decimal
