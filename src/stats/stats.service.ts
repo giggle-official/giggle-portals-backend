@@ -275,9 +275,14 @@ group by register_app_id, c.name, e.name
      * Example: BOSS_EMAIL_LIST=boss1@company.com,boss2@company.com,ceo@company.com
      */
     //@Cron(CronExpression.EVERY_DAY_AT_9AM) // Uncomment to enable daily reports at 9 AM
-    @Cron(CronExpression.EVERY_MINUTE) //for testing
+    @Cron(CronExpression.EVERY_5_MINUTES) //for testing
     async sendRevenueStatsEmail(): Promise<void> {
         try {
+            if (process.env.TASK_SLOT != "1") return
+            if (process.env.ENV !== "product") {
+                this.logger.log("Skipping revenue stats email generation in non-production environment")
+                return
+            }
             this.logger.log("Starting revenue stats email generation...")
 
             // Get all data concurrently
@@ -347,27 +352,6 @@ group by register_app_id, c.name, e.name
         } catch (error) {
             this.logger.error("Failed to generate/send revenue stats email:", error)
             throw error
-        }
-    }
-
-    /**
-     * Manual trigger for sending revenue report (useful for testing)
-     */
-    async sendRevenueReportManually(): Promise<{ success: boolean; message: string; sentTo: string[] }> {
-        try {
-            await this.sendRevenueStatsEmail()
-            const bossEmails = this.getBossEmailList()
-            return {
-                success: true,
-                message: "Revenue report sent successfully",
-                sentTo: bossEmails,
-            }
-        } catch (error) {
-            return {
-                success: false,
-                message: `Failed to send revenue report: ${error.message}`,
-                sentTo: [],
-            }
         }
     }
 }
