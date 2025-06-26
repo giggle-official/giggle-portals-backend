@@ -308,8 +308,8 @@ group by register_app_id, c.name, e.name;
      * Environment Variable Required: BOSS_EMAIL_LIST (comma-separated email addresses)
      * Example: BOSS_EMAIL_LIST=boss1@company.com,boss2@company.com,ceo@company.com
      */
-    //@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT) // Uncomment to enable daily reports at 0 AM
-    @Cron(CronExpression.EVERY_5_MINUTES) //for testing
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT) // generate report at 0 AM
+    //@Cron(CronExpression.EVERY_5_MINUTES) //for testing
     async sendRevenueStatsEmail(): Promise<void> {
         try {
             if (process.env.TASK_SLOT != "1") return
