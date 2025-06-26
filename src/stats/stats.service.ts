@@ -26,7 +26,6 @@ export class StatsService {
 
     async genreateDailyRevenueStats(): Promise<RevenueStatsDto[]> {
         const revenueStats = await this.prisma.$queryRaw<RevenueStatsDto[]>`
-set @yesterday = CURDATE() - INTERVAL 1 DAY;
 with statements as (select id, widget_tag
                     from reward_pool_statement
                     where related_order_id in (select order_id from orders where current_status = 'rewards_released')
@@ -34,59 +33,62 @@ with statements as (select id, widget_tag
                       and chain_transaction is not null
                       and type = 'released'
                       and widget_tag != ''),
+     yesterday as (SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as yesterday,
+                          CURDATE()                           as today),
      revenue as (select widget_tag,
-                        sum(case when date(created_at) = @yesterday then usd_revenue else 0 end) as day_usd_revenue,
+                        sum(case when date(created_at) = b.yesterday then usd_revenue else 0 end) as day_usd_revenue,
                         sum(case
-                                when year(created_at) = year(@yesterday) and month(created_at) = month(@yesterday)
+                                when year(created_at) = year(b.yesterday) and month(created_at) = month(b.yesterday)
                                     then usd_revenue
-                                else 0 end)                                                        as month_usd_revenue,
-                        sum(usd_revenue)                                                           as total_usd_revenue
-                 from reward_pool_statement
+                                else 0 end)                                                       as month_usd_revenue,
+                        sum(usd_revenue)                                                          as total_usd_revenue
+                 from reward_pool_statement a
+                          cross join yesterday b
                  where id in (select id from statements)
                  group by widget_tag),
      allocation as (select sum(case
-                                   when role = 'buyback' and date(created_at) = @yesterday then rewards
+                                   when role = 'buyback' and date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as buyback_day_allocated,
                            sum(case
-                                   when role = 'buyback' and year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                   when role = 'buyback' and year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as buyback_month_allocated,
                            sum(case when role = 'buyback' then rewards else 0 end)    as buyback_total_allocated,
                            sum(case
-                                   when role = 'platform' and date(created_at) = @yesterday then rewards
+                                   when role = 'platform' and date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as platform_day_allocated,
                            sum(case
-                                   when role = 'platform' and year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                   when role = 'platform' and year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as platform_month_allocated,
                            sum(case when role = 'platform' then rewards else 0 end)   as platform_total_allocated
                             ,
                            sum(case
-                                   when role = 'ip-holder' and date(created_at) = @yesterday then rewards
+                                   when role = 'ip-holder' and date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as ip_holder_day_allocated,
                            sum(case
-                                   when role = 'ip-holder' and year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                   when role = 'ip-holder' and year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as ip_holder_month_allocated,
                            sum(case when role = 'ip-holder' then rewards else 0 end)  as ip_holder_total_allocated
                             ,
                            sum(case
-                                   when role = 'customized' and date(created_at) = @yesterday then rewards
+                                   when role = 'customized' and date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as customized_day_allocated,
                            sum(case
-                                   when role = 'customized' and year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                   when role = 'customized' and year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as customized_month_allocated,
                            sum(case when role = 'customized' then rewards else 0 end) as customized_total_allocated
                             ,
                            sum(case
                                    when is_cost = true and ifnull(role, '') != 'platform' and
-                                        date(created_at) = @yesterday then rewards
+                                        date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as developer_day_allocated,
                            sum(case
                                    when is_cost = true and ifnull(role, '') != 'platform' and
-                                        year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                        year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as developer_month_allocated,
                            sum(case
                                    when is_cost = true and ifnull(role, '') != 'platform' then rewards
@@ -95,13 +97,13 @@ with statements as (select id, widget_tag
                            sum(case
                                    when is_cost = false and
                                         role not in ('buyback', 'platform', 'ip-holder', 'customized') and
-                                        date(created_at) = @yesterday then rewards
+                                        date(created_at) = d.yesterday then rewards
                                    else 0 end)                                        as other_day_allocated,
                            sum(case
                                    when is_cost = false and
                                         role not in ('buyback', 'platform', 'ip-holder', 'customized') and
-                                        year(created_at) = year(@yesterday) and
-                                        month(created_at) = month(@yesterday) then rewards
+                                        year(created_at) = year(d.yesterday) and
+                                        month(created_at) = month(d.yesterday) then rewards
                                    else 0 end)                                        as other_month_allocated,
                            sum(case
                                    when is_cost = false and
@@ -111,6 +113,7 @@ with statements as (select id, widget_tag
                            b.widget_tag
                     from user_rewards a
                              join statements b on a.statement_id = b.id
+                             cross join yesterday d
                     where a.statement_id in (select id from statements)
                       and a.ticker = 'usdc'
                     group by b.widget_tag)
@@ -140,7 +143,6 @@ from allocation a
 
     async genreateTotalRevenueByIp(): Promise<TotalRevenueByIpDto[]> {
         const totalRevenueByIp = await this.prisma.$queryRaw<TotalRevenueByIpDto[]>`
-set @yesterday = CURDATE() - INTERVAL 1 DAY;
 with statements as (select id, widget_tag
                     from reward_pool_statement
                     where related_order_id in (select order_id from orders where current_status = 'rewards_released')
@@ -148,17 +150,20 @@ with statements as (select id, widget_tag
                       and chain_transaction is not null
                       and type = 'released'
                       and widget_tag != ''),
+     yesterday as (SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as yesterday,
+                          CURDATE()                           as today),
      revenue_with_app as (select a.widget_tag,
                                  b.app_id,
-                                 sum(case when date(a.created_at) = @yesterday then usd_revenue else 0 end) as day_usd_revenue,
+                                 sum(case when date(a.created_at) = y.yesterday then usd_revenue else 0 end) as day_usd_revenue,
                                  sum(case
-                                         when year(a.created_at) = year(@yesterday) and
-                                              month(a.created_at) = month(@yesterday)
+                                         when year(a.created_at) = year(y.yesterday) and
+                                              month(a.created_at) = month(y.yesterday)
                                              then usd_revenue
-                                         else 0 end)                                                          as month_usd_revenue,
-                                 sum(usd_revenue)                                                             as total_usd_revenue
+                                         else 0 end)                                                         as month_usd_revenue,
+                                 sum(usd_revenue)                                                            as total_usd_revenue
                           from reward_pool_statement a
                                    left join orders b on a.related_order_id = b.order_id
+                                   cross join yesterday y
                           where a.id in (select id from statements)
                           group by widget_tag, b.app_id)
 select a.*, c.name as ip_name, d.name as widget_name
@@ -172,25 +177,27 @@ from revenue_with_app a
 
     async genreateTotalRegisterdUserByIp(): Promise<TotalRegisterdUserDto[]> {
         const totalRegisterdUser = await this.prisma.$queryRaw<TotalRegisterdUserDto[]>`
-set @yesterday = CURDATE() - INTERVAL 1 DAY;
 with widget_in_app as (select app_id, widget_tag
                        from app_bind_widgets
                        where widget_tag != 'login_from_external'
-                         and enabled = true)
-select sum(case when date(a.created_at) = @yesterday then 1 else 0 end) as day_registered,
+                         and enabled = true),
+     yesterday as (SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as yesterday,
+                          CURDATE()                           as today)
+select sum(case when date(a.created_at) = y.yesterday then 1 else 0 end) as day_registered,
        sum(case
-               when year(a.created_at) = year(@yesterday) and
-                    month(a.created_at) = month(@yesterday) then 1
-               else 0 end)                                                as month_registered,
-       sum(1)                                                             as total_registered,
+               when year(a.created_at) = year(y.yesterday) and
+                    month(a.created_at) = month(y.yesterday) then 1
+               else 0 end)                                               as month_registered,
+       sum(1)                                                            as total_registered,
        register_app_id,
-       c.name                                                             as ip_name,
-       e.name                                                             as widget_name
+       c.name                                                            as ip_name,
+       e.name                                                            as widget_name
 from users a
          left join app_bind_ips b on a.register_app_id = b.app_id
          left join ip_library c on b.ip_id = c.id
          left join widget_in_app d on d.app_id = a.register_app_id
          left join widgets e on e.tag = d.widget_tag
+         cross join yesterday y
 where register_app_id != ''
   and register_app_id is not null
 group by register_app_id, c.name, e.name;
