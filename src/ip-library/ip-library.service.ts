@@ -1830,7 +1830,10 @@ export class IpLibraryService {
                 const convertResult = await this.priceService.getPercentageToCredits(buyPercentage)
                 buy_amount = convertResult.usdc
             }
-        } else if (purchase_strategy.type === PurchaseStrategyType.AGENT) {
+        } else if (
+            purchase_strategy.type === PurchaseStrategyType.AGENT &&
+            purchase_strategy.wallet_source === SourceWalletType.GIGGLE
+        ) {
             const agent = await this.prismaService.launch_agents.findUnique({
                 where: { agent_id: purchase_strategy.agent_id },
             })
