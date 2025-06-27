@@ -233,7 +233,7 @@ export class LaunchAgentService {
                 },
             ),
         )
-        return { ...response.data, sufficient_funds: true }
+        return response.data
     }
 
     async start_multi_source_wallets(
