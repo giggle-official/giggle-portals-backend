@@ -26,6 +26,7 @@ import {
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
+    PreviewOrderDto,
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
@@ -80,6 +81,21 @@ export class OrderController {
     @HttpCode(HttpStatus.OK)
     async createOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
         return await this.orderService.createOrder(order, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/preview")
+    @ApiOperation({
+        summary: "Preview an order",
+        description:
+            "Preview an order, you can use this api to preview the order detail before you create an order, such as the estimated rewards, the order detail, etc.",
+        tags: ["Order"],
+    })
+    @ApiBody({ type: CreateOrderDto })
+    @ApiResponse({ type: PreviewOrderDto })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    async previewOrder(@Body() order: CreateOrderDto, @Req() req: Request): Promise<PreviewOrderDto> {
+        return await this.orderService.previewOrder(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/release-rewards")

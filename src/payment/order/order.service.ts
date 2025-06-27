@@ -25,6 +25,7 @@ import {
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
+    PreviewOrderDto,
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
@@ -256,6 +257,17 @@ export class OrderService {
             },
         })
         return await this.mapOrderDetail(record)
+    }
+
+    async previewOrder(order: CreateOrderDto, requester: UserJwtExtractDto): Promise<PreviewOrderDto> {
+        const tempOrder = await this.createOrder(order, requester)
+        const orderId = tempOrder.order_id
+        delete tempOrder.order_id
+        delete tempOrder.order_url
+        delete tempOrder.current_status
+        //remove order
+        await this._deleteOrder(orderId)
+        return tempOrder
     }
 
     async mapOrderDetail(data: orders): Promise<OrderDetailDto> {
@@ -1694,6 +1706,26 @@ export class OrderService {
                 continue
             }
         }
+    }
+
+    private async _deleteOrder(orderId: string): Promise<void> {
+        const order = await this.prisma.orders.findUnique({
+            where: { order_id: orderId },
+        })
+
+        if (!order) {
+            this.logger.warn(`Order ${orderId} not found`)
+            return
+        }
+
+        if (![OrderStatus.PENDING, OrderStatus.CANCELLED].includes(order.current_status as OrderStatus)) {
+            this.logger.warn(`Order ${orderId} is not pending or cancelled, can not delete`)
+            return
+        }
+
+        await this.prisma.orders.delete({
+            where: { order_id: orderId },
+        })
     }
 
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

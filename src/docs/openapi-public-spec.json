@@ -3270,6 +3270,39 @@
         ]
       }
     },
+    "/api/v1/order/preview": {
+      "post": {
+        "description": "Preview an order, you can use this api to preview the order detail before you create an order, such as the estimated rewards, the order detail, etc.",
+        "operationId": "OrderController_previewOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOrderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview an order",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
     "/api/v1/order/release-rewards": {
       "post": {
         "description": "Release rewards for an order, after the released, order can not be refunded",
@@ -8867,6 +8900,151 @@
         },
         "required": [
           "amount"
+        ]
+      },
+      "PreviewOrderDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The description of the order"
+          },
+          "amount": {
+            "type": "number",
+            "description": "The amount of the order"
+          },
+          "owner": {
+            "type": "string",
+            "description": "The owner of the order"
+          },
+          "widget_tag": {
+            "type": "string",
+            "description": "The widget tag of the order created by"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "The app id of the order created by"
+          },
+          "paid_method": {
+            "type": "string",
+            "description": "The paid method of the order"
+          },
+          "related_reward_id": {
+            "type": "number",
+            "description": "The related reward pool id of the order, note: this field may be require if we finish our economic model"
+          },
+          "release_rewards_after_paid": {
+            "type": "boolean",
+            "description": "The release rewards after paid of the order"
+          },
+          "supported_payment_method": {
+            "description": "The supported payment method of the order",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "redirect_url": {
+            "type": "string",
+            "description": "The redirect url after order is paid"
+          },
+          "paid_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The paid time of the order"
+          },
+          "expire_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The expire time of the order, default is 15 minutes"
+          },
+          "cancelled_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The cancelled time of the order"
+          },
+          "cancelled_detail": {
+            "type": "object",
+            "description": "The cancelled detail of the order"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The created time of the order"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The updated time of the order"
+          },
+          "from_source_link": {
+            "type": "string",
+            "description": "The source link of the order"
+          },
+          "rewards_model_snapshot": {
+            "description": "The rewards model snapshot of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RewardSnapshotDto"
+              }
+            ]
+          },
+          "current_reward_pool_detail": {
+            "description": "The current reward pool detail of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PoolResponseDto"
+              }
+            ]
+          },
+          "source_link_summary": {
+            "description": "The source link summary of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkSummaryDto"
+              }
+            ]
+          },
+          "costs_allocation": {
+            "description": "The costs allocation of the order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderCostsAllocationDto"
+            }
+          },
+          "ip_holder_revenue_reallocation": {
+            "description": "The ip holder revenue re-allocation of the order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpHolderRevenueReallocationDto"
+            }
+          },
+          "estimated_rewards": {
+            "description": "The estimated rewards of the order",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstimatedRewardsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "amount",
+          "owner",
+          "paid_method",
+          "release_rewards_after_paid",
+          "supported_payment_method",
+          "redirect_url",
+          "paid_time",
+          "expire_time",
+          "cancelled_time",
+          "cancelled_detail",
+          "created_at",
+          "updated_at",
+          "from_source_link",
+          "rewards_model_snapshot",
+          "current_reward_pool_detail",
+          "estimated_rewards"
         ]
       },
       "ReleaseRewardsDto": {

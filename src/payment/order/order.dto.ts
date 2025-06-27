@@ -268,6 +268,8 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     estimated_rewards: EstimatedRewardsDto
 }
 
+export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) {}
+
 export class ItemDto {
     @ApiProperty({
         description: "The name of the item",
