@@ -5,6 +5,11 @@ import {
     CreateLaunchAgentResponseDto,
     ParseLaunchLaunchPlanResponseDto,
     StartLaunchAgentRequestDto,
+    GenerateLaunchAgentWalletsRequestDto,
+    GenerateLaunchAgentWalletsResponseDto,
+    GenerateSourceWalletsResDto,
+    CheckAgentWalletsStatusRequestDto,
+    CheckAgentWalletsStatusResponseDto,
 } from "./launch-agent.dto"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom, Subscriber } from "rxjs"
@@ -126,6 +131,164 @@ export class LaunchAgentService {
         const solPrice = await this.priceService.getSolPrice()
         const estimatedUsdc = sol * solPrice * 1.01 // to ensure strategy can be executed successfully
         return estimatedUsdc
+    }
+
+    async generateAgentWallets(
+        dto: GenerateLaunchAgentWalletsRequestDto,
+        user: UserJwtExtractDto,
+    ): Promise<GenerateLaunchAgentWalletsResponseDto> {
+        if (!this.getPermission(user)) {
+            throw new BadRequestException("You are not allowed to use launch agent")
+        }
+
+        if (!dto.agent_id) {
+            throw new BadRequestException("Agent ID is required")
+        }
+
+        const agent = await this.prisma.launch_agents.findUnique({
+            where: {
+                agent_id: dto.agent_id,
+            },
+        })
+
+        if (!agent) {
+            throw new BadRequestException("Agent not found")
+        }
+
+        const { parsed_strategy } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
+
+        const requestParams = {
+            parsed_strategy: parsed_strategy,
+            num_source_wallets: dto.wallet_count || 1,
+            user_email: user.email,
+            debug: this.launchAgentDebug,
+        }
+
+        try {
+            const response: AxiosResponse<GenerateSourceWalletsResDto> = await lastValueFrom(
+                this.httpService.post(
+                    `${this.launchAgentUrl}/api/agent/${dto.agent_id}/generate_multi_source_wallets`,
+                    requestParams,
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    },
+                ),
+            )
+
+            if (response.data.status !== "success") {
+                throw new BadRequestException("Failed to generate source wallets")
+            }
+
+            const result = {
+                total_estimated_sol: Object.values(response.data.required_sol).reduce((acc, curr) => acc + curr, 0),
+                wallets: response.data.source_wallets.map((wallet) => ({
+                    address: wallet,
+                    required_sol: response.data.required_sol[wallet],
+                    is_funded: false,
+                })),
+            }
+            await this.prisma.launch_agents.update({
+                where: { agent_id: dto.agent_id },
+                data: {
+                    source_wallets: result,
+                },
+            })
+            return result
+        } catch (error) {
+            throw new BadRequestException("Failed to generate source wallets")
+        }
+    }
+
+    async checkAgentWalletsStatus(
+        dto: CheckAgentWalletsStatusRequestDto,
+        user: UserJwtExtractDto,
+    ): Promise<CheckAgentWalletsStatusResponseDto> {
+        const agent = await this.prisma.launch_agents.findUnique({
+            where: { agent_id: dto.agent_id, owner: user.usernameShorted },
+        })
+
+        if (!agent) {
+            throw new BadRequestException("Agent not found")
+        }
+
+        const source_wallets = agent.source_wallets as any as GenerateLaunchAgentWalletsResponseDto
+        let allocation = {}
+        source_wallets.wallets.map((wallet) => {
+            allocation[wallet.address] = wallet.required_sol
+        })
+
+        const response: AxiosResponse<CheckAgentWalletsStatusResponseDto> = await lastValueFrom(
+            this.httpService.post(
+                `${this.launchAgentUrl}/api/agent/${dto.agent_id}/funds_status`,
+                {
+                    allocation: allocation,
+                    debug: this.launchAgentDebug,
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            ),
+        )
+        return { ...response.data, sufficient_funds: true }
+    }
+
+    async start_multi_source_wallets(
+        agentId: string,
+        initParams: StartLaunchAgentRequestDto,
+        user: UserJwtExtractDto,
+        subscriber?: Subscriber<SSEMessage>,
+    ) {
+        const agent = await this.prisma.launch_agents.findUnique({
+            where: { agent_id: agentId, owner: user.usernameShorted },
+        })
+
+        if (!agent) {
+            throw new BadRequestException("Agent not found")
+        }
+
+        const { parsed_strategy } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
+
+        //set params
+        const source_wallets = agent.source_wallets as any as GenerateLaunchAgentWalletsResponseDto
+        let allocation = {}
+        source_wallets.wallets.map((wallet) => {
+            allocation[wallet.address] = wallet.required_sol
+        })
+
+        const params = {
+            parsed_strategy: parsed_strategy,
+            allocation: allocation,
+            token_mint: initParams.token_mint,
+            user_email: user.email,
+            debug: this.launchAgentDebug,
+        }
+
+        const response: AxiosResponse<{ status: string; message: string }> = await lastValueFrom(
+            this.httpService.post(
+                `${this.launchAgentUrl}/api/agent/${agentId}/start_multi_source_launch_agent`,
+                params,
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            ),
+        )
+
+        if (response.data.status !== "success") {
+            throw new BadRequestException(response.data.message)
+        }
+        if (subscriber) {
+            subscriber.next({
+                event: IpEvents.IP_STRATEGY_AGENT_STARTED,
+                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_AGENT_STARTED),
+            })
+        }
+        return response.data
     }
 
     async start(

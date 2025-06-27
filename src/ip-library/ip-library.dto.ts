@@ -737,6 +737,11 @@ export class IpLibraryListDto {
     count: number
 }
 
+export enum SourceWalletType {
+    AGENT = "agent",
+    GIGGLE = "giggle",
+}
+
 export class PurchaseStrategyDto {
     @IsEnum(PurchaseStrategyType)
     @ApiProperty({
@@ -762,6 +767,13 @@ export class PurchaseStrategyDto {
         description: "agent id of the purchase strategy",
     })
     agent_id: string
+
+    @IsEnum(SourceWalletType)
+    @ApiProperty({
+        description: "source wallet type of the purchase strategy, default is giggle",
+        enum: SourceWalletType,
+    })
+    wallet_source: SourceWalletType
 
     @ApiProperty({
         description: "strategy detail of the purchase strategy",

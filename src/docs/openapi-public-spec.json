@@ -634,6 +634,70 @@
         ]
       }
     },
+    "/api/v1/launch-agent/generate-agent-wallets": {
+      "post": {
+        "operationId": "LaunchAgentController_generateAgentWallets",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateLaunchAgentWalletsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateLaunchAgentWalletsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Generate a new launch agent wallets",
+        "tags": [
+          "Launch Agent"
+        ]
+      }
+    },
+    "/api/v1/launch-agent/check-agent-wallets": {
+      "post": {
+        "operationId": "LaunchAgentController_checkAgentWallets",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckAgentWalletsStatusRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckAgentWalletsStatusResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check the status of a launch agent wallets",
+        "tags": [
+          "Launch Agent"
+        ]
+      }
+    },
     "/api/v1/launch-agent/get-strategy-price": {
       "get": {
         "operationId": "LaunchAgentController_getStrategyPrice",
@@ -4904,6 +4968,22 @@
         "type": "object",
         "properties": {}
       },
+      "GenerateLaunchAgentWalletsRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "GenerateLaunchAgentWalletsResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CheckAgentWalletsStatusRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CheckAgentWalletsStatusResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
       "AssetsDtoWithUrl": {
         "type": "object",
         "properties": {
@@ -6255,6 +6335,14 @@
             "type": "string",
             "description": "agent id of the purchase strategy"
           },
+          "wallet_source": {
+            "type": "string",
+            "description": "source wallet type of the purchase strategy, default is giggle",
+            "enum": [
+              "agent",
+              "giggle"
+            ]
+          },
           "strategy_detail": {
             "type": "object",
             "description": "strategy detail of the purchase strategy"
@@ -6264,7 +6352,8 @@
           "type",
           "percentage",
           "prompt",
-          "agent_id"
+          "agent_id",
+          "wallet_source"
         ]
       },
       "LaunchIpTokenDto": {

@@ -39,8 +39,52 @@ export class ParseLaunchLaunchPlanResponseDto {
     }
 }
 
+export class GenerateSourceWalletsResDto {
+    status: string
+    agent_id: string
+    source_wallets: string[]
+    allocation_plan: {
+        [source_wallet: string]: {
+            wallet: string
+            allocation_sol: number
+        }[]
+    }
+    required_sol: {
+        [source_wallet: string]: number
+    }
+}
+
 export class StartLaunchAgentRequestDto {
     ip_id: number
     token_mint: string
     user_email: string
+}
+
+export class GenerateLaunchAgentWalletsRequestDto {
+    @IsString()
+    @IsNotEmpty()
+    agent_id: string
+    wallet_count: number
+}
+
+export class CheckAgentWalletsStatusRequestDto {
+    @IsString()
+    @IsNotEmpty()
+    agent_id: string
+}
+
+export class CheckAgentWalletsStatusResponseDto {
+    status: string
+    sufficient_funds: boolean
+}
+
+export class AgentWalletsDto {
+    address: string
+    required_sol: number
+    is_funded: boolean
+}
+
+export class GenerateLaunchAgentWalletsResponseDto {
+    total_estimated_sol: number
+    wallets: AgentWalletsDto[]
 }

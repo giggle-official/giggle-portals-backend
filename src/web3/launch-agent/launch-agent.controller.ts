@@ -2,7 +2,11 @@ import { Controller, Post, Body, UseGuards, Req, Get, Query, Param } from "@nest
 import { LaunchAgentService } from "./launch-agent.service"
 import { ApiOperation, ApiBody, ApiTags, ApiResponse } from "@nestjs/swagger"
 import {
+    CheckAgentWalletsStatusRequestDto,
+    CheckAgentWalletsStatusResponseDto,
     CreateLaunchAgentResponseDto,
+    GenerateLaunchAgentWalletsRequestDto,
+    GenerateLaunchAgentWalletsResponseDto,
     ParseLaunchLaunchPlanRequestDto,
     ParseLaunchLaunchPlanResponseDto,
 } from "./launch-agent.dto"
@@ -31,6 +35,24 @@ export class LaunchAgentController {
     @UseGuards(AuthGuard("jwt"))
     async generateStrategy(@Body() dto: ParseLaunchLaunchPlanRequestDto, @Req() req: Request) {
         return await this.launchAgentService.generateStrategy(dto, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/generate-agent-wallets")
+    @ApiOperation({ summary: "Generate a new launch agent wallets" })
+    @ApiBody({ type: GenerateLaunchAgentWalletsRequestDto })
+    @ApiResponse({ type: GenerateLaunchAgentWalletsResponseDto })
+    @UseGuards(AuthGuard("jwt"))
+    async generateAgentWallets(@Body() dto: GenerateLaunchAgentWalletsRequestDto, @Req() req: Request) {
+        return await this.launchAgentService.generateAgentWallets(dto, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/check-agent-wallets")
+    @ApiOperation({ summary: "Check the status of a launch agent wallets" })
+    @ApiBody({ type: CheckAgentWalletsStatusRequestDto })
+    @ApiResponse({ type: CheckAgentWalletsStatusResponseDto })
+    @UseGuards(AuthGuard("jwt"))
+    async checkAgentWallets(@Body() dto: CheckAgentWalletsStatusRequestDto, @Req() req: Request) {
+        return await this.launchAgentService.checkAgentWalletsStatus(dto, req.user as UserJwtExtractDto)
     }
 
     @Get("/get-strategy-price")

@@ -1088,6 +1088,7 @@ model launch_agents {
   agent_id             String?      @unique(map: "agent_id") @db.VarChar(255)
   instruction          String?      @db.Text
   strategy_response    Json?
+  source_wallets       Json?
   current_status       String?      @db.VarChar(32)
   ip_id                Int?
   token_address        String?      @db.VarChar(255)

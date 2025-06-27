@@ -24,6 +24,7 @@ import {
     IpEventsDetail,
     EventDto,
     IpBindAppsDto,
+    SourceWalletType,
 } from "./ip-library.dto"
 import { app_bind_ips, assets, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -35,7 +36,6 @@ import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
 import { Observable, Subscriber } from "rxjs"
 import { CreateIpTokenDto, CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
-import { PinataSDK } from "pinata-web3"
 import { AssetDetailDto } from "src/assets/assets.dto"
 import { PriceService } from "src/web3/price/price.service"
 import { OnChainDetailDto } from "src/web3/ip-on-chain/ip-on-chain.dto"
@@ -1191,6 +1191,21 @@ export class IpLibraryService {
             throw new BadRequestException("invalid purchase strategy")
         }
 
+        if (
+            body.purchase_strategy.type === PurchaseStrategyType.AGENT &&
+            body.purchase_strategy.wallet_source === SourceWalletType.AGENT
+        ) {
+            const res = await this.launchAgentService.checkAgentWalletsStatus(
+                {
+                    agent_id: body.purchase_strategy.agent_id,
+                },
+                user,
+            )
+            if (!res.sufficient_funds) {
+                throw new BadRequestException("Insufficient funds in agent wallet")
+            }
+        }
+
         const { create_amount, buy_amount } = await this._computeNeedUsdc(body.purchase_strategy)
         let ipId = body.ip_id
 
@@ -1303,23 +1318,35 @@ export class IpLibraryService {
             await this.rewardsPoolService.createRewardsPool(ipId, userWalletAddr, user.email)
 
             //run strategy if purchase strategy is agent
-
             if (body.purchase_strategy.type === PurchaseStrategyType.AGENT) {
                 subscriber.next({
                     event: IpEvents.IP_TOKEN_RUN_STRATEGY,
                     data: tokenMint,
                     event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_RUN_STRATEGY),
                 })
-                await this.launchAgentService.start(
-                    body.purchase_strategy.agent_id,
-                    {
-                        token_mint: tokenMint,
-                        user_email: user.email,
-                        ip_id: ipId,
-                    },
-                    user,
-                    subscriber,
-                )
+                if (body.purchase_strategy.wallet_source === SourceWalletType.AGENT) {
+                    await this.launchAgentService.start_multi_source_wallets(
+                        body.purchase_strategy.agent_id,
+                        {
+                            token_mint: tokenMint,
+                            user_email: user.email,
+                            ip_id: ipId,
+                        },
+                        user,
+                        subscriber,
+                    )
+                } else {
+                    await this.launchAgentService.start(
+                        body.purchase_strategy.agent_id,
+                        {
+                            token_mint: tokenMint,
+                            user_email: user.email,
+                            ip_id: ipId,
+                        },
+                        user,
+                        subscriber,
+                    )
+                }
             }
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
