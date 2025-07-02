@@ -5,7 +5,6 @@ import { map } from "rxjs/operators"
 import { BYPASS_INTERCEPTOR } from "./bypass-interceptor.decorator"
 import { LogsService } from "src/user/logs/logs.service"
 import { UserInfoDTO } from "src/user/user.controller"
-import { ProductType } from "src/credit/credit.dto"
 import { NO_LOG } from "./bypass-nolog.decorator"
 
 export interface Response<T> {
@@ -54,12 +53,8 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
     }
 
     async recordLog(request: any, data: any, status: number) {
-        let product: ProductType | "web" | "openapi" = "web"
-        if (request?.headers?.["x-api-key"]) {
-            product = "openapi"
-        }
         this.logsService.create((request?.user as UserInfoDTO) || { usernameShorted: "", user_id: "" }, {
-            product: product,
+            product: "web",
             action: (request?.method + " " + request?.path).substring(0, 4095),
             detail: {
                 request: {

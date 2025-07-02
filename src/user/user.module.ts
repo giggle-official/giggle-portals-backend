@@ -5,7 +5,6 @@ import { PrismaService } from "src/common/prisma.service"
 import { AuthModule } from "src/auth/auth.module"
 import { HttpModule } from "@nestjs/axios"
 import { NotificationModule } from "src/notification/notification.module"
-import { CreditService } from "src/credit/credit.service"
 import { PaymentService } from "src/payment/payment.service"
 import { LogsService } from "./logs/logs.service"
 import { ApiKeysService } from "./api-keys/api-keys.service"
@@ -20,7 +19,7 @@ import { OpenAppModule } from "src/open-app/open-app.module"
         forwardRef(() => OpenAppModule),
     ],
     controllers: [UserController],
-    providers: [UserService, PrismaService, PaymentService, CreditService, LogsService, ApiKeysService],
+    providers: [UserService, PrismaService, PaymentService, LogsService, ApiKeysService],
     exports: [UserService, LogsService],
 })
 export class UserModule {}

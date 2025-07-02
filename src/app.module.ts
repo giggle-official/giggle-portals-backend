@@ -8,7 +8,6 @@ import { UserModule } from "./user/user.module"
 import { AuthModule } from "./auth/auth.module"
 import { NotificationModule } from "./notification/notification.module"
 import { PaymentModule } from "./payment/payment.module"
-import { CreditModule } from "./credit/credit.module"
 import { AssetsModule } from "./assets/assets.module"
 import { TaskModule } from "./task/task.module"
 import { AdminModule } from "./admin/admin.module"
@@ -17,7 +16,7 @@ import { Web3Module } from "./web3/web3.module"
 import { OpenAppModule } from "./open-app/open-app.module"
 import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
-import { StatsModule } from './stats/stats.module';
+import { StatsModule } from "./stats/stats.module"
 
 @Module({
     imports: [
@@ -32,7 +31,6 @@ import { StatsModule } from './stats/stats.module';
         AuthModule,
         NotificationModule,
         PaymentModule,
-        CreditModule,
         AssetsModule,
         TaskModule,
         AdminModule,

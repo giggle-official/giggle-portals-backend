@@ -1,11 +1,10 @@
 import { HttpStatus, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { UserInfoDTO } from "../user.controller"
-import { ProductType } from "src/credit/credit.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 
 export class CreateLogDto {
-    product: ProductType | null | "web" | "openapi"
+    product: "web" | "openapi"
     action: string
     detail: any
     status: HttpStatus | "success" | "failed"

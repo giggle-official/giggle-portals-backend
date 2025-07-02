@@ -34,7 +34,6 @@ import {
     UserTokenRewardsListDto,
     UserTokenRewardsQueryDto,
 } from "./user.dto"
-import { CreditService } from "src/credit/credit.service"
 import { UtilitiesService } from "src/common/utilities.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
@@ -43,8 +42,6 @@ import { Prisma } from "@prisma/client"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
-import { Cron } from "@nestjs/schedule"
-import { CronExpression } from "@nestjs/schedule"
 
 @Injectable()
 export class UserService {
@@ -52,9 +49,6 @@ export class UserService {
     constructor(
         private prisma: PrismaService,
         private readonly notificationService: NotificationService,
-
-        @Inject(forwardRef(() => CreditService))
-        private readonly creditService: CreditService,
 
         @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
@@ -74,7 +68,7 @@ export class UserService {
             return null
         }
 
-        return this.processUserInfo(record)
+        return this.mapUserInfo(record)
     }
 
     async getUserInfoByUsernameShorted(userNameShorted: string): Promise<UserInfoDTO> {
@@ -88,7 +82,7 @@ export class UserService {
             return null
         }
 
-        return this.processUserInfo(record)
+        return this.mapUserInfo(record)
     }
 
     async createUser(userInfo: CreateUserDto): Promise<CreateUserDto> {
@@ -151,6 +145,7 @@ export class UserService {
             register_info: await this.getRegisterInfo(userInfo),
             phone_number: _userInfoFromDb.phone_number,
             phone_national: _userInfoFromDb.phone_national,
+            current_credit_balance: _userInfoFromDb.current_credit_balance,
         }
 
         //if widget session is setting, we need to get the widget info
@@ -1010,7 +1005,7 @@ Message: ${contactInfo.message}
         return crypto.randomBytes(9).toString("hex")
     }
 
-    processUserInfo(record: any): UserInfoDTO {
+    mapUserInfo(record: any): UserInfoDTO {
         return {
             user_id: record.username_in_be,
             address: record.address,
@@ -1026,6 +1021,7 @@ Message: ${contactInfo.message}
             is_developer: record?.is_developer || false,
             phone_number: record?.phone_number || "",
             phone_national: record?.phone_national || "",
+            current_credit_balance: record?.current_credit_balance || 0,
         }
     }
 

@@ -31,7 +31,6 @@ import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
 import { UserService } from "src/user/user.service"
-import { CreditService } from "src/credit/credit.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { IpOnChainService } from "src/web3/ip-on-chain/ip-on-chain.service"
 import { Observable, Subscriber } from "rxjs"
@@ -63,9 +62,6 @@ export class IpLibraryService {
 
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
-
-        @Inject(forwardRef(() => CreditService))
-        private readonly creditService: CreditService,
 
         @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,

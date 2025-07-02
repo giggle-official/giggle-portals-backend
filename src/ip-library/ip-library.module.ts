@@ -5,7 +5,6 @@ import { PrismaService } from "src/common/prisma.service"
 import { UtilitiesService } from "src/common/utilities.service"
 import { AssetsModule } from "src/assets/assets.module"
 import { UserModule } from "src/user/user.module"
-import { CreditModule } from "src/credit/credit.module"
 import { Web3Module } from "src/web3/web3.module"
 import { IpNameValidator } from "./ip-library.validator"
 import { AnnouncementController } from "./announcement/announcement.controller"
@@ -21,9 +20,8 @@ import { PaymentModule } from "src/payment/payment.module"
     imports: [
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
-        forwardRef(() => CreditModule),
-        forwardRef(() => Web3Module),
         forwardRef(() => PaymentModule),
+        forwardRef(() => Web3Module),
     ],
     controllers: [IpLibraryController, AnnouncementController, CommentsController, IpOrderController],
     providers: [

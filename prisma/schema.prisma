@@ -1123,6 +1123,22 @@ model widget_access_log {
   created_at DateTime? @default(now()) @db.Timestamp(0)
 }
 
+enum credit_statement_type {
+  top_up
+  consume
+}
+
+model credit_statements {
+  id         Int                    @id @default(autoincrement())
+  user       String?                @db.VarChar(32)
+  type       credit_statement_type?
+  amount     Int?
+  balance    Int?
+  order_id   String?                @db.VarChar(64)
+  created_at DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at DateTime?              @default(now()) @db.Timestamp(0)
+}
+
 view view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?

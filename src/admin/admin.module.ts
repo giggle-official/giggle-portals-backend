@@ -14,12 +14,9 @@ import { UtilitiesService } from "src/common/utilities.service"
 import { AssetsModule } from "src/assets/assets.module"
 import { UsersController } from "./users/users.controller"
 import { UsersService } from "./users/users.service"
-import { CreditsService } from "./credits/credits.service"
-import { CreditsController } from "./credits/credits.controller"
-import { CreditModule } from "src/credit/credit.module"
 import { PaymentModule } from "src/payment/payment.module"
 @Module({
-    controllers: [IpLibraryController, AdminAuthController, RolesController, UsersController, CreditsController],
+    controllers: [IpLibraryController, AdminAuthController, RolesController, UsersController],
     providers: [
         IpLibraryService,
         AdminAuthService,
@@ -28,7 +25,6 @@ import { PaymentModule } from "src/payment/payment.module"
         CaslAbilityFactory,
         UtilitiesService,
         UsersService,
-        CreditsService,
     ],
     imports: [
         JwtModule.register({
@@ -38,7 +34,6 @@ import { PaymentModule } from "src/payment/payment.module"
         HttpModule,
         UserModule,
         AssetsModule,
-        CreditModule,
         PaymentModule,
     ],
 })
