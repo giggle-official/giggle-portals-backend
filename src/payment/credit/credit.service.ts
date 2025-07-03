@@ -6,7 +6,7 @@ import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/or
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
 import { v4 as uuidv4 } from "uuid"
-import { credit_statement_type } from "@prisma/client"
+import { credit_statement_type, Prisma } from "@prisma/client"
 
 @Injectable()
 export class CreditService {
@@ -44,9 +44,9 @@ export class CreditService {
         if (!user) {
             throw new BadRequestException("User not found")
         }
+
         const orderId = uuidv4()
-        //const callbackUrl = `${process.env.FRONTEND_URL}/api/v1/credit/top-up-callback`
-        const callbackUrl = `http://localhost:8899/api/v1/credit/top-up-callback`
+        const callbackUrl = `${process.env.FRONTEND_URL}/api/v1/credit/top-up-callback`
 
         const record = await this.prisma.orders.create({
             data: {
@@ -126,6 +126,66 @@ export class CreditService {
                     type: credit_statement_type.top_up,
                 },
             })
+        })
+    }
+
+    async consumeCredit(
+        amount: number,
+        order_id: string,
+        userInfo: UserJwtExtractDto,
+        tx: Prisma.TransactionClient,
+    ): Promise<void> {
+        const user = await tx.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user || user.current_credit_balance < amount) {
+            throw new BadRequestException("Insufficient credit balance")
+        }
+
+        const userBalanceUpdated = await tx.users.update({
+            where: { username_in_be: userInfo.usernameShorted },
+            data: {
+                current_credit_balance: {
+                    decrement: amount,
+                },
+            },
+        })
+
+        await tx.credit_statements.create({
+            data: {
+                user: userInfo.usernameShorted,
+                type: credit_statement_type.consume,
+                amount: amount * -1,
+                balance: userBalanceUpdated.current_credit_balance,
+                order_id: order_id,
+            },
+        })
+    }
+
+    async refundCredit(
+        amount: number,
+        order_id: string,
+        userInfo: UserJwtExtractDto,
+        tx: Prisma.TransactionClient,
+    ): Promise<void> {
+        const userBalanceUpdated = await tx.users.update({
+            where: { username_in_be: userInfo.usernameShorted },
+            data: {
+                current_credit_balance: {
+                    increment: amount,
+                },
+            },
+        })
+        await tx.credit_statements.create({
+            data: {
+                user: userInfo.usernameShorted,
+                type: credit_statement_type.refund,
+                amount: amount,
+                balance: userBalanceUpdated.current_credit_balance,
+                order_id: order_id,
+            },
         })
     }
 }

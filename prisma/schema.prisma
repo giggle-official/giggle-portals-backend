@@ -868,12 +868,17 @@ model orders {
   supported_payment_method       Json?
   callback_url                   String?                 @db.VarChar(1024)
   redirect_url                   String?                 @db.VarChar(4096)
+  credit_paid_amount             Int?
   paid_time                      DateTime?               @db.DateTime(0)
   cancelled_time                 DateTime?               @db.DateTime(0)
   expire_time                    DateTime?               @db.DateTime(0)
   cancelled_detail               Json?
   created_at                     DateTime?               @default(now()) @db.Timestamp(0)
   updated_at                     DateTime?               @default(now()) @db.Timestamp(0)
+  refund_time                    DateTime?               @db.DateTime(0)
+  refund_status                  String?                 @db.VarChar(32)
+  refund_error                   Json?
+  refund_detail                  Json?
   third_level_ip_orders          third_level_ip_orders[]
   reward_pool_statement          reward_pool_statement[]
   user_rewards                   user_rewards[]
@@ -1126,6 +1131,7 @@ model widget_access_log {
 enum credit_statement_type {
   top_up
   consume
+  refund
 }
 
 model credit_statements {

@@ -27,6 +27,7 @@ import {
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
     PreviewOrderDto,
+    RefundOrderDto,
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
@@ -157,6 +158,31 @@ export class OrderController {
         @Req() req: Request,
     ): Promise<PayWithStripeResponseDto> {
         return await this.orderService.payOrderWithStripe(order, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/pay-with-credit")
+    @ApiOperation({ summary: "Create an order and pay with credit", tags: ["Order"] })
+    @ApiBody({ type: CreateOrderDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payOrderWithCredit(@Body() body: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return await this.orderService.createAndPayCreditOrder(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/refund")
+    @ApiOperation({
+        summary: "Refund an order",
+        description:
+            "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
+        tags: ["Order"],
+    })
+    @ApiBody({ type: RefundOrderDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async refundOrder(@Body() body: RefundOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return await this.orderService.refundOrder(body, req.user as UserJwtExtractDto)
     }
 
     //payment asia

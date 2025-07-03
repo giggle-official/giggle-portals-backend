@@ -30,6 +30,7 @@ export enum PaymentMethod {
     STRIPE = "stripe",
     WALLET = "wallet",
     WECHAT = "wechat",
+    CREDIT = "credit",
 }
 
 export class OrderDto implements orders {
@@ -185,6 +186,31 @@ export class OrderDto implements orders {
         description: "The payment asia callback of the order",
     })
     payment_asia_callback: JsonValue
+
+    @ApiProperty({
+        description: "The credit paid amount of the order",
+    })
+    credit_paid_amount: number
+
+    @ApiProperty({
+        description: "The refund time of the order",
+    })
+    refund_time: Date
+
+    @ApiProperty({
+        description: "The refund status of the order",
+    })
+    refund_status: string
+
+    @ApiProperty({
+        description: "The refund error of the order",
+    })
+    refund_error: JsonValue
+
+    @ApiProperty({
+        description: "The refund detail of the order",
+    })
+    refund_detail: JsonValue
 }
 
 export class EstimatedRewardsDto {
@@ -364,7 +390,8 @@ export class CreateOrderDto {
     amount: number
 
     @ApiProperty({
-        description: "Release rewards after paid of the order, default is false",
+        description:
+            "Release rewards after paid of the order, default is `false`, **NOTE:** order will be **NOT** refundable if rewards are released",
         required: false,
         default: false,
     })
@@ -468,6 +495,20 @@ export class PayWithWalletRequestDto {
 }
 
 export class PayWithStripeRequestDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+}
+
+export class PayWithCreditRequestDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
+}
+
+export class RefundOrderDto {
     @ApiProperty({
         description: "The order id",
     })

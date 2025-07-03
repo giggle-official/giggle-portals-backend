@@ -1294,6 +1294,71 @@
         ]
       }
     },
+    "/api/v1/order/pay-with-credit": {
+      "post": {
+        "operationId": "OrderController_payOrderWithCredit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an order and pay with credit",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/api/v1/order/refund": {
+      "post": {
+        "description": "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
+        "operationId": "OrderController_refundOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Refund an order",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
     "/api/v1/order/rewards-detail": {
       "get": {
         "operationId": "OrderController_getRewardsDetail",
@@ -6284,6 +6349,27 @@
             "type": "string",
             "description": "The source link of the order"
           },
+          "credit_paid_amount": {
+            "type": "number",
+            "description": "The credit paid amount of the order"
+          },
+          "refund_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The refund time of the order"
+          },
+          "refund_status": {
+            "type": "string",
+            "description": "The refund status of the order"
+          },
+          "refund_error": {
+            "type": "object",
+            "description": "The refund error of the order"
+          },
+          "refund_detail": {
+            "type": "object",
+            "description": "The refund detail of the order"
+          },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
             "allOf": [
@@ -6351,6 +6437,11 @@
           "created_at",
           "updated_at",
           "from_source_link",
+          "credit_paid_amount",
+          "refund_time",
+          "refund_status",
+          "refund_error",
+          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
           "order_url",
@@ -6366,7 +6457,7 @@
           },
           "release_rewards_after_paid": {
             "type": "boolean",
-            "description": "Release rewards after paid of the order, default is false",
+            "description": "Release rewards after paid of the order, default is `false`, **NOTE:** order will be **NOT** refundable if rewards are released",
             "default": false
           },
           "reward_token": {
@@ -6487,6 +6578,27 @@
             "type": "string",
             "description": "The source link of the order"
           },
+          "credit_paid_amount": {
+            "type": "number",
+            "description": "The credit paid amount of the order"
+          },
+          "refund_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The refund time of the order"
+          },
+          "refund_status": {
+            "type": "string",
+            "description": "The refund status of the order"
+          },
+          "refund_error": {
+            "type": "object",
+            "description": "The refund error of the order"
+          },
+          "refund_detail": {
+            "type": "object",
+            "description": "The refund detail of the order"
+          },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
             "allOf": [
@@ -6548,6 +6660,11 @@
           "created_at",
           "updated_at",
           "from_source_link",
+          "credit_paid_amount",
+          "refund_time",
+          "refund_status",
+          "refund_error",
+          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
           "estimated_rewards"
@@ -6800,6 +6917,27 @@
             "type": "string",
             "description": "The source link of the order"
           },
+          "credit_paid_amount": {
+            "type": "number",
+            "description": "The credit paid amount of the order"
+          },
+          "refund_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The refund time of the order"
+          },
+          "refund_status": {
+            "type": "string",
+            "description": "The refund status of the order"
+          },
+          "refund_error": {
+            "type": "object",
+            "description": "The refund error of the order"
+          },
+          "refund_detail": {
+            "type": "object",
+            "description": "The refund detail of the order"
+          },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
             "allOf": [
@@ -6871,11 +7009,28 @@
           "created_at",
           "updated_at",
           "from_source_link",
+          "credit_paid_amount",
+          "refund_time",
+          "refund_status",
+          "refund_error",
+          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
           "order_url",
           "estimated_rewards",
           "jwt_verify"
+        ]
+      },
+      "RefundOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "The order id"
+          }
+        },
+        "required": [
+          "order_id"
         ]
       },
       "UnbindRewardPoolDto": {

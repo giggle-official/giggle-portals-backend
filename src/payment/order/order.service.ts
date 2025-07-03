@@ -22,10 +22,12 @@ import {
     OrderRewardsDto,
     OrderStatus,
     PaymentMethod,
+    PayWithCreditRequestDto,
     PayWithStripeRequestDto,
     PayWithStripeResponseDto,
     PayWithWalletRequestDto,
     PreviewOrderDto,
+    RefundOrderDto,
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
@@ -55,10 +57,18 @@ import {
 } from "../rewards-pool/rewards-pool.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { JwtService } from "@nestjs/jwt"
+import { CreditService } from "../credit/credit.service"
 @Injectable()
 export class OrderService {
     public readonly logger = new Logger(OrderService.name)
-    public static readonly paymentMethod = [PaymentMethod.STRIPE, PaymentMethod.WALLET, PaymentMethod.WECHAT]
+
+    public static readonly defaultPaymentMethod = [
+        PaymentMethod.STRIPE,
+        PaymentMethod.WALLET,
+        PaymentMethod.WECHAT,
+        PaymentMethod.CREDIT,
+    ]
+
     constructor(
         private readonly prisma: PrismaService,
 
@@ -75,6 +85,9 @@ export class OrderService {
 
         private readonly jwtService: JwtService,
         @InjectStripe() private readonly stripe: Stripe,
+
+        @Inject(forwardRef(() => CreditService))
+        private readonly creditService: CreditService,
     ) {}
 
     async createOrder(
@@ -230,9 +243,9 @@ export class OrderService {
         const sourceLink = await this.linkService.getLinkByDeviceId(userProfile.device_id)
 
         //check if order amount is valid
-        let paymentMethod = OrderService.paymentMethod
+        let paymentMethod = OrderService.defaultPaymentMethod
         if (order.amount < 100) {
-            paymentMethod = [PaymentMethod.WALLET, PaymentMethod.WECHAT]
+            paymentMethod = [PaymentMethod.WALLET, PaymentMethod.WECHAT, PaymentMethod.CREDIT]
         }
 
         const record = await this.prisma.orders.create({
@@ -268,6 +281,102 @@ export class OrderService {
         //remove order
         await this._deleteOrder(orderId)
         return tempOrder
+    }
+
+    async createAndPayCreditOrder(dto: CreateOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const userProfile = await this.userService.getProfile(userInfo)
+        const needCredits = dto.amount
+        if (needCredits > userProfile.current_credit_balance) {
+            throw new BadRequestException("Insufficient credit balance")
+        }
+        const order = await this.createOrder(dto, userInfo)
+        return this.payCreditOrder(order, userInfo)
+    }
+
+    async payCreditOrder(order: PayWithCreditRequestDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const userProfile = await this.userService.getProfile(userInfo)
+        const orderId = order.order_id
+        const {
+            allow,
+            message,
+            order: orderRecord,
+        } = await this.allowPayOrder(orderId, userProfile, PaymentMethod.WALLET)
+        if (!allow) {
+            throw new BadRequestException(message)
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            const needCredits = orderRecord.amount
+            await this.creditService.consumeCredit(needCredits, orderRecord.order_id, userInfo, tx)
+            await this.prisma.orders.update({
+                where: { id: orderRecord.id },
+                data: {
+                    current_status: OrderStatus.COMPLETED,
+                    credit_paid_amount: needCredits,
+                    paid_method: PaymentMethod.CREDIT,
+                    paid_time: new Date(),
+                },
+            })
+        })
+
+        await this.updateBindRewards(orderRecord) // we need update bind rewards price after paid
+
+        if (orderRecord.release_rewards_after_paid) {
+            await this.releaseRewards(orderRecord)
+        }
+
+        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
+        const newOrder = await this.prisma.orders.findUnique({
+            where: {
+                order_id: orderRecord.order_id,
+            },
+        })
+        return await this.mapOrderDetail(newOrder)
+    }
+
+    async refundOrder(order: RefundOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const orderId = order.order_id
+        const orderRecord = await this.prisma.orders.findUnique({
+            where: {
+                order_id: orderId,
+                owner: userInfo.usernameShorted,
+            },
+        })
+        if (!orderRecord) {
+            throw new BadRequestException("Order not found")
+        }
+
+        if (orderRecord.current_status !== OrderStatus.COMPLETED) {
+            throw new BadRequestException("Order is not completed")
+        }
+
+        const dateBefore10days = new Date(Date.now() - 1000 * 60 * 60 * 24 * 10)
+        if (orderRecord.paid_time < dateBefore10days) {
+            throw new BadRequestException("Order is no longer refundable after paid 10 days")
+        }
+
+        switch (orderRecord.paid_method) {
+            case PaymentMethod.CREDIT:
+                return await this.refundCreditOrder(orderRecord, userInfo)
+            //todo: support more payment methods
+            default:
+                throw new BadRequestException("Currently we only support refund with credit")
+        }
+    }
+
+    async refundCreditOrder(order: orders, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const orderRefunded = await this.prisma.$transaction(async (tx) => {
+            await this.creditService.refundCredit(order.credit_paid_amount, order.order_id, userInfo, tx)
+            return await tx.orders.update({
+                where: { id: order.id },
+                data: {
+                    current_status: OrderStatus.REFUNDED,
+                    refund_time: new Date(),
+                    refund_status: "success",
+                },
+            })
+        })
+        return await this.mapOrderDetail(orderRefunded)
     }
 
     async mapOrderDetail(data: orders): Promise<OrderDetailDto> {
@@ -307,6 +416,11 @@ export class OrderService {
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
             current_reward_pool_detail: current_reward_pool_detail,
+            credit_paid_amount: data.credit_paid_amount,
+            refund_time: data.refund_time,
+            refund_status: data.refund_status,
+            refund_error: data.refund_error,
+            refund_detail: data.refund_detail,
             estimated_rewards: {
                 base_rewards: 0,
                 bonus_rewards: 0,
