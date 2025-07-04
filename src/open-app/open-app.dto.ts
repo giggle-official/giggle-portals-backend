@@ -305,7 +305,7 @@ export class RequestCreatorDto {
         description: "Full name of the requester",
         example: "John Doe",
     })
-    full_name: string
+    full_name?: string
 
     @ApiProperty({
         description: "Email of the requester",

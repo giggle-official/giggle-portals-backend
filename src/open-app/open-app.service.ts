@@ -755,12 +755,30 @@ export class OpenAppService {
             }
         }
 
+        //find if user already permitted to create IP
+        const user = await this.prisma.users.findUnique({
+            where: { email: requestData.email },
+        })
+
+        if (user && user.can_create_ip) {
+            throw new ConflictException(
+                "You have already been permitted to create IP, please contact us if you have any questions.",
+            )
+        }
+
         //check application already exists
         const application = await this.prisma.creator_applications.findFirst({
             where: { email: requestData.email },
         })
+
         if (application) {
-            throw new ConflictException("Application already exists")
+            throw new ConflictException(
+                "Application already exists, please wait for our review, we will contact you soon.",
+            )
+        }
+
+        if (!requestData.full_name) {
+            requestData.full_name = requestData.email.split("@")[0]
         }
 
         // Prepare email template context for admin
