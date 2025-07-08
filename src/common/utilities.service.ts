@@ -71,6 +71,17 @@ export class UtilitiesService {
         }
     }
 
+    public async getPublicS3Info(): Promise<S3InfoDto> {
+        return {
+            s3_bucket: process.env.S3_PUBLIC_BUCKET_NAME,
+            s3_access_key: process.env.S3_PUBLIC_ACCESS_KEY,
+            s3_secret_key: process.env.S3_PUBLIC_SECRET_KEY,
+            s3_region: process.env.S3_PUBLIC_REGION,
+            s3_endpoint: process.env.S3_PUBLIC_ENDPOINT,
+            s3_static_endpoint: process.env.S3_PUBLIC_CDN_DOMAIN,
+        }
+    }
+
     public async getIpLibraryS3Info(): Promise<S3InfoDto> {
         return {
             //s3_bucket: process.env.USS_IP_LIBRARY_BUCKET,

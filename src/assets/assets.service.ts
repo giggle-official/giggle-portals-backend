@@ -14,14 +14,14 @@ import {
     AssetListReqDto,
     AssetRenameReqDto,
     AssetsDto,
-    UploadTokenDto,
-    UploadTokenResDto,
-    UploadedDto,
+    GetPresignedUploadUrlResDto,
     AssetCreateDto,
     AssetDetailDto,
     ASSETS_MAX_TAKE,
     UploadedByTaskDto,
     RelateToIpDto,
+    RegisterAssetDto,
+    GetPresignedUploadUrlReqDto,
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -35,7 +35,7 @@ import {
 } from "src/task/task.dto"
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
-import { IpLibraryService } from "src/ip-library/ip-library.service"
+import { UserService } from "src/user/user.service"
 
 @Injectable()
 export class AssetsService {
@@ -47,19 +47,22 @@ export class AssetsService {
         @Inject(forwardRef(() => TaskService))
         private readonly taskService: TaskService,
 
-        @Inject(forwardRef(() => IpLibraryService))
-        private readonly ipLibraryService: IpLibraryService,
+        @Inject(forwardRef(() => UserService))
+        private readonly userService: UserService,
     ) {}
+
     async getAssets(user: UserJwtExtractDto, query: AssetListReqDto): Promise<AssetsListResDto> {
+        const userProfile = await this.userService.getProfile(user)
         const where: Prisma.assetsWhereInput = {
             user: user.usernameShorted,
-            type: "video",
         }
         if (query.type && query.type !== "all") where.type = query.type
         if (query.category) where.category = query.category
         if (query.take > ASSETS_MAX_TAKE) query.take = ASSETS_MAX_TAKE
         if (query.exported_by) where.exported_by = query.exported_by
         if (query.source_video) where.source_video = query.source_video
+
+        if (userProfile.widget_info?.widget_tag) where.widget_tag = userProfile.widget_info.widget_tag
 
         const assets = await this.prismaService.assets.findMany({
             where,
@@ -77,6 +80,9 @@ export class AssetsService {
                 exported_by: true,
                 source_video: true,
                 asset_info: true,
+                widget_tag: true,
+                app_id: true,
+                content_type: true,
             },
             orderBy: {
                 created_at: "desc",
@@ -89,6 +95,7 @@ export class AssetsService {
         const data = await Promise.all(
             assets.map(async (asset) => ({
                 ...asset,
+                public_url: "",
                 signed_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info),
                 download_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info, true),
                 thumbnail: asset.thumbnail
@@ -144,16 +151,13 @@ export class AssetsService {
 
         return {
             ...asset,
+            public_url: "",
             optimized_urls: optimizedUrls,
             signed_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info),
             download_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info, true),
             thumbnail_url: asset.thumbnail
                 ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail, s3Info)
                 : null,
-            related_ip_libraries:
-                (await Promise.all(
-                    ip_library_ids.map((item) => this.ipLibraryService.detail(item.toString(), null)),
-                )) || [],
         }
     }
 
@@ -172,16 +176,21 @@ export class AssetsService {
         return await this.prismaService.assets.delete({ where: { id } })
     }
 
-    async uploadToken(userInfo: UserJwtExtractDto, body: UploadTokenDto): Promise<UploadTokenResDto> {
-        const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-        const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
+    async getPresignedUploadUrl(
+        userInfo: UserJwtExtractDto,
+        body: GetPresignedUploadUrlReqDto,
+    ): Promise<GetPresignedUploadUrlResDto> {
+        const s3Info = body.is_public
+            ? await this.utilitiesService.getPublicS3Info()
+            : await this.utilitiesService.getS3Info(userInfo.usernameShorted)
+        const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
         const object_key = await this.getAssetKey(userInfo, body.file_name)
 
         const params = {
             Bucket: s3Info.s3_bucket,
             Key: object_key,
-            ContentType: body.file_type,
-            Expires: 86400 * 7,
+            ContentType: body.content_type,
+            Expires: 86400,
         }
 
         try {
@@ -193,19 +202,7 @@ export class AssetsService {
         }
     }
 
-    async uploadedByTask(userInfo: UserJwtExtractDto, body: UploadedByTaskDto): Promise<AssetsDto> {
-        const asset = await this.prismaService.assets.findFirst({
-            where: { exported_by_task_id: body.task_id, path: body.object_key },
-        })
-
-        if (asset) {
-            this.logger.warn(`Asset ${asset.id} already exists for task ${body.task_id}, ignore uploading`)
-            return this.getAsset(userInfo, asset.id)
-        }
-        return this.uploaded(userInfo, body)
-    }
-
-    async uploaded(userInfo: UserJwtExtractDto, body: UploadedDto | UploadedByTaskDto): Promise<AssetsDto> {
+    async registerAsset(userInfo: UserJwtExtractDto, body: RegisterAssetDto): Promise<AssetsDto> {
         try {
             const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
             const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
@@ -250,11 +247,8 @@ export class AssetsService {
                         type: fileType,
                         path: objectKey,
                         path_optimized: (assetInfo as any)?.optimizedResult || null,
-                        category: body?.category || "uploads",
                         thumbnail: (assetInfo as any)?.thumbnail || null,
                         asset_info: assetInfo as any,
-                        source_video: body?.source_video || null,
-                        exported_by: body?.exported_by || null,
                         exported_by_task_id: body instanceof UploadedByTaskDto ? body.task_id : null,
                     },
                 })

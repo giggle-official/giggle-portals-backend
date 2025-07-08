@@ -225,6 +225,9 @@ model assets {
   user                 String?                @db.VarChar(32)
   created_at           DateTime?              @default(now()) @db.DateTime(0)
   ipfs_key             String?                @db.VarChar(255)
+  widget_tag           String?                @db.VarChar(32)
+  app_id               String?                @db.VarChar(32)
+  content_type         String?                @db.VarChar(255)
   user_info            users?                 @relation(fields: [user], references: [username_in_be])
   asset_related_ips    asset_related_ips[]
   video_edit_jobs      video_edit_jobs[]

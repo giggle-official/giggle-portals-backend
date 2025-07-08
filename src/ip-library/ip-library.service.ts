@@ -881,42 +881,6 @@ export class IpLibraryService {
         }
     }
 
-    async checkRemixToAsset(user: UserJwtExtractDto, remixId: number): Promise<assets> {
-        const data = await this.prismaService.ip_signature_clips.findUnique({
-            where: { id: remixId },
-        })
-        if (!data) {
-            throw new NotFoundException("Signature clip not found")
-        }
-
-        let assetRecord = await this.prismaService.assets.findFirst({
-            where: {
-                user: user.usernameShorted,
-                source_video: remixId,
-                type: "video",
-                category: "ip-clips",
-            },
-        })
-
-        if (!assetRecord) {
-            //create asset to user
-            assetRecord = await this.assetsService.createAsset({
-                user: user.usernameShorted,
-                type: "video",
-                category: "ip-clips",
-                name: data.name,
-                path: data.object_key,
-                path_optimized: undefined,
-                thumbnail: data.thumbnail,
-                asset_info: data.video_info,
-                exported_by: null,
-                source_video: remixId,
-                ipfs_key: "",
-            })
-        }
-        return assetRecord
-    }
-
     async processAssets(
         user: UserJwtExtractDto,
         type: "create" | "edit",
@@ -953,17 +917,6 @@ export class IpLibraryService {
 
             if (videoAsset.type !== "video") {
                 throw new BadRequestException("Video asset is not a video")
-            }
-
-            if (type === "create") {
-                if (videoAsset.related_ip_libraries.length > 0) {
-                    throw new BadRequestException("Video asset is already related to an ip")
-                }
-            } else {
-                const isRelatedToOtherIp = videoAsset.related_ip_libraries.find((item) => item.id !== ip_id)
-                if (isRelatedToOtherIp && videoAsset.related_ip_libraries.length > 0) {
-                    throw new BadRequestException("Video asset is already related to an ip")
-                }
             }
         }
         return await this.uploadAssetToIpfs(imageAsset, videoAsset)

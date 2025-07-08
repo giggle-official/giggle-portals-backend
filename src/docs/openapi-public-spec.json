@@ -856,7 +856,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get all assets",
+        "summary": "Retrieve all assets",
         "tags": [
           "Assets"
         ]
@@ -893,7 +893,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get an asset",
+        "summary": "Retrieve an asset detail",
         "tags": [
           "Assets"
         ]
@@ -936,9 +936,9 @@
         ]
       }
     },
-    "/api/v1/assets/uploadToken": {
+    "/api/v1/assets/get-presigned-url": {
       "post": {
-        "description": "Get a upload token for s3 upload",
+        "description": "Retrieve a presigned url for asset upload, you need use PUT method to upload the asset via returned url",
         "operationId": "AssetsController_uploadToken",
         "parameters": [],
         "requestBody": {
@@ -946,7 +946,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UploadTokenDto"
+                "$ref": "#/components/schemas/GetPresignedUploadUrlReqDto"
               }
             }
           }
@@ -957,7 +957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UploadTokenResDto"
+                  "$ref": "#/components/schemas/GetPresignedUploadUrlResDto"
                 }
               }
             }
@@ -968,23 +968,23 @@
             "bearer": []
           }
         ],
-        "summary": "Get an upload link",
+        "summary": "Retrieve a presigned url",
         "tags": [
           "Assets"
         ]
       }
     },
-    "/api/v1/assets/uploaded": {
+    "/api/v1/assets/register": {
       "post": {
-        "description": "Call when assets was uploaded, to register the asset info",
-        "operationId": "AssetsController_uploaded",
+        "description": "Register a s3 key to asset after asset was uploaded",
+        "operationId": "AssetsController_registerAsset",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UploadedDto"
+                "$ref": "#/components/schemas/RegisterAssetDto"
               }
             }
           }
@@ -995,7 +995,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UploadedDto"
+                  "$ref": "#/components/schemas/RegisterAssetDto"
                 }
               }
             }
@@ -5134,6 +5134,18 @@
             "type": "object",
             "description": "info of the asset, normaly video or image metadata"
           },
+          "widget_tag": {
+            "type": "string",
+            "description": "widget tag of the asset"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "app id of the asset"
+          },
+          "content_type": {
+            "type": "string",
+            "description": "content type of the asset"
+          },
           "signed_url": {
             "type": "string",
             "description": "signed url of the asset, for browser to access"
@@ -5154,6 +5166,9 @@
           "exported_by",
           "source_video",
           "asset_info",
+          "widget_tag",
+          "app_id",
+          "content_type",
           "signed_url",
           "download_url"
         ]
@@ -5175,498 +5190,6 @@
         "required": [
           "data",
           "total"
-        ]
-      },
-      "OnChainDetailDto": {
-        "type": "object",
-        "properties": {
-          "ipAddr": {
-            "type": "string",
-            "description": "ip address of the ip library"
-          },
-          "signature": {
-            "type": "string",
-            "description": "signature of the ip library"
-          }
-        },
-        "required": [
-          "ipAddr",
-          "signature"
-        ]
-      },
-      "IpSignatureClipMetadataDto": {
-        "type": "object",
-        "properties": {
-          "size": {
-            "type": "number",
-            "description": "size of the signature clip"
-          }
-        },
-        "required": [
-          "size"
-        ]
-      },
-      "IpSignatureClipDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the signature clip"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the signature clip"
-          },
-          "description": {
-            "type": "string",
-            "description": "description of the signature clip"
-          },
-          "object_key": {
-            "type": "string",
-            "description": "object key of the signature clip"
-          },
-          "ipfs_hash": {
-            "type": "string",
-            "description": "ipfs hash of the signature clip"
-          },
-          "thumbnail": {
-            "type": "string",
-            "description": "thumbnail of the signature clip"
-          },
-          "video_url": {
-            "type": "string",
-            "description": "video url of the signature clip"
-          },
-          "video_info": {
-            "description": "video metadata of the signature clip",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/IpSignatureClipMetadataDto"
-              }
-            ]
-          },
-          "asset_id": {
-            "type": "number",
-            "description": "asset id of the signature clip"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "description",
-          "object_key",
-          "ipfs_hash",
-          "thumbnail",
-          "video_url",
-          "video_info",
-          "asset_id"
-        ]
-      },
-      "AppBindWidgetDto": {
-        "type": "object",
-        "properties": {
-          "tag": {
-            "type": "string",
-            "description": "tag of the widget"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the widget"
-          }
-        },
-        "required": [
-          "tag",
-          "name"
-        ]
-      },
-      "IpBindAppsDto": {
-        "type": "object",
-        "properties": {
-          "app_id": {
-            "type": "string",
-            "description": "id of the app"
-          },
-          "bind_widgets": {
-            "description": "bind widget of the app",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AppBindWidgetDto"
-            }
-          }
-        },
-        "required": [
-          "app_id",
-          "bind_widgets"
-        ]
-      },
-      "GenreDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "name of the genre"
-          },
-          "value": {
-            "type": "string",
-            "description": "value of the genre"
-          }
-        },
-        "required": [
-          "name"
-        ]
-      },
-      "IpSummaryDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the ip library"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the ip library"
-          },
-          "ticker": {
-            "type": "string",
-            "description": "ticker of the ip library"
-          },
-          "description": {
-            "type": "string",
-            "description": "description of the ip library"
-          },
-          "likes": {
-            "type": "number",
-            "description": "likes of the ip library"
-          },
-          "comments": {
-            "type": "number",
-            "description": "comments of the ip library"
-          },
-          "share_count": {
-            "type": "number",
-            "description": "share count of the ip library"
-          },
-          "is_user_liked": {
-            "type": "boolean",
-            "description": "is liked by the user"
-          },
-          "cover_asset_id": {
-            "type": "number",
-            "description": "cover asset id of the ip library"
-          },
-          "cover_image": {
-            "type": "string",
-            "description": "cover images of the ip library"
-          },
-          "cover_hash": {
-            "type": "string",
-            "description": "cover ipfs hash of the ip library"
-          },
-          "on_chain_detail": {
-            "description": "on chain detail",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OnChainDetailDto"
-              }
-            ]
-          },
-          "can_purchase": {
-            "type": "boolean",
-            "description": "can purchase"
-          },
-          "creation_guide_lines": {
-            "type": "string",
-            "description": "creation guide lines"
-          },
-          "governance_right": {
-            "type": "boolean",
-            "description": "is governance right"
-          },
-          "creator_id": {
-            "type": "string",
-            "description": "creator id of the ip library"
-          },
-          "creator": {
-            "type": "string",
-            "description": "creator of the ip library"
-          },
-          "creator_description": {
-            "type": "string",
-            "description": "creator description of the ip library"
-          },
-          "creator_avatar": {
-            "type": "string",
-            "description": "creator avatar of the ip library"
-          },
-          "is_public": {
-            "type": "boolean",
-            "description": "is public"
-          },
-          "is_top": {
-            "type": "boolean",
-            "description": "is top"
-          },
-          "ip_level": {
-            "type": "number",
-            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
-            "enum": [
-              1,
-              2,
-              3
-            ]
-          },
-          "creator_followers": {
-            "type": "number",
-            "description": "creator followers of the ip library"
-          },
-          "token_info": {
-            "description": "token info",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CreateIpTokenGiggleResponseDto"
-              }
-            ]
-          },
-          "ip_signature_clips": {
-            "description": "signature clips of the ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpSignatureClipDto"
-            }
-          },
-          "meta_data": {
-            "type": "object",
-            "description": "meta data of the ip library"
-          },
-          "apps": {
-            "description": "apps of the ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpBindAppsDto"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "ticker",
-          "description",
-          "likes",
-          "comments",
-          "share_count",
-          "is_user_liked",
-          "cover_asset_id",
-          "cover_image",
-          "cover_hash",
-          "on_chain_detail",
-          "can_purchase",
-          "creation_guide_lines",
-          "governance_right",
-          "creator_id",
-          "creator",
-          "creator_description",
-          "creator_avatar",
-          "is_public",
-          "is_top",
-          "ip_level",
-          "creator_followers",
-          "token_info",
-          "ip_signature_clips",
-          "apps"
-        ]
-      },
-      "IpLibraryDetailDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the ip library"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the ip library"
-          },
-          "ticker": {
-            "type": "string",
-            "description": "ticker of the ip library"
-          },
-          "description": {
-            "type": "string",
-            "description": "description of the ip library"
-          },
-          "likes": {
-            "type": "number",
-            "description": "likes of the ip library"
-          },
-          "comments": {
-            "type": "number",
-            "description": "comments of the ip library"
-          },
-          "share_count": {
-            "type": "number",
-            "description": "share count of the ip library"
-          },
-          "is_user_liked": {
-            "type": "boolean",
-            "description": "is liked by the user"
-          },
-          "cover_asset_id": {
-            "type": "number",
-            "description": "cover asset id of the ip library"
-          },
-          "cover_image": {
-            "type": "string",
-            "description": "cover images of the ip library"
-          },
-          "cover_hash": {
-            "type": "string",
-            "description": "cover ipfs hash of the ip library"
-          },
-          "on_chain_detail": {
-            "description": "on chain detail",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OnChainDetailDto"
-              }
-            ]
-          },
-          "can_purchase": {
-            "type": "boolean",
-            "description": "can purchase"
-          },
-          "creation_guide_lines": {
-            "type": "string",
-            "description": "creation guide lines"
-          },
-          "governance_right": {
-            "type": "boolean",
-            "description": "is governance right"
-          },
-          "creator_id": {
-            "type": "string",
-            "description": "creator id of the ip library"
-          },
-          "creator": {
-            "type": "string",
-            "description": "creator of the ip library"
-          },
-          "creator_description": {
-            "type": "string",
-            "description": "creator description of the ip library"
-          },
-          "creator_avatar": {
-            "type": "string",
-            "description": "creator avatar of the ip library"
-          },
-          "is_public": {
-            "type": "boolean",
-            "description": "is public"
-          },
-          "is_top": {
-            "type": "boolean",
-            "description": "is top"
-          },
-          "ip_level": {
-            "type": "number",
-            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
-            "enum": [
-              1,
-              2,
-              3
-            ]
-          },
-          "creator_followers": {
-            "type": "number",
-            "description": "creator followers of the ip library"
-          },
-          "token_info": {
-            "description": "token info",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CreateIpTokenGiggleResponseDto"
-              }
-            ]
-          },
-          "ip_signature_clips": {
-            "description": "signature clips of the ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpSignatureClipDto"
-            }
-          },
-          "meta_data": {
-            "type": "object",
-            "description": "meta data of the ip library"
-          },
-          "apps": {
-            "description": "apps of the ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpBindAppsDto"
-            }
-          },
-          "genre": {
-            "description": "genre of the ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GenreDto"
-            }
-          },
-          "parent_ip_info": {
-            "description": "parent ip library",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpSummaryDto"
-            }
-          },
-          "child_ip_info": {
-            "description": "child ip library, only return 100 items",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpSummaryDto"
-            }
-          },
-          "on_chain_status": {
-            "type": "string",
-            "description": "on chain status"
-          },
-          "extra_info": {
-            "type": "object",
-            "description": "extra info"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "ticker",
-          "description",
-          "likes",
-          "comments",
-          "share_count",
-          "is_user_liked",
-          "cover_asset_id",
-          "cover_image",
-          "cover_hash",
-          "on_chain_detail",
-          "can_purchase",
-          "creation_guide_lines",
-          "governance_right",
-          "creator_id",
-          "creator",
-          "creator_description",
-          "creator_avatar",
-          "is_public",
-          "is_top",
-          "ip_level",
-          "creator_followers",
-          "token_info",
-          "ip_signature_clips",
-          "apps",
-          "genre",
-          "parent_ip_info",
-          "child_ip_info",
-          "on_chain_status",
-          "extra_info"
         ]
       },
       "AssetDetailDto": {
@@ -5729,6 +5252,18 @@
             "type": "string",
             "description": "ipfs key of the asset"
           },
+          "widget_tag": {
+            "type": "string",
+            "description": "widget tag of the asset"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "app id of the asset"
+          },
+          "content_type": {
+            "type": "string",
+            "description": "content type of the asset"
+          },
           "signed_url": {
             "type": "string",
             "description": "signed url of the asset, for browser to access"
@@ -5745,12 +5280,9 @@
             "type": "string",
             "description": "thumbnail url of the asset"
           },
-          "related_ip_libraries": {
-            "description": "related ip libraries of the asset",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IpLibraryDetailDto"
-            }
+          "public_url": {
+            "type": "string",
+            "description": "Public url of the asset, this url will be accessible by anyone if you uploaded with public is true, otherwise this value is empty"
           }
         },
         "required": [
@@ -5767,11 +5299,14 @@
           "asset_info",
           "exported_by_task_id",
           "ipfs_key",
+          "widget_tag",
+          "app_id",
+          "content_type",
           "signed_url",
           "optimized_urls",
           "download_url",
           "thumbnail_url",
-          "related_ip_libraries"
+          "public_url"
         ]
       },
       "AssetRenameReqDto": {
@@ -5850,6 +5385,18 @@
           "ipfs_key": {
             "type": "string",
             "description": "ipfs key of the asset"
+          },
+          "widget_tag": {
+            "type": "string",
+            "description": "widget tag of the asset"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "app id of the asset"
+          },
+          "content_type": {
+            "type": "string",
+            "description": "content type of the asset"
           }
         },
         "required": [
@@ -5865,27 +5412,34 @@
           "source_video",
           "asset_info",
           "exported_by_task_id",
-          "ipfs_key"
+          "ipfs_key",
+          "widget_tag",
+          "app_id",
+          "content_type"
         ]
       },
-      "UploadTokenDto": {
+      "GetPresignedUploadUrlReqDto": {
         "type": "object",
         "properties": {
           "file_name": {
             "type": "string",
-            "description": "name of the file, currently only support mp4"
+            "description": "name of the file, currently we support mp4, mov, mkv, jpeg, jpg, png"
           },
-          "file_type": {
+          "content_type": {
             "type": "string",
-            "description": "type of the file"
+            "description": "content type of the file"
+          },
+          "is_public": {
+            "type": "boolean",
+            "description": "Is this asset public, default is false, if true, the asset will be public and can be accessed by anyone."
           }
         },
         "required": [
           "file_name",
-          "file_type"
+          "content_type"
         ]
       },
-      "UploadTokenResDto": {
+      "GetPresignedUploadUrlResDto": {
         "type": "object",
         "properties": {
           "object_key": {
@@ -5894,7 +5448,7 @@
           },
           "signed_url": {
             "type": "string",
-            "description": "signed url of the asset, for upload"
+            "description": "signed url of the asset, for upload, you need use PUT method to upload the asset via this url"
           }
         },
         "required": [
@@ -5902,24 +5456,16 @@
           "signed_url"
         ]
       },
-      "UploadedDto": {
+      "RegisterAssetDto": {
         "type": "object",
         "properties": {
           "object_key": {
             "type": "string",
-            "description": "object key of the asset in s3"
+            "description": "widget tag of the asset"
           },
           "name": {
             "type": "string",
             "description": "name of the asset"
-          },
-          "source_video": {
-            "type": "number",
-            "description": "source video id"
-          },
-          "category": {
-            "type": "string",
-            "description": "category of the asset"
           },
           "optimize": {
             "type": "boolean",
@@ -7520,6 +7066,304 @@
       "AppListDto": {
         "type": "object",
         "properties": {}
+      },
+      "OnChainDetailDto": {
+        "type": "object",
+        "properties": {
+          "ipAddr": {
+            "type": "string",
+            "description": "ip address of the ip library"
+          },
+          "signature": {
+            "type": "string",
+            "description": "signature of the ip library"
+          }
+        },
+        "required": [
+          "ipAddr",
+          "signature"
+        ]
+      },
+      "IpSignatureClipMetadataDto": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "number",
+            "description": "size of the signature clip"
+          }
+        },
+        "required": [
+          "size"
+        ]
+      },
+      "IpSignatureClipDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "id of the signature clip"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the signature clip"
+          },
+          "description": {
+            "type": "string",
+            "description": "description of the signature clip"
+          },
+          "object_key": {
+            "type": "string",
+            "description": "object key of the signature clip"
+          },
+          "ipfs_hash": {
+            "type": "string",
+            "description": "ipfs hash of the signature clip"
+          },
+          "thumbnail": {
+            "type": "string",
+            "description": "thumbnail of the signature clip"
+          },
+          "video_url": {
+            "type": "string",
+            "description": "video url of the signature clip"
+          },
+          "video_info": {
+            "description": "video metadata of the signature clip",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IpSignatureClipMetadataDto"
+              }
+            ]
+          },
+          "asset_id": {
+            "type": "number",
+            "description": "asset id of the signature clip"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "object_key",
+          "ipfs_hash",
+          "thumbnail",
+          "video_url",
+          "video_info",
+          "asset_id"
+        ]
+      },
+      "AppBindWidgetDto": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "tag of the widget"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the widget"
+          }
+        },
+        "required": [
+          "tag",
+          "name"
+        ]
+      },
+      "IpBindAppsDto": {
+        "type": "object",
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "description": "id of the app"
+          },
+          "bind_widgets": {
+            "description": "bind widget of the app",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppBindWidgetDto"
+            }
+          }
+        },
+        "required": [
+          "app_id",
+          "bind_widgets"
+        ]
+      },
+      "GenreDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "name of the genre"
+          },
+          "value": {
+            "type": "string",
+            "description": "value of the genre"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "IpSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "id of the ip library"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the ip library"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "ticker of the ip library"
+          },
+          "description": {
+            "type": "string",
+            "description": "description of the ip library"
+          },
+          "likes": {
+            "type": "number",
+            "description": "likes of the ip library"
+          },
+          "comments": {
+            "type": "number",
+            "description": "comments of the ip library"
+          },
+          "share_count": {
+            "type": "number",
+            "description": "share count of the ip library"
+          },
+          "is_user_liked": {
+            "type": "boolean",
+            "description": "is liked by the user"
+          },
+          "cover_asset_id": {
+            "type": "number",
+            "description": "cover asset id of the ip library"
+          },
+          "cover_image": {
+            "type": "string",
+            "description": "cover images of the ip library"
+          },
+          "cover_hash": {
+            "type": "string",
+            "description": "cover ipfs hash of the ip library"
+          },
+          "on_chain_detail": {
+            "description": "on chain detail",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OnChainDetailDto"
+              }
+            ]
+          },
+          "can_purchase": {
+            "type": "boolean",
+            "description": "can purchase"
+          },
+          "creation_guide_lines": {
+            "type": "string",
+            "description": "creation guide lines"
+          },
+          "governance_right": {
+            "type": "boolean",
+            "description": "is governance right"
+          },
+          "creator_id": {
+            "type": "string",
+            "description": "creator id of the ip library"
+          },
+          "creator": {
+            "type": "string",
+            "description": "creator of the ip library"
+          },
+          "creator_description": {
+            "type": "string",
+            "description": "creator description of the ip library"
+          },
+          "creator_avatar": {
+            "type": "string",
+            "description": "creator avatar of the ip library"
+          },
+          "is_public": {
+            "type": "boolean",
+            "description": "is public"
+          },
+          "is_top": {
+            "type": "boolean",
+            "description": "is top"
+          },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
+          "creator_followers": {
+            "type": "number",
+            "description": "creator followers of the ip library"
+          },
+          "token_info": {
+            "description": "token info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreateIpTokenGiggleResponseDto"
+              }
+            ]
+          },
+          "ip_signature_clips": {
+            "description": "signature clips of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpSignatureClipDto"
+            }
+          },
+          "meta_data": {
+            "type": "object",
+            "description": "meta data of the ip library"
+          },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ticker",
+          "description",
+          "likes",
+          "comments",
+          "share_count",
+          "is_user_liked",
+          "cover_asset_id",
+          "cover_image",
+          "cover_hash",
+          "on_chain_detail",
+          "can_purchase",
+          "creation_guide_lines",
+          "governance_right",
+          "creator_id",
+          "creator",
+          "creator_description",
+          "creator_avatar",
+          "is_public",
+          "is_top",
+          "ip_level",
+          "creator_followers",
+          "token_info",
+          "ip_signature_clips",
+          "apps"
+        ]
       },
       "IpLibraryDetailNoChildDto": {
         "type": "object",
@@ -9238,6 +9082,200 @@
           "id"
         ]
       },
+      "IpLibraryDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "id of the ip library"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the ip library"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "ticker of the ip library"
+          },
+          "description": {
+            "type": "string",
+            "description": "description of the ip library"
+          },
+          "likes": {
+            "type": "number",
+            "description": "likes of the ip library"
+          },
+          "comments": {
+            "type": "number",
+            "description": "comments of the ip library"
+          },
+          "share_count": {
+            "type": "number",
+            "description": "share count of the ip library"
+          },
+          "is_user_liked": {
+            "type": "boolean",
+            "description": "is liked by the user"
+          },
+          "cover_asset_id": {
+            "type": "number",
+            "description": "cover asset id of the ip library"
+          },
+          "cover_image": {
+            "type": "string",
+            "description": "cover images of the ip library"
+          },
+          "cover_hash": {
+            "type": "string",
+            "description": "cover ipfs hash of the ip library"
+          },
+          "on_chain_detail": {
+            "description": "on chain detail",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OnChainDetailDto"
+              }
+            ]
+          },
+          "can_purchase": {
+            "type": "boolean",
+            "description": "can purchase"
+          },
+          "creation_guide_lines": {
+            "type": "string",
+            "description": "creation guide lines"
+          },
+          "governance_right": {
+            "type": "boolean",
+            "description": "is governance right"
+          },
+          "creator_id": {
+            "type": "string",
+            "description": "creator id of the ip library"
+          },
+          "creator": {
+            "type": "string",
+            "description": "creator of the ip library"
+          },
+          "creator_description": {
+            "type": "string",
+            "description": "creator description of the ip library"
+          },
+          "creator_avatar": {
+            "type": "string",
+            "description": "creator avatar of the ip library"
+          },
+          "is_public": {
+            "type": "boolean",
+            "description": "is public"
+          },
+          "is_top": {
+            "type": "boolean",
+            "description": "is top"
+          },
+          "ip_level": {
+            "type": "number",
+            "description": "ip level, currently we support 3 level ip, so the value is 1, 2 or 3",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
+          "creator_followers": {
+            "type": "number",
+            "description": "creator followers of the ip library"
+          },
+          "token_info": {
+            "description": "token info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreateIpTokenGiggleResponseDto"
+              }
+            ]
+          },
+          "ip_signature_clips": {
+            "description": "signature clips of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpSignatureClipDto"
+            }
+          },
+          "meta_data": {
+            "type": "object",
+            "description": "meta data of the ip library"
+          },
+          "apps": {
+            "description": "apps of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpBindAppsDto"
+            }
+          },
+          "genre": {
+            "description": "genre of the ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreDto"
+            }
+          },
+          "parent_ip_info": {
+            "description": "parent ip library",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpSummaryDto"
+            }
+          },
+          "child_ip_info": {
+            "description": "child ip library, only return 100 items",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpSummaryDto"
+            }
+          },
+          "on_chain_status": {
+            "type": "string",
+            "description": "on chain status"
+          },
+          "extra_info": {
+            "type": "object",
+            "description": "extra info"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ticker",
+          "description",
+          "likes",
+          "comments",
+          "share_count",
+          "is_user_liked",
+          "cover_asset_id",
+          "cover_image",
+          "cover_hash",
+          "on_chain_detail",
+          "can_purchase",
+          "creation_guide_lines",
+          "governance_right",
+          "creator_id",
+          "creator",
+          "creator_description",
+          "creator_avatar",
+          "is_public",
+          "is_top",
+          "ip_level",
+          "creator_followers",
+          "token_info",
+          "ip_signature_clips",
+          "apps",
+          "genre",
+          "parent_ip_info",
+          "child_ip_info",
+          "on_chain_status",
+          "extra_info"
+        ]
+      },
       "LikeIpDto": {
         "type": "object",
         "properties": {
@@ -10173,7 +10211,8 @@
       "name": "Account",
       "tags": [
         "Profile",
-        "User Wallet"
+        "User Wallet",
+        "Assets"
       ]
     },
     {

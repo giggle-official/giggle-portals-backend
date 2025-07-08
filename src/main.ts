@@ -167,7 +167,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "Account",
-            tags: ["Profile", "User Wallet"],
+            tags: ["Profile", "User Wallet", "Assets"],
         },
         {
             name: "Payment",
@@ -190,7 +190,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "🧑‍💼 Account",
-            tags: ["Profile", "Auth", "User Wallet"],
+            tags: ["Profile", "Auth", "User Wallet", "Assets"],
         },
         {
             name: "💰 Payment",

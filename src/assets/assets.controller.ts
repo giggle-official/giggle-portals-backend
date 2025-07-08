@@ -1,5 +1,5 @@
 import { Controller, HttpStatus, HttpCode, Req, Get, Query, UseGuards, Post, Body, Param } from "@nestjs/common"
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AssetsService } from "./assets.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import {
@@ -7,12 +7,11 @@ import {
     AssetListReqDto,
     AssetRenameReqDto,
     AssetsDto,
-    UploadTokenDto,
-    UploadTokenResDto,
-    UploadedDto,
+    GetPresignedUploadUrlReqDto,
+    GetPresignedUploadUrlResDto,
+    RegisterAssetDto,
     DeleteAssetDto,
     AssetDetailDto,
-    RelateToIpDto,
 } from "./assets.dto"
 import { Request } from "express"
 import { AuthGuard } from "@nestjs/passport"
@@ -27,7 +26,7 @@ export class AssetsController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: AssetsListResDto })
-    @ApiOperation({ summary: "Get all assets" })
+    @ApiOperation({ summary: "Retrieve all assets" })
     async getAssets(@Req() req: Request, @Query() query: AssetListReqDto) {
         return await this.assetsService.getAssets(req.user as UserJwtExtractDto, query)
     }
@@ -37,7 +36,7 @@ export class AssetsController {
     @UseGuards(AuthGuard("jwt"))
     @ApiParam({ name: "id", description: "asset id" })
     @ApiResponse({ type: AssetDetailDto })
-    @ApiOperation({ summary: "Get an asset" })
+    @ApiOperation({ summary: "Retrieve an asset detail" })
     async getAsset(@Req() req: Request, @Param("id") id: string) {
         return await this.assetsService.getAsset(req.user as UserJwtExtractDto, parseInt(id))
     }
@@ -51,28 +50,29 @@ export class AssetsController {
         return await this.assetsService.renameAsset(req.user as UserJwtExtractDto, body)
     }
 
-    @Post("uploadToken")
+    @Post("/get-presigned-url")
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
-    @ApiResponse({ type: UploadTokenResDto })
+    @ApiResponse({ type: GetPresignedUploadUrlResDto })
     @ApiOperation({
-        summary: "Get an upload link",
-        description: "Get a upload token for s3 upload",
+        summary: "Retrieve a presigned url",
+        description:
+            "Retrieve a presigned url for asset upload, you need use PUT method to upload the asset via returned url",
     })
-    async uploadToken(@Req() req: Request, @Body() body: UploadTokenDto) {
-        return await this.assetsService.uploadToken(req.user as any, body)
+    async uploadToken(@Req() req: Request, @Body() body: GetPresignedUploadUrlReqDto) {
+        return await this.assetsService.getPresignedUploadUrl(req.user as any, body)
     }
 
-    @Post("uploaded")
+    @Post("/register")
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
-    @ApiResponse({ type: UploadedDto })
+    @ApiResponse({ type: RegisterAssetDto })
     @ApiOperation({
         summary: "Register an asset",
-        description: "Call when assets was uploaded, to register the asset info",
+        description: "Register a s3 key to asset after asset was uploaded",
     })
-    async uploaded(@Req() req: Request, @Body() body: UploadedDto) {
-        return await this.assetsService.uploaded(req.user as any, body)
+    async registerAsset(@Req() req: Request, @Body() body: RegisterAssetDto) {
+        return await this.assetsService.registerAsset(req.user as any, body)
     }
 
     @Post("/delete")

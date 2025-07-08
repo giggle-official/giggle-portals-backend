@@ -1,7 +1,6 @@
 import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
 import { assets } from "@prisma/client"
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches } from "class-validator"
-import { IpLibraryDetailDto } from "src/ip-library/ip-library.dto"
+import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches } from "class-validator"
 import { NewVideoProcessResult } from "src/task/task.dto"
 
 export const ASSETS_MAX_TAKE = 100
@@ -81,6 +80,21 @@ export class AssetsDto implements assets {
         description: "ipfs key of the asset",
     })
     ipfs_key: string
+
+    @ApiProperty({
+        description: "widget tag of the asset",
+    })
+    widget_tag: string
+
+    @ApiProperty({
+        description: "app id of the asset",
+    })
+    app_id: string
+
+    @ApiProperty({
+        description: "content type of the asset",
+    })
+    content_type: string
 }
 
 export class AssetDetailDto extends AssetsDto {
@@ -107,10 +121,10 @@ export class AssetDetailDto extends AssetsDto {
     thumbnail_url: string
 
     @ApiProperty({
-        description: "related ip libraries of the asset",
-        type: [IpLibraryDetailDto],
+        description:
+            "Public url of the asset, this url will be accessible by anyone if you uploaded with public is true, otherwise this value is empty",
     })
-    related_ip_libraries: IpLibraryDetailDto[]
+    public_url: string
 }
 
 export class AssetCreateDto extends OmitType(AssetsDto, ["id", "created_at", "exported_by_task_id"] as const) {}
@@ -179,9 +193,9 @@ export class AssetRenameReqDto extends PickType(AssetsDto, ["id"] as const) {
     name: string
 }
 
-export class UploadTokenDto {
+export class GetPresignedUploadUrlReqDto {
     @ApiProperty({
-        description: "name of the file, currently only support mp4",
+        description: "name of the file, currently we support mp4, mov, mkv, jpeg, jpg, png",
     })
     @IsString()
     @Matches(/\.mp4|mov|mkv|jpeg|jpg|png$/i, {
@@ -190,46 +204,47 @@ export class UploadTokenDto {
     file_name: string
 
     @ApiProperty({
-        description: "type of the file",
+        description: "content type of the file",
     })
     @IsString()
-    file_type: string
+    content_type: string
+
+    @ApiProperty({
+        description:
+            "Is this asset public, default is false, if true, the asset will be public and can be accessed by anyone.",
+        required: false,
+    })
+    @IsBoolean()
+    @IsOptional()
+    is_public?: boolean
 }
 
-export class UploadTokenResDto {
+export class GetPresignedUploadUrlResDto {
     @ApiProperty({
         description: "object key of the asset in s3",
     })
     object_key: string
 
     @ApiProperty({
-        description: "signed url of the asset, for upload",
+        description: "signed url of the asset, for upload, you need use PUT method to upload the asset via this url",
     })
     signed_url: string
 }
 
-export class UploadedDto extends PickType(UploadTokenResDto, ["object_key"] as const) {
+export class RegisterAssetDto {
+    @ApiProperty({
+        description: "widget tag of the asset",
+    })
+    @IsString()
+    @IsNotEmpty()
+    object_key: string
+
     @ApiProperty({
         description: "name of the asset",
     })
     @IsString()
     @IsNotEmpty()
     name: string
-
-    @ApiProperty({
-        description: "source video id",
-        required: false,
-    })
-    @IsOptional()
-    source_video?: number
-
-    @ApiProperty({
-        description: "category of the asset",
-        required: false,
-    })
-    @IsEnum(["exports", "uploads"])
-    @IsOptional()
-    category?: "exports" | "uploads"
 
     @ApiProperty({
         description: "optimize video to 360p",
@@ -246,7 +261,7 @@ export class UploadedDto extends PickType(UploadTokenResDto, ["object_key"] as c
     exported_by?: string
 }
 
-export class UploadedByTaskDto extends UploadedDto {
+export class UploadedByTaskDto extends RegisterAssetDto {
     task_id: string
 }
 
