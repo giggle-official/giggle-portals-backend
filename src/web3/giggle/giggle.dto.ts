@@ -100,7 +100,7 @@ export class CreateIpTokenDto {
         type: "string",
         required: false,
     })
-    asset_id?: number | string
+    asset_id?: string
 }
 
 export class CreateIpTokenResponseDto {

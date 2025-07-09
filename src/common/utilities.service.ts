@@ -3,98 +3,113 @@ import { BadRequestException, InternalServerErrorException, Logger } from "@nest
 import * as AWS from "aws-sdk"
 import { Injectable } from "@nestjs/common"
 import { Request } from "express"
+import * as fs from "fs"
+import { readFileSync } from "fs"
 
 export class S3InfoDto {
     s3_bucket: string
     s3_access_key: string
     s3_secret_key: string
     s3_region: string
-    s3_endpoint: string
-    s3_static_endpoint?: string
+    s3_prefix: string
 }
 
 @Injectable()
 export class UtilitiesService {
-    constructor(private readonly prismaService: PrismaService) {}
+    private cloudFront: AWS.CloudFront.Signer
     private readonly logger = new Logger(UtilitiesService.name)
+    private readonly cloudFrontDomain: string
 
-    public async createS3SignedUrl(key: string, s3Info: S3InfoDto, download?: boolean): Promise<string> {
+    constructor(private readonly prismaService: PrismaService) {
+        if (!process.env.CLOUDFRONT_KEY_PAIR_ID || !process.env.CLOUDFRONT_PRIVATE_KEY_PATH) {
+            throw new Error("CloudFront key pair id or private key path not found")
+        }
+
+        if (!process.env.CLOUDFRONT_DOMAIN) {
+            throw new Error("CloudFront domain not found")
+        }
+
+        const privateKey = readFileSync(process.env.CLOUDFRONT_PRIVATE_KEY_PATH, "utf8")
+
+        if (!privateKey) {
+            throw new Error("CloudFront private key not found")
+        }
+
+        this.cloudFront = new AWS.CloudFront.Signer(
+            process.env.CLOUDFRONT_KEY_PAIR_ID, // CloudFront Key Pair ID
+            privateKey,
+        )
+
+        this.cloudFrontDomain = process.env.CLOUDFRONT_DOMAIN
+
+        //check s3 info
+        if (
+            !process.env.S3_BUCKET_NAME ||
+            !process.env.S3_ACCESS_KEY ||
+            !process.env.S3_SECRET_KEY ||
+            !process.env.S3_REGION
+        ) {
+            throw new Error("S3 info not found")
+        }
+    }
+
+    public async createS3SignedUrl(key: string, download?: boolean): Promise<string> {
         try {
             if (!key) return ""
-            const endpoint = s3Info.s3_static_endpoint || s3Info.s3_endpoint
-            const s3Client = new AWS.S3({
-                region: s3Info.s3_region,
-                credentials: {
-                    accessKeyId: s3Info.s3_access_key,
-                    secretAccessKey: s3Info.s3_secret_key,
-                },
-                endpoint: s3Info.s3_static_endpoint || s3Info.s3_endpoint,
-                s3ForcePathStyle: true,
-            })
-            // Ensure the expiration time is consistent within the same day
+
+            const fileUrl = `${this.cloudFrontDomain}/${key}`
+
+            if (key.startsWith("public/")) {
+                return fileUrl
+            }
+
             const now = new Date()
-            const expirationDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59)
-            const expiresInSeconds = Math.floor((expirationDate.getTime() - now.getTime()) / 1000)
-            const params = {
-                Bucket: s3Info.s3_bucket,
-                Key: key,
-                Expires: expiresInSeconds,
-                ResponseContentDisposition: download ? "attachment" : undefined,
-                ResponseContentType: await this.getS3ContentType(key),
-            }
+            const expirationDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59)
 
-            if (params.ResponseContentType === "") {
-                delete params.ResponseContentType
-            }
+            if (download) {
+                // Use custom policy for download with Content-Disposition
+                const policy = {
+                    Statement: [
+                        {
+                            Resource: `${this.cloudFrontDomain}/${key}*`, // Allow query parameters
+                            Condition: {
+                                DateLessThan: {
+                                    "AWS:EpochTime": expirationDate.getTime(),
+                                },
+                            },
+                        },
+                    ],
+                }
 
-            return await s3Client.getSignedUrlPromise("getObject", params)
+                const baseUrl = this.cloudFront.getSignedUrl({
+                    url: fileUrl,
+                    policy: JSON.stringify(policy),
+                })
+
+                // Add response headers as query parameters
+                const url = new URL(baseUrl)
+                url.searchParams.append("response-content-disposition", "attachment")
+                return url.toString()
+            } else {
+                // Simple signed URL for viewing
+                return this.cloudFront.getSignedUrl({
+                    url: fileUrl,
+                    expires: expirationDate.getTime(), // Use timestamp, not Date object
+                })
+            }
         } catch (error) {
             this.logger.error("Error creating S3 signed URL:", error)
             throw new InternalServerErrorException("Failed to create video preview URL")
         }
     }
 
-    public async getS3Info(usernameShorted: string): Promise<S3InfoDto> {
-        const user = await this.prismaService.users.findUnique({
-            where: { username_in_be: usernameShorted },
-        })
-        if (!user) {
-            throw new BadRequestException("User not found")
-        }
+    public async getS3Info(isPublic: boolean): Promise<S3InfoDto> {
         return {
-            s3_bucket: process.env.USS_BUCKET,
-            s3_access_key: process.env.USS_ACCESS_KEY,
-            s3_secret_key: process.env.USS_SECRET_KEY,
-            s3_region: process.env.USS_REGION,
-            s3_endpoint: process.env.USS_ENDPOINT,
-            s3_static_endpoint: process.env.USS_STATIC_ENDPOINT,
-        }
-    }
-
-    public async getPublicS3Info(): Promise<S3InfoDto> {
-        return {
-            s3_bucket: process.env.S3_PUBLIC_BUCKET_NAME,
-            s3_access_key: process.env.S3_PUBLIC_ACCESS_KEY,
-            s3_secret_key: process.env.S3_PUBLIC_SECRET_KEY,
-            s3_region: process.env.S3_PUBLIC_REGION,
-            s3_endpoint: process.env.S3_PUBLIC_ENDPOINT,
-            s3_static_endpoint: process.env.S3_PUBLIC_CDN_DOMAIN,
-        }
-    }
-
-    public async getIpLibraryS3Info(): Promise<S3InfoDto> {
-        return {
-            //s3_bucket: process.env.USS_IP_LIBRARY_BUCKET,
-            //s3_access_key: process.env.USS_IP_LIBRARY_ACCESS_KEY,
-            //s3_secret_key: process.env.USS_IP_LIBRARY_SECRET_KEY,
-            //s3_region: process.env.USS_IP_LIBRARY_REGION,
-            //s3_endpoint: process.env.USS_IP_LIBRARY_ENDPOINT,
-            s3_bucket: process.env.USS_BUCKET,
-            s3_access_key: process.env.USS_ACCESS_KEY,
-            s3_secret_key: process.env.USS_SECRET_KEY,
-            s3_region: process.env.USS_REGION,
-            s3_endpoint: process.env.USS_ENDPOINT,
-            s3_static_endpoint: process.env.USS_STATIC_ENDPOINT,
+            s3_bucket: process.env.S3_BUCKET_NAME,
+            s3_access_key: process.env.S3_ACCESS_KEY,
+            s3_secret_key: process.env.S3_SECRET_KEY,
+            s3_region: process.env.S3_REGION,
+            s3_prefix: isPublic ? process.env.S3_PUBLIC_PREFIX : process.env.S3_PRIVATE_PREFIX,
         }
     }
 
@@ -118,27 +133,14 @@ export class UtilitiesService {
         }
     }
 
-    public async getS3ClientByS3Info(s3Info: S3InfoDto): Promise<AWS.S3> {
+    public async getS3Client(isPublic: boolean): Promise<AWS.S3> {
+        const s3Info = await this.getS3Info(isPublic)
         return new AWS.S3({
             region: s3Info.s3_region,
             credentials: {
                 accessKeyId: s3Info.s3_access_key,
                 secretAccessKey: s3Info.s3_secret_key,
             },
-            endpoint: s3Info.s3_endpoint,
-            s3ForcePathStyle: true,
-        })
-    }
-
-    public async getS3Client(usernameShorted: string): Promise<AWS.S3> {
-        const s3Info = await this.getS3Info(usernameShorted)
-        return new AWS.S3({
-            region: s3Info.s3_region,
-            credentials: {
-                accessKeyId: s3Info.s3_access_key,
-                secretAccessKey: s3Info.s3_secret_key,
-            },
-            endpoint: s3Info.s3_endpoint,
             s3ForcePathStyle: true,
         })
     }

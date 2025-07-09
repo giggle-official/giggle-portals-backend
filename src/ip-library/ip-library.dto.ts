@@ -511,7 +511,7 @@ export class IpSignatureClipDto {
     @ApiProperty({
         description: "asset id of the signature clip",
     })
-    asset_id: number
+    asset_id: string
 }
 
 export class AppBindWidgetDto {
@@ -583,7 +583,7 @@ export class IpSummaryDto {
     @ApiProperty({
         description: "cover asset id of the ip library",
     })
-    cover_asset_id: number
+    cover_asset_id: string
 
     @ApiProperty({
         description: "cover images of the ip library",
@@ -821,19 +821,19 @@ export class CreateIpDto {
     genre?: GenreDto[]
 
     @IsNotEmpty()
-    @IsNumber()
+    @IsString()
     @ApiProperty({
         description: "asset id of the ip cover image",
     })
-    image_id: number
+    image_id: string
 
     @IsOptional()
-    @IsNumber()
+    @IsString()
     @ApiProperty({
-        description: "id of the video",
+        description: "asset id of the video",
         required: false,
     })
-    video_id?: number
+    video_id?: string
 
     @ApiProperty({
         description: "meta data",
@@ -1033,4 +1033,22 @@ export class AddShareCountDto {
         description: "id of the ip library",
     })
     id: number
+}
+
+export class RemoveIpDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    id: number
+}
+
+export class RemoveIpResponseDto {
+    @IsNotEmpty()
+    @IsBoolean()
+    @ApiProperty({
+        description: "success of the ip removal",
+    })
+    success: boolean
 }

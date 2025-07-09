@@ -85,8 +85,6 @@ export class VideoInfoTaskResponseDto {
     duration: number
     width: number
     height: number
-    thumbnail: string
-    size?: number
 }
 
 export class QueuePositionTaskResponseDto {
@@ -138,7 +136,6 @@ export class VideoConvertUserArgsDto {
 }
 
 export class NewVideoProcessResult {
-    videoInfoTaskId: string
     videoInfo: VideoInfoTaskResponseDto
     thumbnail: string
     optimizedResult?: any

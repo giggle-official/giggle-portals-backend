@@ -112,22 +112,6 @@ export class IpLibraryController {
         return this.ipLibraryService.updateManyArray(req.user as UserJwtExtractDto, body)
     }
 
-    @Post("/getSignedUploadUrl")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
-    async getSignedUploadUrl(@Body() body: UploadSignDto) {
-        return this.ipLibraryService.signedUploadUrl(body)
-    }
-
-    @Post("/uploadSignatureClips")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @CheckPolicies((abilities) => abilities.can("manage_ip_library"))
-    async uploadSignatureClips(@Req() req: Request, @Body() body: UploadSignatureClipsDto) {
-        return this.ipLibraryService.uploadSignatureClips(req.user as UserJwtExtractDto, body)
-    }
-
     @Post("/deleteSignatureClip")
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))

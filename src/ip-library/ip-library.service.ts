@@ -1,4 +1,4 @@
-import { BadRequestException, forwardRef, Inject, Injectable, Ip, Logger, NotFoundException } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     AddShareCountDto,
@@ -26,7 +26,7 @@ import {
     IpBindAppsDto,
     SourceWalletType,
 } from "./ip-library.dto"
-import { app_bind_ips, assets, Prisma } from "@prisma/client"
+import { app_bind_ips, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
@@ -545,10 +545,7 @@ export class IpLibraryService {
                 item?.cover_images && delete item.cover_images
                 const cover_image =
                     cover_images?.length > 0 && cover_images[0]?.key
-                        ? await this.utilitiesService.createS3SignedUrl(
-                              cover_images[0].key,
-                              await this.utilitiesService.getIpLibraryS3Info(),
-                          )
+                        ? await this.utilitiesService.createS3SignedUrl(cover_images[0].key)
                         : null
                 const cover_hash = cover_images?.[0]?.hash || null
                 const cover_asset_id = await this.getCoverAssetId(item.id)
@@ -635,7 +632,6 @@ export class IpLibraryService {
         if (!data) {
             throw new NotFoundException("IP library not found or you don't have permission to access this ip")
         }
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
 
         let cover_image = null
         let cover_hash = null
@@ -643,7 +639,7 @@ export class IpLibraryService {
             const cover_images = data.cover_images as any[]
             cover_image =
                 cover_images?.length > 0 && cover_images[0]?.key
-                    ? await this.utilitiesService.createS3SignedUrl(cover_images[0].key, s3Info)
+                    ? await this.utilitiesService.createS3SignedUrl(cover_images[0].key)
                     : null
             cover_hash = cover_images[0]?.hash
         }
@@ -678,9 +674,7 @@ export class IpLibraryService {
                 let cover_image = ""
                 let cover_hash = ""
                 const coverImage = (item.cover_images as any[]).length > 0 ? item.cover_images[0] : null
-                cover_image = coverImage?.key
-                    ? await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
-                    : null
+                cover_image = coverImage?.key ? await this.utilitiesService.createS3SignedUrl(coverImage.key) : null
                 cover_hash = coverImage?.hash
                 parentIpInfo.push({
                     id: item.id,
@@ -793,8 +787,8 @@ export class IpLibraryService {
         const { imageAsset, videoAsset } = await this.processAssets(
             user,
             "edit",
-            parseInt(body.image_id.toString()),
-            parseInt(body.video_id?.toString() || "0"),
+            body.image_id,
+            body.video_id,
             parseInt(body.id.toString()),
         )
 
@@ -833,7 +827,7 @@ export class IpLibraryService {
                 where: { ip_id: ipLibrary.id },
             })
             //remove old related ip
-            await this.assetsService.clearRelatedIp(user, ipDetailBeforeUpdate.id)
+            await this.assetsService.clearRelatedIp(ipDetailBeforeUpdate.id)
 
             if (videoAsset) {
                 await tx.ip_signature_clips.create({
@@ -844,15 +838,9 @@ export class IpLibraryService {
                         object_key: videoAsset.path,
                         ipfs_hash: videoAsset.ipfs_key.split("/").pop(),
                         thumbnail: videoAsset.thumbnail,
-                        asset_id: videoAsset.id,
+                        asset_id: videoAsset.asset_id,
                         video_info: (videoAsset.asset_info as any)?.videoInfo,
                     },
-                })
-
-                //relate to new ip
-                await this.assetsService.relateToIp(user, {
-                    ip_id: ipDetailBeforeUpdate.id,
-                    asset_id: videoAsset.id,
                 })
             }
 
@@ -871,10 +859,7 @@ export class IpLibraryService {
                 object_key: true,
             },
         })
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-        const signedUrl = data.object_key
-            ? await this.utilitiesService.createS3SignedUrl(data.object_key, s3Info)
-            : null
+        const signedUrl = data.object_key ? await this.utilitiesService.createS3SignedUrl(data.object_key) : null
         return {
             ...data,
             signed_url: signedUrl,
@@ -884,8 +869,8 @@ export class IpLibraryService {
     async processAssets(
         user: UserJwtExtractDto,
         type: "create" | "edit",
-        image_id: number,
-        video_id?: number,
+        image_id: string,
+        video_id?: string,
         ip_id?: number,
     ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
         let imageAsset: AssetDetailDto | null = null
@@ -1000,12 +985,7 @@ export class IpLibraryService {
             }
         }
 
-        const { imageAsset, videoAsset } = await this.processAssets(
-            user,
-            "create",
-            parseInt(body.image_id.toString()),
-            parseInt(body.video_id?.toString() || "0"),
-        )
+        const { imageAsset, videoAsset } = await this.processAssets(user, "create", body.image_id, body.video_id)
 
         const result = await this.prismaService.$transaction(async (tx) => {
             const ipLibrary = await tx.ip_library.create({
@@ -1027,7 +1007,7 @@ export class IpLibraryService {
                         {
                             key: imageAsset.path,
                             hash: imageAsset.ipfs_key,
-                            asset_id: imageAsset.id,
+                            asset_id: imageAsset.asset_id,
                         },
                     ],
                     is_public: true,
@@ -1043,7 +1023,7 @@ export class IpLibraryService {
                         object_key: videoAsset.path,
                         ipfs_hash: videoAsset?.ipfs_key?.split("/").pop(),
                         thumbnail: videoAsset.thumbnail,
-                        asset_id: videoAsset.id,
+                        asset_id: videoAsset.asset_id,
                         video_info: (videoAsset.asset_info as any)?.videoInfo,
                     },
                 })
@@ -1059,13 +1039,6 @@ export class IpLibraryService {
 
             return ipLibrary
         })
-
-        if (videoAsset) {
-            await this.assetsService.relateToIp(user, {
-                ip_id: result.id,
-                asset_id: videoAsset.id,
-            })
-        }
 
         return await this.detail(result.id.toString(), null, user)
     }
@@ -1365,14 +1338,13 @@ export class IpLibraryService {
             },
         })
 
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
         let childIpsSummary: IpSummaryWithChildDto[] = []
         await Promise.all(
             childIpsDetail.map(async (item) => {
                 const onChainDetail = item.on_chain_detail as any
                 let coverImage = item.cover_images?.[0]
                 if (coverImage) {
-                    coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key, s3Info)
+                    coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key)
                 }
                 const res: IpSummaryWithChildDto = {
                     id: item.id,
@@ -1416,22 +1388,60 @@ export class IpLibraryService {
         return childIpsSummary
     }
 
-    private async _removeIp(ip_id: number) {
-        await this.prismaService.ip_library.deleteMany({
-            where: { id: ip_id },
+    public async removeIp(user: UserJwtExtractDto, ip_id: number): Promise<{ success: boolean; message: string }> {
+        //can not remove if ip has tokenized
+        const ip = await this.prismaService.ip_library.findFirst({
+            where: {
+                id: ip_id,
+                owner: user.usernameShorted,
+            },
         })
-        await this.prismaService.ip_signature_clips.deleteMany({
+        if (!ip) {
+            throw new BadRequestException("IP not found or you are not the owner of this ip")
+        }
+
+        if (ip.token_info) {
+            throw new BadRequestException("Can not remove ip with tokenized")
+        }
+
+        //can not remove if ip has children
+        const children = await this.prismaService.ip_library_child.findMany({
+            where: { parent_ip: ip_id },
+        })
+        if (children.length > 0) {
+            throw new BadRequestException("Can not remove ip with children")
+        }
+
+        //can not remove if ip has bind widgets
+        const apps = await this.prismaService.app_bind_ips.findMany({
             where: { ip_id: ip_id },
         })
-        await this.prismaService.ip_library_child.deleteMany({
-            where: { ip_id: ip_id },
-        })
-        await this.prismaService.ip_library_tags.deleteMany({
-            where: { ip_id: ip_id },
-        })
-        await this.prismaService.asset_related_ips.deleteMany({
-            where: { ip_id: ip_id },
-        })
+        if (apps.length > 0) {
+            throw new BadRequestException("Can not remove ip with bind widgets, unbind them first")
+        }
+
+        //remove ip
+        return await this.prismaService.$transaction(
+            async (tx) => {
+                await tx.ip_library.deleteMany({
+                    where: { id: ip_id },
+                })
+                await tx.ip_signature_clips.deleteMany({
+                    where: { ip_id: ip_id },
+                })
+                await tx.ip_library_child.deleteMany({
+                    where: { ip_id: ip_id },
+                })
+                await tx.ip_library_tags.deleteMany({
+                    where: { ip_id: ip_id },
+                })
+                await tx.asset_related_ips.deleteMany({
+                    where: { ip_id: ip_id },
+                })
+                return { success: true, message: "IP removed successfully" }
+            },
+            { timeout: 10000 },
+        )
     }
 
     _generateCreateIpRelatedIp(ip_id: number): string {
@@ -1581,7 +1591,7 @@ export class IpLibraryService {
         */
     }
 
-    async getCoverAssetId(ip_id: number): Promise<number> {
+    async getCoverAssetId(ip_id: number): Promise<string> {
         const ip = await this.prismaService.ip_library.findFirst({
             where: { id: ip_id },
             select: { cover_images: true, owner: true },
@@ -1604,7 +1614,7 @@ export class IpLibraryService {
             data: { cover_images: ip.cover_images },
         })
 
-        return coverAsset?.id
+        return coverAsset?.asset_id
     }
 
     private _processTokenInfo(
@@ -1933,11 +1943,10 @@ export class IpLibraryService {
     }
 
     async _processIpSignatureClips(ip_signature_clips: any[]): Promise<IpSignatureClipDto[]> {
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
         return await Promise.all(
             ip_signature_clips.map(async (item) => {
-                const video_url = await this.utilitiesService.createS3SignedUrl(item.object_key, s3Info)
-                const thumbnail = await this.utilitiesService.createS3SignedUrl(item.thumbnail, s3Info)
+                const video_url = await this.utilitiesService.createS3SignedUrl(item.object_key)
+                const thumbnail = await this.utilitiesService.createS3SignedUrl(item.thumbnail)
                 const video_info = item.video_info as IpSignatureClipMetadataDto
                 if (!video_info?.size) {
                     const size = await this.assetsService.getAssetSize(item.asset_id)

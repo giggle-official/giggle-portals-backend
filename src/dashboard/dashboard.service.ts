@@ -76,14 +76,12 @@ export class DashboardService {
             yesterdayMarketCap.map((item) => [item.ip_id, item.market_cap.toNumber()]),
         )
 
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-
         return await Promise.all(
             marketCapRank.map(async (item, index) => ({
                 ip_id: item.id,
                 ip_name: item.ip_info.name,
                 cover_image: item.ip_info.cover_images?.[0]?.key
-                    ? await this.utilitiesService.createS3SignedUrl(item.ip_info.cover_images[0].key, s3Info)
+                    ? await this.utilitiesService.createS3SignedUrl(item.ip_info.cover_images[0].key)
                     : "",
                 market_cap: item.market_cap.toNumber(),
                 change_24h: yesterdayMarketCapMap.get(item.id)
@@ -143,17 +141,12 @@ export class DashboardService {
 
         const ipNameMap = new Map(ips.map((item) => [item.id, item]))
 
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-
         return await Promise.all(
             ipIncomes.map(async (item, index) => ({
                 ip_id: item.ip_id,
                 ip_name: ipNameMap.get(item.ip_id).name,
                 cover_image: ipNameMap.get(item.ip_id).cover_images?.[0]?.key
-                    ? await this.utilitiesService.createS3SignedUrl(
-                          ipNameMap.get(item.ip_id).cover_images[0].key,
-                          s3Info,
-                      )
+                    ? await this.utilitiesService.createS3SignedUrl(ipNameMap.get(item.ip_id).cover_images[0].key)
                     : "",
                 income: item._sum.amount.toNumber(),
                 increased_income_24h: ipIncomesYesterdayMap.get(item.ip_id)

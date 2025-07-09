@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common"
 import { HttpModule } from "@nestjs/axios"
+import { BullModule } from "@nestjs/bullmq"
 import { GiggleController } from "./giggle/giggle.controller"
 import { GiggleService } from "./giggle/giggle.service"
 import { AssetsModule } from "src/assets/assets.module"
@@ -13,10 +14,15 @@ import { PriceService } from "./price/price.service"
 import { RewardPoolOnChainService } from "./reward-pool-on-chain/reward-pool-on-chain.service"
 import { LaunchAgentService } from "./launch-agent/launch-agent.service"
 import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
+import { NftController } from "./nft/nft.controller"
+import { NftService } from "./nft/nft.service"
 
 @Module({
     imports: [
         HttpModule,
+        BullModule.registerQueue({
+            name: "nft-mint-queue",
+        }),
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),
@@ -29,8 +35,9 @@ import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
         PriceService,
         RewardPoolOnChainService,
         LaunchAgentService,
+        NftService,
     ],
-    controllers: [GiggleController, PriceController, LaunchAgentController],
+    controllers: [GiggleController, PriceController, LaunchAgentController, NftController],
     exports: [GiggleService, IpOnChainService, PriceService, LaunchAgentService, RewardPoolOnChainService],
 })
 export class Web3Module {}

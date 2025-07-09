@@ -88,15 +88,13 @@ export class AnnouncementService {
             throw new NotFoundException("Announcement not found")
         }
 
-        const s3Info = await this.utilsService.getIpLibraryS3Info()
-
         return {
             ...announcement,
             cover_url: announcement.cover_key
-                ? await this.utilsService.createS3SignedUrl(announcement.cover_key, s3Info)
+                ? await this.utilsService.createS3SignedUrl(announcement.cover_key)
                 : null,
             video_url: announcement.video_key
-                ? await this.utilsService.createS3SignedUrl(announcement.video_key, s3Info)
+                ? await this.utilsService.createS3SignedUrl(announcement.video_key)
                 : null,
         }
     }

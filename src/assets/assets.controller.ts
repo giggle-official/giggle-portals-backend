@@ -38,7 +38,7 @@ export class AssetsController {
     @ApiResponse({ type: AssetDetailDto })
     @ApiOperation({ summary: "Retrieve an asset detail" })
     async getAsset(@Req() req: Request, @Param("id") id: string) {
-        return await this.assetsService.getAsset(req.user as UserJwtExtractDto, parseInt(id))
+        return await this.assetsService.getAsset(req.user as UserJwtExtractDto, id.toString())
     }
 
     @Post("/rename")

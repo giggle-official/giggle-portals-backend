@@ -12,6 +12,11 @@ export class AssetsDto implements assets {
     id: number
 
     @ApiProperty({
+        description: "asset id of the asset",
+    })
+    asset_id: string
+
+    @ApiProperty({
         description: "name of the asset, not unique",
     })
     name: string
@@ -92,12 +97,12 @@ export class AssetsDto implements assets {
     app_id: string
 
     @ApiProperty({
-        description: "content type of the asset",
+        description: "head object of the asset",
     })
-    content_type: string
+    head_object: Record<string, any>
 }
 
-export class AssetDetailDto extends AssetsDto {
+export class AssetDetailDto extends OmitType(AssetsDto, ["id"] as const) {
     @ApiProperty({
         description: "signed url of the asset, for browser to access",
     })
@@ -129,7 +134,7 @@ export class AssetDetailDto extends AssetsDto {
 
 export class AssetCreateDto extends OmitType(AssetsDto, ["id", "created_at", "exported_by_task_id"] as const) {}
 
-export class AssetsDtoWithUrl extends OmitType(AssetsDto, ["user", "exported_by_task_id", "ipfs_key"] as const) {
+export class AssetsDtoWithUrl extends OmitType(AssetsDto, ["id", "user", "exported_by_task_id", "ipfs_key"] as const) {
     @ApiProperty({
         description: "signed url of the asset, for browser to access",
     })
@@ -186,7 +191,7 @@ export class AssetListReqDto {
     take: number
 }
 
-export class AssetRenameReqDto extends PickType(AssetsDto, ["id"] as const) {
+export class AssetRenameReqDto extends PickType(AssetsDto, ["asset_id"] as const) {
     @ApiProperty({
         description: "new name of the asset",
     })
@@ -283,20 +288,6 @@ export class VideoTranscodeDto {
 export class VideoFormatDto {
     bucket: string
     file_name: string
-}
-
-export class RelateToIpDto {
-    @ApiProperty({
-        description: "id of the ip",
-    })
-    @IsNumber()
-    ip_id: number
-
-    @ApiProperty({
-        description: "id of the asset",
-    })
-    @IsNumber()
-    asset_id: number
 }
 
 export class SplitDto {

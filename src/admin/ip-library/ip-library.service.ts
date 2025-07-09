@@ -96,49 +96,7 @@ export class IpLibraryService {
     async signatureClip(id: number) {
         const record = await this.prismaService.ip_signature_clips.findUnique({ where: { id: id } })
         if (!record) throw new NotFoundException("Signature clip not found")
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-        return await this.processSignatureClipUrl(record, s3Info)
-    }
-
-    async uploadSignatureClips(userInfo: UserInfoDTO, body: UploadSignatureClipsDto) {
-        throw new BadRequestException("not implemented")
-        const clips: Prisma.ip_signature_clipsCreateManyInput[] = []
-        await Promise.all(
-            body.clips.map(async (clip) => {
-                const videoInfo = await this.assetsService.processNewVideo(userInfo, clip.key)
-                clips.push({
-                    ip_id: body.id,
-                    name: clip.name,
-                    object_key: clip.key,
-                    description: clip.description,
-                    thumbnail: videoInfo.thumbnail,
-                    video_info: videoInfo.videoInfo as any,
-                })
-            }),
-        )
-
-        return await this.prismaService.$transaction(async (p) => {
-            const previous = await this.detail(body.id)
-            if (body.method === "replace") {
-                await p.ip_signature_clips.deleteMany({
-                    where: { ip_id: body.id },
-                })
-            }
-
-            await p.ip_signature_clips.createMany({
-                data: clips,
-            })
-            const newRecord = await this.detail(body.id)
-            await p.admin_logs.create({
-                data: {
-                    action: "upload_signature_clips",
-                    user: userInfo.usernameShorted,
-                    data: { clips: clips, method: body.method, previous: previous, new: newRecord } as any,
-                },
-            })
-
-            return newRecord
-        })
+        return await this.processSignatureClipUrl(record)
     }
 
     async deleteSignatureClip(userInfo: UserInfoDTO, body: DeleteSignatureClipDto) {
@@ -169,13 +127,12 @@ export class IpLibraryService {
         if (!record) throw new NotFoundException("IP Library not found")
         const coverImages = record?.cover_images as any
         const convertedCoverImages = []
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
 
         if (coverImages && Array.isArray(coverImages) && coverImages.length > 0) {
             for (const item of coverImages) {
                 convertedCoverImages.push({
                     key: item.key,
-                    src: await this.utilitiesService.createS3SignedUrl(item.key, s3Info),
+                    src: await this.utilitiesService.createS3SignedUrl(item.key),
                 })
             }
         }
@@ -183,7 +140,7 @@ export class IpLibraryService {
         if (record.ip_signature_clips.length > 0) {
             const convertedSignatureClips = []
             for (const clip of record.ip_signature_clips) {
-                convertedSignatureClips.push(await this.processSignatureClipUrl(clip, s3Info))
+                convertedSignatureClips.push(await this.processSignatureClipUrl(clip))
             }
             record.ip_signature_clips = convertedSignatureClips
         }
@@ -194,11 +151,11 @@ export class IpLibraryService {
         }
     }
 
-    async processSignatureClipUrl(clip: any, s3Info: any) {
+    async processSignatureClipUrl(clip: any) {
         return {
             ...clip,
-            src: clip.object_key ? await this.utilitiesService.createS3SignedUrl(clip.object_key, s3Info) : null,
-            thumbnail: clip.thumbnail ? await this.utilitiesService.createS3SignedUrl(clip.thumbnail, s3Info) : null,
+            src: clip.object_key ? await this.utilitiesService.createS3SignedUrl(clip.object_key) : null,
+            thumbnail: clip.thumbnail ? await this.utilitiesService.createS3SignedUrl(clip.thumbnail) : null,
         }
     }
 
@@ -378,21 +335,5 @@ export class IpLibraryService {
             description: body.description?.trim(),
             cover_images: (body.cover_images as any) || [],
         }
-    }
-
-    async signedUploadUrl(body: UploadSignDto) {
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-        const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
-
-        const fileName = `ip-library/${uuidv4()}.${body.key.split(".").pop()}`
-        const params = {
-            Bucket: s3Info.s3_bucket,
-            Key: fileName,
-            Expires: 86400 * 7,
-            ContentType: body.type,
-        }
-
-        const signed_url = await s3Client.getSignedUrlPromise("putObject", params)
-        return { file_name: fileName, signed_url: signed_url }
     }
 }

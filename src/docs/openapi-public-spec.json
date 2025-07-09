@@ -780,6 +780,104 @@
         ]
       }
     },
+    "/api/v1/nft/mint": {
+      "post": {
+        "description": "Mint a nft from an asset, you must use our asset service to upload the asset first, return a mint task id",
+        "operationId": "NftController_mint",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintNftReqDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NftDetailResDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mint a nft from an asset",
+        "tags": [
+          "NFT"
+        ]
+      }
+    },
+    "/api/v1/nft/my": {
+      "get": {
+        "description": "Retrieve users nft list",
+        "operationId": "NftController_getMyNfts",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mint",
+            "required": false,
+            "in": "query",
+            "description": "The nft address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task_id",
+            "required": false,
+            "in": "query",
+            "description": "The task id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyNftListResDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Retrieve users nft",
+        "tags": [
+          "NFT"
+        ]
+      }
+    },
     "/api/v1/assets": {
       "get": {
         "operationId": "AssetsController_getAssets",
@@ -3423,6 +3521,43 @@
         ]
       }
     },
+    "/api/v1/ip-library/remove-ip": {
+      "post": {
+        "operationId": "IpLibraryController_removeIp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveIpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveIpResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an ip",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/ip-library/{id}": {
       "get": {
         "operationId": "IpLibraryController_getDetail",
@@ -5086,12 +5221,91 @@
         "type": "object",
         "properties": {}
       },
+      "MintNftReqDto": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "description": "The asset id to mint"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the nft"
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the nft"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "description"
+        ]
+      },
+      "NftDetailResDto": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string",
+            "description": "Nft address"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata",
+            "example": {
+              "name": "Nft Name",
+              "description": "Nft Description",
+              "image": "https://example.com/image.png"
+            }
+          },
+          "mint_status": {
+            "type": "string",
+            "description": "Nft status"
+          },
+          "failure_reason": {
+            "type": "string",
+            "description": "Failure reason"
+          },
+          "tx": {
+            "type": "string",
+            "description": "Transaction hash"
+          }
+        },
+        "required": [
+          "mint",
+          "metadata",
+          "mint_status",
+          "failure_reason",
+          "tx"
+        ]
+      },
+      "MyNftListResDto": {
+        "type": "object",
+        "properties": {
+          "nfts": {
+            "description": "Nft list",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NftDetailResDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "nfts",
+          "total"
+        ]
+      },
       "AssetsDtoWithUrl": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the asset"
+          "asset_id": {
+            "type": "string",
+            "description": "asset id of the asset"
           },
           "name": {
             "type": "string",
@@ -5142,9 +5356,9 @@
             "type": "string",
             "description": "app id of the asset"
           },
-          "content_type": {
-            "type": "string",
-            "description": "content type of the asset"
+          "head_object": {
+            "type": "object",
+            "description": "head object of the asset"
           },
           "signed_url": {
             "type": "string",
@@ -5156,7 +5370,7 @@
           }
         },
         "required": [
-          "id",
+          "asset_id",
           "name",
           "type",
           "category",
@@ -5168,7 +5382,7 @@
           "asset_info",
           "widget_tag",
           "app_id",
-          "content_type",
+          "head_object",
           "signed_url",
           "download_url"
         ]
@@ -5195,9 +5409,9 @@
       "AssetDetailDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the asset"
+          "asset_id": {
+            "type": "string",
+            "description": "asset id of the asset"
           },
           "name": {
             "type": "string",
@@ -5260,9 +5474,9 @@
             "type": "string",
             "description": "app id of the asset"
           },
-          "content_type": {
-            "type": "string",
-            "description": "content type of the asset"
+          "head_object": {
+            "type": "object",
+            "description": "head object of the asset"
           },
           "signed_url": {
             "type": "string",
@@ -5286,7 +5500,7 @@
           }
         },
         "required": [
-          "id",
+          "asset_id",
           "name",
           "type",
           "category",
@@ -5301,7 +5515,7 @@
           "ipfs_key",
           "widget_tag",
           "app_id",
-          "content_type",
+          "head_object",
           "signed_url",
           "optimized_urls",
           "download_url",
@@ -5312,9 +5526,9 @@
       "AssetRenameReqDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "number",
-            "description": "id of the asset"
+          "asset_id": {
+            "type": "string",
+            "description": "asset id of the asset"
           },
           "name": {
             "type": "string",
@@ -5322,7 +5536,7 @@
           }
         },
         "required": [
-          "id",
+          "asset_id",
           "name"
         ]
       },
@@ -5332,6 +5546,10 @@
           "id": {
             "type": "number",
             "description": "id of the asset"
+          },
+          "asset_id": {
+            "type": "string",
+            "description": "asset id of the asset"
           },
           "name": {
             "type": "string",
@@ -5394,13 +5612,14 @@
             "type": "string",
             "description": "app id of the asset"
           },
-          "content_type": {
-            "type": "string",
-            "description": "content type of the asset"
+          "head_object": {
+            "type": "object",
+            "description": "head object of the asset"
           }
         },
         "required": [
           "id",
+          "asset_id",
           "name",
           "type",
           "category",
@@ -5415,7 +5634,7 @@
           "ipfs_key",
           "widget_tag",
           "app_id",
-          "content_type"
+          "head_object"
         ]
       },
       "GetPresignedUploadUrlReqDto": {
@@ -7136,7 +7355,7 @@
             ]
           },
           "asset_id": {
-            "type": "number",
+            "type": "string",
             "description": "asset id of the signature clip"
           }
         },
@@ -7241,7 +7460,7 @@
             "description": "is liked by the user"
           },
           "cover_asset_id": {
-            "type": "number",
+            "type": "string",
             "description": "cover asset id of the ip library"
           },
           "cover_image": {
@@ -7401,7 +7620,7 @@
             "description": "is liked by the user"
           },
           "cover_asset_id": {
-            "type": "number",
+            "type": "string",
             "description": "cover asset id of the ip library"
           },
           "cover_image": {
@@ -8901,7 +9120,7 @@
             "description": "is liked by the user"
           },
           "cover_asset_id": {
-            "type": "number",
+            "type": "string",
             "description": "cover asset id of the ip library"
           },
           "cover_image": {
@@ -9118,7 +9337,7 @@
             "description": "is liked by the user"
           },
           "cover_asset_id": {
-            "type": "number",
+            "type": "string",
             "description": "cover asset id of the ip library"
           },
           "cover_image": {
@@ -9426,12 +9645,12 @@
             }
           },
           "image_id": {
-            "type": "number",
+            "type": "string",
             "description": "asset id of the ip cover image"
           },
           "video_id": {
-            "type": "number",
-            "description": "id of the video"
+            "type": "string",
+            "description": "asset id of the video"
           },
           "meta_data": {
             "type": "object",
@@ -9483,12 +9702,12 @@
             }
           },
           "image_id": {
-            "type": "number",
+            "type": "string",
             "description": "asset id of the ip cover image"
           },
           "video_id": {
-            "type": "number",
-            "description": "id of the video"
+            "type": "string",
+            "description": "asset id of the video"
           },
           "meta_data": {
             "type": "object",
@@ -9666,6 +9885,30 @@
         },
         "required": [
           "event"
+        ]
+      },
+      "RemoveIpDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "id of the ip library"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "RemoveIpResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "success of the ip removal"
+          }
+        },
+        "required": [
+          "success"
         ]
       },
       "CreateAnnouncementDto": {
@@ -9917,12 +10160,12 @@
             }
           },
           "image_id": {
-            "type": "number",
+            "type": "string",
             "description": "asset id of the ip cover image"
           },
           "video_id": {
-            "type": "number",
-            "description": "id of the video"
+            "type": "string",
+            "description": "asset id of the video"
           },
           "meta_data": {
             "type": "object",

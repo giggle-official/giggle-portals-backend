@@ -17,6 +17,7 @@ import { OpenAppModule } from "./open-app/open-app.module"
 import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
+import { BullModule } from "@nestjs/bullmq"
 
 @Module({
     imports: [
@@ -40,6 +41,14 @@ import { StatsModule } from "./stats/stats.module"
         DashboardModule,
         DocsModule,
         StatsModule,
+        //queue
+        BullModule.forRoot({
+            connection: {
+                host: process.env.REDIS_HOST,
+                port: parseInt(process.env.REDIS_PORT),
+                password: process.env.REDIS_PASSWORD,
+            },
+        }),
     ],
     controllers: [AppController],
     providers: [AppService],

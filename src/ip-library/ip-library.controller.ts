@@ -30,6 +30,8 @@ import {
     UnlikeIpDto,
     UntokenizeDto,
     IpEventsDetail,
+    RemoveIpDto,
+    RemoveIpResponseDto,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -234,6 +236,17 @@ if error occurs, the event will be \`error\` and the data in \`data\` is the err
     @NologInterceptor()
     launchIpToken(@Req() req: Request, @ValidEventBody() body: LaunchIpTokenDto) {
         return this.ipLibraryService.launchIpToken(req.user as UserJwtExtractDto, body)
+    }
+
+    @Post("/remove-ip")
+    @ApiOperation({ summary: "Remove an ip" })
+    @ApiBody({ type: RemoveIpDto })
+    @ApiResponse({ type: RemoveIpResponseDto, status: 200 })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    async removeIp(@Req() req: Request, @Body() body: RemoveIpDto) {
+        return await this.ipLibraryService.removeIp(req.user as UserJwtExtractDto, body.id)
     }
 
     @Get("/:id")

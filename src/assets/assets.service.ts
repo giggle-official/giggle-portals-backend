@@ -13,18 +13,15 @@ import {
     AssetsListResDto,
     AssetListReqDto,
     AssetRenameReqDto,
-    AssetsDto,
     GetPresignedUploadUrlResDto,
-    AssetCreateDto,
     AssetDetailDto,
     ASSETS_MAX_TAKE,
     UploadedByTaskDto,
-    RelateToIpDto,
     RegisterAssetDto,
     GetPresignedUploadUrlReqDto,
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
-import { UtilitiesService } from "src/common/utilities.service"
+import { S3InfoDto, UtilitiesService } from "src/common/utilities.service"
 import { v4 } from "uuid"
 import {
     NewImageProcessResult,
@@ -36,6 +33,13 @@ import {
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
 import { UserService } from "src/user/user.service"
+import { S3 } from "aws-sdk"
+import * as os from "os"
+import * as path from "path"
+import { createReadStream } from "fs"
+import { PassThrough } from "stream"
+
+const ffmpeg = require("fluent-ffmpeg")
 
 @Injectable()
 export class AssetsService {
@@ -69,7 +73,7 @@ export class AssetsService {
             skip: parseInt(query.skip.toString() || "0"),
             take: parseInt(query.take.toString()),
             select: {
-                id: true,
+                asset_id: true,
                 name: true,
                 type: true,
                 category: true,
@@ -82,7 +86,7 @@ export class AssetsService {
                 asset_info: true,
                 widget_tag: true,
                 app_id: true,
-                content_type: true,
+                head_object: true,
             },
             orderBy: {
                 created_at: "desc",
@@ -90,17 +94,15 @@ export class AssetsService {
         })
 
         const total = await this.prismaService.assets.count({ where })
-        const s3Info = await this.utilitiesService.getS3Info(user.usernameShorted)
 
         const data = await Promise.all(
             assets.map(async (asset) => ({
                 ...asset,
                 public_url: "",
-                signed_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info),
-                download_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info, true),
-                thumbnail: asset.thumbnail
-                    ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail, s3Info)
-                    : null,
+                head_object: asset.head_object as Record<string, any>,
+                signed_url: await this.utilitiesService.createS3SignedUrl(asset.path),
+                download_url: await this.utilitiesService.createS3SignedUrl(asset.path, true),
+                thumbnail: asset.thumbnail ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail) : null,
             })),
         )
 
@@ -111,19 +113,21 @@ export class AssetsService {
     }
 
     async renameAsset(user: UserJwtExtractDto, body: AssetRenameReqDto): Promise<AssetDetailDto> {
-        const asset = await this.prismaService.assets.findUnique({ where: { id: body.id, user: user.usernameShorted } })
+        const asset = await this.prismaService.assets.findUnique({
+            where: { asset_id: body.asset_id, user: user.usernameShorted },
+        })
         if (!asset) throw new NotFoundException("Asset not found")
 
         const result = await this.prismaService.assets.update({
-            where: { id: body.id },
+            where: { asset_id: body.asset_id },
             data: { name: body.name },
         })
-        return await this.getAsset(user, result.id)
+        return await this.getAsset(user, result.asset_id)
     }
 
-    async getAsset(user: UserJwtExtractDto, id: number): Promise<AssetDetailDto> {
+    async getAsset(user: UserJwtExtractDto, asset_id: string): Promise<AssetDetailDto> {
         const asset = await this.prismaService.assets.findUnique({
-            where: { id, user: user.usernameShorted },
+            where: { asset_id, user: user.usernameShorted },
             include: {
                 asset_related_ips: {
                     include: {
@@ -133,35 +137,44 @@ export class AssetsService {
             },
         })
         if (!asset) throw new NotFoundException("Asset not found")
-        const s3Info = await this.utilitiesService.getS3Info(user.usernameShorted)
+        return this.mapAssetDetail(asset)
+    }
+
+    async mapAssetDetail(asset: any): Promise<AssetDetailDto> {
         const optimizedUrls: { [key: string]: string } = {}
         if (asset.path_optimized && asset.path_optimized !== null) {
             Object.keys(asset.path_optimized).forEach(async (key) => {
-                optimizedUrls[key] = await this.utilitiesService.createS3SignedUrl(
-                    asset.path_optimized[key] as string,
-                    s3Info,
-                )
+                optimizedUrls[key] = await this.utilitiesService.createS3SignedUrl(asset.path_optimized[key] as string)
             })
         }
 
-        const ip_library_ids = asset.asset_related_ips.map((item) => item.ip_id)
-
-        //remove duplicate ip_library_ids
-        delete asset.asset_related_ips
-
         return {
-            ...asset,
+            asset_id: asset.asset_id,
+            name: asset.name,
+            type: asset.type,
+            category: asset.category,
+            path: asset.path,
+            path_optimized: asset.path_optimized,
+            created_at: asset.created_at,
+            user: asset.user,
+            widget_tag: asset.widget_tag,
+            app_id: asset.app_id,
+            exported_by: asset.exported_by,
+            source_video: asset.source_video,
+            asset_info: asset.asset_info,
+            exported_by_task_id: asset.exported_by_task_id,
+            thumbnail: asset.thumbnail,
+            ipfs_key: asset.ipfs_key,
+            head_object: asset.head_object as Record<string, any>,
             public_url: "",
             optimized_urls: optimizedUrls,
-            signed_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info),
-            download_url: await this.utilitiesService.createS3SignedUrl(asset.path, s3Info, true),
-            thumbnail_url: asset.thumbnail
-                ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail, s3Info)
-                : null,
+            signed_url: await this.utilitiesService.createS3SignedUrl(asset.path),
+            download_url: await this.utilitiesService.createS3SignedUrl(asset.path, true),
+            thumbnail_url: asset.thumbnail ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail) : null,
         }
     }
 
-    async deleteAsset(user: UserJwtExtractDto, id: number): Promise<AssetsDto> {
+    async deleteAsset(user: UserJwtExtractDto, id: number): Promise<{ success: boolean }> {
         const asset = await this.prismaService.assets.findUnique({ where: { id, user: user.usernameShorted } })
         if (!asset) throw new NotFoundException("Asset not found")
         const relatedIps = await this.prismaService.asset_related_ips.findMany({ where: { asset_id: id } })
@@ -173,27 +186,29 @@ export class AssetsService {
         if (mintedTokens.length > 0) {
             throw new BadRequestException("Asset is minted to meme, can not delete")
         }
-        return await this.prismaService.assets.delete({ where: { id } })
+        await this.prismaService.assets.delete({ where: { id } })
+        return { success: true }
     }
 
     async getPresignedUploadUrl(
         userInfo: UserJwtExtractDto,
         body: GetPresignedUploadUrlReqDto,
     ): Promise<GetPresignedUploadUrlResDto> {
-        const s3Info = body.is_public
-            ? await this.utilitiesService.getPublicS3Info()
-            : await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-        const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
-        const object_key = await this.getAssetKey(userInfo, body.file_name)
-
-        const params = {
-            Bucket: s3Info.s3_bucket,
-            Key: object_key,
-            ContentType: body.content_type,
-            Expires: 86400,
-        }
-
         try {
+            const profile = await this.userService.getProfile(userInfo)
+            const widget_tag = profile.widget_info?.widget_tag || "ipos"
+            const s3Info = await this.utilitiesService.getS3Info(body.is_public)
+            const object_key =
+                s3Info.s3_prefix + "/" + widget_tag + "/" + (await this.getAssetKey(userInfo, body.file_name))
+            const s3Client = await this.utilitiesService.getS3Client(body.is_public)
+
+            const params = {
+                Bucket: s3Info.s3_bucket,
+                Key: object_key,
+                ContentType: body.content_type,
+                Expires: 86400,
+            }
+
             const signed_url = await s3Client.getSignedUrlPromise("putObject", params)
             return { object_key, signed_url }
         } catch (error) {
@@ -202,13 +217,20 @@ export class AssetsService {
         }
     }
 
-    async registerAsset(userInfo: UserJwtExtractDto, body: RegisterAssetDto): Promise<AssetsDto> {
+    async registerAsset(userInfo: UserJwtExtractDto, body: RegisterAssetDto): Promise<AssetDetailDto> {
         try {
-            const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
-            const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
+            let isPublic = false
+            if (body.object_key.startsWith("public/")) {
+                isPublic = true
+            }
+
+            const userInfoDetail = await this.userService.getProfile(userInfo)
+            const s3Client = await this.utilitiesService.getS3Client(isPublic)
+            const s3Info = await this.utilitiesService.getS3Info(isPublic)
+            let fileInfo: S3.HeadObjectOutput | null = null
 
             try {
-                await s3Client
+                fileInfo = await s3Client
                     .headObject({
                         Bucket: s3Info.s3_bucket,
                         Key: body.object_key,
@@ -221,31 +243,30 @@ export class AssetsService {
                 }
                 throw new InternalServerErrorException("Error checking file in S3")
             }
-            const { fileType, extension } = await this.getAssetType(body.object_key)
 
-            if (fileType === "unknown") throw new BadRequestException("Unknown file type")
+            const fileType = fileInfo?.ContentType.split("/")[0]
+            const assetId = body.object_key.split("/").pop().split(".")[0]
+
+            if (fileType !== "video" && fileType !== "image") throw new BadRequestException("Unknown file type")
 
             let assetInfo: NewVideoProcessResult | NewImageProcessResult | null = null
             if (fileType === "video") {
-                //convert video to mp4
-                if (extension !== "mp4" && extension !== "mov" && extension !== "mkv") {
-                    body.object_key = await this.convertVideoToMp4(userInfo, body.object_key)
-                    body.name = body.name.replace(/\.[^/.]+$/, "")
-                }
-                //process video
-                assetInfo = await this.processNewVideo(userInfo, body.object_key, body?.optimize || false)
+                assetInfo = await this.processNewVideo(body.object_key, s3Client)
             } else if (fileType === "image") {
-                assetInfo = await this.processNewImage(userInfo, body.object_key)
+                assetInfo = await this.processNewImage(body.object_key)
             }
-            let objectKey: string = body.object_key
 
             const created = await this.prismaService.$transaction(async (tx) => {
                 const created = await tx.assets.create({
                     data: {
                         user: userInfo.usernameShorted,
                         name: body.name,
+                        head_object: fileInfo as any,
+                        asset_id: assetId,
                         type: fileType,
-                        path: objectKey,
+                        app_id: userInfoDetail.widget_info?.app_id,
+                        widget_tag: userInfoDetail.widget_info?.widget_tag,
+                        path: body.object_key,
                         path_optimized: (assetInfo as any)?.optimizedResult || null,
                         thumbnail: (assetInfo as any)?.thumbnail || null,
                         asset_info: assetInfo as any,
@@ -254,40 +275,20 @@ export class AssetsService {
                 })
                 return created
             })
-            return await this.getAsset(userInfo, created.id)
+            return await this.getAsset(userInfo, created.asset_id)
         } catch (error) {
             this.logger.error("Error uploading asset:", error)
             throw new InternalServerErrorException("Failed to upload asset")
         }
     }
 
-    async relateToIp(userInfo: UserJwtExtractDto, body: RelateToIpDto): Promise<AssetDetailDto> {
-        const ip = await this.prismaService.ip_library.findUnique({ where: { id: body.ip_id } })
-        if (!ip) throw new NotFoundException("ip not found")
-
-        const asset = await this.prismaService.assets.findUnique({
-            where: { id: body.asset_id, user: userInfo.usernameShorted },
-        })
-        if (!asset) throw new NotFoundException("asset not found")
-
-        const relatedIp = await this.prismaService.asset_related_ips.findFirst({
-            where: { asset_id: asset.id, ip_id: ip.id },
-        })
-        if (!relatedIp) {
-            await this.prismaService.asset_related_ips.create({
-                data: { asset_id: asset.id, ip_id: ip.id },
-            })
-        }
-        return await this.getAsset(userInfo, body.asset_id)
-    }
-
-    async clearRelatedIp(userInfo: UserJwtExtractDto, ipId: number): Promise<void> {
+    async clearRelatedIp(ipId: number): Promise<void> {
         await this.prismaService.asset_related_ips.deleteMany({ where: { ip_id: ipId } })
     }
 
-    async processNewImage(userInfo: UserJwtExtractDto, objectKey: string): Promise<NewImageProcessResult> {
-        const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-        const s3Client = await this.utilitiesService.getS3Client(userInfo.usernameShorted)
+    async processNewImage(objectKey: string): Promise<NewImageProcessResult> {
+        const s3Info = await this.utilitiesService.getS3Info(false)
+        const s3Client = await this.utilitiesService.getS3Client(false)
         const image = await s3Client
             .getObject({
                 Bucket: s3Info.s3_bucket,
@@ -318,156 +319,29 @@ export class AssetsService {
         }
     }
 
-    async createAsset(data: AssetCreateDto): Promise<AssetsDto> {
-        return await this.prismaService.assets.create({
-            data: {
-                user: data.user,
-                name: data.name,
-                type: data.type,
-                path: data.path,
-                category: data.category,
-                thumbnail: data.thumbnail,
-                asset_info: data.asset_info,
-                source_video: data?.source_video,
-                exported_by: data?.exported_by,
-            },
-        })
-    }
-
-    public async processNewVideo(
-        userInfo: UserJwtExtractDto,
-        objectKey: string,
-        optimize: boolean = false,
-    ): Promise<NewVideoProcessResult> {
+    public async processNewVideo(objectKey: string, s3Client: AWS.S3): Promise<NewVideoProcessResult> {
         try {
-            const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-            // Create a task to retrieve video info
-            const videoInfoTask = await this.taskService.taskCreateRequest({
-                method: "VideoService.VideoInfo",
-                params: [{ bucket: s3Info.s3_bucket, file_name: objectKey }],
-                id: v4(),
-            })
+            const s3Info = await this.utilitiesService.getS3Info(false)
 
-            // Query the task result
-            let taskQueryResult: TaskQueryResponseDto<TaskQueryResponseResult>
-            let retryCount = 0
-            const maxRetries = 10
-            const retryDelay = 500 // 0.5 seconds
-
-            do {
-                taskQueryResult = await this.taskService.taskQueryRequest({
-                    method: "QueryService.Task",
-                    params: [
-                        {
-                            task_id: videoInfoTask.result.task_id,
-                            task_type: "VideoInfo",
-                            user_id: userInfo.email,
-                        },
-                    ],
-                    id: v4(),
+            const videoStream = s3Client
+                .getObject({
+                    Bucket: s3Info.s3_bucket,
+                    Key: objectKey,
                 })
+                .createReadStream()
 
-                if (taskQueryResult.result.status >= 2) {
-                    break
-                }
+            const metadata = await this.extractVideoMetadataFromStream(videoStream)
 
-                retryCount++
-                if (retryCount < maxRetries) {
-                    await new Promise((resolve) => setTimeout(resolve, retryDelay))
-                }
-            } while (retryCount < maxRetries)
+            const { filePath, thumbnailKey } = await this.generateThumbnailFromStream(objectKey)
 
-            if (retryCount === maxRetries) {
-                throw new Error("Max retries reached while querying task status")
-            }
+            const thumbnailS3Key = await this.uploadThumbnailToS3(filePath, thumbnailKey, s3Info.s3_bucket, s3Client)
 
-            if (taskQueryResult.result.status === 3) {
-                throw new Error("Video info task did not complete successfully: " + taskQueryResult.result.result)
-            }
-
-            const videoInfo = JSON.parse(taskQueryResult.result.result as string) as VideoInfoTaskResponseDto
-
-            let newWidth: number = 0
-            let newHeight: number = 0
+            const videoInfo = metadata as VideoInfoTaskResponseDto
             let optimizedResult: any = undefined
-
-            if (optimize) {
-                if (videoInfo.width > 720 || videoInfo.height > 720) {
-                    const aspectRatio = videoInfo.width / videoInfo.height
-
-                    if (aspectRatio > 1) {
-                        newWidth = 720
-                        newHeight = Math.floor(720 / aspectRatio)
-                        if (newHeight % 2 !== 0) {
-                            newHeight += 1
-                        }
-                    } else {
-                        newHeight = 720
-                        newWidth = Math.floor(720 * aspectRatio)
-                        if (newWidth % 2 !== 0) {
-                            newWidth += 1
-                        }
-                    }
-                }
-                const videoOptimizeTask = await this.taskService.taskCreateRequest({
-                    method: "VideoService.VideoTranscode",
-                    params: [
-                        {
-                            bucket: s3Info.s3_bucket,
-                            file_name: objectKey,
-                            width: newWidth,
-                            height: newHeight,
-                            bitrate: 300,
-                        },
-                    ],
-                    id: v4(),
-                })
-
-                // Query the task result
-                const requestInterval = 1000 // 1 second
-                const timeout = 30 * 60 * 1000 // 30 minutes in milliseconds
-                const startTime = Date.now()
-                let optimizeTaskQueryResult: TaskQueryResponseDto<TaskQueryResponseResult>
-                do {
-                    optimizeTaskQueryResult = await this.taskService.taskQueryRequest({
-                        method: "QueryService.Task",
-                        params: [
-                            {
-                                task_id: videoOptimizeTask.result.task_id,
-                                task_type: "VideoTranscode",
-                                user_id: userInfo.email,
-                            },
-                        ],
-                        id: v4(),
-                    })
-
-                    if (optimizeTaskQueryResult.result.status === 2) {
-                        const result = optimizeTaskQueryResult?.result?.result
-                        if (result) {
-                            optimizedResult = { "300kbit": result }
-                        }
-                        break
-                    }
-
-                    if (optimizeTaskQueryResult.result.status === 3) {
-                        this.logger.error(
-                            "Optimize task did not complete successfully: " + optimizeTaskQueryResult.result.result,
-                        )
-                        break
-                    }
-
-                    if (Date.now() - startTime > timeout) {
-                        this.logger.error("Timeout reached while querying optimize task status")
-                        break
-                    }
-                    await new Promise((resolve) => setTimeout(resolve, requestInterval))
-                } while (true)
-            }
 
             return {
                 videoInfo: videoInfo,
-                videoInfoTaskId: videoInfoTask.result.task_id,
-                thumbnail: videoInfo.thumbnail,
+                thumbnail: thumbnailS3Key,
                 optimizedResult: optimizedResult,
             }
         } catch (error) {
@@ -476,47 +350,77 @@ export class AssetsService {
         }
     }
 
-    public async convertVideoToMp4(userInfo: UserJwtExtractDto, objectKey: string): Promise<string> {
-        const s3Info = await this.utilitiesService.getS3Info(userInfo.usernameShorted)
-        const videoConvertTask = await this.taskService.taskCreateRequest({
-            method: "VideoService.VideoFormat",
-            params: [{ bucket: s3Info.s3_bucket, file_name: objectKey }],
-            id: v4(),
-        })
+    private async extractVideoMetadataFromStream(stream: any): Promise<VideoInfoTaskResponseDto> {
+        return new Promise((resolve, reject) => {
+            const command = ffmpeg(stream)
 
-        // Query the task result
-        let taskQueryResult: TaskQueryResponseDto<TaskQueryResponseResult>
-        const timeout = 30 * 60 * 1000 // 30 minutes
-        const retryDelay = 500 // 0.5 seconds
-        const startTime = Date.now()
-        do {
-            taskQueryResult = await this.taskService.taskQueryRequest({
-                method: "QueryService.Task",
-                params: [
-                    {
-                        task_id: videoConvertTask.result.task_id,
-                        task_type: "VideoFormat",
-                        user_id: userInfo.email,
-                    },
-                ],
-                id: v4(),
+            command.ffprobe((err, metadata) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+
+                const videoStream = metadata.streams.find((stream) => stream.codec_type === "video")
+
+                if (!videoStream) {
+                    reject(new Error("No video stream found"))
+                    return
+                }
+
+                resolve({
+                    width: videoStream.width || 0,
+                    height: videoStream.height || 0,
+                    duration: parseFloat(metadata.format.duration.toString()) || 0,
+                })
             })
+        })
+    }
 
-            if (taskQueryResult.result.status === 2) {
-                return taskQueryResult.result.result as string
-            }
+    private async generateThumbnailFromStream(objectKey: string): Promise<{ filePath: string; thumbnailKey: string }> {
+        const tempDir = os.tmpdir()
 
-            if (taskQueryResult.result.status > 2) {
-                this.logger.error("Video format task did not complete successfully: " + taskQueryResult.result.result)
-                throw new BadRequestException("Video convert failed")
-            }
+        const videoUrl = await this.utilitiesService.createS3SignedUrl(objectKey)
+        const videoFile = objectKey.split("/").pop()
+        const thumbnailFileName = videoFile.split(".")[0] + ".thumb.jpg"
+        const writeFile = path.join(tempDir, thumbnailFileName)
 
-            if (Date.now() - startTime > timeout) {
-                this.logger.error("Timeout reached while querying video format task status")
-                throw new BadRequestException("Video convert timeout")
-            }
-            await new Promise((resolve) => setTimeout(resolve, retryDelay))
-        } while (true)
+        return new Promise((resolve, reject) => {
+            ffmpeg(videoUrl)
+                .takeScreenshots({
+                    count: 1,
+                    timemarks: ["00:00:00"],
+                    folder: tempDir,
+                    filename: thumbnailFileName,
+                    size: "640x?",
+                })
+                .on("end", () => {
+                    resolve({ filePath: writeFile, thumbnailKey: thumbnailFileName })
+                })
+                .on("error", (err: any) => {
+                    this.logger.error("Error generating thumbnail:", err)
+                    reject(err)
+                })
+        })
+    }
+
+    private async uploadThumbnailToS3(
+        localThumbnailPath: string,
+        originalVideoKey: string,
+        bucketName: string,
+        s3Client: AWS.S3,
+    ): Promise<string> {
+        const thumbnailKey = `${originalVideoKey.split(".")[0]}.thumb.jpg`
+        const fileStream = createReadStream(localThumbnailPath)
+
+        const uploadParams = {
+            Bucket: bucketName,
+            Key: thumbnailKey,
+            Body: fileStream,
+            ContentType: "image/jpeg",
+        }
+
+        await s3Client.upload(uploadParams).promise()
+        return thumbnailKey
     }
 
     public async getAssetKey(userInfo: UserJwtExtractDto, filename: string) {
@@ -526,34 +430,10 @@ export class AssetsService {
         return `${userInfo.usernameShorted}/${filename}`
     }
 
-    public async getAssetType(
-        filename: string,
-    ): Promise<{ fileType: "video" | "image" | "unknown"; extension: string }> {
-        const extension = filename.split(".").pop()?.toLowerCase()
-        if (extension === "mp4" || extension === "mov" || extension === "mkv") return { fileType: "video", extension }
-        if (extension === "jpg" || extension === "jpeg" || extension === "png") return { fileType: "image", extension }
-        return { fileType: "unknown", extension }
-    }
-
-    async getAssetSize(assetId: number): Promise<number> {
+    async getAssetSize(assetId: string): Promise<number> {
         if (!assetId) return 0
-        const asset = await this.prismaService.assets.findUnique({ where: { id: assetId } })
-        if (!asset) throw new NotFoundException("Asset not found")
-        const videoInfo = (asset.asset_info as any)?.videoInfo as VideoInfoTaskResponseDto
-        if (videoInfo?.size) return videoInfo.size
-
-        const s3Info = await this.utilitiesService.getS3Info(asset.user)
-        const s3Client = await this.utilitiesService.getS3Client(asset.user)
-        const size = await s3Client.headObject({ Bucket: s3Info.s3_bucket, Key: asset.path }).promise()
-        await this.prismaService.assets.update({
-            where: { id: assetId },
-            data: {
-                asset_info: {
-                    ...(asset.asset_info as any),
-                    videoInfo: { ...(asset.asset_info as any).videoInfo, size: size.ContentLength },
-                },
-            },
-        })
-        return size.ContentLength
+        const asset = await this.prismaService.assets.findUnique({ where: { asset_id: assetId } })
+        const headObject = asset?.head_object as Record<string, any>
+        return headObject?.ContentLength || 0
     }
 }

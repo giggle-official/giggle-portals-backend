@@ -69,6 +69,7 @@ model users {
   reward_pools                   reward_pools[]
   user_rewards_withdraw          user_rewards_withdraw[]
   view_user_rewards_summary      view_user_rewards_summary[]
+  user_nfts                      user_nfts[]
 }
 
 model user_request_log {
@@ -212,6 +213,7 @@ model stripe_webhook_log {
 
 model assets {
   id                   Int                    @id @default(autoincrement())
+  asset_id             String?                @unique @db.VarChar(32)
   name                 String?                @db.VarChar(255)
   type                 String?                @db.VarChar(32)
   category             String?                @db.VarChar(32)
@@ -227,7 +229,7 @@ model assets {
   ipfs_key             String?                @db.VarChar(255)
   widget_tag           String?                @db.VarChar(32)
   app_id               String?                @db.VarChar(32)
-  content_type         String?                @db.VarChar(255)
+  head_object          Json?
   user_info            users?                 @relation(fields: [user], references: [username_in_be])
   asset_related_ips    asset_related_ips[]
   video_edit_jobs      video_edit_jobs[]
@@ -331,9 +333,9 @@ model ip_signature_clips {
   video_info  Json?
   created_at  DateTime?   @default(now()) @db.DateTime(0)
   updated_at  DateTime?   @default(now()) @db.DateTime(0)
-  asset_id    Int?
+  asset_id    String?     @db.VarChar(32)
   ip_info     ip_library? @relation(fields: [ip_id], references: [id])
-  asset       assets?     @relation(fields: [asset_id], references: [id])
+  asset       assets?     @relation(fields: [asset_id], references: [asset_id])
 }
 
 model admin_logs {
@@ -1146,6 +1148,32 @@ model credit_statements {
   order_id   String?                @db.VarChar(64)
   created_at DateTime?              @default(now()) @db.Timestamp(0)
   updated_at DateTime?              @default(now()) @db.Timestamp(0)
+}
+
+enum nft_task_status {
+  pending
+  minting
+  success
+  failed
+}
+
+model user_nfts {
+  id            Int              @id @default(autoincrement())
+  user          String?          @db.VarChar(32)
+  collection    String?          @db.VarChar(64)
+  mint          String?          @db.VarChar(64)
+  metadata      Json?
+  metadata_uri  String?          @db.VarChar(1024)
+  mint_request  Json?
+  mint_response Json?
+  status        nft_task_status?
+  mint_task_id  String?          @db.VarChar(64)
+  asset_id      String?          @db.VarChar(32)
+  widget_tag    String?          @db.VarChar(64)
+  app_id        String?          @db.VarChar(32)
+  created_at    DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?        @default(now()) @db.Timestamp(0)
+  user_info     users?           @relation(fields: [user], references: [username_in_be])
 }
 
 view view_ip_token_prices {

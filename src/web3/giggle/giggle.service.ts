@@ -123,8 +123,8 @@ export class GiggleService {
                 formData.append(key, params[key])
             })
 
-            const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-            const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
+            const s3Client = await this.utilitiesService.getS3Client(false)
+            const s3Info = await this.utilitiesService.getS3Info(false)
             let fileInfo = null
             try {
                 fileInfo = await s3Client.headObject({ Bucket: s3Info.s3_bucket, Key: path }).promise()
@@ -228,7 +228,7 @@ export class GiggleService {
             let videoUrl: string = ""
             if (params.asset_id) {
                 asset = await this.prismaService.assets.findUnique({
-                    where: { id: parseInt(params.asset_id.toString()) },
+                    where: { asset_id: params.asset_id },
                     include: {
                         asset_related_ips: true,
                     },
@@ -349,7 +349,7 @@ export class GiggleService {
         }
 
         const contentType = "video/" + fileName.split(".").pop()
-        const s3Info = await this.utilitiesService.getIpLibraryS3Info()
+        const s3Info = await this.utilitiesService.getS3Info(false)
 
         const signatureParams = this.generateSignature({ fileName, scene: "createCoin" })
         const signedUrlResponse: AxiosResponse<GiggleApiResponseDto<GetUploadTokenResponseDto>> = await lastValueFrom(
@@ -363,7 +363,7 @@ export class GiggleService {
         }
         const signedUrl = signedUrlResponse.data.data.preSignedUrl
 
-        const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
+        const s3Client = await this.utilitiesService.getS3Client(false)
         const headObject = await s3Client.headObject({ Bucket: s3Info.s3_bucket, Key: path }).promise()
         const totalSize = headObject.ContentLength
         let uploadedSize = 0
@@ -450,8 +450,7 @@ export class GiggleService {
                     if (ip) {
                         const coverKey = ip.cover_images?.[0].key
                         if (coverKey) {
-                            const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-                            item.coverUrl = await this.utilitiesService.createS3SignedUrl(coverKey, s3Info)
+                            item.coverUrl = await this.utilitiesService.createS3SignedUrl(coverKey)
                         }
                     }
                 }
@@ -540,8 +539,7 @@ export class GiggleService {
                         if (ip) {
                             const coverKey = ip.cover_images?.[0].key
                             if (coverKey) {
-                                const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-                                item.coverUrl = await this.utilitiesService.createS3SignedUrl(coverKey, s3Info)
+                                item.coverUrl = await this.utilitiesService.createS3SignedUrl(coverKey)
                             }
                         }
                     }
