@@ -21,23 +21,17 @@ import {
     GetPresignedUploadUrlReqDto,
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
-import { S3InfoDto, UtilitiesService } from "src/common/utilities.service"
-import { v4 } from "uuid"
-import {
-    NewImageProcessResult,
-    NewVideoProcessResult,
-    TaskQueryResponseDto,
-    TaskQueryResponseResult,
-    VideoInfoTaskResponseDto,
-} from "src/task/task.dto"
+import { UtilitiesService } from "src/common/utilities.service"
+import { NewImageProcessResult, NewVideoProcessResult, VideoInfoTaskResponseDto } from "src/task/task.dto"
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
 import { UserService } from "src/user/user.service"
-import { S3 } from "aws-sdk"
+import * as AWS from "aws-sdk"
 import * as os from "os"
 import * as path from "path"
 import { createReadStream } from "fs"
-import { PassThrough } from "stream"
+import { Cron, CronExpression } from "@nestjs/schedule"
+import * as cliProgress from "cli-progress"
 
 const ffmpeg = require("fluent-ffmpeg")
 
@@ -227,7 +221,7 @@ export class AssetsService {
             const userInfoDetail = await this.userService.getProfile(userInfo)
             const s3Client = await this.utilitiesService.getS3Client(isPublic)
             const s3Info = await this.utilitiesService.getS3Info(isPublic)
-            let fileInfo: S3.HeadObjectOutput | null = null
+            let fileInfo: AWS.S3.HeadObjectOutput | null = null
 
             try {
                 fileInfo = await s3Client
@@ -435,5 +429,308 @@ export class AssetsService {
         const asset = await this.prismaService.assets.findUnique({ where: { asset_id: assetId } })
         const headObject = asset?.head_object as Record<string, any>
         return headObject?.ContentLength || 0
+    }
+
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    async updateIpCoverImage(): Promise<void> {
+        const ipLibrarys = await this.prismaService.ip_library.findMany({
+            where: {
+                cover_images: {
+                    not: null,
+                },
+            },
+        })
+        if (!ipLibrarys) return
+        for (const ip of ipLibrarys) {
+            const ipCoverImage = ip.cover_images?.[0]
+            if (!ipCoverImage) continue
+            const asset = await this.prismaService.assets.findFirst({
+                where: {
+                    asset_id: (ipCoverImage?.asset_id || 0).toString(),
+                },
+            })
+            if (!asset) continue
+            if (asset.path !== ipCoverImage?.key) {
+                await this.prismaService.ip_library.update({
+                    where: { id: ip.id },
+                    data: { cover_images: [{ ...ipCoverImage, key: asset.path, asset_id: asset.asset_id }] },
+                })
+            }
+        }
+    }
+
+    @Cron(CronExpression.EVERY_MINUTE)
+    async migrateAsset(): Promise<void> {
+        const taskId = 999
+        const batchSize = 10
+        if (await UtilitiesService.checkTaskRunning(taskId)) {
+            this.logger.log("Task is running, skipping")
+            return
+        }
+        await UtilitiesService.startTask(taskId)
+
+        const assets = await this.prismaService.assets.findMany({
+            where: {
+                NOT: {
+                    OR: [{ path: { startsWith: "public/" } }, { path: { startsWith: "private/" } }],
+                },
+            },
+            orderBy: {
+                id: "desc",
+            },
+            //take: 1,
+        })
+        if (!assets) {
+            this.logger.log("No assets need to migrate")
+            await UtilitiesService.stopTask(taskId)
+            return
+        }
+
+        const oldS3Client = new AWS.S3({
+            region: process.env.USS_REGION,
+            credentials: {
+                accessKeyId: process.env.USS_ACCESS_KEY,
+                secretAccessKey: process.env.USS_SECRET_KEY,
+            },
+            s3ForcePathStyle: true,
+            endpoint: process.env.USS_ENDPOINT,
+        })
+        const newS3Info = await this.utilitiesService.getS3Info(false)
+        const newS3Client = await this.utilitiesService.getS3Client(false)
+
+        for (let i = 0; i < assets.length; i += batchSize) {
+            const batch = assets.slice(i, i + batchSize)
+            // Create a multi-progress container for this batch
+            const multibar = new cliProgress.MultiBar(
+                {
+                    clearOnComplete: false,
+                    format: "{filename} |{bar}| {percentage}% | {value}/{total} bytes",
+                    barCompleteChar: "\u2588",
+                    barIncompleteChar: "\u2591",
+                },
+                cliProgress.Presets.shades_classic,
+            )
+
+            // Create progress bars for each asset in the batch
+            const progressBars = batch.map((asset) => multibar.create(100, 0, { filename: asset.path }))
+
+            await Promise.allSettled(
+                batch.map(async (asset, index) => {
+                    const newKey = "private/ipos/" + asset.path
+                    this.logger.log(`Migrating asset ${asset.path} to ${newKey}`)
+
+                    const fileInfo = await oldS3Client
+                        .headObject({
+                            Bucket: process.env.USS_BUCKET,
+                            Key: asset.path,
+                        })
+                        .promise()
+                        .catch(async (err) => {
+                            if (err.code === "NotFound") {
+                                this.logger.error("❌ Error getting file info, remove asset, msg: " + err.message)
+                                //remove asset
+                                await this.prismaService.assets.delete({ where: { id: asset.id } })
+                            }
+                            return Promise.reject(err)
+                        })
+
+                    const fileStream = oldS3Client
+                        .getObject({
+                            Bucket: process.env.USS_BUCKET,
+                            Key: asset.path,
+                        })
+                        .createReadStream()
+
+                    const progressBar = progressBars[index]
+
+                    return newS3Client
+                        .upload({
+                            Bucket: newS3Info.s3_bucket,
+                            Key: newKey,
+                            Body: fileStream,
+                            ContentType: fileInfo.ContentType,
+                        })
+                        .on("httpUploadProgress", (progress: any) => {
+                            const percentage = Math.round((progress.loaded / progress.total) * 100)
+                            progressBar.update(percentage, {
+                                filename: asset.path,
+                            })
+                        })
+                        .promise()
+                        .then(async () => {
+                            progressBar.update(100, {
+                                filename: asset.path,
+                            })
+                            const newFileInfo = await newS3Client
+                                .headObject({
+                                    Bucket: newS3Info.s3_bucket,
+                                    Key: newKey,
+                                })
+                                .promise()
+                            await this.prismaService.assets.update({
+                                where: { id: asset.id },
+                                data: { path: newKey, head_object: newFileInfo as any },
+                            })
+                            await this.prismaService.ip_signature_clips.updateMany({
+                                where: { asset_id: asset.asset_id },
+                                data: {
+                                    object_key: newKey,
+                                },
+                            })
+                            this.logger.log(`✅ Migrating asset ${asset.path} to ${newKey} completed`)
+                            return Promise.resolve()
+                        })
+                        .catch((err) => {
+                            this.logger.error("❌ Error migrating asset:", err)
+                            return Promise.reject(err)
+                        })
+                }),
+            )
+        }
+        await UtilitiesService.stopTask(taskId)
+    }
+
+    @Cron(CronExpression.EVERY_MINUTE)
+    async migrateThumbnail(): Promise<void> {
+        const taskId = 998
+        const batchSize = 10
+        if (await UtilitiesService.checkTaskRunning(taskId)) {
+            this.logger.log("Task is running, skipping")
+            return
+        }
+        await UtilitiesService.startTask(taskId)
+
+        const assets = await this.prismaService.assets.findMany({
+            where: {
+                NOT: {
+                    OR: [{ thumbnail: { startsWith: "public/" } }, { thumbnail: { startsWith: "private/" } }],
+                },
+                thumbnail: {
+                    not: null,
+                },
+            },
+            select: {
+                id: true,
+                asset_id: true,
+                thumbnail: true,
+            },
+            orderBy: {
+                id: "desc",
+            },
+            //take: 1,
+        })
+        if (!assets) {
+            this.logger.log("No assets need to migrate")
+            await UtilitiesService.stopTask(taskId)
+            return
+        }
+
+        const oldS3Client = new AWS.S3({
+            region: process.env.USS_REGION,
+            credentials: {
+                accessKeyId: process.env.USS_ACCESS_KEY,
+                secretAccessKey: process.env.USS_SECRET_KEY,
+            },
+            s3ForcePathStyle: true,
+            endpoint: process.env.USS_ENDPOINT,
+        })
+        const newS3Info = await this.utilitiesService.getS3Info(false)
+        const newS3Client = await this.utilitiesService.getS3Client(false)
+
+        for (let i = 0; i < assets.length; i += batchSize) {
+            const batch = assets.slice(i, i + batchSize)
+            // Create a multi-progress container for this batch
+            const multibar = new cliProgress.MultiBar(
+                {
+                    clearOnComplete: false,
+                    format: "{filename} |{bar}| {percentage}% | {value}/{total} bytes",
+                    barCompleteChar: "\u2588",
+                    barIncompleteChar: "\u2591",
+                },
+                cliProgress.Presets.shades_classic,
+            )
+
+            // Create progress bars for each asset in the batch
+            const progressBars = batch.map((asset) => multibar.create(100, 0, { filename: asset.thumbnail }))
+
+            await Promise.allSettled(
+                batch.map(async (asset, index) => {
+                    const newKey = "private/ipos/" + asset.thumbnail
+                    this.logger.log(`Migrating asset ${asset.thumbnail} to ${newKey}`)
+
+                    const fileInfo = await oldS3Client
+                        .headObject({
+                            Bucket: process.env.USS_BUCKET,
+                            Key: asset.thumbnail,
+                        })
+                        .promise()
+                        .catch(async (err) => {
+                            if (err.code === "NotFound") {
+                                this.logger.error(
+                                    "❌ Error getting file info, update field and return, msg: " + err.message,
+                                )
+                                //update field and return
+                                await this.prismaService.assets.update({
+                                    where: { id: asset.id },
+                                    data: { thumbnail: null },
+                                })
+                            }
+                            return Promise.reject(err)
+                        })
+
+                    const fileStream = oldS3Client
+                        .getObject({
+                            Bucket: process.env.USS_BUCKET,
+                            Key: asset.thumbnail,
+                        })
+                        .createReadStream()
+
+                    const progressBar = progressBars[index]
+
+                    return newS3Client
+                        .upload({
+                            Bucket: newS3Info.s3_bucket,
+                            Key: newKey,
+                            Body: fileStream,
+                            ContentType: fileInfo.ContentType,
+                        })
+                        .on("httpUploadProgress", (progress: any) => {
+                            const percentage = Math.round((progress.loaded / progress.total) * 100)
+                            progressBar.update(percentage, {
+                                filename: asset.thumbnail,
+                            })
+                        })
+                        .promise()
+                        .then(async () => {
+                            progressBar.update(100, {
+                                filename: asset.thumbnail,
+                            })
+                            const newFileInfo = await newS3Client
+                                .headObject({
+                                    Bucket: newS3Info.s3_bucket,
+                                    Key: newKey,
+                                })
+                                .promise()
+                            await this.prismaService.assets.update({
+                                where: { id: asset.id },
+                                data: { thumbnail: newKey, head_object: newFileInfo as any },
+                            })
+                            await this.prismaService.ip_signature_clips.updateMany({
+                                where: { asset_id: asset.asset_id },
+                                data: {
+                                    thumbnail: newKey,
+                                },
+                            })
+                            this.logger.log(`✅ Migrating asset ${asset.thumbnail} to ${newKey} completed`)
+                            return Promise.resolve()
+                        })
+                        .catch((err) => {
+                            this.logger.error("❌ Error migrating asset:", err)
+                            return Promise.reject(err)
+                        })
+                }),
+            )
+        }
+        await UtilitiesService.stopTask(taskId)
     }
 }

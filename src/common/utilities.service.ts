@@ -1,9 +1,8 @@
 import { PrismaService } from "./prisma.service"
-import { BadRequestException, InternalServerErrorException, Logger } from "@nestjs/common"
+import { InternalServerErrorException, Logger } from "@nestjs/common"
 import * as AWS from "aws-sdk"
 import { Injectable } from "@nestjs/common"
 import { Request } from "express"
-import * as fs from "fs"
 import { readFileSync } from "fs"
 
 export class S3InfoDto {
