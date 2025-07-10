@@ -10,7 +10,7 @@ import { Queue } from "bullmq"
 export class NftService {
     constructor(
         private readonly prisma: PrismaService,
-        @InjectQueue("nft-mint-queue") private readonly nftMintQueue: Queue,
+        //@InjectQueue("nft-mint-queue") private readonly nftMintQueue: Queue,
     ) {}
     async mintNft(req: UserJwtExtractDto, body: MintNftReqDto) {
         // todo

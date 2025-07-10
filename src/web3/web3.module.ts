@@ -20,9 +20,9 @@ import { NftService } from "./nft/nft.service"
 @Module({
     imports: [
         HttpModule,
-        BullModule.registerQueue({
-            name: "nft-mint-queue",
-        }),
+        //BullModule.registerQueue({
+        //    name: "nft-mint-queue",
+        //}),
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),

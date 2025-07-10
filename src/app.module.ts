@@ -42,13 +42,13 @@ import { BullModule } from "@nestjs/bullmq"
         DocsModule,
         StatsModule,
         //queue
-        BullModule.forRoot({
-            connection: {
-                host: process.env.REDIS_HOST,
-                port: parseInt(process.env.REDIS_PORT),
-                password: process.env.REDIS_PASSWORD,
-            },
-        }),
+        //BullModule.forRoot({
+        //    connection: {
+        //        host: process.env.REDIS_HOST,
+        //        port: parseInt(process.env.REDIS_PORT),
+        //        password: process.env.REDIS_PASSWORD,
+        //    },
+        //}),
     ],
     controllers: [AppController],
     providers: [AppService],

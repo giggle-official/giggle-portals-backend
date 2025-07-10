@@ -474,36 +474,10 @@ export class AssetsService {
         }
         await UtilitiesService.startTask(taskId)
 
-        //find ip related assets
-        const ipRelatedAssets = await this.prismaService.ip_signature_clips.findMany({
-            select: {
-                asset_id: true,
-            },
-            where: {
-                asset_id: {
-                    not: null,
-                },
-            },
-        })
-        const ipLibrarys = await this.prismaService.ip_library.findMany({
-            select: {
-                cover_images: true,
-            },
-        })
-        const assetsIds = ipRelatedAssets
-            .map((asset) => asset.asset_id)
-            .concat(ipLibrarys.map((ip) => ip.cover_images?.[0]?.asset_id))
-            .filter((id) => !!id)
-
         const assets = await this.prismaService.assets.findMany({
             where: {
                 NOT: {
                     OR: [{ path: { startsWith: "public/" } }, { path: { startsWith: "private/" } }],
-                },
-                AND: {
-                    asset_id: {
-                        in: assetsIds,
-                    },
                 },
             },
             orderBy: {
