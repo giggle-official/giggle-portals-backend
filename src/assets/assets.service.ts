@@ -500,8 +500,10 @@ export class AssetsService {
                 NOT: {
                     OR: [{ path: { startsWith: "public/" } }, { path: { startsWith: "private/" } }],
                 },
-                asset_id: {
-                    in: assetsIds,
+                AND: {
+                    asset_id: {
+                        in: assetsIds,
+                    },
                 },
             },
             orderBy: {
