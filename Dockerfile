@@ -21,7 +21,7 @@ RUN yarn build
 # Deployment
 FROM reg.podwide.ai/library/node:20.14.0-alpine3.19
 WORKDIR /home/node/app 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl ffmpeg
 
 ## COPY production dependencies and code
 COPY --from=build /home/node/app/dist /home/node/app/dist
