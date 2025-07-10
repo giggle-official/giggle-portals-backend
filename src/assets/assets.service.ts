@@ -531,9 +531,21 @@ export class AssetsService {
                         .promise()
                         .catch(async (err) => {
                             if (err.code === "NotFound") {
-                                this.logger.error("❌ Error getting file info, remove asset, msg: " + err.message)
-                                //remove asset
-                                await this.prismaService.assets.delete({ where: { id: asset.id } })
+                                this.logger.error(
+                                    "❌ Error getting file info, update path and return, msg: " + err.message,
+                                )
+                                //update path and return
+                                await this.prismaService.assets.update({
+                                    where: { id: asset.id },
+                                    data: { path: newKey },
+                                })
+
+                                await this.prismaService.ip_signature_clips.updateMany({
+                                    where: { asset_id: asset.asset_id },
+                                    data: {
+                                        object_key: newKey,
+                                    },
+                                })
                             }
                             return Promise.reject(err)
                         })
@@ -680,7 +692,14 @@ export class AssetsService {
                                 //update field and return
                                 await this.prismaService.assets.update({
                                     where: { id: asset.id },
-                                    data: { thumbnail: null },
+                                    data: { thumbnail: newKey },
+                                })
+
+                                await this.prismaService.ip_signature_clips.updateMany({
+                                    where: { asset_id: asset.asset_id },
+                                    data: {
+                                        thumbnail: newKey,
+                                    },
                                 })
                             }
                             return Promise.reject(err)
@@ -713,15 +732,9 @@ export class AssetsService {
                             progressBar.update(100, {
                                 filename: asset.thumbnail,
                             })
-                            const newFileInfo = await newS3Client
-                                .headObject({
-                                    Bucket: newS3Info.s3_bucket,
-                                    Key: newKey,
-                                })
-                                .promise()
                             await this.prismaService.assets.update({
                                 where: { id: asset.id },
-                                data: { thumbnail: newKey, head_object: newFileInfo as any },
+                                data: { thumbnail: newKey },
                             })
                             await this.prismaService.ip_signature_clips.updateMany({
                                 where: { asset_id: asset.asset_id },
