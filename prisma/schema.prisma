@@ -853,6 +853,7 @@ model orders {
   description                    String?                 @db.Text
   amount                         Int?
   owner                          String                  @db.VarChar(32)
+  ip_id                          Int?
   phone_number                   String?                 @db.VarChar(32)
   phone_national                 String?                 @db.VarChar(16)
   from_source_link               String?                 @db.VarChar(32)
@@ -887,6 +888,7 @@ model orders {
   third_level_ip_orders          third_level_ip_orders[]
   reward_pool_statement          reward_pool_statement[]
   user_rewards                   user_rewards[]
+  credit_statements              credit_statements[]
 }
 
 model order_callback_record {
@@ -1148,6 +1150,7 @@ model credit_statements {
   order_id   String?                @db.VarChar(64)
   created_at DateTime?              @default(now()) @db.Timestamp(0)
   updated_at DateTime?              @default(now()) @db.Timestamp(0)
+  order      orders?                @relation(fields: [order_id], references: [order_id])
 }
 
 enum nft_task_status {

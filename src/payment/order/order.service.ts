@@ -252,6 +252,7 @@ export class OrderService {
             data: {
                 order_id: orderId,
                 owner: userProfile.usernameShorted,
+                ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appId,
                 amount: order.amount,
@@ -392,6 +393,7 @@ export class OrderService {
             current_reward_pool_detail = rewardPool?.pools?.length > 0 ? rewardPool?.pools[0] : null
         }
         const order = {
+            ip_id: data.ip_id,
             order_id: data.order_id,
             owner: data.owner,
             widget_tag: data.widget_tag,
