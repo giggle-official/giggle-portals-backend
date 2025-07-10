@@ -32,6 +32,7 @@ import * as path from "path"
 import { createReadStream } from "fs"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import * as cliProgress from "cli-progress"
+import { String } from "aws-sdk/clients/codebuild"
 
 const ffmpeg = require("fluent-ffmpeg")
 
@@ -326,9 +327,9 @@ export class AssetsService {
 
             const metadata = await this.extractVideoMetadataFromStream(videoStream)
 
-            const { filePath, thumbnailKey } = await this.generateThumbnailFromStream(objectKey)
+            const filePath = await this.generateThumbnailFromStream(objectKey)
 
-            const thumbnailS3Key = await this.uploadThumbnailToS3(filePath, thumbnailKey, s3Info.s3_bucket, s3Client)
+            const thumbnailS3Key = await this.uploadThumbnailToS3(filePath, objectKey, s3Info.s3_bucket, s3Client)
 
             const videoInfo = metadata as VideoInfoTaskResponseDto
             let optimizedResult: any = undefined
@@ -370,7 +371,7 @@ export class AssetsService {
         })
     }
 
-    private async generateThumbnailFromStream(objectKey: string): Promise<{ filePath: string; thumbnailKey: string }> {
+    private async generateThumbnailFromStream(objectKey: string): Promise<string> {
         const tempDir = os.tmpdir()
 
         const videoUrl = await this.utilitiesService.createS3SignedUrl(objectKey)
@@ -388,7 +389,7 @@ export class AssetsService {
                     size: "640x?",
                 })
                 .on("end", () => {
-                    resolve({ filePath: writeFile, thumbnailKey: thumbnailFileName })
+                    resolve(writeFile)
                 })
                 .on("error", (err: any) => {
                     this.logger.error("Error generating thumbnail:", err)
