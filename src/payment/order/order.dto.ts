@@ -51,6 +51,11 @@ export class OrderDto implements orders {
     amount: number
 
     @ApiProperty({
+        description: "The ip id of the order",
+    })
+    ip_id: number
+
+    @ApiProperty({
         description: "The owner of the order",
     })
     owner: string

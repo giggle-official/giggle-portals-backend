@@ -27,3 +27,5 @@ prisma/.temp.prisma
 strategy.js
 
 dist.tar.gz
+
+private.pem

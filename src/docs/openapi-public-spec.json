@@ -1929,6 +1929,70 @@
         ]
       }
     },
+    "/api/v1/credit/statement": {
+      "get": {
+        "operationId": "CreditController_getStatements",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "filter by type",
+            "schema": {
+              "enum": [
+                "top_up",
+                "consume",
+                "refund"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "widget_tag",
+            "required": false,
+            "in": "query",
+            "description": "filter by widget tag of the order created by",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetStatementsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get credit statements",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/app/list": {
       "get": {
         "operationId": "OpenAppController_getAppList",
@@ -6277,6 +6341,10 @@
             "type": "number",
             "description": "The amount of the order"
           },
+          "ip_id": {
+            "type": "number",
+            "description": "The ip id of the order"
+          },
           "owner": {
             "type": "string",
             "description": "The owner of the order"
@@ -6424,6 +6492,7 @@
         "required": [
           "order_id",
           "amount",
+          "ip_id",
           "owner",
           "current_status",
           "paid_method",
@@ -6509,6 +6578,10 @@
           "amount": {
             "type": "number",
             "description": "The amount of the order"
+          },
+          "ip_id": {
+            "type": "number",
+            "description": "The ip id of the order"
           },
           "owner": {
             "type": "string",
@@ -6648,6 +6721,7 @@
         },
         "required": [
           "amount",
+          "ip_id",
           "owner",
           "paid_method",
           "release_rewards_after_paid",
@@ -6845,6 +6919,10 @@
             "type": "number",
             "description": "The amount of the order"
           },
+          "ip_id": {
+            "type": "number",
+            "description": "The ip id of the order"
+          },
           "owner": {
             "type": "string",
             "description": "The owner of the order"
@@ -6996,6 +7074,7 @@
         "required": [
           "order_id",
           "amount",
+          "ip_id",
           "owner",
           "current_status",
           "paid_method",
@@ -7515,6 +7594,80 @@
         "required": [
           "statements",
           "total"
+        ]
+      },
+      "CreditStatementDetailDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the statement",
+            "enum": [
+              "top_up",
+              "consume",
+              "refund"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "description": "The amount of the statement"
+          },
+          "balance": {
+            "type": "number",
+            "description": "After balance of the statement"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The created at of the statement"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The updated at of the statement"
+          },
+          "order_id": {
+            "type": "string",
+            "description": "The order id of the statement"
+          },
+          "widget_tag": {
+            "type": "string",
+            "description": "The widget tag of the order created by"
+          },
+          "ip_id": {
+            "type": "number",
+            "description": "The ip id of the order created by"
+          }
+        },
+        "required": [
+          "type",
+          "amount",
+          "balance",
+          "created_at",
+          "updated_at",
+          "order_id",
+          "widget_tag",
+          "ip_id"
+        ]
+      },
+      "GetStatementsResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "description": "The total number of statements"
+          },
+          "statements": {
+            "description": "The statements",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreditStatementDetailDto"
+            }
+          }
+        },
+        "required": [
+          "count",
+          "statements"
         ]
       },
       "AppListDto": {
@@ -10179,7 +10332,8 @@
     {
       "name": "Payment",
       "tags": [
-        "Order"
+        "Order",
+        "Credit"
       ]
     },
     {

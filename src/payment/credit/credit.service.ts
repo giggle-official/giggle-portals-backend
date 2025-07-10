@@ -1,7 +1,7 @@
 import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { TopUpDto } from "./credit.dto"
+import { GetStatementQueryDto, GetStatementsResponseDto, TopUpDto } from "./credit.dto"
 import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
@@ -39,7 +39,7 @@ export class CreditService {
         return 0
     }
 
-    async topUp(body: TopUpDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+    async topUp(body: TopUpDto, userInfo: UserJwtExtractDto, appId: string): Promise<OrderDetailDto> {
         const user = await this.userService.getProfile(userInfo)
         if (!user) {
             throw new BadRequestException("User not found")
@@ -48,12 +48,30 @@ export class CreditService {
         const orderId = uuidv4()
         const callbackUrl = `${process.env.FRONTEND_URL}/api/v1/credit/top-up-callback`
 
+        let ipId = null
+        let widgetTag = null
+
+        //if app_id, find binded widget and ip
+        if (appId) {
+            const appBindIp = await this.prisma.app_bind_ips.findFirst({
+                where: { app_id: appId },
+            })
+
+            const appBindWidget = await this.prisma.app_bind_widgets.findFirst({
+                where: { app_id: appId, widget_tag: { not: "login_from_external" }, enabled: true },
+            })
+
+            ipId = appBindIp?.ip_id
+            widgetTag = appBindWidget?.widget_tag
+        }
+
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
                 owner: user.user_id,
-                widget_tag: "",
-                app_id: "",
+                widget_tag: widgetTag,
+                app_id: appId,
+                ip_id: ipId,
                 amount: body.amount,
                 description: `Top up ${body.amount} credits`,
                 related_reward_id: null,
@@ -127,6 +145,52 @@ export class CreditService {
                 },
             })
         })
+    }
+
+    async getStatements(query: GetStatementQueryDto, userInfo: UserJwtExtractDto): Promise<GetStatementsResponseDto> {
+        const where: Prisma.credit_statementsWhereInput = {
+            user: userInfo.usernameShorted,
+        }
+
+        if (query.type) {
+            where.type = query.type
+        }
+
+        if (query.widget_tag) {
+            where.order = {
+                widget_tag: query.widget_tag,
+            }
+        }
+
+        const statements = await this.prisma.credit_statements.findMany({
+            where,
+            skip: Math.max(0, parseInt(query.page.toString()) - 1) * Math.max(0, parseInt(query.page_size.toString())),
+            take: Math.max(0, parseInt(query.page_size.toString()) || 10),
+            include: {
+                order: true,
+            },
+            orderBy: {
+                id: "desc",
+            },
+        })
+
+        const total = await this.prisma.credit_statements.count({
+            where,
+        })
+
+        return {
+            statements: statements.map((statement) => ({
+                order_id: statement.order_id,
+                widget_tag: statement.order?.widget_tag,
+                ip_id: statement.order?.ip_id,
+                type: statement.type,
+                amount: statement.amount,
+                balance: statement.balance,
+                created_at: statement.created_at,
+                updated_at: statement.updated_at,
+            })),
+            count: total,
+        }
     }
 
     async consumeCredit(
