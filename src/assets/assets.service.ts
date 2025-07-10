@@ -492,7 +492,8 @@ export class AssetsService {
         })
         const assetsIds = ipRelatedAssets
             .map((asset) => asset.asset_id)
-            .concat(ipLibrarys.map((ip) => ip.cover_images?.[0]?.asset_id).filter((id) => id !== null))
+            .concat(ipLibrarys.map((ip) => ip.cover_images?.[0]?.asset_id))
+            .filter((id) => !!id)
 
         const assets = await this.prismaService.assets.findMany({
             where: {
