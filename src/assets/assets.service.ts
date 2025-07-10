@@ -461,6 +461,10 @@ export class AssetsService {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async migrateAsset(): Promise<void> {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const taskId = 999
         const batchSize = 10
         if (await UtilitiesService.checkTaskRunning(taskId)) {
@@ -592,6 +596,10 @@ export class AssetsService {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async migrateThumbnail(): Promise<void> {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+
         const taskId = 998
         const batchSize = 10
         if (await UtilitiesService.checkTaskRunning(taskId)) {
