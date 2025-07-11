@@ -291,6 +291,13 @@ export class OrderService {
             throw new BadRequestException("Insufficient credit balance")
         }
         const order = await this.createOrder(dto, userInfo)
+        //need extract user info if requester is developer
+        if (userInfo.developer_info) {
+            const user = await this.jwtService.verifyAsync(dto.user_jwt, {
+                secret: process.env.SESSION_SECRET,
+            })
+            userInfo = await this.userService.getProfile(user as UserJwtExtractDto)
+        }
         return this.payCreditOrder(order, userInfo)
     }
 
