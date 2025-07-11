@@ -432,7 +432,8 @@ export class AssetsService {
         return headObject?.ContentLength || 0
     }
 
-    @Cron(CronExpression.EVERY_10_MINUTES)
+    //deprecated
+    //@Cron(CronExpression.EVERY_10_MINUTES)
     async updateIpCoverImage(): Promise<void> {
         const ipLibrarys = await this.prismaService.ip_library.findMany({
             where: {
@@ -460,7 +461,8 @@ export class AssetsService {
         }
     }
 
-    @Cron(CronExpression.EVERY_MINUTE)
+    //deprecated
+    //@Cron(CronExpression.EVERY_MINUTE)
     async migrateAsset(): Promise<void> {
         if (process.env.TASK_SLOT != "1") {
             return
@@ -606,7 +608,8 @@ export class AssetsService {
         await UtilitiesService.stopTask(taskId)
     }
 
-    @Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_MINUTE)
+    //deprecated
     async migrateThumbnail(): Promise<void> {
         if (process.env.TASK_SLOT != "1") {
             return
