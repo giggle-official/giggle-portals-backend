@@ -19,6 +19,7 @@ import { PaymentModule } from "src/payment/payment.module"
 import { HttpModule } from "@nestjs/axios"
 import { UsersService } from "./developer/users.service"
 import { Web3Module } from "src/web3/web3.module"
+import { UtilitiesService } from "src/common/utilities.service"
 
 @Module({
     imports: [
@@ -34,7 +35,15 @@ import { Web3Module } from "src/web3/web3.module"
         JwtModule.register({ secret: process.env.SESSION_SECRET }),
     ],
     controllers: [OpenAppController, AuthController, DeveloperController, LinkController],
-    providers: [OpenAppService, PrismaService, AuthService, DeveloperService, LinkService, UsersService],
+    providers: [
+        OpenAppService,
+        PrismaService,
+        AuthService,
+        DeveloperService,
+        LinkService,
+        UsersService,
+        UtilitiesService,
+    ],
     exports: [LinkService, OpenAppService],
 })
 export class OpenAppModule {}

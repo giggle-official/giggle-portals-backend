@@ -70,6 +70,9 @@ export class OpenAppService {
 
         @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
+
+        @Inject(forwardRef(() => UtilitiesService))
+        private readonly utilitiesService: UtilitiesService,
     ) {}
 
     async getAppDetail(appId: string, userToken: string): Promise<AppInfoDto> {
@@ -667,11 +670,11 @@ export class OpenAppService {
         icon.originalname = icon.originalname.split(".")[0] + ".png"
 
         // Upload both versions
-        const icon512Url = await UtilitiesService.uploadToPublicS3(
+        const icon512Url = await this.utilitiesService.uploadToPublicS3(
             { ...icon, buffer: icon512 },
             userInfo.usernameShorted,
         )
-        const icon192Url = await UtilitiesService.uploadToPublicS3(
+        const icon192Url = await this.utilitiesService.uploadToPublicS3(
             { ...icon, buffer: icon192 },
             userInfo.usernameShorted,
         )

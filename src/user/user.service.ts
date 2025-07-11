@@ -42,6 +42,7 @@ import { Prisma } from "@prisma/client"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
+import sharp from "sharp"
 
 @Injectable()
 export class UserService {
@@ -55,6 +56,9 @@ export class UserService {
 
         @Inject(forwardRef(() => LinkService))
         private readonly linkService: LinkService,
+
+        @Inject(forwardRef(() => UtilitiesService))
+        private readonly utilitiesService: UtilitiesService,
     ) {}
 
     async getUserInfoByEmail(email: string, app_id?: string): Promise<UserInfoDTO> {
@@ -546,7 +550,7 @@ export class UserService {
                 }
 
                 // Upload to S3
-                const avatarUrl = await UtilitiesService.uploadToPublicS3(mockFile, usernameShorted)
+                const avatarUrl = await this.utilitiesService.uploadToPublicS3(mockFile, usernameShorted)
 
                 // Update user record with avatar URL
                 await this.prisma.users.update({
@@ -763,7 +767,18 @@ export class UserService {
 
     async updateAvatar(userInfo: UserJwtExtractDto, avatar: Express.Multer.File) {
         try {
-            const result = await UtilitiesService.uploadToPublicS3(avatar, userInfo.usernameShorted)
+            //resize avatar to 300x300
+            const resizedAvatar = await sharp(avatar.buffer)
+                .resize(300, 300, {
+                    fit: "cover",
+                    position: "center",
+                })
+                .toBuffer()
+
+            const result = await this.utilitiesService.uploadToPublicS3(
+                { ...avatar, buffer: resizedAvatar },
+                userInfo.usernameShorted,
+            )
             await this.prisma.users.update({
                 where: {
                     username_in_be: userInfo.usernameShorted,

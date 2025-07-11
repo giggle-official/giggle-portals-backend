@@ -508,7 +508,9 @@ export class AssetsService {
             const avatarBuffer = avatarContent.data as any
             const contentType = avatarContent.headers["content-type"]
 
-            const avatarKey = `${s3Info.s3_prefix}/ipos/${user.username_in_be}.avatar.${contentType.split("/")[1]}`
+            //generate a random avatar key
+            const randomString = Math.random().toString(36).substring(2, 15)
+            const avatarKey = `${s3Info.s3_prefix}/ipos/${randomString}.avatar.${contentType.split("/")[1]}`
 
             const thumbnailBuffer = await sharp(avatarBuffer).resize({ width: 300 }).toBuffer()
 
