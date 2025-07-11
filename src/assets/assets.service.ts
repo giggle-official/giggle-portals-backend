@@ -466,7 +466,8 @@ export class AssetsService {
         }
     }
 
-    @Cron(CronExpression.EVERY_MINUTE)
+    //deprecated
+    //@Cron(CronExpression.EVERY_MINUTE)
     async migrateAvatar(): Promise<void> {
         if (process.env.TASK_SLOT != "1") {
             return
