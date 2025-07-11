@@ -33,6 +33,9 @@ import { createReadStream } from "fs"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import * as cliProgress from "cli-progress"
 import { String } from "aws-sdk/clients/codebuild"
+import { HttpService } from "@nestjs/axios"
+import { lastValueFrom, tap } from "rxjs"
+import { Readable } from "stream"
 
 const ffmpeg = require("fluent-ffmpeg")
 
@@ -48,6 +51,8 @@ export class AssetsService {
 
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
+
+        private readonly httpService: HttpService,
     ) {}
 
     async getAssets(user: UserJwtExtractDto, query: AssetListReqDto): Promise<AssetsListResDto> {
@@ -458,6 +463,59 @@ export class AssetsService {
                     data: { cover_images: [{ ...ipCoverImage, key: asset.path, asset_id: asset.asset_id }] },
                 })
             }
+        }
+    }
+
+    @Cron(CronExpression.EVERY_MINUTE)
+    async migrateAvatar(): Promise<void> {
+        const s3Info = await this.utilitiesService.getS3Info(true)
+        const cloudFrontUrl = process.env.CLOUDFRONT_DOMAIN
+        const users = await this.prismaService.users.findMany({
+            where: {
+                NOT: {
+                    OR: [{ avatar: { startsWith: cloudFrontUrl } }],
+                },
+                avatar: {
+                    not: null,
+                },
+            },
+        })
+        if (!users) {
+            this.logger.log("No users need to migrate")
+            return
+        }
+
+        const s3Client = await this.utilitiesService.getS3Client(true)
+
+        for (const user of users) {
+            this.logger.log(`Migrating avatar for user ${user.username_in_be}`)
+            if (!user.avatar) continue
+            const avatarContent = await lastValueFrom(
+                this.httpService.get(user.avatar, {
+                    responseType: "arraybuffer",
+                }),
+            )
+            const avatarBuffer = avatarContent.data as any
+            const contentType = avatarContent.headers["content-type"]
+
+            const avatarKey = `${s3Info.s3_prefix}/ipos/${user.username_in_be}.avatar.${contentType.split("/")[1]}`
+
+            const thumbnailBuffer = await sharp(avatarBuffer).resize({ width: 300 }).toBuffer()
+
+            await s3Client
+                .putObject({
+                    Bucket: s3Info.s3_bucket,
+                    Key: avatarKey,
+                    Body: thumbnailBuffer,
+                    ContentType: contentType,
+                })
+                .promise()
+            const avatarUrl = await this.utilitiesService.createS3SignedUrl(avatarKey)
+            await this.prismaService.users.update({
+                where: { id: user.id },
+                data: { avatar: avatarUrl },
+            })
+            this.logger.log(`✅ Migrating avatar for user ${user.username_in_be} completed`)
         }
     }
 

@@ -6,9 +6,10 @@ import { UtilitiesService } from "src/common/utilities.service"
 import { TaskModule } from "src/task/task.module"
 import { IpLibraryModule } from "src/ip-library/ip-library.module"
 import { UserModule } from "src/user/user.module"
+import { HttpModule } from "@nestjs/axios"
 
 @Module({
-    imports: [TaskModule, forwardRef(() => IpLibraryModule), forwardRef(() => UserModule)],
+    imports: [TaskModule, forwardRef(() => IpLibraryModule), forwardRef(() => UserModule), HttpModule],
     controllers: [AssetsController],
     providers: [AssetsService, PrismaService, UtilitiesService],
     exports: [AssetsService],

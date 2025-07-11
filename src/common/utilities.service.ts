@@ -19,7 +19,7 @@ export class UtilitiesService {
     private readonly logger = new Logger(UtilitiesService.name)
     private readonly cloudFrontDomain: string
 
-    constructor(private readonly prismaService: PrismaService) {
+    constructor() {
         if (!process.env.CLOUDFRONT_KEY_PAIR_ID || !process.env.CLOUDFRONT_PRIVATE_KEY_PATH) {
             throw new Error("CloudFront key pair id or private key path not found")
         }
