@@ -188,6 +188,7 @@ export class UserJwtExtractDto extends PickType(UserInfoDTO, [
     "is_developer",
     "wallet_address",
     "avatar",
+    "app_id",
 ]) {
     @ApiProperty()
     widget_session_id?: string

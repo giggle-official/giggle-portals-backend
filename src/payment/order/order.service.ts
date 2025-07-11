@@ -58,6 +58,12 @@ import {
 import { Decimal } from "@prisma/client/runtime/library"
 import { JwtService } from "@nestjs/jwt"
 import { CreditService } from "../credit/credit.service"
+
+interface CreateOrderOptions {
+    related_to_reward_pool?: boolean
+    is_credit_top_up?: boolean
+}
+
 @Injectable()
 export class OrderService {
     public readonly logger = new Logger(OrderService.name)
@@ -93,11 +99,14 @@ export class OrderService {
     async createOrder(
         order: CreateOrderDto,
         requester: UserJwtExtractDto,
-        app_id: string = "", // this value will replaced if app_id exists in the user's widget info
+        options: CreateOrderOptions = {
+            related_to_reward_pool: true,
+            is_credit_top_up: false,
+        },
     ): Promise<OrderDetailDto> {
         let userProfile = null
         let owner = ""
-        let appId = app_id
+        let appId = ""
         let widgetTag = ""
 
         const isDeveloperRequester = requester.developer_info ? true : false
@@ -156,47 +165,52 @@ export class OrderService {
         let relatedRewardId = null
         let rewardsModelSnapshot = null
 
-        if (order.reward_token) {
-            const pool = await this.rewardsPoolService.getPools({
-                token: order.reward_token,
-                page: "1",
-                page_size: "1",
-            })
-            if (!pool || pool.pools.length === 0) {
-                throw new BadRequestException("Rewards token not found")
-            }
+        if (options.related_to_reward_pool) {
+            //if relate reward pool is true, we need relate the reward pool to the order
+            if (order.reward_token) {
+                const pool = await this.rewardsPoolService.getPools({
+                    token: order.reward_token,
+                    page: "1",
+                    page_size: "1",
+                })
+                if (!pool || pool.pools.length === 0) {
+                    throw new BadRequestException("Rewards token not found")
+                }
 
-            const tokenIp = await this.prisma.ip_library.findFirst({
-                where: {
-                    token_mint: order.reward_token,
-                },
-            })
+                const tokenIp = await this.prisma.ip_library.findFirst({
+                    where: {
+                        token_mint: order.reward_token,
+                    },
+                })
 
-            if (!tokenIp) {
-                throw new BadRequestException("Can not find ip info for this rewards token")
-            }
+                if (!tokenIp) {
+                    throw new BadRequestException("Can not find ip info for this rewards token")
+                }
 
-            const IpRelations = await this.prisma.ip_library_child.findFirst({
-                where: {
-                    ip_id: tokenIp.id,
-                },
-            })
+                const IpRelations = await this.prisma.ip_library_child.findFirst({
+                    where: {
+                        ip_id: tokenIp.id,
+                    },
+                })
 
-            if (tokenIp.id !== appBindIp.ip_id && IpRelations?.parent_ip !== appBindIp.ip_id) {
-                throw new ForbiddenException("This ip is not allowed to be use in current app")
-            }
+                if (tokenIp.id !== appBindIp.ip_id && IpRelations?.parent_ip !== appBindIp.ip_id) {
+                    throw new ForbiddenException("This ip is not allowed to be use in current app")
+                }
 
-            relatedRewardId = pool.pools[0].id
-            rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
-        } else {
-            const rewardPool = await this.rewardsPoolService.getPools({
-                app_id: appId,
-                page: "1",
-                page_size: "1",
-            })
-            if (rewardPool && rewardPool.pools.length > 0) {
-                relatedRewardId = rewardPool?.pools?.[0]?.id
-                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(rewardPool?.pools?.[0]?.token)
+                relatedRewardId = pool.pools[0].id
+                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
+            } else {
+                const rewardPool = await this.rewardsPoolService.getPools({
+                    app_id: appId,
+                    page: "1",
+                    page_size: "1",
+                })
+                if (rewardPool && rewardPool.pools.length > 0) {
+                    relatedRewardId = rewardPool?.pools?.[0]?.id
+                    rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(
+                        rewardPool?.pools?.[0]?.token,
+                    )
+                }
             }
         }
 
@@ -244,8 +258,18 @@ export class OrderService {
 
         //check if order amount is valid
         let paymentMethod = OrderService.defaultPaymentMethod
+
+        if (order.allowed_payment_methods && order.allowed_payment_methods.length > 0) {
+            paymentMethod = order.allowed_payment_methods.filter((method) =>
+                OrderService.defaultPaymentMethod.includes(method),
+            )
+            if (paymentMethod.length === 0) {
+                throw new BadRequestException("Unsupported payment method")
+            }
+        }
+
         if (order.amount < 100) {
-            paymentMethod = [PaymentMethod.WALLET, PaymentMethod.WECHAT, PaymentMethod.CREDIT]
+            paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
         }
 
         const record = await this.prisma.orders.create({
@@ -268,6 +292,7 @@ export class OrderService {
                 callback_url: order.callback_url,
                 expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
                 from_source_link: sourceLink,
+                is_credit_top_up: options.is_credit_top_up,
             },
         })
         return await this.mapOrderDetail(record)
@@ -405,6 +430,7 @@ export class OrderService {
             owner: data.owner,
             widget_tag: data.widget_tag,
             app_id: data.app_id,
+            is_credit_top_up: data.is_credit_top_up,
             amount: data.amount,
             description: data.description,
             current_status: data.current_status as OrderStatus,
@@ -970,9 +996,19 @@ export class OrderService {
         const order = await this.prisma.orders.findUnique({
             where: { order_id: orderId },
         })
-        if (!order || !callbackUrl) {
+        if (!order) {
             return
         }
+
+        //issue credit if order is credit top up
+        if (order.is_credit_top_up) {
+            await this.creditService.issueCredit(order)
+        }
+
+        if (!callbackUrl) {
+            return
+        }
+
         const orderDetail: OrderCallbackDto = {
             ...(await this.mapOrderDetail(order)),
             jwt_verify: "",

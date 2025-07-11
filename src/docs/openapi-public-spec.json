@@ -2027,6 +2027,38 @@
         ]
       }
     },
+    "/api/v1/credit/top-up": {
+      "post": {
+        "operationId": "CreditController_topUp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopUpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a top up credit order",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/credit/statement": {
       "get": {
         "operationId": "CreditController_getStatements",
@@ -6122,6 +6154,10 @@
             "type": "string",
             "description": "The app id of the order created by"
           },
+          "is_credit_top_up": {
+            "type": "boolean",
+            "description": "The is credit top up of the order"
+          },
           "current_status": {
             "type": "string",
             "description": "The current status of the order"
@@ -6259,6 +6295,7 @@
           "amount",
           "ip_id",
           "owner",
+          "is_credit_top_up",
           "current_status",
           "paid_method",
           "release_rewards_after_paid",
@@ -6297,6 +6334,19 @@
           "reward_token": {
             "type": "string",
             "description": "The token of the order rewards, if not provided, the default token will be used, this token must be app bind ip or child ip of app bind ip"
+          },
+          "allowed_payment_methods": {
+            "type": "array",
+            "description": "The allowed payment methods of the order, if not provided, the default payment method will be used",
+            "items": {
+              "type": "string",
+              "enum": [
+                "stripe",
+                "wallet",
+                "wechat",
+                "credit"
+              ]
+            }
           },
           "description": {
             "type": "string",
@@ -6359,6 +6409,10 @@
           "app_id": {
             "type": "string",
             "description": "The app id of the order created by"
+          },
+          "is_credit_top_up": {
+            "type": "boolean",
+            "description": "The is credit top up of the order"
           },
           "paid_method": {
             "type": "string",
@@ -6488,6 +6542,7 @@
           "amount",
           "ip_id",
           "owner",
+          "is_credit_top_up",
           "paid_method",
           "release_rewards_after_paid",
           "supported_payment_method",
@@ -6700,6 +6755,10 @@
             "type": "string",
             "description": "The app id of the order created by"
           },
+          "is_credit_top_up": {
+            "type": "boolean",
+            "description": "The is credit top up of the order"
+          },
           "current_status": {
             "type": "string",
             "description": "The current status of the order"
@@ -6841,6 +6900,7 @@
           "amount",
           "ip_id",
           "owner",
+          "is_credit_top_up",
           "current_status",
           "paid_method",
           "release_rewards_after_paid",
@@ -7359,6 +7419,22 @@
         "required": [
           "statements",
           "total"
+        ]
+      },
+      "TopUpDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount of the top up, every 1 credit is 0.01 USDC, minimum 500 credits and must be integer"
+          },
+          "callback_url": {
+            "type": "string",
+            "description": "The callback url when status changed of top up order"
+          }
+        },
+        "required": [
+          "amount"
         ]
       },
       "CreditStatementDetailDto": {

@@ -8,8 +8,6 @@ import { IpLibraryService } from "../ip-library.service"
 import { AssetsService } from "src/assets/assets.service"
 import { CheckIpOrderDto, CheckIpOrderListDto, IpCreateStatus, OrderRanksResponseDto } from "./ip-order.dto"
 import { Cron, CronExpression } from "@nestjs/schedule"
-import { lastValueFrom, Observable, take, tap, toArray } from "rxjs"
-import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { UserService } from "src/user/user.service"
 import { third_level_ip_orders } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -106,7 +104,7 @@ export class IpOrderService {
             callback_url: `${process.env.FRONTEND_URL}/api/v1/ip/order/callback`,
             release_rewards_after_paid: true,
         }
-        const orderDetail = await this.orderService.createOrder(orderInfo, user, app_id)
+        const orderDetail = await this.orderService.createOrder(orderInfo, user)
 
         //record ip order
         await this.prisma.third_level_ip_orders.create({

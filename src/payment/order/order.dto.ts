@@ -72,6 +72,11 @@ export class OrderDto implements orders {
     app_id: string
 
     @ApiProperty({
+        description: "The is credit top up of the order",
+    })
+    is_credit_top_up: boolean
+
+    @ApiProperty({
         description: "The current status of the order",
     })
     current_status: OrderStatus
@@ -408,6 +413,15 @@ export class CreateOrderDto {
         required: false,
     })
     reward_token?: string
+
+    @ApiProperty({
+        description:
+            "The allowed payment methods of the order, if not provided, the default payment method will be used",
+        required: false,
+        enum: PaymentMethod,
+        isArray: true,
+    })
+    allowed_payment_methods?: PaymentMethod[]
 
     @ApiProperty({ description: "The description of the order", required: false })
     description?: string

@@ -1,27 +1,27 @@
-import { Body, Controller, Post, Req, UseGuards, Headers, Get, Query } from "@nestjs/common"
+import { Body, Controller, Post, Req, UseGuards, Get, Query } from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import { GetStatementQueryDto, GetStatementsResponseDto, TopUpDto } from "./credit.dto"
 import { Request } from "express"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { OrderDetailDto } from "../order/order.dto"
 import { AuthGuard } from "@nestjs/passport"
-import { ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
+import { ApiOperation, ApiResponse, ApiBody } from "@nestjs/swagger"
 
 @Controller("/api/v1/credit")
 export class CreditController {
     constructor(private readonly creditService: CreditService) {}
 
     @Post("/top-up")
-    @ApiExcludeEndpoint()
+    @ApiOperation({ summary: "Create a top up credit order", tags: ["Credit"] })
+    @ApiResponse({
+        type: OrderDetailDto,
+    })
+    @ApiBody({
+        type: TopUpDto,
+    })
     @UseGuards(AuthGuard("jwt"))
-    async topUp(@Body() body: TopUpDto, @Req() req: Request, @Headers("app-id") appId: string) {
-        return this.creditService.topUp(body, req.user as UserJwtExtractDto, appId)
-    }
-
-    @Post("/top-up-callback")
-    @ApiExcludeEndpoint()
-    async topUpCallback(@Body() body: OrderDetailDto) {
-        return this.creditService.topUpCallback(body)
+    async topUp(@Body() body: TopUpDto, @Req() req: Request) {
+        return this.creditService.topUp(body, req.user as UserJwtExtractDto)
     }
 
     @Get("/statement")

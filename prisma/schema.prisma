@@ -860,6 +860,7 @@ model orders {
   customer_ip                    String?                 @db.VarChar(32)
   widget_tag                     String?                 @db.VarChar(32)
   app_id                         String?                 @db.VarChar(32)
+  is_credit_top_up               Boolean?                @default(false)
   current_status                 String?                 @db.VarChar(32)
   paid_method                    String?                 @db.VarChar(32)
   stripe_invoice_id              String?                 @db.VarChar(32)

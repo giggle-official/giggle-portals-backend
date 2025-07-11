@@ -6,7 +6,7 @@ import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/or
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
 import { v4 as uuidv4 } from "uuid"
-import { credit_statement_type, Prisma } from "@prisma/client"
+import { credit_statement_type, orders, Prisma } from "@prisma/client"
 
 @Injectable()
 export class CreditService {
@@ -39,87 +39,51 @@ export class CreditService {
         return 0
     }
 
-    async topUp(body: TopUpDto, userInfo: UserJwtExtractDto, appId: string): Promise<OrderDetailDto> {
+    async topUp(body: TopUpDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const user = await this.userService.getProfile(userInfo)
         if (!user) {
             throw new BadRequestException("User not found")
         }
 
-        const orderId = uuidv4()
-        const callbackUrl = `${process.env.FRONTEND_URL}/api/v1/credit/top-up-callback`
-
-        let ipId = null
-        let widgetTag = null
-
-        //if app_id, find binded widget and ip
-        if (appId) {
-            const appBindIp = await this.prisma.app_bind_ips.findFirst({
-                where: { app_id: appId },
-            })
-
-            const appBindWidget = await this.prisma.app_bind_widgets.findFirst({
-                where: { app_id: appId, widget_tag: { not: "login_from_external" }, enabled: true },
-            })
-
-            ipId = appBindIp?.ip_id
-            widgetTag = appBindWidget?.widget_tag
-        }
-
-        const record = await this.prisma.orders.create({
-            data: {
-                order_id: orderId,
-                owner: user.user_id,
-                widget_tag: widgetTag,
-                app_id: appId,
-                ip_id: ipId,
+        return await this.orderService.createOrder(
+            {
                 amount: body.amount,
                 description: `Top up ${body.amount} credits`,
-                related_reward_id: null,
-                rewards_model_snapshot: null,
-                costs_allocation: null,
-                ip_holder_revenue_reallocation: null,
+                callback_url: body.callback_url,
                 release_rewards_after_paid: false,
-                current_status: OrderStatus.PENDING,
-                supported_payment_method: [PaymentMethod.WALLET, PaymentMethod.WECHAT, PaymentMethod.STRIPE],
-                redirect_url: null,
-                callback_url: callbackUrl,
-                expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
-                from_source_link: null,
+                allowed_payment_methods: [PaymentMethod.STRIPE, PaymentMethod.WECHAT, PaymentMethod.WALLET],
             },
-        })
-        return await this.orderService.mapOrderDetail(record)
+            userInfo,
+            {
+                related_to_reward_pool: false,
+                is_credit_top_up: true,
+            },
+        )
     }
 
-    async topUpCallback(body: OrderDetailDto): Promise<void> {
-        const order = await this.prisma.orders.findUnique({
-            where: {
-                order_id: body.order_id,
-            },
-        })
-        if (!order) {
-            this.logger.error(`Top-up credit order not found: ${body.order_id}`)
-            return
-        }
-        if (order.current_status !== body.current_status || order.owner !== body.owner) {
-            this.logger.error(`Top-up credit order data not match: ${body.order_id}`)
+    async issueCredit(order: orders): Promise<void> {
+        if (!order.is_credit_top_up) {
+            this.logger.error(`Top-up credit order not found: ${order.order_id}`)
             return
         }
 
         if (order.current_status !== OrderStatus.COMPLETED) {
             // we no need do anything if the order is not completed
-            this.logger.error(`Top-up credit order already completed: ${body.order_id}`)
+            this.logger.error(
+                `Top-up credit order(${order.order_id}) not completed, currents status: ${order.current_status}`,
+            )
             return
         }
 
         //check if credit is already issued
         const credit = await this.prisma.credit_statements.findFirst({
             where: {
-                order_id: body.order_id,
+                order_id: order.order_id,
             },
         })
 
         if (credit) {
-            this.logger.error(`Top-up credit already issued: ${body.order_id}`)
+            this.logger.error(`Top-up credit order(${order.order_id}) already issued`)
             return
         }
 
@@ -131,14 +95,14 @@ export class CreditService {
                 },
                 data: {
                     current_credit_balance: {
-                        increment: body.amount,
+                        increment: order.amount,
                     },
                 },
             })
             await tx.credit_statements.create({
                 data: {
-                    order_id: body.order_id,
-                    amount: body.amount,
+                    order_id: order.order_id,
+                    amount: order.amount,
                     balance: userBalanceUpdated.current_credit_balance,
                     user: order.owner,
                     type: credit_statement_type.top_up,

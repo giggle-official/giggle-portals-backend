@@ -166,6 +166,30 @@ export class UserService {
                 user_subscribed: widgetSession.user_subscribed_widget,
             }
             result.permissions = widgetSession.permission as any
+        } else if (userInfo?.app_id) {
+            //if app_id is provided, we need find app bind widget info
+            const appBindWidget = await this.prisma.app_bind_widgets.findFirst({
+                where: {
+                    app_id: userInfo.app_id,
+                    enabled: true,
+                    widget_tag: {
+                        not: "login_from_external",
+                    },
+                },
+            })
+            if (appBindWidget) {
+                const userSubscribed = await this.prisma.user_subscribed_widgets.findFirst({
+                    where: {
+                        user: userInfo.usernameShorted,
+                        widget_tag: appBindWidget.widget_tag,
+                    },
+                })
+                result.widget_info = {
+                    widget_tag: appBindWidget?.widget_tag,
+                    app_id: appBindWidget?.app_id,
+                    user_subscribed: !!userSubscribed,
+                }
+            }
         }
 
         return result

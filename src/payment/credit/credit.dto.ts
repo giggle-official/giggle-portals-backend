@@ -4,11 +4,22 @@ import { credit_statement_type, credit_statements } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 
 export class TopUpDto {
+    @ApiProperty({
+        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 500 credits and must be integer",
+    })
     @IsNotEmpty()
     @IsNumber()
     @IsInt()
     @Min(500)
     amount: number
+
+    @ApiProperty({
+        description: "The callback url when status changed of top up order",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    callback_url?: string
 }
 
 export class GetStatementQueryDto extends PaginationDto {

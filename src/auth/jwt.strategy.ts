@@ -15,9 +15,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 (req) => {
-                    let authorization = req?.headers?.["authorization"]
+                    const authorization = req?.headers?.["authorization"]
+                    const appId = req?.headers?.["app-id"]
                     const token = authorization?.split(" ")[1]
-                    if (token) return this.jwtService.sign({ token: token })
+                    if (token) return this.jwtService.sign({ token: token, app_id: appId })
                     return null
                 },
             ]),
@@ -26,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         })
     }
 
-    async validate(payload: { token: string }): Promise<UserJwtExtractDto> {
+    async validate(payload: { token: string; app_id: string }): Promise<UserJwtExtractDto> {
         try {
             const extractedPayload = this.jwtService.decode(payload.token)
             //check if token is a widget access key
@@ -55,6 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                         is_developer: userInfo.is_developer,
                         is_admin: userInfo.is_admin,
                         widget_session_id: extractedPayload?.widget_session_id,
+                        app_id: payload.app_id,
                         developer_info: {
                             usernameShorted: userInfo.username_in_be,
                             tag: widgetInfo.tag,
@@ -90,6 +92,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                 is_developer: userInfo.is_developer,
                 is_admin: userInfo.is_admin,
                 widget_session_id: extractedPayload?.widget_session_id,
+                app_id: payload.app_id,
                 developer_info: null,
             }
         } catch (error) {
