@@ -468,6 +468,16 @@ export class AssetsService {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async migrateAvatar(): Promise<void> {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+        const taskId = 999
+        if (await UtilitiesService.checkTaskRunning(taskId)) {
+            this.logger.log("Task is running, skipping")
+            return
+        }
+        await UtilitiesService.startTask(taskId)
+
         const s3Info = await this.utilitiesService.getS3Info(true)
         const cloudFrontUrl = process.env.CLOUDFRONT_DOMAIN
         const users = await this.prismaService.users.findMany({
@@ -517,6 +527,7 @@ export class AssetsService {
             })
             this.logger.log(`✅ Migrating avatar for user ${user.username_in_be} completed`)
         }
+        await UtilitiesService.stopTask(taskId)
     }
 
     //deprecated
