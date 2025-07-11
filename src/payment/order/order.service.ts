@@ -105,7 +105,7 @@ export class OrderService {
         },
     ): Promise<OrderDetailDto> {
         let userProfile = null
-        let owner = ""
+        let owner = requester.usernameShorted
         let appId = ""
         let widgetTag = ""
 
@@ -275,7 +275,7 @@ export class OrderService {
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
-                owner: userProfile.usernameShorted,
+                owner: owner,
                 ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appId,
