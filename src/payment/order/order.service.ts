@@ -36,7 +36,7 @@ import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
 import { orders, Prisma, user_rewards, users } from "@prisma/client"
-import { UserJwtExtractDto } from "src/user/user.controller"
+import { UserInfoDTO, UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
@@ -104,8 +104,7 @@ export class OrderService {
             is_credit_top_up: false,
         },
     ): Promise<OrderDetailDto> {
-        let userProfile = null
-        let owner = requester.usernameShorted
+        let userProfile: UserInfoDTO = null
         let appId = ""
         let widgetTag = ""
 
@@ -125,7 +124,6 @@ export class OrderService {
 
             userProfile = await this.userService.getProfile(user)
             //check if widget tag not valid
-            owner = userProfile.username_in_be
             appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
 
@@ -134,7 +132,6 @@ export class OrderService {
             }
         } else {
             userProfile = await this.userService.getProfile(requester)
-            owner = userProfile.usernameShorted
             appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
         }
@@ -275,7 +272,7 @@ export class OrderService {
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
-                owner: owner,
+                owner: userProfile.usernameShorted,
                 ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appId,
