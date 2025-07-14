@@ -15,6 +15,10 @@ import { JwtCaslAbilityFactory } from "src/casl/casl-ability.factory/jwt-casl-ab
 import { IpOrderController } from "./ip-order/ip-order.controller"
 import { IpOrderService } from "./ip-order/ip-order.service"
 import { PaymentModule } from "src/payment/payment.module"
+import { BlueprintService } from "./blueprint/blueprint.service"
+import { HttpModule } from "@nestjs/axios"
+import { BlueprintController } from "./blueprint/blueprint.controller"
+import { NotificationModule } from "src/notification/notification.module"
 
 @Module({
     imports: [
@@ -22,8 +26,16 @@ import { PaymentModule } from "src/payment/payment.module"
         forwardRef(() => UserModule),
         forwardRef(() => PaymentModule),
         forwardRef(() => Web3Module),
+        HttpModule,
+        NotificationModule,
     ],
-    controllers: [IpLibraryController, AnnouncementController, CommentsController, IpOrderController],
+    controllers: [
+        IpLibraryController,
+        AnnouncementController,
+        CommentsController,
+        IpOrderController,
+        BlueprintController,
+    ],
     providers: [
         IpLibraryService,
         PrismaService,
@@ -33,6 +45,7 @@ import { PaymentModule } from "src/payment/payment.module"
         CommentsService,
         JwtCaslAbilityFactory,
         IpOrderService,
+        BlueprintService,
     ],
     exports: [IpLibraryService],
 })

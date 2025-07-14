@@ -4269,6 +4269,38 @@
         ]
       }
     },
+    "/api/v1/ip-library/blueprint/generate": {
+      "post": {
+        "operationId": "BlueprintController_generateBlueprint",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateBlueprintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlueprintResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Generate blueprint for an ip library",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/app/widgets": {
       "get": {
         "operationId": "WidgetsController_getWidgets",
@@ -10524,6 +10556,27 @@
           "rank",
           "duration"
         ]
+      },
+      "GenerateBlueprintDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Natural language description of the ip blueprint"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email of the user, sending the blueprint to the user"
+          }
+        },
+        "required": [
+          "prompt",
+          "email"
+        ]
+      },
+      "BlueprintResponseDto": {
+        "type": "object",
+        "properties": {}
       },
       "WidgetSummaryDto": {
         "type": "object",

@@ -7,8 +7,8 @@ import * as path from "path"
 @Injectable()
 export class NotificationService {
     constructor(private mailgunService: MailgunService) {}
-    private readonly DEFAULT_DOMAIN = "mail.3bodylabs.ai"
-    private readonly DEFAULT_FROM = "3Bodylabs <postmaster@3bodylabs.ai>"
+    private readonly DEFAULT_DOMAIN = "mail.giggle.pro"
+    private readonly DEFAULT_FROM = "Giggle.Pro <app-noreply@giggle.pro>"
 
     async sendNotification(
         subject: string,
