@@ -307,11 +307,6 @@ export class OrderService {
     }
 
     async createAndPayCreditOrder(dto: CreateOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
-        const userProfile = await this.userService.getProfile(userInfo)
-        const needCredits = dto.amount
-        if (needCredits > userProfile.current_credit_balance) {
-            throw new BadRequestException("Insufficient credit balance")
-        }
         const order = await this.createOrder(dto, userInfo)
         //need extract user info if requester is developer
         if (userInfo.developer_info) {
