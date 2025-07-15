@@ -10,7 +10,7 @@ import {
     MaxLength,
     ArrayMaxSize,
 } from "class-validator"
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiProperty, OmitType } from "@nestjs/swagger"
 export class DeveloperWidgetCreateDto {
     @ApiProperty({
         description: "The name of the widget",

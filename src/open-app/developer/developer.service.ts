@@ -306,8 +306,8 @@ export class DeveloperService {
             })
 
             //resubscribe to widget for test users and author
-            //sub for test users
-            //find exists subscriptions
+
+            // we only allow developing widget to update test users
             let needProcessUsers = await tx.users.findMany({
                 where: {
                     email: { in: body.test_users },
@@ -322,26 +322,26 @@ export class DeveloperService {
             needProcessUsers = [...needProcessUsers, { username_in_be: user.usernameShorted }]
 
             //find need delete subscriptions
-            const needDeleteSubscriptions = await tx.user_subscribed_widgets.findMany({
-                where: {
-                    user: { notIn: needProcessUsers.map((u) => u.username_in_be) },
-                    widget_tag: body.tag,
-                },
-            })
+            /*const needDeleteSubscriptions = await tx.user_subscribed_widgets.findMany({
+                    where: {
+                        user: { notIn: needProcessUsers.map((u) => u.username_in_be) },
+                        widget_tag: body.tag,
+                    },
+                })
 
-            //delete app_bind_widgets
-            await tx.app_bind_widgets.deleteMany({
-                where: {
-                    subscription_id: { in: needDeleteSubscriptions.map((d) => d.id) },
-                },
-            })
+                //delete app_bind_widgets
+                await tx.app_bind_widgets.deleteMany({
+                    where: {
+                        subscription_id: { in: needDeleteSubscriptions.map((d) => d.id) },
+                    },
+                })
 
-            //delete exists subscriptions
-            await tx.user_subscribed_widgets.deleteMany({
-                where: {
-                    id: { in: needDeleteSubscriptions.map((d) => d.id) },
-                },
-            })
+                //delete exists subscriptions
+                await tx.user_subscribed_widgets.deleteMany({
+                    where: {
+                        id: { in: needDeleteSubscriptions.map((d) => d.id) },
+                    },
+                })*/
 
             for (const user of needProcessUsers) {
                 //if subscrption exists, continue
