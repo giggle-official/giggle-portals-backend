@@ -7,11 +7,21 @@ import { TaskModule } from "src/task/task.module"
 import { IpLibraryModule } from "src/ip-library/ip-library.module"
 import { UserModule } from "src/user/user.module"
 import { HttpModule } from "@nestjs/axios"
+import { BullModule } from "@nestjs/bullmq"
+import { IpfsUploadQueue } from "./ipfs.upload.queue"
 
 @Module({
-    imports: [TaskModule, forwardRef(() => IpLibraryModule), forwardRef(() => UserModule), HttpModule],
+    imports: [
+        TaskModule,
+        forwardRef(() => IpLibraryModule),
+        forwardRef(() => UserModule),
+        HttpModule,
+        BullModule.registerQueue({
+            name: "ipfs-upload-queue",
+        }),
+    ],
     controllers: [AssetsController],
-    providers: [AssetsService, PrismaService, UtilitiesService],
+    providers: [AssetsService, PrismaService, UtilitiesService, IpfsUploadQueue],
     exports: [AssetsService],
 })
 export class AssetsModule {}

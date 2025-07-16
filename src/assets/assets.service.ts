@@ -30,12 +30,12 @@ import * as AWS from "aws-sdk"
 import * as os from "os"
 import * as path from "path"
 import { createReadStream } from "fs"
-import { Cron, CronExpression } from "@nestjs/schedule"
 import * as cliProgress from "cli-progress"
-import { String } from "aws-sdk/clients/codebuild"
 import { HttpService } from "@nestjs/axios"
-import { lastValueFrom, tap } from "rxjs"
-import { Readable } from "stream"
+import { lastValueFrom } from "rxjs"
+import { InjectQueue, Processor } from "@nestjs/bullmq"
+import { Queue } from "bullmq"
+import { PinataSDK } from "pinata-web3"
 
 const ffmpeg = require("fluent-ffmpeg")
 
@@ -53,6 +53,9 @@ export class AssetsService {
         private readonly userService: UserService,
 
         private readonly httpService: HttpService,
+
+        @InjectQueue("ipfs-upload-queue")
+        private readonly ipfsUploadQueue: Queue,
     ) {}
 
     async getAssets(user: UserJwtExtractDto, query: AssetListReqDto): Promise<AssetsListResDto> {
@@ -275,6 +278,15 @@ export class AssetsService {
                 })
                 return created
             })
+            //put asset to ipfs queue
+            await this.ipfsUploadQueue.add(
+                "uploadAssetToIpfs",
+                { asset_id: created.asset_id },
+                {
+                    jobId: created.asset_id,
+                    attempts: 3,
+                },
+            )
             return await this.getAsset(userInfo, created.asset_id)
         } catch (error) {
             this.logger.error("Error uploading asset:", error)
@@ -435,6 +447,29 @@ export class AssetsService {
         const asset = await this.prismaService.assets.findUnique({ where: { asset_id: assetId } })
         const headObject = asset?.head_object as Record<string, any>
         return headObject?.ContentLength || 0
+    }
+
+    async uploadAssetToIpfs(path: string, assetId: string): Promise<string> {
+        //upload asset to ipfs
+        const pinata = new PinataSDK({
+            pinataJwt: process.env.PINATA_JWT,
+            pinataGateway: process.env.PINATA_GATEWAY,
+        })
+        const s3Info = await this.utilitiesService.getS3Info(false)
+        const s3Client = await this.utilitiesService.getS3Client(false)
+
+        const pinataResult = await pinata.upload.stream(
+            s3Client.getObject({ Bucket: s3Info.s3_bucket, Key: path }).createReadStream(),
+        )
+
+        await this.prismaService.assets.update({
+            where: { asset_id: assetId },
+            data: {
+                ipfs_key: pinataResult.IpfsHash,
+            },
+        })
+
+        return pinataResult.IpfsHash
     }
 
     //deprecated

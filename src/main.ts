@@ -175,7 +175,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "Web3",
-            tags: ["IP Tokens", "Web3 Tools"],
+            tags: ["IP Tokens", "Web3 Tools", "Nfts"],
         },
         {
             name: "Developer Utility",
@@ -198,7 +198,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "🌐 Web3",
-            tags: ["IP Tokens", "Web3 Tools"],
+            tags: ["IP Tokens", "Web3 Tools", "Nfts"],
         },
         {
             name: "🏠 Portals",

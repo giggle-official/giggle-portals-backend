@@ -16,13 +16,14 @@ import { LaunchAgentService } from "./launch-agent/launch-agent.service"
 import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
 import { NftController } from "./nft/nft.controller"
 import { NftService } from "./nft/nft.service"
+import { NftMintQueue } from "./nft/nft-mint.queue"
 
 @Module({
     imports: [
         HttpModule,
-        //BullModule.registerQueue({
-        //    name: "nft-mint-queue",
-        //}),
+        BullModule.registerQueue({
+            name: "nft-mint-queue",
+        }),
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),
@@ -36,6 +37,7 @@ import { NftService } from "./nft/nft.service"
         RewardPoolOnChainService,
         LaunchAgentService,
         NftService,
+        NftMintQueue,
     ],
     controllers: [GiggleController, PriceController, LaunchAgentController, NftController],
     exports: [GiggleService, IpOnChainService, PriceService, LaunchAgentService, RewardPoolOnChainService],

@@ -904,7 +904,7 @@ export class IpLibraryService {
                 throw new BadRequestException("Video asset is not a video")
             }
         }
-        return await this.uploadAssetToIpfs(imageAsset, videoAsset)
+        return { imageAsset, videoAsset }
     }
 
     async validatePurchaseStrategy(purchase_strategy: PurchaseStrategyDto) {
@@ -1492,103 +1492,6 @@ export class IpLibraryService {
         } catch (error) {
             throw new BadRequestException("Failed to register token" + error.message)
         }
-    }
-
-    async uploadAssetToIpfs(
-        imageAsset: AssetDetailDto,
-        videoAsset?: AssetDetailDto,
-    ): Promise<{ imageAsset: AssetDetailDto; videoAsset: AssetDetailDto }> {
-        return { imageAsset, videoAsset }
-        /*subscriber.next({
-            event: IpEvents.ASSET_PROCESSING,
-            message: IpEventsDetail[IpEvents.ASSET_PROCESSING].summary,
-        })
-
-        if (!imageAsset.ipfs_key) {
-            //upload cover image to ipfs
-            const uploadUrl = await this.giggleService.uploadCoverImageFromS3(imageAsset.path)
-
-            if (!uploadUrl.key || !uploadUrl.url) {
-                throw new BadRequestException("Failed to upload cover image")
-            }
-
-            await this.prismaService.assets.update({
-                where: { id: imageAsset.id },
-                data: {
-                    ipfs_key: uploadUrl.key,
-                },
-            })
-            imageAsset.ipfs_key = uploadUrl.key
-        }
-
-        if (!videoAsset) {
-            return { imageAsset, videoAsset }
-        }
-
-        if (videoAsset && !videoAsset.ipfs_key) {
-            //upload video to ipfs
-            try {
-                const pinata = new PinataSDK({
-                    pinataJwt: process.env.PINATA_JWT,
-                    pinataGateway: process.env.PINATA_GATEWAY,
-                })
-
-                const s3Info = await this.utilitiesService.getIpLibraryS3Info()
-                const s3Client = await this.utilitiesService.getS3ClientByS3Info(s3Info)
-
-                const headObject = await s3Client
-                    .headObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
-                    .promise()
-                const totalSize = headObject.ContentLength
-                let uploadedSize = 0
-
-                //sleep 500ms to wait for the file to be uploaded to s3
-                await new Promise((resolve) => setTimeout(resolve, 500))
-                const fileStream = s3Client
-                    .getObject({ Bucket: s3Info.s3_bucket, Key: videoAsset.path })
-                    .createReadStream()
-
-                let currentProgress = 0
-                let progressInterval: NodeJS.Timeout
-
-                progressInterval = setInterval(() => {
-                    subscriber.next({
-                        event: IpEvents.VIDEO_UPLOADING,
-                        message: IpEventsDetail[IpEvents.VIDEO_UPLOADING].label,
-                        data: currentProgress,
-                    })
-                }, 100)
-
-                fileStream.on("data", (chunk) => {
-                    uploadedSize += chunk.length
-                    currentProgress = (uploadedSize / totalSize) * 100
-                })
-
-                fileStream.on("end", () => {
-                    clearInterval(progressInterval)
-                    subscriber.next({
-                        event: IpEvents.VIDEO_UPLOADING,
-                        message: IpEventsDetail[IpEvents.VIDEO_UPLOADING].label,
-                        data: 100,
-                    })
-                })
-
-                const pinataResult = await pinata.upload.stream(fileStream)
-
-                await this.prismaService.assets.update({
-                    where: { id: videoAsset.id },
-                    data: {
-                        ipfs_key: pinataResult.IpfsHash,
-                    },
-                })
-                videoAsset.ipfs_key = pinataResult.IpfsHash
-            } catch (error) {
-                this.logger.error(error)
-                throw new BadRequestException("Failed to upload video to ipfs")
-            }
-        }
-        return { imageAsset, videoAsset }
-        */
     }
 
     async getCoverAssetId(ip_id: number): Promise<string> {

@@ -782,7 +782,7 @@
     },
     "/api/v1/nft/mint": {
       "post": {
-        "description": "Mint a nft from an asset, you must use our asset service to upload the asset first, return a mint task id",
+        "description": "Mint a nft from an asset, you must use our asset service to upload the asset first, this api will create a task id, you can use the task id to retrieve the nft minting status",
         "operationId": "NftController_mint",
         "parameters": [],
         "requestBody": {
@@ -814,13 +814,13 @@
         ],
         "summary": "Mint a nft from an asset",
         "tags": [
-          "NFT"
+          "Nfts"
         ]
       }
     },
     "/api/v1/nft/my": {
       "get": {
-        "description": "Retrieve users nft list",
+        "description": "Retrieve users nfts list",
         "operationId": "NftController_getMyNfts",
         "parameters": [
           {
@@ -858,6 +858,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "The status of the nft",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -872,9 +881,9 @@
             }
           }
         },
-        "summary": "Retrieve users nft",
+        "summary": "Retrieve users nfts",
         "tags": [
-          "NFT"
+          "Nfts"
         ]
       }
     },
@@ -5352,21 +5361,29 @@
       "MintNftReqDto": {
         "type": "object",
         "properties": {
-          "asset_id": {
+          "cover_asset_id": {
             "type": "string",
-            "description": "The asset id to mint"
+            "description": "The cover image asset id to mint, must be an image asset"
           },
           "name": {
             "type": "string",
-            "description": "The name of the nft"
+            "description": "The name of the nft",
+            "example": "My Nft",
+            "maxLength": 128
           },
           "description": {
             "type": "string",
-            "description": "The description of the nft"
+            "description": "The description of the nft",
+            "example": "This is my nft",
+            "maxLength": 2048
+          },
+          "video_asset_id": {
+            "type": "string",
+            "description": "The video asset id to mint, if not provided, the nft will be an image nft"
           }
         },
         "required": [
-          "asset_id",
+          "cover_asset_id",
           "name",
           "description"
         ]
@@ -5374,6 +5391,34 @@
       "NftDetailResDto": {
         "type": "object",
         "properties": {
+          "user": {
+            "type": "string",
+            "description": "User id"
+          },
+          "cover_asset_id": {
+            "type": "string",
+            "description": "Cover asset id"
+          },
+          "video_asset_id": {
+            "type": "string",
+            "description": "Video asset id"
+          },
+          "widget_tag": {
+            "type": "string",
+            "description": "Widget tag"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "App id"
+          },
+          "mint_task_id": {
+            "type": "string",
+            "description": "Task id of minting nft"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Collection name of the nft"
+          },
           "mint": {
             "type": "string",
             "description": "Nft address"
@@ -5401,6 +5446,12 @@
           }
         },
         "required": [
+          "user",
+          "cover_asset_id",
+          "video_asset_id",
+          "widget_tag",
+          "app_id",
+          "collection",
           "mint",
           "metadata",
           "mint_status",
@@ -10751,7 +10802,8 @@
       "name": "Web3",
       "tags": [
         "IP Tokens",
-        "Web3 Tools"
+        "Web3 Tools",
+        "Nfts"
       ]
     },
     {

@@ -911,6 +911,41 @@ export class GiggleService {
         return response.data.data
     }
 
+    //get unused giggle address
+    async getGiggleAddress(limit: number = 1): Promise<string[]> {
+        const signatureParams = this.generateSignature({
+            limit: limit,
+        })
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/getUnUsedGiggleAddr", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (response.data.code !== 0) {
+            this.logger.error("Failed to get giggle address: " + JSON.stringify(response.data))
+            throw new BadRequestException("Failed to get giggle address: " + response.data.msg)
+        }
+        return response.data.data
+    }
+
+    //mark giggle address as used
+    async markGiggleAddressUsed(address: string, used: boolean) {
+        const signatureParams = this.generateSignature({
+            address: address,
+            used: used,
+        })
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/confirmGiggleAddr", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (response.data.code !== 0) {
+            this.logger.error("Failed to mark giggle address as used: " + JSON.stringify(response.data))
+            return false
+        }
+        return true
+    }
+
     @Cron(CronExpression.EVERY_DAY_AT_5AM) //est time
     //@Cron(CronExpression.EVERY_5_MINUTES) //test
     async processUserWalletRecord24h() {

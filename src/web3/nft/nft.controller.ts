@@ -7,7 +7,7 @@ import { Request } from "express"
 import { UserJwtExtractDto } from "src/user/user.controller"
 
 @Controller("/api/v1/nft")
-@ApiTags("NFT")
+@ApiTags("Nfts")
 export class NftController {
     constructor(private readonly nftService: NftService) {}
 
@@ -15,7 +15,7 @@ export class NftController {
     @ApiOperation({
         summary: "Mint a nft from an asset",
         description:
-            "Mint a nft from an asset, you must use our asset service to upload the asset first, return a mint task id",
+            "Mint a nft from an asset, you must use our asset service to upload the asset first, this api will create a task id, you can use the task id to retrieve the nft minting status",
     })
     @ApiBearerAuth()
     @ApiResponse({ type: NftDetailResDto })
@@ -26,8 +26,8 @@ export class NftController {
 
     @Get("/my")
     @ApiOperation({
-        summary: "Retrieve users nft",
-        description: "Retrieve users nft list",
+        summary: "Retrieve users nfts",
+        description: "Retrieve users nfts list",
     })
     @ApiResponse({ type: MyNftListResDto })
     @UseGuards(AuthGuard("jwt"))

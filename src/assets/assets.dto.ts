@@ -324,3 +324,10 @@ export class CreateEditJobDto {
     }
     current_status: "created" | "processing" | "completed" | "failed"
 }
+
+export class UploadAssetToIpfsDto {
+    @ApiProperty({
+        description: "id of the asset",
+    })
+    asset_id: number
+}

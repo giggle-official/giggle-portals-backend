@@ -1,37 +1,43 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { nft_task_status } from "@prisma/client"
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsObject, IsString } from "class-validator"
+import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, MaxLength } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 
 export class MintNftReqDto {
     @ApiProperty({
-        description: "The asset id to mint",
+        description: "The cover image asset id to mint, must be an image asset",
     })
-    @IsNotEmpty()
     @IsString()
-    asset_id: string
+    @IsNotEmpty()
+    cover_asset_id: string
 
     @ApiProperty({
         description: "The name of the nft",
+        example: "My Nft",
+        maxLength: 128,
     })
     @IsNotEmpty()
     @IsString()
+    @MaxLength(128, { message: "Name must be less than 128 characters" })
     name: string
 
     @ApiProperty({
         description: "The description of the nft",
+        example: "This is my nft",
+        maxLength: 2048,
     })
     @IsNotEmpty()
     @IsString()
+    @MaxLength(2048, { message: "Description must be less than 2048 characters" })
     description: string
 
-    //@ApiProperty({
-    //    description:
-    //        "The callback url if mint status updated, if not provided, you can use the get task api to get the result",
-    //    required: false,
-    //})
-    //@IsString()
-    //callback_url?: string
+    @ApiProperty({
+        description: "The video asset id to mint, if not provided, the nft will be an image nft",
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    video_asset_id?: string
 }
 
 export class MyNftReqDto extends PaginationDto {
@@ -39,18 +45,75 @@ export class MyNftReqDto extends PaginationDto {
         description: "The nft address",
         required: false,
     })
-    @IsString()
+    @IsOptional()
     mint?: string
 
     @ApiProperty({
         description: "The task id",
         required: false,
     })
-    @IsString()
+    @IsOptional()
     task_id?: string
+
+    @ApiProperty({
+        description: "The status of the nft",
+        required: false,
+    })
+    @IsEnum(nft_task_status)
+    @IsOptional()
+    status?: nft_task_status
 }
 
 export class NftDetailResDto {
+    @ApiProperty({
+        description: "User id",
+    })
+    @IsNotEmpty()
+    @IsString()
+    user: string
+
+    @ApiProperty({
+        description: "Cover asset id",
+    })
+    @IsNotEmpty()
+    @IsString()
+    cover_asset_id: string
+
+    @ApiProperty({
+        description: "Video asset id",
+    })
+    @IsNotEmpty()
+    @IsString()
+    video_asset_id: string
+
+    @ApiProperty({
+        description: "Widget tag",
+    })
+    @IsNotEmpty()
+    @IsString()
+    widget_tag: string
+
+    @ApiProperty({
+        description: "App id",
+    })
+    @IsNotEmpty()
+    @IsString()
+    app_id: string
+
+    @ApiProperty({
+        description: "Task id of minting nft",
+        required: false,
+    })
+    @IsString()
+    mint_task_id: string
+
+    @ApiProperty({
+        description: "Collection name of the nft",
+    })
+    @IsNotEmpty()
+    @IsString()
+    collection: string
+
     @ApiProperty({
         description: "Nft address",
     })
@@ -109,4 +172,21 @@ export class MyNftListResDto {
     @IsNotEmpty()
     @IsNumber()
     total: number
+}
+
+export class NftMintJobDataDto {
+    user: string
+    collection: string
+    cover_asset_id: string
+    video_asset_id: string
+    name: string
+    description: string
+    notify_url: string
+}
+
+export class NftMintMiddlewareResDto {
+    isSucc: boolean
+    res: {
+        tx: string
+    }
 }

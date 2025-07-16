@@ -12,6 +12,7 @@ import {
     RegisterAssetDto,
     DeleteAssetDto,
     AssetDetailDto,
+    UploadAssetToIpfsDto,
 } from "./assets.dto"
 import { Request } from "express"
 import { AuthGuard } from "@nestjs/passport"
