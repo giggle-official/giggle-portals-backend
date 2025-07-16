@@ -10,7 +10,7 @@ interface IpfsUploadJobData {
     asset_id: string
 }
 
-@Processor("ipfs-upload-queue")
+@Processor("ipfs-upload-queue", { prefix: process.env.REDIS_PREFIX })
 export class IpfsUploadQueue extends WorkerHost {
     private readonly logger = new Logger(IpfsUploadQueue.name)
     constructor(

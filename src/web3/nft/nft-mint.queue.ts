@@ -13,7 +13,7 @@ import { HttpService } from "@nestjs/axios"
 import https from "https"
 import { ConfirmStatus } from "../giggle/giggle.dto"
 
-@Processor("nft-mint-queue")
+@Processor("nft-mint-queue", { prefix: process.env.REDIS_PREFIX })
 export class NftMintQueue extends WorkerHost {
     private readonly logger = new Logger(NftMintQueue.name)
     private readonly pinata = new PinataSDK({
