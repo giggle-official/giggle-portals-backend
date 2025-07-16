@@ -115,7 +115,6 @@ export class NftService {
     }
 
     mapNftDetail(nft: user_nfts): NftDetailResDto {
-        const mintResponse = nft.mint_response as { tx: string }
         return {
             user: nft.user,
             mint_task_id: nft.mint_task_id || "",
@@ -124,7 +123,7 @@ export class NftService {
             metadata: nft.metadata as object,
             mint_status: nft.status,
             failure_reason: nft.failure_reason,
-            tx: mintResponse?.tx || "",
+            signature: nft.signature || "",
             cover_asset_id: nft.cover_asset_id,
             video_asset_id: nft.video_asset_id,
             widget_tag: nft.widget_tag,

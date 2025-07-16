@@ -5440,9 +5440,9 @@
             "type": "string",
             "description": "Failure reason"
           },
-          "tx": {
+          "signature": {
             "type": "string",
-            "description": "Transaction hash"
+            "description": "Signature of minting nft"
           }
         },
         "required": [
@@ -5456,7 +5456,7 @@
           "metadata",
           "mint_status",
           "failure_reason",
-          "tx"
+          "signature"
         ]
       },
       "MyNftListResDto": {

@@ -351,6 +351,14 @@ export class NftMintQueue extends WorkerHost {
                 throw new Error("Failed to mark giggle address as used when minting nft: " + nftAddress)
             }
 
+            //update signature to db
+            await this.prismaService.user_nfts.update({
+                where: { mint_task_id: taskId },
+                data: {
+                    signature: signature,
+                },
+            })
+
             return { nftAddress, mintResponse: response.data, mintRequest: mintParams }
         } catch (error) {
             await this.giggleService.markGiggleAddressUsed(nftAddress, false)

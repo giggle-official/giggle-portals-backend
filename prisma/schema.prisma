@@ -1178,6 +1178,7 @@ model user_nfts {
   widget_tag     String?          @db.VarChar(64)
   app_id         String?          @db.VarChar(32)
   web3_order_sn  String?          @db.VarChar(32)
+  signature      String?          @db.Text
   failure_reason String?          @db.Text
   created_at     DateTime?        @default(now()) @db.Timestamp(0)
   updated_at     DateTime?        @default(now()) @db.Timestamp(0)

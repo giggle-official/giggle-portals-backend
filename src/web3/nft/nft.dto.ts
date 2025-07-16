@@ -149,11 +149,11 @@ export class NftDetailResDto {
     failure_reason: string
 
     @ApiProperty({
-        description: "Transaction hash",
+        description: "Signature of minting nft",
     })
     @IsNotEmpty()
     @IsString()
-    tx: string
+    signature: string
 }
 
 export class MyNftListResDto {
