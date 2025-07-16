@@ -43,7 +43,6 @@ export class NftMintQueue extends WorkerHost {
     }
 
     async process(job: Job<NftMintJobDataDto, null, string>): Promise<null> {
-        console.log("process nft mint job", job)
         let paymentSn: string | null = null
         try {
             const jobData = job.data

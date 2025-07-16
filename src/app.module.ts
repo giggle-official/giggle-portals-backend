@@ -48,7 +48,7 @@ import { BullModule } from "@nestjs/bullmq"
                 port: parseInt(process.env.REDIS_PORT),
                 password: process.env.REDIS_PASSWORD,
             },
-            prefix: "giggle-ipos",
+            prefix: process.env.REDIS_PREFIX,
         }),
     ],
     controllers: [AppController],
