@@ -5837,14 +5837,6 @@
           "name": {
             "type": "string",
             "description": "name of the asset"
-          },
-          "optimize": {
-            "type": "boolean",
-            "description": "optimize video to 360p"
-          },
-          "exported_by": {
-            "type": "string",
-            "description": "which product exported this asset, video-2-video or face-swap, etc..."
           }
         },
         "required": [

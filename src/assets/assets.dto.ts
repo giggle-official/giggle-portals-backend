@@ -224,17 +224,9 @@ export class RegisterAssetDto {
     @IsNotEmpty()
     name: string
 
-    @ApiProperty({
-        description: "optimize video to 360p",
-        required: false,
-    })
     @IsOptional()
     optimize?: boolean
 
-    @ApiProperty({
-        description: "which product exported this asset, video-2-video or face-swap, etc...",
-        required: false,
-    })
     @IsOptional()
     exported_by?: string
 }
