@@ -50,6 +50,7 @@ import { BullModule } from "@nestjs/bullmq"
                           host: process.env.REDIS_HOST,
                           port: parseInt(process.env.REDIS_PORT),
                           password: process.env.REDIS_PASSWORD,
+
                           enableReadyCheck: false,
                           enableOfflineQueue: false,
                           lazyConnect: true,
@@ -61,6 +62,8 @@ import { BullModule } from "@nestjs/bullmq"
                           commandTimeout: 5000,
                           //Disable automatic pipeline and monitoring
                           enableAutoPipelining: false,
+                          autoResubscribe: false,
+                          autoResendUnfulfilledCommands: false,
                           tls: {},
                       }
                     : {
