@@ -1,6 +1,7 @@
 import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
 import { assets } from "@prisma/client"
 import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches } from "class-validator"
+import { PaginationDto } from "src/common/common.dto"
 import { NewVideoProcessResult } from "src/task/task.dto"
 
 export const ASSETS_MAX_TAKE = 100
@@ -156,39 +157,11 @@ export class AssetsListResDto {
     total: number
 }
 
-export class AssetListReqDto {
+export class AssetListReqDto extends PaginationDto {
     @ApiProperty({
         description: "type of the asset, all, video, image",
     })
     type: string
-
-    @ApiProperty({
-        description: "category of the asset, uploads, exports, ip-clips",
-    })
-    category: string
-
-    @ApiProperty({
-        description: "which product exported this asset, video-2-video or face-swap, etc...",
-        required: false,
-    })
-    exported_by?: string
-
-    @ApiProperty({
-        description: "source video id",
-        required: false,
-    })
-    source_video?: number
-
-    @ApiProperty({
-        description: "skip number",
-        required: false,
-    })
-    skip?: number
-
-    @ApiProperty({
-        description: "take number",
-    })
-    take: number
 }
 
 export class AssetRenameReqDto extends PickType(AssetsDto, ["asset_id"] as const) {

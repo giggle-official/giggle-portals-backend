@@ -892,57 +892,30 @@
         "operationId": "AssetsController_getAssets",
         "parameters": [
           {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "type",
             "required": true,
             "in": "query",
             "description": "type of the asset, all, video, image",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "category",
-            "required": true,
-            "in": "query",
-            "description": "category of the asset, uploads, exports, ip-clips",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "exported_by",
-            "required": false,
-            "in": "query",
-            "description": "which product exported this asset, video-2-video or face-swap, etc...",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_video",
-            "required": false,
-            "in": "query",
-            "description": "source video id",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "skip",
-            "required": false,
-            "in": "query",
-            "description": "skip number",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "take",
-            "required": true,
-            "in": "query",
-            "description": "take number",
-            "schema": {
-              "type": "number"
             }
           }
         ],

@@ -64,17 +64,13 @@ export class AssetsService {
             user: user.usernameShorted,
         }
         if (query.type && query.type !== "all") where.type = query.type
-        if (query.category) where.category = query.category
-        if (query.take > ASSETS_MAX_TAKE) query.take = ASSETS_MAX_TAKE
-        if (query.exported_by) where.exported_by = query.exported_by
-        if (query.source_video) where.source_video = query.source_video
 
         if (userProfile.widget_info?.widget_tag) where.widget_tag = userProfile.widget_info.widget_tag
 
         const assets = await this.prismaService.assets.findMany({
             where,
-            skip: parseInt(query.skip.toString() || "0"),
-            take: parseInt(query.take.toString()),
+            skip: Math.max(0, parseInt(query.page.toString()) - 1) * Math.max(0, parseInt(query.page_size.toString())),
+            take: Math.max(0, parseInt(query.page_size.toString()) || 10),
             select: {
                 asset_id: true,
                 name: true,
