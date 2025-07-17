@@ -2,7 +2,6 @@ import { Processor, WorkerHost } from "@nestjs/bullmq"
 import { Job } from "bullmq"
 import { PrismaService } from "src/common/prisma.service"
 import { Logger } from "@nestjs/common"
-import { PinataSDK } from "pinata-web3"
 import { UtilitiesService } from "src/common/utilities.service"
 import { AssetsService } from "./assets.service"
 

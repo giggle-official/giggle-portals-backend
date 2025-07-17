@@ -43,27 +43,32 @@ import { BullModule } from "@nestjs/bullmq"
         StatsModule,
         //queue
         BullModule.forRoot({
-            connection: {
-                username: process.env.REDIS_USER,
-                host: process.env.REDIS_HOST,
-                port: parseInt(process.env.REDIS_PORT),
-                password: process.env.REDIS_PASSWORD,
-                // tls: process.env.REDIS_ENABLE_TLS ? {} : undefined,
-
-                //enableReadyCheck: false,
-                //enableOfflineQueue: false,
-                //lazyConnect: true,
-                //maxRetriesPerRequest: 3,
-                //retryDelayOnFailover: 100,
-
-                // Connection settings
-                //family: 4,
-                //connectTimeout: 10000,
-                //commandTimeout: 5000,
-                //
-                //// Disable automatic pipeline and monitoring
-                //enableAutoPipelining: false,
-            },
+            connection:
+                process.env.REDIS_MODE === "cluster"
+                    ? {
+                          username: process.env.REDIS_USER,
+                          host: process.env.REDIS_HOST,
+                          port: parseInt(process.env.REDIS_PORT),
+                          password: process.env.REDIS_PASSWORD,
+                          enableReadyCheck: false,
+                          enableOfflineQueue: false,
+                          lazyConnect: true,
+                          maxRetriesPerRequest: 3,
+                          retryDelayOnFailover: 100,
+                          //Connection settings
+                          family: 4,
+                          connectTimeout: 10000,
+                          commandTimeout: 5000,
+                          //Disable automatic pipeline and monitoring
+                          enableAutoPipelining: false,
+                          tls: {},
+                      }
+                    : {
+                          username: process.env.REDIS_USER,
+                          host: process.env.REDIS_HOST,
+                          port: parseInt(process.env.REDIS_PORT),
+                          password: process.env.REDIS_PASSWORD,
+                      },
             prefix: process.env.REDIS_PREFIX,
         }),
     ],
