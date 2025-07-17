@@ -50,34 +50,37 @@ export class NftService {
         const jobId = uuidv4()
 
         //create data in db
-        const nft = await this.prisma.user_nfts.create({
-            data: {
-                user: user.usernameShorted,
-                collection: userDetail.collection,
-                status: "pending",
-                mint_task_id: jobId,
-                cover_asset_id: body.cover_asset_id,
-                video_asset_id: body?.video_asset_id,
-                widget_tag: userProfile?.widget_info?.widget_tag,
-                app_id: userProfile?.widget_info?.app_id,
-            },
-        })
+        const nft = await this.prisma.$transaction(async (tx) => {
+            const nft = await tx.user_nfts.create({
+                data: {
+                    user: user.usernameShorted,
+                    collection: userDetail.collection,
+                    status: "pending",
+                    mint_task_id: jobId,
+                    cover_asset_id: body.cover_asset_id,
+                    video_asset_id: body?.video_asset_id,
+                    widget_tag: userProfile?.widget_info?.widget_tag,
+                    app_id: userProfile?.widget_info?.app_id,
+                },
+            })
 
-        //put it to queue
-        await this.nftMintQueue.add(
-            "mint-nft",
-            {
-                user: user.usernameShorted,
-                collection: userDetail.collection,
-                cover_asset_id: body.cover_asset_id,
-                video_asset_id: body?.video_asset_id,
-                name: body.name,
-                description: body.description,
-            } as NftMintJobDataDto,
-            {
-                jobId: jobId,
-            },
-        )
+            //put it to queue
+            await this.nftMintQueue.add(
+                "mint-nft",
+                {
+                    user: user.usernameShorted,
+                    collection: userDetail.collection,
+                    cover_asset_id: body.cover_asset_id,
+                    video_asset_id: body?.video_asset_id,
+                    name: body.name,
+                    description: body.description,
+                } as NftMintJobDataDto,
+                {
+                    jobId: jobId,
+                },
+            )
+            return nft
+        })
 
         return this.mapNftDetail(nft)
     }
