@@ -18,7 +18,6 @@ import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
 import { BullModule } from "@nestjs/bullmq"
-import { Cluster } from "ioredis"
 
 @Module({
     imports: [
@@ -50,9 +49,20 @@ import { Cluster } from "ioredis"
                 port: parseInt(process.env.REDIS_PORT),
                 password: process.env.REDIS_PASSWORD,
                 tls: {},
+
+                enableReadyCheck: false,
+                enableOfflineQueue: false,
                 lazyConnect: true,
                 maxRetriesPerRequest: 3,
                 retryDelayOnFailover: 100,
+
+                // Connection settings
+                family: 4,
+                connectTimeout: 10000,
+                commandTimeout: 5000,
+
+                // Disable automatic pipeline and monitoring
+                enableAutoPipelining: false,
             },
             prefix: process.env.REDIS_PREFIX,
         }),
