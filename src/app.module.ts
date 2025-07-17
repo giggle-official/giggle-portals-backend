@@ -44,24 +44,31 @@ import { Cluster } from "ioredis"
         StatsModule,
         //queue
         BullModule.forRoot({
-            connection: new Cluster(
-                [
-                    {
-                        //user: process.env.REDIS_USER,
-                        host: process.env.REDIS_HOST,
-                        port: parseInt(process.env.REDIS_PORT),
-                        //password: process.env.REDIS_PASSWORD,
-                    },
-                ],
-                {
-                    redisOptions: {
-                        username: process.env.REDIS_USER,
-                        password: process.env.REDIS_PASSWORD,
-
-                        tls: {},
-                    },
-                },
-            ),
+            connection:
+                process.env.REDIS_MODE === "cluster"
+                    ? new Cluster(
+                          [
+                              {
+                                  host: process.env.REDIS_HOST,
+                                  port: parseInt(process.env.REDIS_PORT),
+                              },
+                          ],
+                          {
+                              redisOptions: {
+                                  username: process.env.REDIS_USER,
+                                  password: process.env.REDIS_PASSWORD,
+                                  tls: {
+                                      passphrase: process.env.REDIS_PASSWORD,
+                                  },
+                              },
+                          },
+                      )
+                    : {
+                          username: process.env.REDIS_USER,
+                          host: process.env.REDIS_HOST,
+                          port: parseInt(process.env.REDIS_PORT),
+                          password: process.env.REDIS_PASSWORD,
+                      },
             prefix: process.env.REDIS_PREFIX,
         }),
     ],
