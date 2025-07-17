@@ -48,21 +48,21 @@ import { BullModule } from "@nestjs/bullmq"
                 host: process.env.REDIS_HOST,
                 port: parseInt(process.env.REDIS_PORT),
                 password: process.env.REDIS_PASSWORD,
-                tls: {},
+                // tls: process.env.REDIS_ENABLE_TLS ? {} : undefined,
 
-                enableReadyCheck: false,
-                enableOfflineQueue: false,
-                lazyConnect: true,
-                maxRetriesPerRequest: 3,
-                retryDelayOnFailover: 100,
+                //enableReadyCheck: false,
+                //enableOfflineQueue: false,
+                //lazyConnect: true,
+                //maxRetriesPerRequest: 3,
+                //retryDelayOnFailover: 100,
 
                 // Connection settings
-                family: 4,
-                connectTimeout: 10000,
-                commandTimeout: 5000,
-
-                // Disable automatic pipeline and monitoring
-                enableAutoPipelining: false,
+                //family: 4,
+                //connectTimeout: 10000,
+                //commandTimeout: 5000,
+                //
+                //// Disable automatic pipeline and monitoring
+                //enableAutoPipelining: false,
             },
             prefix: process.env.REDIS_PREFIX,
         }),

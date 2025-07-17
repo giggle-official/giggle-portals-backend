@@ -22,6 +22,13 @@ export class IpfsUploadQueue extends WorkerHost {
     }
     async process(job: Job<IpfsUploadJobData, null, string>): Promise<null> {
         try {
+            if (process.env.TASK_SLOT != "1") {
+                // Delay the job to be picked up by the correct node
+                await job.moveToDelayed(Date.now() + 5000) // 5 second delay
+                this.logger.log(`Job ${job.id} moved to delayed - not designated queue processing node`)
+                return null
+            }
+
             //upload asset to ipfs
             const asset = await this.prismaService.assets.findUnique({ where: { asset_id: job.data.asset_id } })
             if (!asset) {

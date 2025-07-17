@@ -43,6 +43,13 @@ export class NftMintQueue extends WorkerHost {
     }
 
     async process(job: Job<NftMintJobDataDto, null, string>): Promise<null> {
+        if (process.env.TASK_SLOT != "1") {
+            // Delay the job to be picked up by the correct node
+            await job.moveToDelayed(Date.now() + 5000) // 5 second delay
+            this.logger.log(`Job ${job.id} moved to delayed - not designated queue processing node`)
+            return null
+        }
+
         let paymentSn: string | null = null
         try {
             const jobData = job.data
