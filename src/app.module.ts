@@ -44,6 +44,7 @@ import { BullModule } from "@nestjs/bullmq"
         //queue
         BullModule.forRoot({
             connection: {
+                enableTLSForSentinelMode: !!process.env.REDIS_ENABLE_TLS,
                 username: process.env.REDIS_USER,
                 host: process.env.REDIS_HOST,
                 port: parseInt(process.env.REDIS_PORT),
