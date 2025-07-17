@@ -1,5 +1,5 @@
 import { Controller, HttpStatus, HttpCode, Req, Get, Query, UseGuards, Post, Body, Param } from "@nestjs/common"
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AssetsService } from "./assets.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import {
@@ -67,7 +67,8 @@ export class AssetsController {
     @Post("/register")
     @UseGuards(AuthGuard("jwt"))
     @HttpCode(HttpStatus.OK)
-    @ApiResponse({ type: RegisterAssetDto })
+    @ApiBody({ type: RegisterAssetDto })
+    @ApiResponse({ type: AssetDetailDto })
     @ApiOperation({
         summary: "Register an asset",
         description: "Register a s3 key to asset after asset was uploaded",

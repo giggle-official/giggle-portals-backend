@@ -15,7 +15,6 @@ import {
     AssetRenameReqDto,
     GetPresignedUploadUrlResDto,
     AssetDetailDto,
-    ASSETS_MAX_TAKE,
     UploadedByTaskDto,
     RegisterAssetDto,
     GetPresignedUploadUrlReqDto,
@@ -94,19 +93,8 @@ export class AssetsService {
 
         const total = await this.prismaService.assets.count({ where })
 
-        const data = await Promise.all(
-            assets.map(async (asset) => ({
-                ...asset,
-                public_url: "",
-                head_object: asset.head_object as Record<string, any>,
-                signed_url: await this.utilitiesService.createS3SignedUrl(asset.path),
-                download_url: await this.utilitiesService.createS3SignedUrl(asset.path, true),
-                thumbnail: asset.thumbnail ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail) : null,
-            })),
-        )
-
         return {
-            data,
+            data: await Promise.all(assets.map(async (asset) => this.mapAssetDetail(asset))),
             total,
         }
     }
@@ -147,6 +135,10 @@ export class AssetsService {
             })
         }
 
+        const signedUrl = await this.utilitiesService.createS3SignedUrl(asset.path)
+        const downloadUrl = await this.utilitiesService.createS3SignedUrl(asset.path, true)
+        const publicUrl = asset.path.startsWith("public/") ? signedUrl : ""
+
         return {
             asset_id: asset.asset_id,
             name: asset.name,
@@ -158,18 +150,16 @@ export class AssetsService {
             user: asset.user,
             widget_tag: asset.widget_tag,
             app_id: asset.app_id,
-            exported_by: asset.exported_by,
             source_video: asset.source_video,
             asset_info: asset.asset_info,
-            exported_by_task_id: asset.exported_by_task_id,
             thumbnail: asset.thumbnail,
             ipfs_key: asset.ipfs_key,
             head_object: asset.head_object as Record<string, any>,
-            public_url: "",
+            public_url: publicUrl,
             optimized_urls: optimizedUrls,
-            signed_url: await this.utilitiesService.createS3SignedUrl(asset.path),
-            download_url: await this.utilitiesService.createS3SignedUrl(asset.path, true),
-            thumbnail_url: asset.thumbnail ? await this.utilitiesService.createS3SignedUrl(asset.thumbnail) : null,
+            signed_url: signedUrl,
+            download_url: downloadUrl,
+            thumbnail_url: await this.utilitiesService.createS3SignedUrl(asset.thumbnail),
         }
     }
 

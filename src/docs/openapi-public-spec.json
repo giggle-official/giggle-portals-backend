@@ -1075,7 +1075,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterAssetDto"
+                  "$ref": "#/components/schemas/AssetDetailDto"
                 }
               }
             }
@@ -5452,112 +5452,6 @@
           "total"
         ]
       },
-      "AssetsDtoWithUrl": {
-        "type": "object",
-        "properties": {
-          "asset_id": {
-            "type": "string",
-            "description": "asset id of the asset"
-          },
-          "name": {
-            "type": "string",
-            "description": "name of the asset, not unique"
-          },
-          "type": {
-            "type": "string",
-            "description": "type of the asset, all, video, image"
-          },
-          "category": {
-            "type": "string",
-            "description": "category of the asset, uploads, exports, ip-clips"
-          },
-          "path": {
-            "type": "string",
-            "description": "path of the asset in s3"
-          },
-          "path_optimized": {
-            "type": "object",
-            "description": "optimized path of the asset in s3"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string",
-            "description": "created time of the asset"
-          },
-          "thumbnail": {
-            "type": "string",
-            "description": "thumbnail of the asset"
-          },
-          "exported_by": {
-            "type": "string",
-            "description": "which product exported this asset, video-2-video or face-swap, etc..."
-          },
-          "source_video": {
-            "type": "number",
-            "description": "Source video id, only available for category exports and type video, this indicates the id of the video that was exported to create this asset"
-          },
-          "asset_info": {
-            "type": "object",
-            "description": "info of the asset, normaly video or image metadata"
-          },
-          "widget_tag": {
-            "type": "string",
-            "description": "widget tag of the asset"
-          },
-          "app_id": {
-            "type": "string",
-            "description": "app id of the asset"
-          },
-          "head_object": {
-            "type": "object",
-            "description": "head object of the asset"
-          },
-          "signed_url": {
-            "type": "string",
-            "description": "signed url of the asset, for browser to access"
-          },
-          "download_url": {
-            "type": "string",
-            "description": "signed url of the asset, for download"
-          }
-        },
-        "required": [
-          "asset_id",
-          "name",
-          "type",
-          "category",
-          "path",
-          "created_at",
-          "thumbnail",
-          "exported_by",
-          "source_video",
-          "asset_info",
-          "widget_tag",
-          "app_id",
-          "head_object",
-          "signed_url",
-          "download_url"
-        ]
-      },
-      "AssetsListResDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AssetsDtoWithUrl"
-            }
-          },
-          "total": {
-            "type": "number",
-            "description": "total number of assets"
-          }
-        },
-        "required": [
-          "data",
-          "total"
-        ]
-      },
       "AssetDetailDto": {
         "type": "object",
         "properties": {
@@ -5598,10 +5492,6 @@
             "type": "string",
             "description": "thumbnail of the asset"
           },
-          "exported_by": {
-            "type": "string",
-            "description": "which product exported this asset, video-2-video or face-swap, etc..."
-          },
           "source_video": {
             "type": "number",
             "description": "Source video id, only available for category exports and type video, this indicates the id of the video that was exported to create this asset"
@@ -5609,10 +5499,6 @@
           "asset_info": {
             "type": "object",
             "description": "info of the asset, normaly video or image metadata"
-          },
-          "exported_by_task_id": {
-            "type": "string",
-            "description": "task id of the asset, only available for internal use, this indicates the id of the task that was exported to create this asset"
           },
           "ipfs_key": {
             "type": "string",
@@ -5660,10 +5546,8 @@
           "user",
           "created_at",
           "thumbnail",
-          "exported_by",
           "source_video",
           "asset_info",
-          "exported_by_task_id",
           "ipfs_key",
           "widget_tag",
           "app_id",
@@ -5673,6 +5557,25 @@
           "download_url",
           "thumbnail_url",
           "public_url"
+        ]
+      },
+      "AssetsListResDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetDetailDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "total number of assets"
+          }
+        },
+        "required": [
+          "data",
+          "total"
         ]
       },
       "AssetRenameReqDto": {

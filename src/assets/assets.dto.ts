@@ -103,7 +103,7 @@ export class AssetsDto implements assets {
     head_object: Record<string, any>
 }
 
-export class AssetDetailDto extends OmitType(AssetsDto, ["id"] as const) {
+export class AssetDetailDto extends OmitType(AssetsDto, ["id", "exported_by", "exported_by_task_id"] as const) {
     @ApiProperty({
         description: "signed url of the asset, for browser to access",
     })
@@ -135,21 +135,9 @@ export class AssetDetailDto extends OmitType(AssetsDto, ["id"] as const) {
 
 export class AssetCreateDto extends OmitType(AssetsDto, ["id", "created_at", "exported_by_task_id"] as const) {}
 
-export class AssetsDtoWithUrl extends OmitType(AssetsDto, ["id", "user", "exported_by_task_id", "ipfs_key"] as const) {
-    @ApiProperty({
-        description: "signed url of the asset, for browser to access",
-    })
-    signed_url: string
-
-    @ApiProperty({
-        description: "signed url of the asset, for download",
-    })
-    download_url: string
-}
-
 export class AssetsListResDto {
-    @ApiProperty({ type: [AssetsDtoWithUrl] })
-    data: AssetsDtoWithUrl[]
+    @ApiProperty({ type: [AssetDetailDto] })
+    data: AssetDetailDto[]
 
     @ApiProperty({
         description: "total number of assets",
