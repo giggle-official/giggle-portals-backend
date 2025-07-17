@@ -18,6 +18,7 @@ import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
 import { BullModule } from "@nestjs/bullmq"
+import { Cluster } from "ioredis"
 
 @Module({
     imports: [
@@ -43,13 +44,24 @@ import { BullModule } from "@nestjs/bullmq"
         StatsModule,
         //queue
         BullModule.forRoot({
-            connection: {
-                enableTLSForSentinelMode: !!process.env.REDIS_ENABLE_TLS,
-                username: process.env.REDIS_USER,
-                host: process.env.REDIS_HOST,
-                port: parseInt(process.env.REDIS_PORT),
-                password: process.env.REDIS_PASSWORD,
-            },
+            connection: new Cluster(
+                [
+                    {
+                        //user: process.env.REDIS_USER,
+                        host: process.env.REDIS_HOST,
+                        port: parseInt(process.env.REDIS_PORT),
+                        //password: process.env.REDIS_PASSWORD,
+                    },
+                ],
+                {
+                    redisOptions: {
+                        username: process.env.REDIS_USER,
+                        password: process.env.REDIS_PASSWORD,
+
+                        tls: {},
+                    },
+                },
+            ),
             prefix: process.env.REDIS_PREFIX,
         }),
     ],
