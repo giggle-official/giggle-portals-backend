@@ -57,9 +57,12 @@ import { Cluster } from "ioredis"
                               redisOptions: {
                                   username: process.env.REDIS_USER,
                                   password: process.env.REDIS_PASSWORD,
-                                  //tls: {
-                                  //    passphrase: process.env.REDIS_PASSWORD,
-                                  //},
+                                  showFriendlyErrorStack: true,
+                                  tls: {
+                                      checkServerIdentity: () => {
+                                          return undefined
+                                      },
+                                  },
                               },
                           },
                       )
