@@ -18,6 +18,7 @@ import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
 import { BullModule } from "@nestjs/bullmq"
+import { Cluster } from "ioredis"
 
 const redisConnection = {
     username: process.env.REDIS_USER,
@@ -50,7 +51,10 @@ const redisConnection = {
         StatsModule,
         //queue
         BullModule.forRoot({
-            connection: process.env.REDIS_MODE === "cluster" ? { ...redisConnection, tls: {} } : redisConnection,
+            connection:
+                process.env.REDIS_MODE === "cluster"
+                    ? new Cluster([redisConnection], { redisOptions: { tls: {} } })
+                    : redisConnection,
             prefix: process.env.REDIS_PREFIX,
         }),
     ],
