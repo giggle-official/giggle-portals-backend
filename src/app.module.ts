@@ -53,7 +53,10 @@ const redisConnection = {
         BullModule.forRoot({
             connection:
                 process.env.REDIS_MODE === "cluster"
-                    ? new Cluster([redisConnection], { redisOptions: { tls: {} } })
+                    ? new Cluster([redisConnection], {
+                          dnsLookup: (address, callback) => callback(null, address),
+                          redisOptions: { tls: {}, password: process.env.REDIS_PASSWORD },
+                      })
                     : redisConnection,
             prefix: process.env.REDIS_PREFIX,
         }),
