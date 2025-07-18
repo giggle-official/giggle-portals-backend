@@ -192,7 +192,8 @@ export class LaunchAgentService {
             await this.prisma.launch_agents.update({
                 where: { agent_id: dto.agent_id },
                 data: {
-                    source_wallets: result,
+                    //source_wallets: result,
+                    source_wallets: { response: response.data, filtered_result: result } as any,
                 },
             })
             return result
@@ -213,7 +214,7 @@ export class LaunchAgentService {
             throw new BadRequestException("Agent not found")
         }
 
-        const source_wallets = agent.source_wallets as any as GenerateLaunchAgentWalletsResponseDto
+        const source_wallets = (agent.source_wallets as any)?.filtered_result as any
         let allocation = {}
         source_wallets.wallets.map((wallet) => {
             allocation[wallet.address] = wallet.required_sol
@@ -253,15 +254,9 @@ export class LaunchAgentService {
         const { parsed_strategy } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
 
         //set params
-        const source_wallets = agent.source_wallets as any as GenerateLaunchAgentWalletsResponseDto
-        let allocation = {}
-        source_wallets.wallets.map((wallet) => {
-            allocation[wallet.address] = wallet.required_sol
-        })
-
         const params = {
             parsed_strategy: parsed_strategy,
-            allocation: allocation,
+            allocation: (agent.source_wallets as any)?.response?.allocation_plan,
             token_mint: initParams.token_mint,
             user_email: user.email,
             debug: this.launchAgentDebug,
