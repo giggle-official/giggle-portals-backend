@@ -56,6 +56,13 @@ export class MyNftReqDto extends PaginationDto {
     task_id?: string
 
     @ApiProperty({
+        description: "The email of the user, this is required when requester is developer",
+        required: false,
+    })
+    @IsOptional()
+    email?: string
+
+    @ApiProperty({
         description: "The status of the nft",
         required: false,
     })

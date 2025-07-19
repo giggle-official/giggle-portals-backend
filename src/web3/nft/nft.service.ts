@@ -8,6 +8,7 @@ import { GiggleService } from "src/web3/giggle/giggle.service"
 import { v4 as uuidv4 } from "uuid"
 import { UserService } from "src/user/user.service"
 import { Prisma, user_nfts } from "@prisma/client"
+import { isEmail } from "class-validator"
 
 @Injectable()
 export class NftService {
@@ -86,9 +87,27 @@ export class NftService {
     }
 
     async getMyNfts(req: UserJwtExtractDto, query: MyNftReqDto) {
-        const where: Prisma.user_nftsWhereInput = {
-            user: req.usernameShorted,
+        let userId = req.usernameShorted
+        if (req?.developer_info) {
+            if (!query.email || !isEmail(query.email)) {
+                throw new BadRequestException("Must be a valid email when requester is developer")
+            }
+            const user = await this.prisma.users.findUnique({
+                where: { email: query.email },
+            })
+            if (!user) {
+                return {
+                    nfts: [],
+                    total: 0,
+                }
+            }
+            userId = user.username_in_be
         }
+
+        const where: Prisma.user_nftsWhereInput = {
+            user: userId,
+        }
+
         if (query.mint) {
             where.mint = query.mint
         }
