@@ -86,11 +86,6 @@ export class CreateIpTokenDto {
     buySol?: number
 
     @ApiProperty({
-        description: "create amount of the ip token, minimum 0.3, in usdc",
-    })
-    createAmount: number
-
-    @ApiProperty({
         description: "buy amount of the ip token when create, in usdc",
     })
     buyAmount?: number
@@ -136,10 +131,9 @@ export class CreateIpTokenGiggleRequestDto {
     description?: string
     twitter?: string
     telegram?: string
+    amount?: number
+    isUsdc: boolean
     website?: string
-    buySol?: number
-    buyAmount?: number
-    createAmount: number
 }
 
 export class CreateIpTokenGiggleResponseDto {

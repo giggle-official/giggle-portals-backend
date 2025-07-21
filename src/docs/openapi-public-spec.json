@@ -540,7 +540,7 @@
     },
     "/api/v1/web3/price/percentage-to-credits/{percentage}": {
       "get": {
-        "description": "Convert a percentage to the price of the ip token when create ip token, percentage must be between 1 and 98",
+        "description": "Convert a percentage to the need usdcs and expect purchased giggle tokens when launch ip token, percentage must be between 1 and 98",
         "operationId": "PriceController_getPercentageToCredits",
         "parameters": [
           {
@@ -5287,11 +5287,6 @@
             "description": "usdt to be consumed",
             "example": 100
           },
-          "sols": {
-            "type": "number",
-            "description": "required solana number when buy this percentage",
-            "example": 0.008
-          },
           "giggle_tokens": {
             "type": "number",
             "description": "giggle tokens",
@@ -5300,7 +5295,6 @@
         },
         "required": [
           "usdc",
-          "sols",
           "giggle_tokens"
         ]
       },
