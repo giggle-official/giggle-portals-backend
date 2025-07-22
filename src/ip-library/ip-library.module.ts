@@ -19,6 +19,7 @@ import { BlueprintService } from "./blueprint/blueprint.service"
 import { HttpModule } from "@nestjs/axios"
 import { BlueprintController } from "./blueprint/blueprint.controller"
 import { NotificationModule } from "src/notification/notification.module"
+import { PdfService } from "src/common/pdf.service"
 
 @Module({
     imports: [
@@ -46,6 +47,7 @@ import { NotificationModule } from "src/notification/notification.module"
         JwtCaslAbilityFactory,
         IpOrderService,
         BlueprintService,
+        PdfService,
     ],
     exports: [IpLibraryService],
 })

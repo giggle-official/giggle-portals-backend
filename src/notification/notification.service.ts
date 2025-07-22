@@ -30,6 +30,37 @@ export class NotificationService {
         })
     }
 
+    // New method for sending emails with PDF attachments
+    async sendNotificationWithPdf(
+        subject: string,
+        to: string,
+        templateName: string,
+        context: any,
+        pdfBuffer: Buffer,
+        pdfFilename: string,
+        domain: string = this.DEFAULT_DOMAIN,
+        from: string = this.DEFAULT_FROM,
+    ) {
+        const templatePath = path.join(__dirname, "template", `${templateName}.hbs`)
+        const htmlTemplate = await this.readHTMLFile(templatePath)
+
+        const template = handlebars.compile(htmlTemplate)
+
+        return this.mailgunService.createEmail(domain, {
+            from: from,
+            to: to,
+            subject: subject,
+            html: template(context),
+            attachment: [
+                {
+                    data: pdfBuffer,
+                    filename: pdfFilename,
+                    contentType: "application/pdf",
+                },
+            ],
+        })
+    }
+
     async sendTextNotification(
         subject: string,
         to: string,

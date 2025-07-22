@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common"
 import { HttpService } from "@nestjs/axios"
 import { v4 as uuidv4 } from "uuid"
-import { lastValueFrom } from "rxjs"
+import { firstValueFrom, lastValueFrom } from "rxjs"
 import axios, { AxiosResponse } from "axios"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import https from "https"
 import { BlueprintResponseDto, DifyResponseDto, GenerateBlueprintDto } from "./blueprint.dto"
 import { NotificationService } from "src/notification/notification.service"
+import { PdfService } from "src/common/pdf.service"
 
 @Injectable()
 export class BlueprintService {
@@ -17,8 +18,8 @@ export class BlueprintService {
     private readonly difyRequestService: HttpService
 
     constructor(
-        private readonly httpService: HttpService,
         private readonly notificationService: NotificationService,
+        private readonly pdfService: PdfService,
     ) {
         this.difyApiUrl = process.env.DIFY_API_ENDPOINT
         this.difyApiKey = process.env.DIFY_APP_KEY
@@ -59,31 +60,50 @@ export class BlueprintService {
             const response: AxiosResponse<DifyResponseDto> = await lastValueFrom(
                 this.difyRequestService.post(this.difyApiUrl, requestBody, { headers: this.difyHttpHeaders }),
             )
-            let res: BlueprintResponseDto = JSON.parse(
-                response?.data?.data?.outputs?.text?.toString() || "{status: 'error'}",
-            )
 
-            if (res?.status !== "ok") {
-                this.logger.error(`dify api response failed: ${res}`)
-                throw new BadRequestException(`dify api response failed: ${res}`)
+            // Get markdown content from response
+            const markdownContent = response?.data?.data?.outputs?.text?.toString()
+
+            if (!markdownContent) {
+                this.logger.error(`dify api response failed: no content returned`)
+                throw new BadRequestException(`dify api response failed: no content returned`)
             }
-            res.email_sent = false
-            //send email to the user
+
+            // Create response object
+            let res: BlueprintResponseDto = {
+                status: "ok",
+                email_sent: false,
+            }
+
+            // Send email with PDF if email provided
             if (dto?.email) {
                 try {
-                    await this.notificationService.sendNotification(
+                    // Convert markdown to PDF
+                    const timestamp = new Date().toISOString().split("T")[0]
+                    const pdfFilename = `IP-Blueprint-${timestamp}.pdf`
+                    const pdfBuffer = await this.pdfService.convertMarkdownToPdf(markdownContent, pdfFilename)
+
+                    // Send email with PDF attachment
+                    await this.notificationService.sendNotificationWithPdf(
                         "Your IP Blueprint - AI-generated tokenization strategy",
                         dto.email,
-                        "ip_blueprint",
-                        res,
+                        "ip_blueprint_pdf",
+                        {
+                            user_email: dto.email,
+                            generated_date: new Date().toLocaleDateString(),
+                        },
+                        pdfBuffer,
+                        pdfFilename,
                     )
+
                     res.email_sent = true
-                    this.logger.log(`Blueprint email sent successfully to ${dto.email}`)
+                    this.logger.log(`Blueprint PDF sent successfully to ${dto.email}`)
                 } catch (emailError) {
-                    this.logger.error(`Failed to send blueprint email to ${dto.email}:`, emailError)
+                    this.logger.error(`Failed to send blueprint PDF to ${dto.email}:`, emailError)
                     res.email_sent = false
                 }
             }
+
             return res
         } catch (error) {
             this.logger.error(`request to dify api failed: ${error}`)

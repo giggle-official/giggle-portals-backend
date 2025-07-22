@@ -27,18 +27,5 @@ export class DifyResponseDto {
 
 export class BlueprintResponseDto {
     status: "ok"
-    token_strategy: {
-        type: string
-        supply: number
-        target: number
-    }
-    audience_fit: {
-        current_reach: string
-        ip_category: string
-        growth_potential: string
-    }
-    recommended_widgets: string[]
-    launch_timeline: string
-    setup_cost: number
     email_sent: boolean
 }
