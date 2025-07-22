@@ -37,10 +37,8 @@ export class PdfService {
                     "--no-zygote",
                     "--single-process",
                     "--disable-gpu",
-                    "--disable-background-timer-throttling",
-                    "--disable-backgrounding-occluded-windows",
-                    "--disable-renderer-backgrounding",
                 ],
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             })
 
             const page = await browser.newPage()
