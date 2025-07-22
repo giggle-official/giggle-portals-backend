@@ -4292,6 +4292,21 @@
         ]
       }
     },
+    "/api/v1/ip-library/blueprint/test-pdf": {
+      "post": {
+        "operationId": "BlueprintController_testPdf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "PDF test result"
+          }
+        },
+        "summary": "Test PDF generation capabilities",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/app/widgets": {
       "get": {
         "operationId": "WidgetsController_getWidgets",

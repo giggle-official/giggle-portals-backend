@@ -15,4 +15,22 @@ export class BlueprintController {
     async generateBlueprint(@Body() dto: GenerateBlueprintDto): Promise<BlueprintResponseDto> {
         return this.blueprintService.generateBlueprint(dto)
     }
+
+    @Post("/test-pdf")
+    @ApiOperation({ summary: "Test PDF generation capabilities" })
+    @ApiResponse({ status: 200, description: "PDF test result" })
+    async testPdf(): Promise<{ success: boolean; message: string }> {
+        try {
+            const testResult = await this.blueprintService.testPdfGeneration()
+            return {
+                success: testResult,
+                message: testResult ? "PDF generation test passed" : "PDF generation test failed",
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: `PDF test failed: ${error.message}`,
+            }
+        }
+    }
 }

@@ -34,9 +34,14 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont \
     ttf-dejavu \
+    ttf-liberation \
     fontconfig \
     dbus \
+    xvfb \
     && rm -rf /var/cache/apk/*
+
+# Create chromium directories and set permissions
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
 # Create a user for running Chromium (security best practice)
 RUN addgroup -g 1001 -S nodejs \
@@ -58,6 +63,9 @@ ENV NODE_ENV production
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Add memory settings for Node.js
+ENV NODE_OPTIONS="--max-old-space-size=2048 --max-semi-space-size=128"
 
 CMD ["yarn", "run", "start:prod"]
 

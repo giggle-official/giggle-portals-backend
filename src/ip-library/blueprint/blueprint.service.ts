@@ -112,4 +112,13 @@ export class BlueprintService {
             )
         }
     }
+
+    async testPdfGeneration(): Promise<boolean> {
+        try {
+            return await this.pdfService.testPdfGeneration()
+        } catch (error) {
+            this.logger.error("PDF test failed in blueprint service:", error)
+            return false
+        }
+    }
 }
