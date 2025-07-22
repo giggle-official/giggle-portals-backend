@@ -21,34 +21,7 @@ RUN yarn build
 # Deployment
 FROM reg.podwide.ai/library/node:20.14.0-alpine3.19
 WORKDIR /home/node/app 
-
-# Install system dependencies for PDF generation and media processing
-RUN apk add --no-cache \
-    curl \
-    ffmpeg \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    ttf-dejavu \
-    ttf-liberation \
-    fontconfig \
-    dbus \
-    xvfb \
-    && rm -rf /var/cache/apk/*
-
-# Create chromium directories and set permissions
-RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
-
-# Create a user for running Chromium (security best practice)
-RUN addgroup -g 1001 -S nodejs \
-    && adduser -S nextjs -u 1001
-
-# Set up font cache
-RUN fc-cache -f
+RUN apk add --no-cache curl ffmpeg
 
 ## COPY production dependencies and code
 COPY --from=build /home/node/app/dist /home/node/app/dist
@@ -60,12 +33,6 @@ EXPOSE 8090
 
 USER root
 ENV NODE_ENV production
-
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
-# Add memory settings for Node.js
-ENV NODE_OPTIONS="--max-old-space-size=2048 --max-semi-space-size=128"
 
 CMD ["yarn", "run", "start:prod"]
 
