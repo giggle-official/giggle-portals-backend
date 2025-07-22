@@ -38,10 +38,6 @@ RUN apk add --no-cache \
     dbus \
     && rm -rf /var/cache/apk/*
 
-# Configure Puppeteer to use installed Chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
 # Create a user for running Chromium (security best practice)
 RUN addgroup -g 1001 -S nodejs \
     && adduser -S nextjs -u 1001
