@@ -56,6 +56,7 @@
         "handlebars": "^4.7.8",
         "https-proxy-agent": "^7.0.5",
         "markdown-it": "^14.1.0",
+        "md-to-pdf": "^5.2.4",
         "moment": "^2.30.1",
         "nestjs-mailgun": "^4.0.3",
         "nestjs-stripe": "^1.0.0",

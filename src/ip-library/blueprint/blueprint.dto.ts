@@ -26,6 +26,7 @@ export class DifyResponseDto {
 }
 
 export class BlueprintResponseDto {
-    status: "ok"
+    status: "ok" | "error"
+    message: string
     email_sent: boolean
 }

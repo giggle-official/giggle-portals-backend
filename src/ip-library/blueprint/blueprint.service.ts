@@ -8,6 +8,7 @@ import https from "https"
 import { BlueprintResponseDto, DifyResponseDto, GenerateBlueprintDto } from "./blueprint.dto"
 import { NotificationService } from "src/notification/notification.service"
 import { PdfService } from "src/common/pdf.service"
+import * as fs from "fs"
 
 @Injectable()
 export class BlueprintService {
@@ -62,7 +63,20 @@ export class BlueprintService {
             )
 
             // Get markdown content from response
-            const markdownContent = response?.data?.data?.outputs?.text?.toString()
+            const markdownString = response?.data?.data?.outputs?.text?.toString()
+            let markdownContent = markdownString
+
+            try {
+                const { status, message } = JSON.parse(markdownString)
+                if (status === "error") {
+                    throw new Error()
+                }
+                markdownContent = message
+            } catch (error) {
+                throw new BadRequestException(
+                    `dify api response failed, please try again and provide your ip name, fans scale and type in prompt`,
+                )
+            }
 
             if (!markdownContent) {
                 this.logger.error(`dify api response failed: no content returned`)
@@ -72,6 +86,7 @@ export class BlueprintService {
             // Create response object
             let res: BlueprintResponseDto = {
                 status: "ok",
+                message: "",
                 email_sent: false,
             }
 
@@ -81,7 +96,7 @@ export class BlueprintService {
                     // Convert markdown to PDF
                     const timestamp = new Date().toISOString().split("T")[0]
                     const pdfFilename = `IP-Blueprint-${timestamp}.pdf`
-                    const pdfBuffer = await this.pdfService.convertMarkdownToPdf(markdownContent, pdfFilename)
+                    const pdfBuffer = await this.pdfService.convertMarkdownToPdf(markdownContent)
 
                     // Send email with PDF attachment
                     await this.notificationService.sendNotificationWithPdf(

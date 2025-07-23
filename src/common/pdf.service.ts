@@ -1,6 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common"
 import MarkdownIt from "markdown-it"
 import PDFDocument from "pdfkit"
+import * as fs from "fs"
+import * as path from "path"
+import * as os from "os"
+import mdToPdf from "md-to-pdf"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class PdfService {
@@ -21,27 +26,75 @@ export class PdfService {
         }
     }
 
-    async convertMarkdownToPdf(markdown: string, filename: string): Promise<Buffer> {
-        const maxRetries = 3
-        let lastError: Error
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                this.logger.log(`PDF generation attempt ${attempt}/${maxRetries} for ${filename}`)
-                return await this.generatePdf(markdown, filename)
-            } catch (error) {
-                lastError = error
-                this.logger.warn(`PDF generation attempt ${attempt} failed:`, error.message)
-
-                if (attempt === maxRetries) {
-                    this.logger.error(`All PDF generation attempts failed for ${filename}`)
-                    throw lastError
-                }
-
-                // Wait before retry
-                await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
-            }
+    async convertMarkdownToPdf(markdown: string): Promise<Buffer> {
+        //get template path
+        const tempFileName = uuidv4()
+        const pdfPath = path.join(os.tmpdir(), `${tempFileName}.pdf`)
+        const pdf = await mdToPdf(
+            {
+                content: markdown,
+            },
+            {
+                launch_options: {
+                    args: [
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--font-render-hinting=none",
+                        "--disable-font-subpixel-positioning",
+                    ],
+                },
+                css: `
+                    body {
+                        font-family: "SimSun", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                    }
+                    h1, h2, h3, h4, h5, h6 {
+                        font-family: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        color: #2c3e50;
+                    }
+                    table {
+                        font-family: "SimSun", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                    }
+                `,
+                pdf_options: {
+                    format: "A4",
+                    margin: {
+                        top: "20mm",
+                        bottom: "20mm",
+                        left: "20mm",
+                        right: "20mm",
+                    },
+                    printBackground: true,
+                },
+            },
+        )
+        if (pdf) {
+            fs.writeFileSync(pdfPath, pdf.content)
         }
+        return fs.readFileSync(pdfPath)
+        //const maxRetries = 3
+        //let lastError: Error
+        //
+        //for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        //    try {
+        //        this.logger.log(`PDF generation attempt ${attempt}/${maxRetries} for ${filename}`)
+        //        return await this.generatePdf(markdown, filename)
+        //    } catch (error) {
+        //        lastError = error
+        //        this.logger.warn(`PDF generation attempt ${attempt} failed:`, error.message)
+        //
+        //        if (attempt === maxRetries) {
+        //            this.logger.error(`All PDF generation attempts failed for ${filename}`)
+        //            throw lastError
+        //        }
+        //
+        //        // Wait before retry
+        //        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+        //    }
+        //}
     }
 
     private async generatePdf(markdown: string, filename: string): Promise<Buffer> {
