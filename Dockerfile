@@ -22,7 +22,18 @@ RUN yarn build
 # Deployment
 FROM reg.podwide.ai/library/node:20.14.0-alpine3.19
 WORKDIR /home/node/app 
-RUN apk add --no-cache curl ffmpeg chromium
+# Install Chrome dependencies and Chrome
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Tell Puppeteer to use installed Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 ## COPY production dependencies and code
 COPY --from=build /home/node/app/dist /home/node/app/dist
