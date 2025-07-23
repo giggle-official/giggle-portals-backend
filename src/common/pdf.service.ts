@@ -30,6 +30,13 @@ export class PdfService {
         //get template path
         const tempFileName = uuidv4()
         const pdfPath = path.join(os.tmpdir(), `${tempFileName}.pdf`)
+
+        // Add a test for Chinese characters
+        const hasChinese = /[\u4e00-\u9fff]/.test(markdown)
+        if (hasChinese) {
+            this.logger.log("Chinese characters detected, using CJK font configuration")
+        }
+
         const pdf = await mdToPdf(
             {
                 content: markdown,
@@ -43,21 +50,32 @@ export class PdfService {
                         "--disable-gpu",
                         "--font-render-hinting=none",
                         "--disable-font-subpixel-positioning",
-                        "--font-family='DejaVu Sans'",
+                        "--disable-web-security",
+                        "--disable-features=VizDisplayCompositor",
+                        "--font-config-dir=/etc/fonts",
+                        "--enable-font-antialiasing",
+                        "--force-device-scale-factor=1",
                     ],
                 },
                 css: `
                     body {
-                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "Noto Sans CJK SC", "WenQuanYi Zen Hei", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei", sans-serif;
                         line-height: 1.6;
                         color: #333;
+                        font-weight: 400;
                     }
                     h1, h2, h3, h4, h5, h6 {
-                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "Noto Sans CJK SC", "WenQuanYi Zen Hei", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei", sans-serif;
                         color: #2c3e50;
+                        font-weight: 600;
                     }
                     table {
-                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "Noto Sans CJK SC", "WenQuanYi Zen Hei", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei", sans-serif;
+                    }
+                    * {
+                        font-synthesis: none;
+                        -webkit-font-smoothing: antialiased;
+                        -moz-osx-font-smoothing: grayscale;
                     }
                 `,
                 pdf_options: {

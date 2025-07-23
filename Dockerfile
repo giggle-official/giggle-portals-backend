@@ -22,7 +22,7 @@ RUN yarn build
 # Deployment
 FROM reg.podwide.ai/library/node:20.14.0-alpine3.19
 WORKDIR /home/node/app 
-# Install Chrome dependencies and Chrome
+# Install Chrome dependencies and Chrome with Chinese fonts
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -32,13 +32,21 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    fontconfig
+    fontconfig \
+    # Chinese fonts
+    font-noto-cjk \
+    font-wqy-zenhei \
+    ttf-liberation \
+    # Additional useful fonts
+    font-noto-emoji
 
-ENV LANG en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV FONTCONFIG_PATH /etc/fonts
 
-# refresh system font cache
-RUN fc-cache -f -v
+# refresh system font cache and verify Chinese fonts
+RUN fc-cache -f -v && \
+    fc-list | grep -i "noto\|cjk\|wenquanyi" || echo "Warning: Chinese fonts not found"
 
 # Tell Puppeteer to use installed Chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
