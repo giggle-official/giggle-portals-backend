@@ -32,7 +32,12 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    fontconfig
+    fontconfig \
+    locales
+
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+RUN localedef -i zh_CN -c -f UTF-8 -A /usr/share/locale/locale.alias zh_CN.UTF-8
 
 # refresh system font cache
 RUN fc-cache -f -v
