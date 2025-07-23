@@ -22,6 +22,7 @@ RUN yarn build
 FROM reg.podwide.ai/library/node:20.14.0-alpine3.19
 WORKDIR /home/node/app 
 RUN apk add --no-cache curl ffmpeg chromium
+RUN npx puppeteer browsers install chrome
 
 ## COPY production dependencies and code
 COPY --from=build /home/node/app/dist /home/node/app/dist
