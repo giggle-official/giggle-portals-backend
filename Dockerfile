@@ -27,7 +27,7 @@ RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
-    fonts-wqy-zenhei \
+    ttf-dejavu \
     freetype-dev \
     harfbuzz \
     ca-certificates \
