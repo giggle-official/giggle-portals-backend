@@ -27,12 +27,13 @@ RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
+    fonts-wqy-zenhei \
     freetype-dev \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
     fontconfig
-    
+
 # refresh system font cache
 RUN fc-cache -f -v
 
