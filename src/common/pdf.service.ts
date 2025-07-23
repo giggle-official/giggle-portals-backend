@@ -48,16 +48,16 @@ export class PdfService {
                 },
                 css: `
                     body {
-                        font-family: "SimSun", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
                         line-height: 1.6;
                         color: #333;
                     }
                     h1, h2, h3, h4, h5, h6 {
-                        font-family: "SimHei", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
                         color: #2c3e50;
                     }
                     table {
-                        font-family: "SimSun", "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+                        font-family: "DejaVu Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
                     }
                 `,
                 pdf_options: {
