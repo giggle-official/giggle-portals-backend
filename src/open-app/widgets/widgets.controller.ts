@@ -12,7 +12,7 @@ import {
     Headers,
 } from "@nestjs/common"
 import { WidgetsService } from "./widgets.service"
-import { ApiExcludeController, ApiExcludeEndpoint, ApiResponse } from "@nestjs/swagger"
+import { ApiExcludeEndpoint, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { LoginResponseDto } from "../auth/auto.dto"
 import { ApiOperation, ApiTags } from "@nestjs/swagger"

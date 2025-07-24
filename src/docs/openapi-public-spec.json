@@ -1995,6 +1995,51 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "start_date",
+            "required": false,
+            "in": "query",
+            "description": "start date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_date",
+            "required": false,
+            "in": "query",
+            "description": "end date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widget_tag",
+            "required": false,
+            "in": "query",
+            "description": "widget tag",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "only_settled",
+            "required": false,
+            "in": "query",
+            "description": "only return settled statements(on chain tx confirmed) ",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

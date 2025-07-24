@@ -372,13 +372,6 @@ export class StatisticsSummaryDto {
     roles_income: StatisticsRolesDto[]
 }
 
-export class StatementQueryDto extends PaginationDto {
-    @ApiProperty({ description: "token address", required: false })
-    @IsString()
-    @IsNotEmpty()
-    token: string
-}
-
 export enum StatementType {
     RELEASED = "released",
     INJECTED = "injected",
@@ -390,6 +383,34 @@ export enum AirdropType {
     INVITE = "invite",
     INTERACT = "interact",
     OTHER = "other",
+}
+
+export class StatementQueryDto extends PaginationDto {
+    @ApiProperty({ description: "token address", required: false })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+
+    @ApiProperty({ description: "start date", required: false })
+    @IsOptional()
+    start_date?: string
+
+    @ApiProperty({ description: "end date", required: false })
+    @IsOptional()
+    end_date?: string
+
+    @ApiProperty({ description: "widget tag", required: false })
+    @IsString()
+    @IsOptional()
+    widget_tag?: string
+
+    @ApiProperty({ description: "type", required: false })
+    @IsOptional()
+    type?: StatementType
+
+    @ApiProperty({ description: "only return settled statements(on chain tx confirmed) ", required: false })
+    @IsOptional()
+    only_settled?: string
 }
 
 export class RequestAirdropDto {

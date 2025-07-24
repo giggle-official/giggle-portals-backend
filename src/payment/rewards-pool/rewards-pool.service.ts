@@ -528,11 +528,35 @@ ORDER BY d.date;`
         if (!query.token) {
             throw new BadRequestException("Token is required")
         }
-        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
-            where: { token: query.token },
-        })
+
+        const where: Prisma.reward_pool_statementWhereInput = {
+            token: query.token,
+        }
+
+        if (query.start_date) {
+            where.created_at = { gte: new Date(query.start_date) }
+        }
+
+        if (query.end_date) {
+            where.created_at = { lte: new Date(query.end_date) }
+        }
+
+        if (query.type) {
+            where.type = query.type
+        }
+
+        if (query.widget_tag) {
+            where.widget_tag = query.widget_tag
+        }
+
+        if (query.only_settled) {
+            where.chain_transaction = {
+                not: Prisma.AnyNull,
+            }
+        }
+
         const statement = await this.prisma.reward_pool_statement.findMany({
-            where: { token: query.token },
+            where,
             include: {
                 order_info: true,
             },
