@@ -543,10 +543,7 @@ export class IpLibraryService {
             data.map(async (item) => {
                 const cover_images = item.cover_images as any[]
                 item?.cover_images && delete item.cover_images
-                const cover_image =
-                    cover_images?.length > 0 && cover_images[0]?.key
-                        ? await this.utilitiesService.createS3SignedUrl(cover_images[0].key)
-                        : null
+                const cover_image = await this.getCoverImage(cover_images)
                 const cover_hash = cover_images?.[0]?.hash || null
                 const cover_asset_id = await this.getCoverAssetId(item.id)
                 const meta_data = item.meta_data as any
@@ -598,6 +595,23 @@ export class IpLibraryService {
         }
     }
 
+    async getCoverImage(coverImages: any[]): Promise<string> {
+        if (coverImages?.length > 0 && coverImages[0]?.asset_id) {
+            const assetId = coverImages[0].asset_id
+            const asset = await this.prismaService.assets.findUnique({
+                where: {
+                    asset_id: assetId,
+                },
+            })
+            if (asset?.thumbnail) {
+                return await this.utilitiesService.createS3SignedUrl(asset.thumbnail)
+            }
+        }
+        return coverImages?.length > 0 && coverImages[0]?.key
+            ? await this.utilitiesService.createS3SignedUrl(coverImages[0].key)
+            : ""
+    }
+
     async detail(
         id: string,
         is_public: boolean | null,
@@ -637,10 +651,7 @@ export class IpLibraryService {
         let cover_hash = null
         if (data?.cover_images) {
             const cover_images = data.cover_images as any[]
-            cover_image =
-                cover_images?.length > 0 && cover_images[0]?.key
-                    ? await this.utilitiesService.createS3SignedUrl(cover_images[0].key)
-                    : null
+            cover_image = await this.getCoverImage(cover_images)
             cover_hash = cover_images[0]?.hash
         }
 
@@ -671,11 +682,8 @@ export class IpLibraryService {
                 },
             })
             for (const item of parentIps) {
-                let cover_image = ""
-                let cover_hash = ""
-                const coverImage = (item.cover_images as any[]).length > 0 ? item.cover_images[0] : null
-                cover_image = coverImage?.key ? await this.utilitiesService.createS3SignedUrl(coverImage.key) : null
-                cover_hash = coverImage?.hash
+                const cover_image = await this.getCoverImage(item.cover_images as any[])
+                const cover_hash = (item.cover_images as any[])?.[0]?.hash || ""
                 parentIpInfo.push({
                     id: item.id,
                     name: item.name,
@@ -1342,10 +1350,7 @@ export class IpLibraryService {
         await Promise.all(
             childIpsDetail.map(async (item) => {
                 const onChainDetail = item.on_chain_detail as any
-                let coverImage = item.cover_images?.[0]
-                if (coverImage) {
-                    coverImage = await this.utilitiesService.createS3SignedUrl(coverImage.key)
-                }
+                const coverImage = await this.getCoverImage(item.cover_images as any[])
                 const res: IpSummaryWithChildDto = {
                     id: item.id,
                     name: item.name,
