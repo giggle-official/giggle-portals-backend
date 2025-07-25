@@ -25,6 +25,7 @@ WORKDIR /home/node/app
 # Install Chrome dependencies and Chrome with Chinese fonts
 RUN apk add --no-cache \
     chromium \
+    ffmpeg \
     nss \
     freetype \
     ttf-dejavu \
