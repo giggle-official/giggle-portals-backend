@@ -381,15 +381,8 @@ export class UserService {
             throw new BadRequestException("user email not found")
         }
         const walletDetail = await this.giggleService.getUserWalletDetail(userInfo, page, pageSize, mint)
-        const ipLicenseIncomes = await this.prisma.ip_license_income.aggregate({
-            where: {
-                allocated_to: userProfile.usernameShorted,
-            },
-            _sum: {
-                income: true,
-            },
-        })
-        const income = ipLicenseIncomes._sum.income * PriceService.CREDIT2USD_PRICE || 0
+
+        const income = 0
         const totalBalanceChange24h = await this.giggleService.getTotalBalanceChange24h(
             userProfile.usernameShorted,
             walletDetail.total_balance,
@@ -397,7 +390,7 @@ export class UserService {
 
         return {
             ...walletDetail,
-            ip_license_incomes: income || 0,
+            ip_license_incomes: income,
             total_balance_change_24h: totalBalanceChange24h || 0,
         }
     }

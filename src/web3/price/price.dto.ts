@@ -14,20 +14,11 @@ export class GiggleTokenPriceDTO {
 }
 
 export class PercentageToCreditsDTO {
-    @ApiHideProperty()
-    credits: number
-
     @ApiProperty({
         description: "usdt to be consumed",
         example: 100,
     })
     usdc: number
-
-    @ApiProperty({
-        description: "required solana number when buy this percentage",
-        example: 0.008,
-    })
-    sols: number
 
     @ApiProperty({
         description: "giggle tokens",
