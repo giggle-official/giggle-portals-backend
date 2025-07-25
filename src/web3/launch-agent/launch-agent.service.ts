@@ -455,26 +455,30 @@ export class LaunchAgentService {
             return
         }
 
-        const agents = await this.prisma.launch_agents.findMany({
-            where: { current_status: "started" },
-        })
-
-        if (agents.length > 0) {
-            this.logger.log(`Checking ${agents.length} agents status`)
-        }
-
-        for (const agent of agents) {
-            const response: AxiosResponse<any> = await lastValueFrom(
-                this.httpService.get(`${this.launchAgentUrl}/api/agent/${agent.agent_id}/status`),
-            )
-
-            await this.prisma.launch_agents.update({
-                where: { agent_id: agent.agent_id },
-                data: {
-                    current_status: response.data?.status === "idle" ? "idle" : "started",
-                    result: response.data as any,
-                },
+        try {
+            const agents = await this.prisma.launch_agents.findMany({
+                where: { current_status: "started" },
             })
+
+            if (agents.length > 0) {
+                this.logger.log(`Checking ${agents.length} agents status`)
+            }
+
+            for (const agent of agents) {
+                const response: AxiosResponse<any> = await lastValueFrom(
+                    this.httpService.get(`${this.launchAgentUrl}/api/agent/${agent.agent_id}/status`),
+                )
+
+                await this.prisma.launch_agents.update({
+                    where: { agent_id: agent.agent_id },
+                    data: {
+                        current_status: response.data?.status === "idle" ? "idle" : "started",
+                        result: response.data as any,
+                    },
+                })
+            }
+        } catch (error) {
+            this.logger.error(error)
         }
     }
 }

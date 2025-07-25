@@ -252,11 +252,12 @@ export class GiggleService {
                 twitter: params?.twitter,
                 telegram: params?.telegram,
                 website: params?.website,
-                createAmount: Number((params.createAmount * this.legalUsdcPOW).toFixed(6)),
+                isUsdc: true,
+                amount: 0,
             }
 
             if (params.buyAmount) {
-                mintParams.buyAmount = Number((params.buyAmount * this.legalUsdcPOW).toFixed(6))
+                mintParams.amount = Number((params.buyAmount * this.legalUsdcPOW).toFixed(6))
             }
 
             if (params.cover_s3_key) {
@@ -272,7 +273,7 @@ export class GiggleService {
             this.logger.log("mintParams:" + JSON.stringify(mintParams))
 
             const signaturedParams = this.generateSignature(mintParams)
-            const request = this.web3HttpService.post(this.endpoint + "/cus/usdcmint", signaturedParams, {
+            const request = this.web3HttpService.post(this.endpoint + "/cus/mint", signaturedParams, {
                 headers: { "Content-Type": "application/json" },
                 timeout: this.requestTimeout,
             })
@@ -622,6 +623,7 @@ export class GiggleService {
         const signatureParams = this.generateSignature({
             token: token,
             type: type,
+            isUsdc: false,
             amount: amount,
             email: userEmail.email,
         })

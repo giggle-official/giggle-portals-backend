@@ -1195,7 +1195,6 @@ export class IpLibraryService {
                 telegram: ipDetail.extra_info?.telegram,
                 website: ipDetail.extra_info?.website,
                 cover_s3_key: ipCoverKey?.cover_images?.[0]?.key,
-                createAmount: create_amount,
             }
 
             if (buy_amount > 0 && body.purchase_strategy.type === PurchaseStrategyType.DIRECT) {
