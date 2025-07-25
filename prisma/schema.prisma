@@ -818,6 +818,7 @@ model widgets {
   summary                 String?                   @db.Text
   pricing                 Json?
   settings                Json?
+  request_permissions     Json?
   access_key              String?                   @db.VarChar(32)
   secret_key              String?                   @db.VarChar(64)
   is_featured             Boolean?

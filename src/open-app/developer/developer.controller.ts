@@ -18,6 +18,8 @@ import { Request } from "express"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
 import { UsersService } from "./users.service"
 import * as nationCodes from "./nation-codes.json"
+import { LoginResponseDto } from "../auth/auto.dto"
+import { GetUserTokenDto } from "./users.dto"
 
 @Controller("/api/v1/developer")
 @ApiTags("Widgets Management")
@@ -109,5 +111,17 @@ export class DeveloperController {
     @UseGuards(IsWidgetGuard)
     async getUserInfo(@Req() req: Request, @Query("email") email: string) {
         return this.usersService.getUserInfo(req.user as UserJwtExtractDto, email)
+    }
+
+    //get user info
+    @Post("/get-user-token")
+    @ApiBearerAuth("jwt")
+    @ApiTags("Developer Utility")
+    @ApiOperation({ summary: "get user token" })
+    @ApiResponse({ type: LoginResponseDto })
+    @ApiBody({ type: GetUserTokenDto })
+    @UseGuards(IsDeveloperGuard)
+    async getUserToken(@Req() req: Request, @Body() body: GetUserTokenDto) {
+        return this.usersService.getToken(req.user as UserJwtExtractDto, body)
     }
 }

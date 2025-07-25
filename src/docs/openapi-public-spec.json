@@ -1415,6 +1415,38 @@
         ]
       }
     },
+    "/api/v1/order/wallet-quick-pay": {
+      "post": {
+        "operationId": "OrderController_payOrderWithWallet",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an order and pay with wallet",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
     "/api/v1/order/refund": {
       "post": {
         "description": "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
@@ -2793,6 +2825,44 @@
           }
         ],
         "summary": "get user info",
+        "tags": [
+          "Widgets Management",
+          "Developer Utility"
+        ]
+      }
+    },
+    "/api/v1/developer/get-user-token": {
+      "post": {
+        "operationId": "DeveloperController_getUserToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetUserTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "get user token",
         "tags": [
           "Widgets Management",
           "Developer Utility"
@@ -4551,7 +4621,7 @@
       "description": "Development Environment"
     },
     {
-      "url": "http://app.local.giggle.pro",
+      "url": "https://app.local.giggle.pro",
       "description": "Local Environment"
     },
     {
@@ -9135,6 +9205,23 @@
         },
         "required": [
           "countries"
+        ]
+      },
+      "GetUserTokenDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "email"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "email"
+          }
+        },
+        "required": [
+          "email",
+          "app_id"
         ]
       },
       "CreateLinkRequestDto": {

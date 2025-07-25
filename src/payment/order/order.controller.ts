@@ -170,6 +170,16 @@ export class OrderController {
         return await this.orderService.createAndPayCreditOrder(body, req.user as UserJwtExtractDto)
     }
 
+    @Post("/wallet-quick-pay")
+    @ApiOperation({ summary: "Create an order and pay with wallet", tags: ["Order"] })
+    @ApiBody({ type: CreateOrderDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payOrderWithWallet(@Body() body: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return await this.orderService.createOrderAndPayWithWallet(body, req.user as UserJwtExtractDto)
+    }
+
     @Post("/refund")
     @ApiOperation({
         summary: "Refund an order",

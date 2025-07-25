@@ -224,7 +224,7 @@ To see how to process the event stream response, please refer to the [Event Stre
 
     if (process.env.ENV === "local") {
         publicDocument.servers.push({
-            url: "http://app.local.giggle.pro",
+            url: "https://app.local.giggle.pro",
             description: "Local Environment",
         })
         publicDocument.servers.push({

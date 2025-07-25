@@ -90,6 +90,9 @@ export class WidgetDto implements widgets {
     @ApiProperty({ description: "widget settings", type: WidgetSettingsDto })
     settings: JsonValue
 
+    @ApiProperty({ description: "widget request permissions" })
+    request_permissions: JsonValue
+
     @ApiProperty({ description: "widget access key" })
     access_key: string
 
