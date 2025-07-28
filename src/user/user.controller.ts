@@ -26,6 +26,7 @@ import {
     ApiExcludeEndpoint,
     ApiBearerAuth,
     ApiOperation,
+    ApiHeader,
 } from "@nestjs/swagger"
 import { Request } from "express"
 import { UserService } from "./user.service"
@@ -519,7 +520,24 @@ export class UserController {
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @UseInterceptors(FileInterceptor("avatar"))
-    @ApiExcludeEndpoint()
+    @ApiTags("Profile")
+    @ApiHeader({
+        name: "Content-Type",
+        description: "multipart/form-data",
+    })
+    @ApiBody({
+        schema: {
+            type: "form-data",
+            properties: {
+                avatar: { type: "string", format: "binary" },
+            },
+            required: ["avatar"],
+        },
+    })
+    @ApiOperation({
+        summary: "Update user's avatar",
+        description: "update user's avatar, you need use form-data to upload the avatar",
+    })
     async updateAvatar(
         @Req() req: Request,
         @UploadedFile(

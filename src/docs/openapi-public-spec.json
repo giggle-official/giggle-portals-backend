@@ -207,6 +207,51 @@
         ]
       }
     },
+    "/api/v1/user/uploadAvatar": {
+      "post": {
+        "description": "update user's avatar, you need use form-data to upload the avatar",
+        "operationId": "UserController_updateAvatar",
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "description": "multipart/form-data",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "form-data",
+                "properties": {
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "avatar"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update user's avatar",
+        "tags": [
+          "User",
+          "Profile"
+        ]
+      }
+    },
     "/api/v1/user/token-rewards": {
       "get": {
         "description": "Get user token rewards",
@@ -4425,21 +4470,6 @@
         ]
       }
     },
-    "/api/v1/ip-library/blueprint/test-pdf": {
-      "post": {
-        "operationId": "BlueprintController_testPdf",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "PDF test result"
-          }
-        },
-        "summary": "Test PDF generation capabilities",
-        "tags": [
-          "IP Library"
-        ]
-      }
-    },
     "/api/v1/app/widgets": {
       "get": {
         "operationId": "WidgetsController_getWidgets",
@@ -7842,6 +7872,14 @@
             "type": "boolean",
             "description": "is public"
           },
+          "ip_type": {
+            "type": "string",
+            "description": "ip type",
+            "enum": [
+              "official",
+              "community"
+            ]
+          },
           "is_top": {
             "type": "boolean",
             "description": "is top"
@@ -7907,6 +7945,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "ip_type",
           "is_top",
           "ip_level",
           "creator_followers",
@@ -8002,6 +8041,14 @@
             "type": "boolean",
             "description": "is public"
           },
+          "ip_type": {
+            "type": "string",
+            "description": "ip type",
+            "enum": [
+              "official",
+              "community"
+            ]
+          },
           "is_top": {
             "type": "boolean",
             "description": "is top"
@@ -8089,6 +8136,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "ip_type",
           "is_top",
           "ip_level",
           "creator_followers",
@@ -9522,6 +9570,14 @@
             "type": "boolean",
             "description": "is public"
           },
+          "ip_type": {
+            "type": "string",
+            "description": "ip type",
+            "enum": [
+              "official",
+              "community"
+            ]
+          },
           "is_top": {
             "type": "boolean",
             "description": "is top"
@@ -9594,6 +9650,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "ip_type",
           "is_top",
           "ip_level",
           "creator_followers",
@@ -9739,6 +9796,14 @@
             "type": "boolean",
             "description": "is public"
           },
+          "ip_type": {
+            "type": "string",
+            "description": "ip type",
+            "enum": [
+              "official",
+              "community"
+            ]
+          },
           "is_top": {
             "type": "boolean",
             "description": "is top"
@@ -9833,6 +9898,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "ip_type",
           "is_top",
           "ip_level",
           "creator_followers",
