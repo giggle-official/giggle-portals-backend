@@ -1,4 +1,5 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
+import { ip_type } from "@prisma/client"
 import { IsEnum, IsNumber, IsString, MinLength } from "class-validator"
 import { EventDto, IpEvents } from "src/ip-library/ip-library.dto"
 
@@ -96,6 +97,13 @@ export class CreateIpTokenDto {
         required: false,
     })
     asset_id?: string
+
+    @ApiProperty({
+        description: "ip type",
+        enum: ip_type,
+        required: false,
+    })
+    ip_type: ip_type
 }
 
 export class CreateIpTokenResponseDto {
@@ -134,6 +142,7 @@ export class CreateIpTokenGiggleRequestDto {
     amount?: number
     isUsdc: boolean
     website?: string
+    sourceType: ip_type
 }
 
 export class CreateIpTokenGiggleResponseDto {

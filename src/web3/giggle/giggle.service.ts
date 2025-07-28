@@ -254,6 +254,7 @@ export class GiggleService {
                 website: params?.website,
                 isUsdc: true,
                 amount: 0,
+                sourceType: params.ip_type,
             }
 
             if (params.buyAmount) {
