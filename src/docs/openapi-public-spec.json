@@ -9204,9 +9204,13 @@
       "GetUserTokenDto": {
         "type": "object",
         "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "user id, user_id and email are mutually exclusive"
+          },
           "email": {
             "type": "string",
-            "description": "email"
+            "description": "email, user_id and email are mutually exclusive"
           },
           "app_id": {
             "type": "string",
@@ -9214,7 +9218,6 @@
           }
         },
         "required": [
-          "email",
           "app_id"
         ]
       },

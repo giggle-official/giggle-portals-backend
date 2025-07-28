@@ -6,6 +6,7 @@ import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { WidgetsService } from "../widgets/widgets.service"
 import { GetUserTokenDto } from "./users.dto"
+import { users } from "@prisma/client"
 
 @Injectable()
 export class UsersService {
@@ -26,8 +27,44 @@ export class UsersService {
     }
 
     async getToken(reqDeveloper: UserJwtExtractDto, body: GetUserTokenDto) {
-        if (!isEmail(body.email)) {
-            throw new BadRequestException("Email is not valid")
+        let user: users | null = null
+        if (body?.user_id) {
+            user = await this.prisma.users.findUnique({
+                where: { username_in_be: body.user_id },
+            })
+
+            if (!user) {
+                throw new NotFoundException("User not found")
+            }
+        } else if (body?.email) {
+            if (!isEmail(body.email)) {
+                throw new BadRequestException("Email is not valid")
+            }
+            user = await this.prisma.users.findUnique({
+                where: { email: body.email },
+            })
+
+            //create user if user not exists
+            if (!user) {
+                const userNameShorted = this.userService.generateShortName()
+                await this.userService.createUser({
+                    username: body.email.split("@")[0],
+                    email: body.email,
+                    password: UtilitiesService.generateRandomApiKey(),
+                    usernameShorted: userNameShorted,
+                    app_id: reqDeveloper.app_id,
+                    from_source_link: "",
+                    from_device_id: reqDeveloper.device_id,
+                    can_create_ip: true,
+                    user_id: userNameShorted,
+                    invited_by: "",
+                })
+                user = await this.prisma.users.findUnique({
+                    where: { username_in_be: userNameShorted },
+                })
+            }
+        } else {
+            throw new BadRequestException("user_id or email is required")
         }
 
         const widgetTag = reqDeveloper?.developer_info?.tag
@@ -48,30 +85,6 @@ export class UsersService {
         const permissions = widget.request_permissions as { can_get_user_token: boolean }
         if (!permissions?.can_get_user_token) {
             throw new ForbiddenException("Widget does not have permission to get user token")
-        }
-
-        let user = await this.prisma.users.findUnique({
-            where: { email: body.email },
-        })
-
-        //create user if user not exists
-        if (!user) {
-            const userNameShorted = this.userService.generateShortName()
-            await this.userService.createUser({
-                username: body.email.split("@")[0],
-                email: body.email,
-                password: UtilitiesService.generateRandomApiKey(),
-                usernameShorted: userNameShorted,
-                app_id: reqDeveloper.app_id,
-                from_source_link: "",
-                from_device_id: reqDeveloper.device_id,
-                can_create_ip: true,
-                user_id: userNameShorted,
-                invited_by: "",
-            })
-            user = await this.prisma.users.findUnique({
-                where: { username_in_be: userNameShorted },
-            })
         }
 
         return this.widgetService.getAccessToken(
