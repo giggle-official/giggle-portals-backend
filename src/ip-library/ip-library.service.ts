@@ -26,7 +26,7 @@ import {
     IpBindAppsDto,
     SourceWalletType,
 } from "./ip-library.dto"
-import { app_bind_ips, Prisma } from "@prisma/client"
+import { app_bind_ips, ip_type, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
@@ -475,6 +475,10 @@ export class IpLibraryService {
             where.ip_levels = parseInt(params.ip_level)
         }
 
+        if (params.ip_type) {
+            where.ip_type = params.ip_type
+        }
+
         if (app_id) {
             //request from app
             const app = await this.prismaService.apps.findUnique({
@@ -585,6 +589,7 @@ export class IpLibraryService {
                     child_ip_info,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                     apps,
+                    ip_type: item.ip_type,
                 }
                 return res
             }),
@@ -712,6 +717,7 @@ export class IpLibraryService {
                     governance_right: true,
                     ip_signature_clips: await this._processIpSignatureClips(item.ip_signature_clips as any[]),
                     apps: await this.getIpBindApps(item.app_bind_ips),
+                    ip_type: item.ip_type,
                 })
             }
         }
@@ -766,6 +772,7 @@ export class IpLibraryService {
             },
             governance_right: true,
             apps: await this.getIpBindApps(data.app_bind_ips),
+            ip_type: data.ip_type,
         }
         return res
     }
@@ -954,6 +961,7 @@ export class IpLibraryService {
         const meta_data = this.processMetaData(body.meta_data as any)
 
         let ipLevel: number = 1
+        let ipType: ip_type = ip_type.official
 
         if (body.parent_ip_library_id) {
             const parentIpInfo = await this.prismaService.ip_library.findUnique({
@@ -989,7 +997,7 @@ export class IpLibraryService {
                 }
                 ipLevel = 3
             } else if (parentIpInfo.owner !== user.usernameShorted) {
-                throw new BadRequestException("you have no permission to use this parent ip")
+                ipType = ip_type.community
             }
         }
 
@@ -1003,6 +1011,7 @@ export class IpLibraryService {
                     ticker: body.ticker,
                     description: body.description,
                     ip_levels: ipLevel,
+                    ip_type: ipType,
                     extra_info: {
                         twitter: body?.twitter || "",
                         website: body?.website || "",
@@ -1385,6 +1394,7 @@ export class IpLibraryService {
                         request_user,
                     }),
                     apps: await this.getIpBindApps(item.app_bind_ips),
+                    ip_type: item.ip_type,
                 }
                 childIpsSummary.push(res)
             }),

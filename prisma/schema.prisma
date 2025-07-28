@@ -266,6 +266,11 @@ model user_roles {
   role_detail    roles?    @relation(fields: [role_id], references: [id])
 }
 
+enum ip_type {
+  official
+  community
+}
+
 model ip_library {
   id                      Int                         @id @default(autoincrement())
   owner                   String?                     @db.VarChar(32)
@@ -276,6 +281,7 @@ model ip_library {
   description             String?                     @db.Text
   cover_images            Json?
   is_public               Boolean?
+  ip_type                 ip_type                     @default(official)
   parent_ip_id            Int?
   on_chain_error          String?                     @db.Text
   on_chain_detail         Json?

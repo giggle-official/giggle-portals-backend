@@ -3135,6 +3135,15 @@
             }
           },
           {
+            "name": "ip_type",
+            "required": false,
+            "in": "query",
+            "description": "ip type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "app-id",
             "required": false,
             "in": "header",
@@ -3323,6 +3332,15 @@
             "required": false,
             "in": "query",
             "description": "token mint address of the ip library",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ip_type",
+            "required": false,
+            "in": "query",
+            "description": "ip type",
             "schema": {
               "type": "string"
             }

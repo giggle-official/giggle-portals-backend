@@ -1,5 +1,5 @@
 import { ApiProperty, IntersectionType, OmitType, PickType } from "@nestjs/swagger"
-import { ip_library_on_chain_status } from "@prisma/client"
+import { ip_library_on_chain_status, ip_type } from "@prisma/client"
 import {
     IsArray,
     IsBoolean,
@@ -437,6 +437,14 @@ export class GetListParams extends PaginationDto {
     @IsOptional()
     @IsString()
     token_mint?: string
+
+    @ApiProperty({
+        required: false,
+        description: "ip type",
+    })
+    @IsOptional()
+    @IsEnum(ip_type)
+    ip_type?: "official" | "community"
 }
 
 export class GetMyListParams extends GetListParams {
@@ -640,6 +648,12 @@ export class IpSummaryDto {
         description: "is public",
     })
     is_public: boolean
+
+    @ApiProperty({
+        description: "ip type",
+        enum: ip_type,
+    })
+    ip_type: ip_type
 
     @ApiProperty({
         description: "is top",
