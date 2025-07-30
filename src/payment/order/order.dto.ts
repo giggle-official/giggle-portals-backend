@@ -15,7 +15,13 @@ import {
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
-import { LimitOffer, PoolResponseDto, RewardAllocateRoles, RewardSnapshotDto } from "../rewards-pool/rewards-pool.dto"
+import {
+    DeveloperSpecifiedRewardSnapshotDto,
+    LimitOffer,
+    PoolResponseDto,
+    RewardAllocateRoles,
+    RewardSnapshotDto,
+} from "../rewards-pool/rewards-pool.dto"
 import { Type } from "class-transformer"
 export enum OrderStatus {
     PENDING = "pending",
@@ -127,6 +133,16 @@ export class OrderDto implements orders {
         description: "The release rewards after paid of the order",
     })
     release_rewards_after_paid: boolean
+
+    @ApiProperty({
+        description: "The buyback after paid of the order",
+    })
+    buyback_after_paid: boolean
+
+    @ApiProperty({
+        description: "The buyback result of the order",
+    })
+    buyback_result: JsonValue
 
     @ApiProperty({
         description: "The supported payment method of the order",
@@ -258,6 +274,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "phone_national",
     "customer_ip",
     "payment_asia_callback",
+    "buyback_result",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",
@@ -406,6 +423,24 @@ export class CreateOrderDto {
         default: false,
     })
     release_rewards_after_paid?: boolean
+
+    @ApiProperty({
+        description:
+            "Buyback after paid of the order, default is `false`,if release_rewards_after_paid set to `true`, the rewards will be released after buyback",
+        required: false,
+        default: false,
+    })
+    buyback_after_paid?: boolean
+
+    @ApiProperty({
+        description: "The rewards model of the order, this only allow requester is developer",
+        type: () => DeveloperSpecifiedRewardSnapshotDto,
+        required: false,
+    })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => DeveloperSpecifiedRewardSnapshotDto)
+    rewards_model?: DeveloperSpecifiedRewardSnapshotDto
 
     @ApiProperty({
         description:

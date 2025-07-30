@@ -50,6 +50,9 @@ import { lastValueFrom } from "rxjs"
 import { LinkService } from "src/open-app/link/link.service"
 import { RewardsPoolService } from "../rewards-pool/rewards-pool.service"
 import {
+    DeveloperSpecifiedRewardSnapshotDto,
+    LimitOffer,
+    PoolResponseDto,
     RewardAllocateRatio,
     RewardAllocateRoles,
     RewardAllocateType,
@@ -107,6 +110,9 @@ export class OrderService {
         let userProfile: UserInfoDTO = null
         let appId = ""
         let widgetTag = ""
+        const orderId = uuidv4()
+        let relatedRewardId = null
+        let rewardsModelSnapshot = null
 
         const isDeveloperRequester = requester.developer_info ? true : false
 
@@ -158,10 +164,6 @@ export class OrderService {
             throw new BadRequestException("App bind ip not found")
         }
 
-        const orderId = uuidv4()
-        let relatedRewardId = null
-        let rewardsModelSnapshot = null
-
         if (options.related_to_reward_pool) {
             //if relate reward pool is true, we need relate the reward pool to the order
             if (order.reward_token) {
@@ -195,7 +197,16 @@ export class OrderService {
                 }
 
                 relatedRewardId = pool.pools[0].id
-                rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
+
+                //process rewards_model
+                if (isDeveloperRequester && order.rewards_model) {
+                    rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                        order.rewards_model,
+                        pool.pools[0],
+                    )
+                } else {
+                    rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(pool.pools[0].token)
+                }
             } else {
                 const rewardPool = await this.rewardsPoolService.getPools({
                     app_id: appId,
@@ -204,9 +215,16 @@ export class OrderService {
                 })
                 if (rewardPool && rewardPool.pools.length > 0) {
                     relatedRewardId = rewardPool?.pools?.[0]?.id
-                    rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(
-                        rewardPool?.pools?.[0]?.token,
-                    )
+                    if (isDeveloperRequester && order.rewards_model) {
+                        rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                            order.rewards_model,
+                            rewardPool?.pools?.[0],
+                        )
+                    } else {
+                        rewardsModelSnapshot = await this.rewardsPoolService.getRewardSnapshot(
+                            rewardPool?.pools?.[0]?.token,
+                        )
+                    }
                 }
             }
         }
@@ -278,6 +296,7 @@ export class OrderService {
                 app_id: appId,
                 amount: order.amount,
                 description: order.description,
+                buyback_after_paid: order?.buyback_after_paid,
                 related_reward_id: relatedRewardId,
                 rewards_model_snapshot: rewardsModelSnapshot as any,
                 costs_allocation: costsAllocation as any,
@@ -293,6 +312,46 @@ export class OrderService {
             },
         })
         return await this.mapOrderDetail(record)
+    }
+
+    async processDeveloperSpecifiedRewardSnapshot(
+        rewardsModel: DeveloperSpecifiedRewardSnapshotDto,
+        pool: PoolResponseDto,
+    ): Promise<RewardSnapshotDto> {
+        //validate rewards model
+        let limitOffer: LimitOffer = null
+        //validate revenue ratio
+        let sumRatio = 0
+        if (rewardsModel.revenue_ratio.length > 0) {
+            for (const ratio of rewardsModel.revenue_ratio) {
+                sumRatio += ratio.ratio
+                if (ratio.allocate_type !== RewardAllocateType.USDC) {
+                    throw new BadRequestException("Currently we only support USDC revenue ratio")
+                }
+            }
+        }
+
+        if (sumRatio !== 90) {
+            throw new BadRequestException("Sum of revenue ratio must be 90")
+        }
+
+        if (rewardsModel.released_token_ratio !== 100) {
+            limitOffer = {
+                external_ratio: rewardsModel.released_token_ratio,
+                start_date: new Date(),
+                end_date: new Date("9999-12-31"), // never end
+            }
+        }
+        return {
+            token: pool.token,
+            ticker: pool.ticker,
+            unit_price: pool.unit_price,
+            revenue_ratio: rewardsModel.revenue_ratio,
+            updated_at: new Date(),
+            created_at: new Date(),
+            snapshot_date: new Date(),
+            limit_offer: limitOffer,
+        }
     }
 
     async createOrderAndPayWithWallet(dto: CreateOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
@@ -470,6 +529,7 @@ export class OrderService {
             },
             ip_holder_revenue_reallocation:
                 data.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[],
+            buyback_after_paid: data.buyback_after_paid,
         }
 
         return { ...order, estimated_rewards: await this.mapEstimatedRewards(order) }
@@ -1249,6 +1309,13 @@ export class OrderService {
             this.logger.error(`Order ${order_id} not found`)
             return []
         }
+
+        //return if buyback not complete
+        if (orderRecord.buyback_after_paid && orderRecord.buyback_result === null) {
+            this.logger.warn(`Order ${order_id} need to wait for buyback to complete`)
+            return []
+        }
+
         if (orderRecord.current_status !== OrderStatus.COMPLETED) {
             this.logger.error(`Order ${order_id} is not completed`)
             return []

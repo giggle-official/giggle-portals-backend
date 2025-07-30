@@ -3,6 +3,7 @@ import { reward_pool_on_chain_status, reward_pools } from "@prisma/client"
 import { Decimal } from "@prisma/client/runtime/library"
 import { Type } from "class-transformer"
 import {
+    ArrayMinSize,
     IsArray,
     IsDate,
     IsDateString,
@@ -19,7 +20,7 @@ import {
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
-import { OrderRewardsDto, UserRewards } from "../order/order.dto"
+import { OrderRewardsDto } from "../order/order.dto"
 export enum RewardAllocateType {
     TOKEN = "token",
     USDC = "usdc",
@@ -139,7 +140,7 @@ export class RewardAllocateRatio {
     @ApiProperty({ description: "Type of the allocation", enum: RewardAllocateType })
     @IsEnum(RewardAllocateType)
     @IsNotEmpty()
-    allocate_type: RewardAllocateRoles
+    allocate_type: RewardAllocateType
 }
 
 export class LimitOffer {
@@ -300,6 +301,28 @@ export class RewardSnapshotDto {
 
     @ApiProperty({ description: "Limit offer of the pool", required: false })
     limit_offer: LimitOffer
+}
+
+export class DeveloperSpecifiedRewardSnapshotDto {
+    @ApiProperty({
+        description:
+            "Revenue ratio of the pool, the sum of ratio must be 90(90%), since platform will take 10% of the revenue",
+        isArray: true,
+        type: RewardAllocateRatio,
+    })
+    @ValidateNested({ each: true })
+    @Type(() => RewardAllocateRatio)
+    @ArrayMinSize(1)
+    revenue_ratio: RewardAllocateRatio[]
+
+    @ApiProperty({
+        description: "Released token ratio for order paid, 1 means 1%, this must be 1-200(1%-200%)",
+    })
+    @IsNumber()
+    @IsPositive()
+    @Min(1)
+    @Max(200)
+    released_token_ratio: number
 }
 
 export class StatisticsQueryDto {

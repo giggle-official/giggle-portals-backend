@@ -6306,6 +6306,10 @@
             "type": "boolean",
             "description": "The release rewards after paid of the order"
           },
+          "buyback_after_paid": {
+            "type": "boolean",
+            "description": "The buyback after paid of the order"
+          },
           "supported_payment_method": {
             "description": "The supported payment method of the order",
             "type": "array",
@@ -6431,6 +6435,7 @@
           "current_status",
           "paid_method",
           "release_rewards_after_paid",
+          "buyback_after_paid",
           "supported_payment_method",
           "redirect_url",
           "paid_time",
@@ -6451,6 +6456,26 @@
           "estimated_rewards"
         ]
       },
+      "DeveloperSpecifiedRewardSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "revenue_ratio": {
+            "description": "Revenue ratio of the pool, the sum of ratio must be 90(90%), since platform will take 10% of the revenue",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RewardAllocateRatio"
+            }
+          },
+          "released_token_ratio": {
+            "type": "number",
+            "description": "Released token ratio for order paid, 1 means 1%, this must be 1-200(1%-200%)"
+          }
+        },
+        "required": [
+          "revenue_ratio",
+          "released_token_ratio"
+        ]
+      },
       "CreateOrderDto": {
         "type": "object",
         "properties": {
@@ -6462,6 +6487,19 @@
             "type": "boolean",
             "description": "Release rewards after paid of the order, default is `false`, **NOTE:** order will be **NOT** refundable if rewards are released",
             "default": false
+          },
+          "buyback_after_paid": {
+            "type": "boolean",
+            "description": "Buyback after paid of the order, default is `false`,if release_rewards_after_paid set to `true`, the rewards will be released after buyback",
+            "default": false
+          },
+          "rewards_model": {
+            "description": "The rewards model of the order, this only allow requester is developer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeveloperSpecifiedRewardSnapshotDto"
+              }
+            ]
           },
           "reward_token": {
             "type": "string",
@@ -6557,6 +6595,10 @@
           "release_rewards_after_paid": {
             "type": "boolean",
             "description": "The release rewards after paid of the order"
+          },
+          "buyback_after_paid": {
+            "type": "boolean",
+            "description": "The buyback after paid of the order"
           },
           "supported_payment_method": {
             "description": "The supported payment method of the order",
@@ -6677,6 +6719,7 @@
           "is_credit_top_up",
           "paid_method",
           "release_rewards_after_paid",
+          "buyback_after_paid",
           "supported_payment_method",
           "redirect_url",
           "paid_time",
@@ -6907,6 +6950,10 @@
             "type": "boolean",
             "description": "The release rewards after paid of the order"
           },
+          "buyback_after_paid": {
+            "type": "boolean",
+            "description": "The buyback after paid of the order"
+          },
           "supported_payment_method": {
             "description": "The supported payment method of the order",
             "type": "array",
@@ -7036,6 +7083,7 @@
           "current_status",
           "paid_method",
           "release_rewards_after_paid",
+          "buyback_after_paid",
           "supported_payment_method",
           "redirect_url",
           "paid_time",

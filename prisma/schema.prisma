@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["omitApi", "views"]
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -880,6 +880,8 @@ model orders {
   costs_allocation               Json?
   ip_holder_revenue_reallocation Json?
   release_rewards_after_paid     Boolean?                @default(false)
+  buyback_after_paid             Boolean?                @default(false)
+  buyback_result                 Json?
   supported_payment_method       Json?
   callback_url                   String?                 @db.VarChar(1024)
   redirect_url                   String?                 @db.VarChar(4096)
@@ -1192,7 +1194,7 @@ model user_nfts {
   user_info      users?           @relation(fields: [user], references: [username_in_be])
 }
 
-view view_ip_token_prices {
+model view_ip_token_prices {
   id                     Int         @unique @default(0)
   current_token_info     Json?
   price                  Decimal     @default(0.000000000000) @db.Decimal(65, 12)
@@ -1206,7 +1208,7 @@ view view_ip_token_prices {
   ip_info                ip_library? @relation(fields: [id], references: [id])
 }
 
-view view_user_rewards_summary {
+model view_user_rewards_summary {
   id         String   @unique(map: "id") @db.VarChar(32)
   user       String?  @db.VarChar(32)
   token      String?  @db.VarChar(64)
@@ -1221,7 +1223,7 @@ view view_user_rewards_summary {
   @@unique([user, token])
 }
 
-view view_ip_incomes {
+model view_ip_incomes {
   id      String      @unique(map: "id") @db.VarChar(32)
   amount  Decimal?    @db.Decimal(36, 4)
   ip_id   Int?
