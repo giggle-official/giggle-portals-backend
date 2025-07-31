@@ -17,6 +17,7 @@ import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
 import { NftController } from "./nft/nft.controller"
 import { NftService } from "./nft/nft.service"
 import { NftMintQueue } from "./nft/nft-mint.queue"
+import { PaymentModule } from "src/payment/payment.module"
 
 //enable ipfs upload queue only on task slot 1
 const queueProviders: Provider[] = []
@@ -33,6 +34,7 @@ if (process.env.TASK_SLOT == "1") {
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),
+        forwardRef(() => PaymentModule),
     ],
     providers: [
         ...queueProviders,

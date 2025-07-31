@@ -81,6 +81,21 @@ export class WithdrawTokenToWalletResponseDto {
     tx: string
 }
 
+export class BuyBackRecord {
+    id: number
+    addr: string
+    number: string
+    sig: string
+    time: number
+    status: 1 | 2
+}
+
 export class BuybackRecordResponseDto {
-    arr: { id: number; addr: string; number: string; sig: string; time: number; status: 1 | 2 }[]
+    arr: BuyBackRecord[]
+}
+
+export class BuybackOrderStatusResponseDto {
+    status: number
+    arr: BuyBackRecord[]
+    msg: string
 }

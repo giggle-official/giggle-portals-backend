@@ -659,7 +659,7 @@ export class GiggleService {
         }
     }
 
-    async sendToken(user: UserJwtExtractDto, body: SendTokenDto): Promise<SendTokenResponseDto> {
+    async sendToken(user: UserJwtExtractDto, body: SendTokenDto, payer?: string): Promise<SendTokenResponseDto> {
         if (body.amount <= 0) {
             throw new BadRequestException("Amount must be greater than 0")
         }
@@ -670,12 +670,17 @@ export class GiggleService {
             throw new BadRequestException("User email not found")
         }
         const { mint, amount, receipt } = body
-        const signatureParams = this.generateSignature({
+        const params: any = {
             mint: mint,
             amount: amount,
             receipt: receipt,
             email: userEmail.email,
-        })
+        }
+        if (payer) {
+            delete params.email
+            params.address = payer
+        }
+        const signatureParams = this.generateSignature(params)
         const response: AxiosResponse<GiggleApiResponseDto<SendTokenResponseDto>> = await lastValueFrom(
             this.web3HttpService.post(this.endpoint + "/cus/send", signatureParams, {
                 headers: { "Content-Type": "application/json" },

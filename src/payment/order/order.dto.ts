@@ -145,6 +145,16 @@ export class OrderDto implements orders {
     buyback_result: JsonValue
 
     @ApiProperty({
+        description: "The buyback order id of the order",
+    })
+    buyback_order_id: string
+
+    @ApiProperty({
+        description: "The buyback fee transferred of the order",
+    })
+    buyback_fee_transferred: boolean
+
+    @ApiProperty({
         description: "The supported payment method of the order",
     })
     supported_payment_method: string[]
@@ -275,6 +285,8 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "customer_ip",
     "payment_asia_callback",
     "buyback_result",
+    "buyback_order_id",
+    "buyback_fee_transferred",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",

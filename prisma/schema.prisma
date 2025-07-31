@@ -882,6 +882,8 @@ model orders {
   release_rewards_after_paid     Boolean?                @default(false)
   buyback_after_paid             Boolean?                @default(false)
   buyback_result                 Json?
+  buyback_order_id               String?                 @db.VarChar(255)
+  buyback_fee_transferred        Boolean?                @default(false)
   supported_payment_method       Json?
   callback_url                   String?                 @db.VarChar(1024)
   redirect_url                   String?                 @db.VarChar(4096)
@@ -1150,6 +1152,17 @@ enum credit_statement_type {
   top_up
   consume
   refund
+}
+
+model reward_pool_buybacks {
+  id         Int       @id @default(autoincrement())
+  token      String?   @db.VarChar(255)
+  order_id   String?   @db.VarChar(255)
+  status     String?   @db.VarChar(32)
+  request    Json?
+  response   Json?
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
 }
 
 model credit_statements {
