@@ -169,7 +169,6 @@ export class OrderService {
             if (order.reward_token) {
                 const pool = await this.rewardsPoolService.getPools({
                     token: order.reward_token,
-                    app_id: appId,
                     page: "1",
                     page_size: "1",
                 })

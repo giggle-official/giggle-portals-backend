@@ -120,7 +120,7 @@ export class OpenAppService {
             },
         })
         if (!app) {
-            throw new NotFoundException("App not found")
+            return null
         }
         let userInfo: UserInfoDTO | null = null
         let ipInfo: ip_library | null = null
