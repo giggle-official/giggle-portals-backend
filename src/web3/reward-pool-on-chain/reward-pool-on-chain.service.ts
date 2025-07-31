@@ -1202,8 +1202,10 @@ export class RewardPoolOnChainService {
     }
 
     //get buyback record
-    @Cron(CronExpression.EVERY_10_MINUTES)
+    // deprecated !!!DO NOT USE!!! NEVER CALL THIS FUNCTION!!!
+    //@Cron(CronExpression.EVERY_10_MINUTES)
     async processBuybackRecord() {
+        return
         if (process.env.TASK_SLOT != "1") return
         if (process.env.ENV != "product") return
         const rewards_pools = await this.prisma.reward_pool_statement.groupBy({
@@ -1272,8 +1274,8 @@ export class RewardPoolOnChainService {
         }
     }
 
-    @Cron(CronExpression.EVERY_10_MINUTES)
-    //@Cron(CronExpression.EVERY_MINUTE)
+    //@Cron(CronExpression.EVERY_10_MINUTES)
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async createBuyBackOrders() {
         if (process.env.TASK_SLOT != "1") return
         //process order if buyback required
@@ -1449,7 +1451,7 @@ export class RewardPoolOnChainService {
                 OR: [
                     {
                         status: {
-                            lt: "4",
+                            not: "4",
                         },
                     },
                     {
@@ -1459,6 +1461,8 @@ export class RewardPoolOnChainService {
             },
         })
         for (const buyback of buybacks) {
+            //continue if status large then 4(means error)
+            if (parseInt(buyback.status) >= 4) continue
             const result = await this.getBuybackResult(buyback.order_id)
             if (!result) {
                 this.logger.warn(`Get buyback result failed: ${buyback.order_id}`)
@@ -1466,75 +1470,71 @@ export class RewardPoolOnChainService {
             }
             try {
                 //update
-                await this.prisma.$transaction(async (tx) => {
-                    await tx.reward_pool_buybacks.update({
-                        where: {
-                            id: buyback.id,
-                        },
-                        data: {
-                            status: result.status.toString(),
-                        },
-                    })
-                    if (result.status === 4) {
-                        //4 means success
-                        const poolInfo = await this.prisma.reward_pools.findUnique({
+                await this.prisma.reward_pool_buybacks.update({
+                    where: {
+                        id: buyback.id,
+                    },
+                    data: {
+                        status: result.status.toString(),
+                        response: result as any,
+                    },
+                })
+
+                if (result.status !== 4) continue
+                //update reward pool and orders when buyback success
+                for (const record of result.arr) {
+                    if (record.status === 1) {
+                        //ignore burn record
+                        continue
+                    }
+                    const buyAmount = new Decimal(record.number).div(10 ** 6)
+                    await this.prisma.$transaction(async (tx) => {
+                        const newPoolInfo = await tx.reward_pools.update({
                             where: {
                                 token: buyback.token,
                             },
-                        })
-                        for (const record of result.arr) {
-                            if (record.status === 2) {
-                                //ignore burn record
-                                continue
-                            }
-                            const buyAmount = new Decimal(record.number).div(10 ** 6)
-                            const newPoolInfo = await tx.reward_pools.update({
-                                where: {
-                                    token: buyback.token,
+                            data: {
+                                current_balance: {
+                                    increment: buyAmount,
                                 },
-                                data: {
-                                    current_balance: {
-                                        increment: buyAmount,
-                                    },
-                                },
-                            })
-
-                            await tx.reward_pool_statement.create({
-                                data: {
-                                    token: buyback.token,
-                                    type: reward_pool_type.buyback,
-                                    amount: buyAmount,
-                                    buyback_id: record.id,
-                                    chain_transaction: {
-                                        signature: record.sig,
-                                    },
-                                    current_balance: newPoolInfo.current_balance,
-                                },
-                            })
-                        }
-                        //check if this is an order triggered buyback
-                        const order = await this.prisma.orders.findFirst({
-                            where: {
-                                buyback_order_id: buyback.order_id,
                             },
                         })
-                        if (order) {
-                            //update order status
-                            await this.prisma.orders.update({
-                                where: {
-                                    id: order.id,
+
+                        await tx.reward_pool_statement.create({
+                            data: {
+                                token: buyback.token,
+                                type: reward_pool_type.buyback,
+                                amount: buyAmount,
+                                buyback_id: record.id,
+                                chain_transaction: {
+                                    signature: record.sig,
                                 },
-                                data: {
-                                    buyback_result: result as any,
-                                },
-                            })
-                            //release rewards
-                            if (order.release_rewards_after_paid) {
-                                await this.ordersService.releaseRewards(order, null)
-                            }
-                        }
-                    }
+                                current_balance: newPoolInfo.current_balance,
+                            },
+                        })
+                    })
+                }
+                //check if this is an order triggered buyback
+                const order = await this.prisma.orders.findFirst({
+                    where: {
+                        buyback_order_id: buyback.order_id,
+                    },
                 })
+                if (order) {
+                    //update order status
+                    await this.prisma.orders.update({
+                        where: {
+                            id: order.id,
+                        },
+                        data: {
+                            buyback_result: result as any,
+                        },
+                    })
+                    //release rewards
+                    if (order.release_rewards_after_paid && order.current_status === OrderStatus.COMPLETED) {
+                        await this.ordersService.releaseRewards(order, null)
+                    }
+                }
             } catch (error) {
                 this.logger.error(`Check buyback result failed: ${error}`)
                 continue
