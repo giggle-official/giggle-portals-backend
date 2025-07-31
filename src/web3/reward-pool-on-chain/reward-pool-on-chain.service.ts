@@ -1274,8 +1274,8 @@ export class RewardPoolOnChainService {
         }
     }
 
-    //@Cron(CronExpression.EVERY_10_MINUTES)
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    //@Cron(CronExpression.EVERY_5_MINUTES)
     async createBuyBackOrders() {
         if (process.env.TASK_SLOT != "1") return
         //process order if buyback required
