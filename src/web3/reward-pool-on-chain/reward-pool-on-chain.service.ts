@@ -1284,6 +1284,7 @@ export class RewardPoolOnChainService {
                 buyback_after_paid: true,
                 buyback_order_id: null,
                 current_status: OrderStatus.COMPLETED,
+                rewards_model_snapshot: { not: Prisma.AnyNull },
             },
         })
         const adminUser = await this.prisma.users.findFirst({
