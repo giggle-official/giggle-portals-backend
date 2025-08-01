@@ -137,6 +137,14 @@ export class OrderService {
                 throw new BadRequestException("Widget tag is not valid in user jwt")
             }
         } else {
+            if (order.buyback_after_paid) {
+                throw new BadRequestException("buyback_after_paid is not allowed for non-developer requester")
+            }
+
+            if (order.rewards_model) {
+                throw new BadRequestException("rewards_model is not allowed for non-developer requester")
+            }
+
             userProfile = await this.userService.getProfile(requester)
             appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
