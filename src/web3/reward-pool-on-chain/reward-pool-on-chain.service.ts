@@ -1383,6 +1383,9 @@ export class RewardPoolOnChainService {
             }
         }
 
+        //sleep 30 seconds to avoid duplicate buyback
+        await new Promise((resolve) => setTimeout(resolve, 30000))
+
         const rewards_pools = await this.prisma.reward_pool_statement.groupBy({
             by: ["token"],
             _sum: {

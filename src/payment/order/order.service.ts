@@ -1508,7 +1508,7 @@ export class OrderService {
         allocatedTokenAmount = allocatedTokenAmount.plus(orderCreatorRewards)
 
         for (const reward of modelSnapshot.revenue_ratio) {
-            //to ensure usdc not overflow, we need process platform rewards at final
+            //platform rewards is already allocated
             if (reward.role === RewardAllocateRoles.PLATFORM) {
                 continue
             }
@@ -1563,6 +1563,13 @@ export class OrderService {
                         usdcRewards = usdcRewards.minus(reAllocatedAmount)
                     }
                     usdcRewards = Decimal.max(usdcRewards, new Decimal(0))
+                }
+                //if order buyback_after_paid is true, we no need allocate usdc to buyback account
+                if (orderRecord.buyback_after_paid && actualAllocateRole === RewardAllocateRoles.BUYBACK) {
+                    this.logger.warn(
+                        `Order ${orderRecord.order_id} is already buyback, no need allocate usdc to buyback account`,
+                    )
+                    usdcRewards = new Decimal(0)
                 }
                 if (usdcRewards.gt(0)) {
                     rewards.push({
