@@ -602,7 +602,7 @@ export class IpLibraryService {
 
     async getCoverImage(coverImages: any[]): Promise<string> {
         if (coverImages?.length > 0 && coverImages[0]?.asset_id) {
-            const assetId = coverImages[0].asset_id
+            const assetId = coverImages[0].asset_id.toString()
             const asset = await this.prismaService.assets.findUnique({
                 where: {
                     asset_id: assetId,
@@ -1024,7 +1024,7 @@ export class IpLibraryService {
                         {
                             key: imageAsset.path,
                             hash: imageAsset.ipfs_key,
-                            asset_id: imageAsset.asset_id,
+                            asset_id: imageAsset.asset_id.toString(),
                         },
                     ],
                     is_public: true,
