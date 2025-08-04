@@ -597,7 +597,7 @@ export class OrderService {
             }
         }
 
-        if (order.current_reward_pool_detail) {
+        if (order.current_reward_pool_detail && !order.buyback_after_paid) {
             const currentPoolBalance = parseInt(order.current_reward_pool_detail.current_balance)
             if (currentPoolBalance < rewards.total_rewards) {
                 rewards.base_rewards = currentPoolBalance
