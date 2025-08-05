@@ -2236,6 +2236,47 @@
         ]
       }
     },
+    "/api/v1/sales-agent/incomes": {
+      "get": {
+        "operationId": "SalesAgentController_getSalesAgentIncomes",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesAgentIncomeResDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get an order by order id",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
     "/api/v1/app/list": {
       "get": {
         "operationId": "OpenAppController_getAppList",
@@ -7690,6 +7731,10 @@
           "count",
           "statements"
         ]
+      },
+      "SalesAgentIncomeResDto": {
+        "type": "object",
+        "properties": {}
       },
       "AppListDto": {
         "type": "object",

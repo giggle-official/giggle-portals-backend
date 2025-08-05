@@ -198,6 +198,7 @@ export class AuthService {
                         })
                         if (linkDetail) {
                             newUserInfo.app_id = linkDetail.app_id
+                            newUserInfo.invited_by = linkDetail.creator
                         }
                     }
                 }

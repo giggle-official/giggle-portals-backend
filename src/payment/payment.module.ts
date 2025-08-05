@@ -16,6 +16,8 @@ import { RewardsPoolService } from "./rewards-pool/rewards-pool.service"
 import { JwtModule } from "@nestjs/jwt"
 import { PaymentAsiaService } from "./payment-asia/payment-asia.service"
 import { CreditController } from "./credit/credit.controller"
+import { SalesAgentController } from "./sales-agent/sales-agent.controller"
+import { SalesAgentService } from "./sales-agent/sales-agent.service"
 
 @Module({
     imports: [
@@ -28,7 +30,7 @@ import { CreditController } from "./credit/credit.controller"
         forwardRef(() => OpenAppModule),
         JwtModule.register({}),
     ],
-    controllers: [PaymentController, OrderController, RewardsPoolController, CreditController],
+    controllers: [PaymentController, OrderController, RewardsPoolController, CreditController, SalesAgentController],
     providers: [
         PaymentService,
         PrismaService,
@@ -38,7 +40,8 @@ import { CreditController } from "./credit/credit.controller"
         RewardsPoolService,
         PaymentAsiaService,
         CreditService,
+        SalesAgentService,
     ],
-    exports: [OrderService, RewardsPoolService],
+    exports: [OrderService, RewardsPoolService, SalesAgentService],
 })
 export class PaymentModule {}

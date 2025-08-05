@@ -37,7 +37,6 @@ import {
 import { UtilitiesService } from "src/common/utilities.service"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserWalletDetailDto } from "./user.dto"
-import { PriceService } from "src/web3/price/price.service"
 import { Prisma } from "@prisma/client"
 import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
@@ -939,6 +938,7 @@ Message: ${contactInfo.message}
                     })
                     if (linkDetail) {
                         newUserInfo.app_id = linkDetail.app_id
+                        newUserInfo.invited_by = linkDetail.creator
                     }
                 }
             }

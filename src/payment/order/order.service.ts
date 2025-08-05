@@ -317,6 +317,7 @@ export class OrderService {
                 expire_time: new Date(Date.now() + 1000 * 60 * 15), //order will cancel after 15 minutes
                 from_source_link: sourceLink,
                 is_credit_top_up: options.is_credit_top_up,
+                sales_agent: await this.getSalesAgent(userProfile.usernameShorted),
             },
         })
         return await this.mapOrderDetail(record)
@@ -541,6 +542,18 @@ export class OrderService {
         }
 
         return { ...order, estimated_rewards: await this.mapEstimatedRewards(order) }
+    }
+
+    async getSalesAgent(orderCreator: string): Promise<string> {
+        const salesAgent = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: orderCreator,
+            },
+            select: {
+                invited_by: true,
+            },
+        })
+        return salesAgent?.invited_by || ""
     }
 
     async mapEstimatedRewards(order: OrderDetailDto): Promise<EstimatedRewardsDto> {
