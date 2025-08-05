@@ -31,6 +31,7 @@ import { Decimal } from "@prisma/client/runtime/library"
 import { RewardAllocateRatio, RewardAllocateRoles, RewardSnapshotDto } from "src/payment/rewards-pool/rewards-pool.dto"
 import { UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
+import { OrderService } from "src/payment/order/order.service"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -49,6 +50,7 @@ export class RewardPoolOnChainService {
         private readonly prisma: PrismaService,
         private readonly giggleService: GiggleService,
         private readonly salesAgentService: SalesAgentService,
+        private readonly orderService: OrderService,
     ) {
         this.settleWallet = process.env.SETTLEMENT_WALLET
         this.rpcUrl = process.env.REWARD_ON_CHAIN_ENDPOINT
@@ -1537,7 +1539,7 @@ export class RewardPoolOnChainService {
                     })
                     //release rewards
                     if (order.release_rewards_after_paid && order.current_status === OrderStatus.COMPLETED) {
-                        await this.ordersService.releaseRewards(order, null)
+                        await this.orderService.releaseRewards(order, null)
                     }
                 }
             } catch (error) {
