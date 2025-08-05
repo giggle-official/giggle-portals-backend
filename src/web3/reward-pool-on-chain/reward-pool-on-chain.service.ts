@@ -29,6 +29,7 @@ import { OrderStatus } from "src/payment/order/order.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { RewardAllocateRoles } from "src/payment/rewards-pool/rewards-pool.dto"
 import { UtilitiesService } from "src/common/utilities.service"
+import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -46,6 +47,7 @@ export class RewardPoolOnChainService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly giggleService: GiggleService,
+        private readonly salesAgentService: SalesAgentService,
     ) {
         this.settleWallet = process.env.SETTLEMENT_WALLET
         this.rpcUrl = process.env.REWARD_ON_CHAIN_ENDPOINT
@@ -921,7 +923,7 @@ export class RewardPoolOnChainService {
             const tokenBalance = await this.retrieve(statement.token)
             if (!tokenBalance) {
                 this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                    `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}, balance: ${tokenBalance.totalAmount}`,
                 )
                 continue
             }
@@ -1008,6 +1010,8 @@ export class RewardPoolOnChainService {
                     },
                     data: { chain_transaction: transaction as any },
                 })
+                //settle sales agent revenue
+                await this.salesAgentService.settleStatement(statement.id)
                 this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
                 //sleep 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000))

@@ -59,6 +59,12 @@ export class OrderDto implements orders {
         description: "The owner of the order",
     })
     owner: string
+
+    @ApiProperty({
+        description: "The sales agent of the order",
+    })
+    sales_agent: string
+
     @ApiProperty({
         description: "The widget tag of the order created by",
         required: false,
@@ -249,6 +255,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "id",
     "stripe_invoice_detail",
     "stripe_invoice_id",
+    "sales_agent",
     "wallet_paid_detail",
     "costs_allocation",
     "ip_holder_revenue_reallocation",
