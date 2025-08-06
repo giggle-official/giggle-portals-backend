@@ -617,9 +617,9 @@ ORDER BY d.date;`
             },
         })
 
-        if (!widget) {
-            throw new BadRequestException("Rewards pool is not subscribed to this widget")
-        }
+        //if (!widget) {
+            //throw new BadRequestException("Rewards pool is not subscribed to this widget")
+        //}
 
         let amount = new Decimal(0)
         if (body.usd_amount > 0) {
