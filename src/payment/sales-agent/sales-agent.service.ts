@@ -195,6 +195,7 @@ export class SalesAgentService {
             this.logger.warn(`No platform incomes found for order ${statement.related_order_id}`)
             return
         }
+        console.log(rewards)
         const incomes = rewards._sum.rewards
         let salesRevenue: Prisma.sales_agent_revenueCreateManyInput[] = []
 

@@ -960,7 +960,7 @@ export class RewardPoolOnChainService {
             const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
             if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
                 this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toNumber()} < ${statement.usd_revenue.toNumber()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                    `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toString()} < ${statement.usd_revenue.toString()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
                 )
                 continue
             }
@@ -973,10 +973,10 @@ export class RewardPoolOnChainService {
                 )
                 continue
             }
-            const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
+            const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount).div(10 ** 6)
             if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
                 this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${statement.amount.mul(-1).toNumber()}`,
+                    `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toString()}, need tokens: ${statement.amount.mul(-1).toString()}`,
                 )
                 continue
             }
@@ -1034,11 +1034,11 @@ export class RewardPoolOnChainService {
             })
 
             this.logger.log(
-                `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toNumber()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toNumber()}`,
+                `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toString()}`,
             )
 
             this.logger.log(
-                `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+                `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}, token balance: ${tokenBalanceAmount.toString()}`,
             )
 
             try {
