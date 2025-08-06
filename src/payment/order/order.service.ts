@@ -1288,6 +1288,11 @@ export class OrderService {
             throw new BadRequestException("Order has no reward pool")
         }
 
+        if (orderRecord.buyback_after_paid && orderRecord.buyback_result === null) {
+            this.logger.error(`Order ${order_id} need to wait for buyback to complete`)
+            throw new BadRequestException("Order need to wait for buyback to complete")
+        }
+
         const modelSnapshot = orderRecord.rewards_model_snapshot as unknown as RewardSnapshotDto
 
         const rewardPool = await this.prisma.reward_pools.findFirst({
