@@ -277,7 +277,7 @@ export class SalesAgentService {
     }
 
     //withdraw sales agent revenue
-    @Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_HOUR)
     async withdrawSalesAgentRevenue() {
         if (process.env.TASK_SLOT != "1") return
         if (!process.env.PLATFORM_WALLET) {
