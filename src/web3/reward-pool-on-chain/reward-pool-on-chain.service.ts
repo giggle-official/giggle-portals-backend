@@ -29,7 +29,7 @@ import { Cron } from "@nestjs/schedule"
 import { OrderStatus } from "src/payment/order/order.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { RewardAllocateRatio, RewardAllocateRoles, RewardSnapshotDto } from "src/payment/rewards-pool/rewards-pool.dto"
-import { UtilitiesService } from "src/common/utilities.service"
+import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
 
@@ -44,7 +44,7 @@ export class RewardPoolOnChainService {
 
     private readonly maxOnChainTryCount: number = 3
     private readonly onChainTaskTimeout: number = 1000 * 60 * 30 //30 minutes
-    private readonly onChainTaskId: number = 3
+    private readonly onChainTaskId: number = TASK_IDS.REWARD_POOL_ON_CHAIN_TASK
 
     constructor(
         private readonly prisma: PrismaService,
@@ -1614,7 +1614,8 @@ export class RewardPoolOnChainService {
     @Cron(CronExpression.EVERY_5_MINUTES)
     async updateBuybackWallet() {
         if (process.env.TASK_SLOT != "1") return
-        const taskId = 4
+        const taskId = TASK_IDS.UPDATE_BUYBACK_WALLET
+
         if (await UtilitiesService.checkTaskRunning(taskId, this.onChainTaskTimeout)) {
             this.logger.log("Update buyback wallet task is running, skip")
             return

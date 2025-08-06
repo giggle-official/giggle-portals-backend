@@ -13,6 +13,16 @@ export class S3InfoDto {
     s3_prefix: string
 }
 
+export const TASK_IDS = {
+    WITHDRAW_SALES_AGENT_REVENUE: 997,
+    MIGRATE_THUMBNAIL: 998,
+    MIGRATE_AVATAR: 999,
+    MIGRATE_ASSET: 1000,
+    //rewards pool related
+    REWARD_POOL_ON_CHAIN_TASK: 3,
+    UPDATE_BUYBACK_WALLET: 4,
+}
+
 @Injectable()
 export class UtilitiesService {
     private cloudFront: AWS.CloudFront.Signer

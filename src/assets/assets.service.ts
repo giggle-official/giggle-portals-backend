@@ -20,7 +20,7 @@ import {
     GetPresignedUploadUrlReqDto,
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
-import { UtilitiesService } from "src/common/utilities.service"
+import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { NewImageProcessResult, NewVideoProcessResult, VideoInfoTaskResponseDto } from "src/task/task.dto"
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
@@ -493,7 +493,7 @@ export class AssetsService {
         if (process.env.TASK_SLOT != "1") {
             return
         }
-        const taskId = 999
+        const taskId = TASK_IDS.MIGRATE_AVATAR
         if (await UtilitiesService.checkTaskRunning(taskId)) {
             this.logger.log("Task is running, skipping")
             return
@@ -561,7 +561,7 @@ export class AssetsService {
             return
         }
 
-        const taskId = 999
+        const taskId = TASK_IDS.MIGRATE_ASSET
         const batchSize = 10
         if (await UtilitiesService.checkTaskRunning(taskId)) {
             this.logger.log("Task is running, skipping")
@@ -708,7 +708,7 @@ export class AssetsService {
             return
         }
 
-        const taskId = 998
+        const taskId = TASK_IDS.MIGRATE_THUMBNAIL
         const batchSize = 10
         if (await UtilitiesService.checkTaskRunning(taskId)) {
             this.logger.log("Task is running, skipping")

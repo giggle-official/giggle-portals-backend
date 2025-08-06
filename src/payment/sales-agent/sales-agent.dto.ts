@@ -36,6 +36,7 @@ export class CreateSalesAgentDto {
 export class SalesAgentDetailDto {
     id: number
     user: string
+    email: string
     sales_level: number
     parent_agent: SalesAgentDetailDto | null
     children_agents: SalesAgentDetailDto[]

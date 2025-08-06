@@ -71,6 +71,7 @@ model users {
   user_rewards_withdraw          user_rewards_withdraw[]
   view_user_rewards_summary      view_user_rewards_summary[]
   user_nfts                      user_nfts[]
+  sales_agent                    sales_agent?
 }
 
 model user_request_log {
@@ -1215,6 +1216,7 @@ model sales_agent {
   parent_sale String?   @db.VarChar(32)
   created_at  DateTime? @default(now()) @db.Timestamp(0)
   updated_at  DateTime? @default(now()) @db.Timestamp(0)
+  user_info   users?    @relation(fields: [user], references: [username_in_be])
 }
 
 model sales_agent_revenue {
