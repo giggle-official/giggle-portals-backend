@@ -2277,6 +2277,79 @@
         ]
       }
     },
+    "/api/v1/sales-agent/create": {
+      "post": {
+        "operationId": "SalesAgentController_addSalesAgent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSalesAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesAgentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Add a sales agent",
+        "tags": [
+          "Sales Agent"
+        ]
+      }
+    },
+    "/api/v1/sales-agent": {
+      "get": {
+        "operationId": "SalesAgentController_getSalesAgentDetail",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesAgentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a sales agent detail",
+        "tags": [
+          "Sales Agent"
+        ]
+      }
+    },
     "/api/v1/app/list": {
       "get": {
         "operationId": "OpenAppController_getAppList",
@@ -7733,6 +7806,26 @@
         ]
       },
       "SalesAgentIncomeResDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateSalesAgentDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "User email"
+          },
+          "parent_agent": {
+            "type": "string",
+            "description": "Parent agent email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "SalesAgentDetailDto": {
         "type": "object",
         "properties": {}
       },
