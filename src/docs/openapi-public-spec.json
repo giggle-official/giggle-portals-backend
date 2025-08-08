@@ -743,37 +743,6 @@
         ]
       }
     },
-    "/api/v1/launch-agent/get-strategy-price": {
-      "get": {
-        "operationId": "LaunchAgentController_getStrategyPrice",
-        "parameters": [
-          {
-            "name": "sols",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "number"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Get the estimated usdc of a launch agent strategy",
-        "tags": [
-          "Launch Agent"
-        ]
-      }
-    },
     "/api/v1/launch-agent/check-agent-status/{ip_id}": {
       "get": {
         "operationId": "LaunchAgentController_checkAgentStatus",
@@ -3864,7 +3833,7 @@
     },
     "/api/v1/ip-library/launch-ip-token": {
       "post": {
-        "description": "\nReturns SSE stream with progress updates and final result, \nsse event: \n\n**event list:**\n\n- ip.creation_steps\n\n ```json\n{\n  \"order\": 1,\n  \"event\": \"ip.creation_steps\",\n  \"label\": \"Creation steps\",\n  \"summary\": \"When started a creation process, this event will return the creation steps in `data` structure.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.data_validating\n\n ```json\n{\n  \"order\": 2,\n  \"event\": \"ip.data_validating\",\n  \"label\": \"Data verification\",\n  \"summary\": \"Validating IP creation data.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.asset_to_ipfs\n\n ```json\n{\n  \"order\": 3,\n  \"event\": \"ip.asset_to_ipfs\",\n  \"label\": \"Asset to IPFS\",\n  \"summary\": \"Uploading IP asset to IPFS, at current step, the data in `data` is the progress of asset uploading\",\n  \"is_progress\": true,\n  \"is_completed\": false\n}\n```\n- ip.token_creating\n\n ```json\n{\n  \"order\": 14,\n  \"event\": \"ip.token_creating\",\n  \"label\": \"Creating IP Token\",\n  \"summary\": \"Creating IP token, this may take a while depends on the network condition\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.token_creating_reward_pool\n\n ```json\n{\n  \"order\": 15,\n  \"event\": \"ip.token_creating_reward_pool\",\n  \"label\": \"Creating Reward Pool\",\n  \"summary\": \"Creating reward pool for IP token.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.starting\n\n ```json\n{\n  \"order\": 116,\n  \"event\": \"ip.start_launch_agent.starting\",\n  \"label\": \"IP Token Run Strategy\",\n  \"summary\": \"Starting to run strategy for IP token if your purchase strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.calculate_cost\n\n ```json\n{\n  \"order\": 118,\n  \"event\": \"ip.start_launch_agent.calculate_cost\",\n  \"label\": \"Calculate Cost for Purchase Strategy\",\n  \"summary\": \"Calculating cost for purchase strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.check_balance\n\n ```json\n{\n  \"order\": 119,\n  \"event\": \"ip.start_launch_agent.check_balance\",\n  \"label\": \"Check Balance for Purchase Strategy\",\n  \"summary\": \"Checking balance for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.transfer_usdc\n\n ```json\n{\n  \"order\": 110,\n  \"event\": \"ip.start_launch_agent.transfer_usdc\",\n  \"label\": \"Transfer USDC for Purchase Strategy\",\n  \"summary\": \"Transferring USDC for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.start_agent\n\n ```json\n{\n  \"order\": 111,\n  \"event\": \"ip.start_launch_agent.start_agent\",\n  \"label\": \"Start Purchase Strategy Agent\",\n  \"summary\": \"Starting purchase strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.agent_started\n\n ```json\n{\n  \"order\": 112,\n  \"event\": \"ip.start_launch_agent.agent_started\",\n  \"label\": \"Purchase Strategy Agent Started\",\n  \"summary\": \"Purchase strategy agent started, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": true\n}\n```\n- ip.token_created_on_chain\n\n ```json\n{\n  \"order\": 1007,\n  \"event\": \"ip.token_created_on_chain\",\n  \"label\": \"IP Token Created On Chain\",\n  \"summary\": \"IP token is created successfully, this event will be triggered when the IP token is created successfully, and the data in `data` is the IP info.\",\n  \"is_progress\": false,\n  \"is_completed\": true\n}\n```\n- ip.warning\n\n ```json\n{\n  \"order\": 1008,\n  \"event\": \"ip.warning\",\n  \"label\": \"IP Warning\",\n  \"summary\": \"IP warning, `data` is the warning info.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n\n**error event:**\n\nif error occurs, the event will be `error` and the data in `data` is the error message, sse will be closed.\n",
+        "description": "\nReturns SSE stream with progress updates and final result, \nsse event: \n\n**event list:**\n\n- ip.creation_steps\n\n ```json\n{\n  \"order\": 1,\n  \"event\": \"ip.creation_steps\",\n  \"label\": \"Creation steps\",\n  \"summary\": \"When started a creation process, this event will return the creation steps in `data` structure.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.data_validating\n\n ```json\n{\n  \"order\": 2,\n  \"event\": \"ip.data_validating\",\n  \"label\": \"Data verification\",\n  \"summary\": \"Validating IP creation data.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.asset_to_ipfs\n\n ```json\n{\n  \"order\": 3,\n  \"event\": \"ip.asset_to_ipfs\",\n  \"label\": \"Asset to IPFS\",\n  \"summary\": \"Uploading IP asset to IPFS, at current step, the data in `data` is the progress of asset uploading\",\n  \"is_progress\": true,\n  \"is_completed\": false\n}\n```\n- ip.token_creating\n\n ```json\n{\n  \"order\": 14,\n  \"event\": \"ip.token_creating\",\n  \"label\": \"Creating IP Token\",\n  \"summary\": \"Creating IP token, this may take a while depends on the network condition\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.token_creating_reward_pool\n\n ```json\n{\n  \"order\": 15,\n  \"event\": \"ip.token_creating_reward_pool\",\n  \"label\": \"Creating Reward Pool\",\n  \"summary\": \"Creating reward pool for IP token.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.starting\n\n ```json\n{\n  \"order\": 116,\n  \"event\": \"ip.start_launch_agent.starting\",\n  \"label\": \"IP Token Run Strategy\",\n  \"summary\": \"Starting to run strategy for IP token if your purchase strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.calculate_cost\n\n ```json\n{\n  \"order\": 118,\n  \"event\": \"ip.start_launch_agent.calculate_cost\",\n  \"label\": \"Calculate Cost for Purchase Strategy\",\n  \"summary\": \"Calculating cost for purchase strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.check_balance\n\n ```json\n{\n  \"order\": 119,\n  \"event\": \"ip.start_launch_agent.check_balance\",\n  \"label\": \"Check Balance for Purchase Strategy\",\n  \"summary\": \"Checking balance for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.swap_sol\n\n ```json\n{\n  \"order\": 120,\n  \"event\": \"ip.start_launch_agent.swap_sol\",\n  \"label\": \"Swap SOL for Purchase Strategy\",\n  \"summary\": \"Swapping SOL for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.transfer_sol\n\n ```json\n{\n  \"order\": 121,\n  \"event\": \"ip.start_launch_agent.transfer_sol\",\n  \"label\": \"Transfer SOL for Purchase Strategy\",\n  \"summary\": \"Transferring SOL for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.transfer_usdc\n\n ```json\n{\n  \"order\": 122,\n  \"event\": \"ip.start_launch_agent.transfer_usdc\",\n  \"label\": \"Transfer USDC for Purchase Strategy\",\n  \"summary\": \"Transferring USDC for IP strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.start_agent\n\n ```json\n{\n  \"order\": 123,\n  \"event\": \"ip.start_launch_agent.start_agent\",\n  \"label\": \"Start Purchase Strategy Agent\",\n  \"summary\": \"Starting purchase strategy, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n- ip.start_launch_agent.agent_started\n\n ```json\n{\n  \"order\": 124,\n  \"event\": \"ip.start_launch_agent.agent_started\",\n  \"label\": \"Purchase Strategy Agent Started\",\n  \"summary\": \"Purchase strategy agent started, if your strategy is `agent`\",\n  \"is_progress\": false,\n  \"is_completed\": true\n}\n```\n- ip.token_created_on_chain\n\n ```json\n{\n  \"order\": 1007,\n  \"event\": \"ip.token_created_on_chain\",\n  \"label\": \"IP Token Created On Chain\",\n  \"summary\": \"IP token is created successfully, this event will be triggered when the IP token is created successfully, and the data in `data` is the IP info.\",\n  \"is_progress\": false,\n  \"is_completed\": true\n}\n```\n- ip.warning\n\n ```json\n{\n  \"order\": 1008,\n  \"event\": \"ip.warning\",\n  \"label\": \"IP Warning\",\n  \"summary\": \"IP warning, `data` is the warning info.\",\n  \"is_progress\": false,\n  \"is_completed\": false\n}\n```\n\n**error event:**\n\nif error occurs, the event will be `error` and the data in `data` is the error message, sse will be closed.\n",
         "operationId": "IpLibraryController_launchIpToken",
         "parameters": [],
         "requestBody": {
@@ -10465,6 +10434,8 @@
               "ip.start_launch_agent.starting",
               "ip.start_launch_agent.calculate_cost",
               "ip.start_launch_agent.check_balance",
+              "ip.start_launch_agent.swap_sol",
+              "ip.start_launch_agent.transfer_sol",
               "ip.start_launch_agent.transfer_usdc",
               "ip.start_launch_agent.start_agent",
               "ip.start_launch_agent.agent_started",

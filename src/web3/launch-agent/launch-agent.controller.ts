@@ -55,14 +55,6 @@ export class LaunchAgentController {
         return await this.launchAgentService.checkAgentWalletsStatus(dto, req.user as UserJwtExtractDto)
     }
 
-    @Get("/get-strategy-price")
-    @ApiOperation({ summary: "Get the estimated usdc of a launch agent strategy" })
-    @ApiResponse({ type: Number })
-    @UseGuards(AuthGuard("jwt"))
-    async getStrategyPrice(@Query("sols") sol: string) {
-        return await this.launchAgentService.getStrategyEstimatedUsdc(Number(sol))
-    }
-
     @Get("/check-agent-status/:ip_id")
     @ApiOperation({ summary: "Check the status of a launch agent" })
     @UseGuards(AuthGuard("jwt"))

@@ -501,9 +501,10 @@ export class TradeResponseDto extends PickType(TradeResponseFromGiggleDto, ["sta
 
 export class SendTokenDto {
     @ApiProperty({
-        description: "token address of the trade",
+        description: "token address of the trade, if not provided, transfer sol from users wallet",
+        required: false,
     })
-    mint: string
+    mint?: string
 
     @ApiProperty({
         description: "amount of the send",
@@ -563,3 +564,8 @@ export class PaymentCallbackDto {
 }
 
 export type TopUpResponseDto = string
+
+export class SwapUsdcToSolResponseDto {
+    signature: string
+    solChange: string
+}

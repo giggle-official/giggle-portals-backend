@@ -1717,9 +1717,7 @@ export class IpLibraryService {
             if (agent?.strategy_response) {
                 const { estimated_cost } = agent.strategy_response as any as ParseLaunchLaunchPlanResponseDto
                 if (estimated_cost) {
-                    buy_amount = await this.launchAgentService.getStrategyEstimatedUsdc(
-                        estimated_cost.total_estimated_sol,
-                    )
+                    buy_amount = estimated_cost.total_estimated_usdc
                 }
             }
         }

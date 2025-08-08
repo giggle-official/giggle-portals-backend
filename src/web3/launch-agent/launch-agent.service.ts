@@ -10,6 +10,7 @@ import {
     GenerateSourceWalletsResDto,
     CheckAgentWalletsStatusRequestDto,
     CheckAgentWalletsStatusResponseDto,
+    GenerateSolWalletsResponseDto,
 } from "./launch-agent.dto"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom, Subscriber } from "rxjs"
@@ -28,6 +29,7 @@ export class LaunchAgentService {
     private readonly launchAgentUrl: string
     private readonly launchAgentDebug: boolean
     private readonly launchAgentWallet: string
+    private readonly getSolWalletUrl: string
     private readonly usdcMint: string
 
     constructor(
@@ -42,6 +44,12 @@ export class LaunchAgentService {
         if (!this.launchAgentUrl || !this.launchAgentWallet || !this.usdcMint) {
             this.logger.error("Launch agent config is not set")
             throw new Error("Launch agent config is not set")
+        }
+
+        this.getSolWalletUrl = process.env.LAUNCH_AGENT_GENERATE_WALLET_API
+        if (!this.getSolWalletUrl) {
+            this.logger.error("Get sol wallet url is not set")
+            throw new Error("Get sol wallet url is not set")
         }
         this.launchAgentDebug = process.env.LAUNCH_AGENT_DEBUG === "true"
     }
@@ -125,12 +133,6 @@ export class LaunchAgentService {
             agent_id: dto.agent_id,
             ...response.data,
         }
-    }
-
-    async getStrategyEstimatedUsdc(sol: number): Promise<number> {
-        const solPrice = await this.priceService.getSolPrice()
-        const estimatedUsdc = sol * solPrice * 1.01 // to ensure strategy can be executed successfully
-        return estimatedUsdc
     }
 
     async generateAgentWallets(
@@ -318,15 +320,15 @@ export class LaunchAgentService {
                 event: IpEvents.IP_STRATEGY_CALCULATE_COST,
                 event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_CALCULATE_COST),
                 data: {
-                    estimated_sol: estimated_cost?.total_estimated_sol,
+                    estimated_sol: estimated_cost?.total_estimated_usdc,
                 },
             })
         }
-        const estimatedSol = estimated_cost?.total_estimated_sol || 0
-        const estimatedUsdc = await this.getStrategyEstimatedUsdc(estimatedSol)
+        const estimatedUsdc = estimated_cost?.total_estimated_usdc || 0
         let recycleWallet = user.wallet_address
+        let solWalletAddress = null
 
-        if (estimatedUsdc > 0 && !this.launchAgentDebug) {
+        if (estimatedUsdc > 0) {
             if (subscriber) {
                 subscriber.next({
                     event: IpEvents.IP_STRATEGY_CHECK_BALANCE,
@@ -341,32 +343,100 @@ export class LaunchAgentService {
                 throw new BadRequestException("Insufficient balance")
             }
 
-            //transfer to launch agent wallet
+            const solWallet: AxiosResponse<GenerateSolWalletsResponseDto> = await lastValueFrom(
+                this.httpService.post(this.getSolWalletUrl, {
+                    secretPhrase: process.env.LAUNCH_AGENT_PHRASE,
+                    email: userInfo.email,
+                    count: 1,
+                }),
+            )
+
+            if (!solWallet?.data.wallets.length) {
+                throw new BadRequestException("Failed to generate sol wallet")
+            }
+
+            solWalletAddress = solWallet.data.wallets[0].address
+
+            //swap usdc to sol
+            if (subscriber) {
+                subscriber.next({
+                    event: IpEvents.IP_STRATEGY_SWAP_SOL,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_SWAP_SOL),
+                    data: {
+                        usdc_amount: parsed_strategy.gas_buffer_in_usdc,
+                        sol_wallet_address: solWalletAddress,
+                    },
+                })
+            }
+
+            const swapRes = await this.giggleService.swapUsdcToSol(user, parsed_strategy.gas_buffer_in_usdc)
+            const sols = Number(swapRes.solChange)
+            if (sols <= 0) {
+                throw new BadRequestException(
+                    `sol change is not enough for strategy:${agentId}, sol change: ${sols}, expected: ${parsed_strategy.gas_buffer_in_usdc}`,
+                )
+            }
+
+            //transfer sol to sol wallet
+            if (subscriber) {
+                subscriber.next({
+                    event: IpEvents.IP_STRATEGY_TRANSFER_SOL,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_TRANSFER_SOL),
+                    data: {
+                        sol_amount: parsed_strategy.gas_buffer_in_usdc,
+                        sol_wallet_address: solWalletAddress,
+                    },
+                })
+            }
+
+            const sendSolRes = await this.giggleService.sendToken(user, {
+                amount: sols,
+                receipt: solWalletAddress,
+            })
+
+            if (!sendSolRes.sig) {
+                throw new BadRequestException("Failed to send sol to sol wallet")
+            }
+
+            //transfer remaining usdc to launch agent wallet
+            const remainUsdc = estimatedUsdc - parsed_strategy.gas_buffer_in_usdc
             if (subscriber) {
                 subscriber.next({
                     event: IpEvents.IP_STRATEGY_TRANSFER_USDC,
                     event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_TRANSFER_USDC),
                     data: {
-                        estimated_usdc: estimatedUsdc,
+                        estimated_usdc: remainUsdc,
                     },
                 })
             }
             const sendTokenRes = await this.giggleService.sendToken(user, {
                 mint: this.usdcMint,
-                amount: estimatedUsdc,
-                receipt: this.launchAgentWallet,
+                amount: remainUsdc,
+                receipt: solWalletAddress,
             })
 
-            if (sendTokenRes.sig) {
-                await this.prisma.launch_agents.update({
-                    where: { agent_id: agentId },
-                    data: {
-                        current_status: "pending",
-                        transfer_usdc_sig: sendTokenRes.sig,
-                        transfer_usdc_amount: estimatedUsdc,
-                    },
-                })
+            if (!sendTokenRes?.sig) {
+                throw new BadRequestException("Failed to send usdc to sol wallet")
             }
+
+            await this.prisma.launch_agents.update({
+                where: { agent_id: agentId },
+                data: {
+                    current_status: "pending",
+                    transfer_usdc_sig: sendTokenRes?.sig,
+                    transfer_usdc_amount: remainUsdc,
+                    transfer_sol_detail: {
+                        receipt: solWalletAddress,
+                        amount: sols,
+                        res: sendSolRes as any,
+                    },
+                    swap_sol_detail: {
+                        amount: parsed_strategy.gas_buffer_in_usdc,
+                        res: swapRes as any,
+                    },
+                },
+            })
+
             recycleWallet = usdcBalance.address
         }
 
@@ -374,6 +444,7 @@ export class LaunchAgentService {
             parsed_strategy: { ...parsed_strategy, recycle_wallet: recycleWallet },
             token_mint: initParams.token_mint,
             user_email: userInfo.email,
+            source_wallet: solWalletAddress,
         }
 
         if (this.launchAgentDebug) {

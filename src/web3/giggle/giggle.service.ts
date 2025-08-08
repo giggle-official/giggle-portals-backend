@@ -17,6 +17,7 @@ import {
     SendTokenDto,
     SendTokenResponseDto,
     SSEMessage,
+    SwapUsdcToSolResponseDto,
     TopUpResponseDto,
     TradeDto,
     TradeResponseFromGiggleDto,
@@ -318,11 +319,11 @@ export class GiggleService {
                 status: "success",
             })
 
-            subscriber.next({
-                event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
-                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATED_ON_CHAIN),
-                data: mintRes,
-            })
+            //subscriber.next({
+            //    event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
+            //    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATED_ON_CHAIN),
+            //    data: mintRes,
+            //})
             if (completeSubscriber) {
                 subscriber.complete()
             }
@@ -659,6 +660,33 @@ export class GiggleService {
         }
     }
 
+    //swap usdc to sol
+    async swapUsdcToSol(user: UserJwtExtractDto, amount: number): Promise<SwapUsdcToSolResponseDto> {
+        const userEmail = await this.prismaService.users.findUnique({
+            where: { username_in_be: user.usernameShorted },
+        })
+        if (!userEmail) {
+            throw new BadRequestException("User email not found")
+        }
+
+        const signatureParams = this.generateSignature({
+            amount: amount,
+            email: userEmail.email,
+        })
+
+        const response: AxiosResponse<GiggleApiResponseDto<SwapUsdcToSolResponseDto>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/swap", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+
+        if (response.data.code !== 0) {
+            throw new BadRequestException("Failed to swap usdc to sol: " + response.data.msg)
+        }
+
+        return response.data.data
+    }
+
     async sendToken(user: UserJwtExtractDto, body: SendTokenDto, payer?: string): Promise<SendTokenResponseDto> {
         if (body.amount <= 0) {
             throw new BadRequestException("Amount must be greater than 0")
@@ -671,11 +699,15 @@ export class GiggleService {
         }
         const { mint, amount, receipt } = body
         const params: any = {
-            mint: mint,
             amount: amount,
             receipt: receipt,
             email: userEmail.email,
         }
+
+        if (mint) {
+            params.mint = mint
+        }
+
         if (payer) {
             delete params.email
             params.address = payer
@@ -700,7 +732,12 @@ export class GiggleService {
         })
 
         if (response.data.code !== 0) {
-            throw new BadRequestException("Failed to send token: " + response.data.msg)
+            throw new BadRequestException(
+                "Failed to send token, request: " +
+                    JSON.stringify(signatureParams) +
+                    ", response: " +
+                    JSON.stringify(response.data),
+            )
         }
 
         return {

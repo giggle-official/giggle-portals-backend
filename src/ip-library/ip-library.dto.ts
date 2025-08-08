@@ -44,6 +44,10 @@ export enum IpEvents {
     IP_TOKEN_RUN_STRATEGY = "ip.start_launch_agent.starting",
     IP_STRATEGY_CALCULATE_COST = "ip.start_launch_agent.calculate_cost",
     IP_STRATEGY_CHECK_BALANCE = "ip.start_launch_agent.check_balance",
+
+    IP_STRATEGY_SWAP_SOL = "ip.start_launch_agent.swap_sol",
+    IP_STRATEGY_TRANSFER_SOL = "ip.start_launch_agent.transfer_sol",
+
     IP_STRATEGY_TRANSFER_USDC = "ip.start_launch_agent.transfer_usdc",
     IP_STRATEGY_START_AGENT = "ip.start_launch_agent.start_agent",
     IP_STRATEGY_AGENT_STARTED = "ip.start_launch_agent.agent_started",
@@ -126,7 +130,24 @@ export const IpEventsDetail: EventDto[] = [
         is_completed: false,
     },
     {
-        order: 110,
+        order: 120,
+        event: IpEvents.IP_STRATEGY_SWAP_SOL,
+        label: "Swap SOL for Purchase Strategy",
+        summary: `Swapping SOL for IP strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+    {
+        order: 121,
+        event: IpEvents.IP_STRATEGY_TRANSFER_SOL,
+        label: "Transfer SOL for Purchase Strategy",
+        summary: `Transferring SOL for IP strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
+        is_progress: false,
+        is_completed: false,
+    },
+
+    {
+        order: 122,
         event: IpEvents.IP_STRATEGY_TRANSFER_USDC,
         label: "Transfer USDC for Purchase Strategy",
         summary: `Transferring USDC for IP strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
@@ -134,7 +155,7 @@ export const IpEventsDetail: EventDto[] = [
         is_completed: false,
     },
     {
-        order: 111,
+        order: 123,
         event: IpEvents.IP_STRATEGY_START_AGENT,
         label: "Start Purchase Strategy Agent",
         summary: `Starting purchase strategy, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
@@ -142,7 +163,7 @@ export const IpEventsDetail: EventDto[] = [
         is_completed: false,
     },
     {
-        order: 112,
+        order: 124,
         event: IpEvents.IP_STRATEGY_AGENT_STARTED,
         label: "Purchase Strategy Agent Started",
         summary: `Purchase strategy agent started, if your strategy is \`${PurchaseStrategyType.AGENT}\``,
