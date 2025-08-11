@@ -296,6 +296,7 @@ export class GiggleService {
                 amount: 0,
                 sourceType: params.ip_type,
                 metaData: params.metadata || {},
+                //metaData: {},
             }
 
             if (params.buyAmount) {
