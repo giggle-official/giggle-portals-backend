@@ -72,6 +72,7 @@ model users {
   view_user_rewards_summary      view_user_rewards_summary[]
   user_nfts                      user_nfts[]
   sales_agent                    sales_agent?
+  orders                         orders[]
 }
 
 model user_request_log {
@@ -904,6 +905,8 @@ model orders {
   reward_pool_statement          reward_pool_statement[]
   user_rewards                   user_rewards[]
   credit_statements              credit_statements[]
+  sales_agent_revenue            sales_agent_revenue[]
+  user_info                      users?                  @relation(fields: [owner], references: [username_in_be])
 }
 
 model order_callback_record {
@@ -1229,6 +1232,7 @@ model sales_agent_revenue {
   transaction Json?
   created_at  DateTime? @default(now()) @db.Timestamp(0)
   updated_at  DateTime? @default(now()) @db.Timestamp(0)
+  order_info  orders?   @relation(fields: [order_id], references: [order_id])
 }
 
 model view_ip_token_prices {

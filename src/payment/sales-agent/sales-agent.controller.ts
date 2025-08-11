@@ -17,8 +17,9 @@ import { IsAdminGuard } from "src/auth/is_admin.guard"
 @ApiTags("Sales Agent")
 export class SalesAgentController {
     constructor(private readonly salesAgentService: SalesAgentService) {}
+
     @Get("/incomes")
-    @ApiOperation({ summary: "Get an order by order id", tags: ["Order"] })
+    @ApiOperation({ summary: "Get sales agent incomes", tags: ["Sales Agent"] })
     @UseGuards(AuthGuard("jwt"))
     @ApiResponse({ type: SalesAgentIncomeResDto })
     async getSalesAgentIncomes(@Req() req: Request, @Query() query: SalesAgentIncomeQueryDto) {

@@ -2226,6 +2226,33 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "widget_tag",
+            "required": false,
+            "in": "query",
+            "description": "filter by widget tag",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "required": false,
+            "in": "query",
+            "description": "start date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_date",
+            "required": false,
+            "in": "query",
+            "description": "end date",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2240,9 +2267,9 @@
             }
           }
         },
-        "summary": "Get an order by order id",
+        "summary": "Get sales agent incomes",
         "tags": [
-          "Order"
+          "Sales Agent"
         ]
       }
     },
@@ -7774,9 +7801,56 @@
           "statements"
         ]
       },
+      "SalesAgentSummaryDto": {
+        "type": "object",
+        "properties": {
+          "total_orders": {
+            "type": "number",
+            "description": "total orders"
+          },
+          "total_referrends": {
+            "type": "number",
+            "description": "total referrends"
+          },
+          "total_revenue": {
+            "type": "number",
+            "description": "total revenue"
+          }
+        },
+        "required": [
+          "total_orders",
+          "total_referrends",
+          "total_revenue"
+        ]
+      },
       "SalesAgentIncomeResDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "summary": {
+            "description": "summary",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SalesAgentSummaryDto"
+              }
+            ]
+          },
+          "total": {
+            "type": "number",
+            "description": "total records"
+          },
+          "list": {
+            "description": "list",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/"
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "total",
+          "list"
+        ]
       },
       "CreateSalesAgentDto": {
         "type": "object",

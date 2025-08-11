@@ -1,6 +1,13 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { AgentQueryDto, CreateSalesAgentDto, SalesAgentDetailDto, SalesAgentIncomeQueryDto } from "./sales-agent.dto"
+import {
+    AgentQueryDto,
+    CreateSalesAgentDto,
+    SalesAgentDetailDto,
+    SalesAgentIncomeQueryDto,
+    SalesAgentIncomeResDto,
+    SalesAgentIncomeStatus,
+} from "./sales-agent.dto"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { RewardAllocateRoles } from "../rewards-pool/rewards-pool.dto"
 import { Prisma, sales_agent, users } from "@prisma/client"
@@ -21,12 +28,82 @@ export class SalesAgentService {
         private readonly giggleService: GiggleService,
     ) {}
 
-    async getSalesAgentIncomes(user: UserJwtExtractDto, query: SalesAgentIncomeQueryDto) {
+    async getSalesAgentIncomes(
+        user: UserJwtExtractDto,
+        query: SalesAgentIncomeQueryDto,
+    ): Promise<SalesAgentIncomeResDto> {
+        const where: Prisma.sales_agent_revenueWhereInput = {
+            user: user.usernameShorted,
+        }
+
+        if (query.widget_tag) {
+            where.order_info.widget_tag = query.widget_tag
+        }
+
+        if (query.start_date) {
+            where.created_at = {
+                gte: new Date(query.start_date),
+            }
+        }
+
+        if (query.end_date) {
+            where.created_at = {
+                lte: new Date(query.end_date),
+            }
+        }
+
         const salesAgentIncomes = await this.prisma.sales_agent_revenue.findMany({
+            where: where,
+            include: {
+                order_info: {
+                    include: { user_info: true },
+                },
+            },
             skip: Math.max(0, parseInt(query.page) - 1) * parseInt(query.page_size),
             take: parseInt(query.page_size),
         })
-        return {}
+
+        const totalReferrends = await this.prisma.users.count({
+            where: {
+                invited_by: user.usernameShorted,
+            },
+        })
+
+        const totalOrders = await this.prisma.orders.count({
+            where: {
+                sales_agent: user.usernameShorted,
+            },
+        })
+
+        const totalRevenue = await this.prisma.sales_agent_revenue.aggregate({
+            where: {
+                user: user.usernameShorted,
+            },
+            _sum: {
+                revenue: true,
+            },
+        })
+
+        const total = await this.prisma.sales_agent_revenue.count({
+            where: where,
+        })
+
+        return {
+            summary: {
+                total_orders: totalOrders,
+                total_referrends: totalReferrends,
+                total_revenue: totalRevenue._sum.revenue.toNumber() || 0,
+            },
+            total: total,
+            list: salesAgentIncomes.map((item) => ({
+                username: item.order_info.user_info.username_in_be,
+                user_register_time: item.order_info.user_info.created_at.toISOString(),
+                order_id: item.order_info.order_id,
+                revenue: item.revenue.toNumber(),
+                status: item.transaction ? SalesAgentIncomeStatus.PAID : SalesAgentIncomeStatus.PENDING,
+                created_at: item.created_at.toISOString(),
+            })),
+        }
     }
 
     async addSalesAgent(body: CreateSalesAgentDto) {

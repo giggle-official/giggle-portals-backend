@@ -1,5 +1,5 @@
 import { PaginationDto } from "src/common/common.dto"
-import { IsEmail, IsNotEmpty, IsOptional } from "class-validator"
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator"
 import { ApiProperty } from "@nestjs/swagger"
 
 export enum SalesAgentIncomeStatus {
@@ -7,19 +7,56 @@ export enum SalesAgentIncomeStatus {
     PENDING = "pending",
 }
 export class SalesAgentIncomeItemDto {
+    @ApiProperty({ description: "username" })
+    username: string
+    @ApiProperty({ description: "user register time" })
+    user_register_time: string
+    @ApiProperty({ description: "order id" })
     order_id: string
+    @ApiProperty({ description: "revenue" })
     revenue: number
+    @ApiProperty({ description: "status" })
     status: SalesAgentIncomeStatus
+    @ApiProperty({ description: "created at" })
     created_at: string
 }
 
-export class SalesAgentIncomeResDto {
-    total_records: number
+export class SalesAgentSummaryDto {
+    @ApiProperty({ description: "total orders" })
+    total_orders: number
+    @ApiProperty({ description: "total referrends" })
+    total_referrends: number
+    @ApiProperty({ description: "total revenue" })
     total_revenue: number
+}
+
+export class SalesAgentIncomeResDto {
+    @ApiProperty({ description: "summary", type: () => SalesAgentSummaryDto })
+    summary: SalesAgentSummaryDto
+
+    @ApiProperty({ description: "total records" })
+    total: number
+
+    @ApiProperty({ description: "list", type: [() => SalesAgentIncomeItemDto] })
     list: SalesAgentIncomeItemDto[]
 }
 
-export class SalesAgentIncomeQueryDto extends PaginationDto {}
+export class SalesAgentIncomeQueryDto extends PaginationDto {
+    @IsOptional()
+    @IsString()
+    @ApiProperty({ description: "filter by widget tag", required: false })
+    widget_tag?: string
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({ description: "start date", required: false })
+    start_date?: string
+
+    @IsOptional()
+    @IsString()
+    @ApiProperty({ description: "end date", required: false })
+    end_date?: string
+}
 
 export class CreateSalesAgentDto {
     @IsNotEmpty()
