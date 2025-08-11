@@ -92,7 +92,7 @@ export class SalesAgentService {
             summary: {
                 total_orders: totalOrders,
                 total_referrends: totalReferrends,
-                total_revenue: totalRevenue._sum.revenue.toNumber() || 0,
+                total_revenue: (totalRevenue._sum.revenue || new Decimal(0)).toNumber(),
             },
             total: total,
             list: salesAgentIncomes.map((item) => ({
