@@ -7,16 +7,30 @@ export enum SalesAgentIncomeStatus {
     PENDING = "pending",
 }
 export class SalesAgentIncomeItemDto {
+    @ApiProperty({ description: "user id" })
+    user_id: string
+
+    @ApiProperty({ description: "user avatar" })
+    user_avatar: string
+
     @ApiProperty({ description: "username" })
     username: string
+
     @ApiProperty({ description: "user register time" })
     user_register_time: string
+
+    @ApiProperty({ description: "agent user id" })
+    agent_user_id: string
+
     @ApiProperty({ description: "order id" })
     order_id: string
+
     @ApiProperty({ description: "revenue" })
     revenue: number
+
     @ApiProperty({ description: "status" })
     status: SalesAgentIncomeStatus
+
     @ApiProperty({ description: "created at" })
     created_at: string
 }

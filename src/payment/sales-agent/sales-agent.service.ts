@@ -96,6 +96,9 @@ export class SalesAgentService {
             },
             total: total,
             list: salesAgentIncomes.map((item) => ({
+                user_id: item.order_info.user_info.username_in_be,
+                user_avatar: item.order_info.user_info.avatar,
+                agent_user_id: item.user,
                 username: item.order_info.user_info.username_in_be,
                 user_register_time: item.order_info.user_info.created_at.toISOString(),
                 order_id: item.order_info.order_id,
