@@ -1205,6 +1205,7 @@ export class IpLibraryService {
                 website: ipDetail.extra_info?.website,
                 cover_s3_key: ipCoverKey?.cover_images?.[0]?.key,
                 ip_type: ipDetail.ip_type as any,
+                metadata: ipDetail.meta_data,
             }
 
             if (buy_amount > 0 && body.purchase_strategy.type === PurchaseStrategyType.DIRECT) {

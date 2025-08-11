@@ -104,6 +104,12 @@ export class CreateIpTokenDto {
         required: false,
     })
     ip_type: ip_type
+
+    @ApiProperty({
+        description: "metadata of the ip token",
+        required: false,
+    })
+    metadata?: any
 }
 
 export class CreateIpTokenResponseDto {
@@ -143,6 +149,7 @@ export class CreateIpTokenGiggleRequestDto {
     isUsdc: boolean
     website?: string
     sourceType: ip_type
+    metaData?: any
 }
 
 export class CreateIpTokenGiggleResponseDto {
