@@ -295,7 +295,7 @@ export class GiggleService {
                 isUsdc: true,
                 amount: 0,
                 sourceType: params.ip_type,
-                metaData: params.metadata,
+                metaData: params.metadata || {},
             }
 
             if (params.buyAmount) {
