@@ -103,7 +103,10 @@ export class GiggleService {
             .filter((key) => key !== "sign" && params[key] !== undefined && params[key] !== null)
             .sort()
         const stringA = sortedKeys
-            .map((key) => `${key}=${typeof params[key] === "object" ? JSON.stringify(params[key]) : params[key]}`)
+            .map(
+                (key) =>
+                    `${key}=${typeof params[key] === "object" ? JSON.stringify(this.recursiveSortObjectByKey(params[key])) : params[key]}`,
+            )
             .join(",")
         const stringSignTemp = `${stringA},key=${this.apiKey}`
         const hash = crypto.createHash("md5").update(stringSignTemp).digest("hex")
@@ -113,6 +116,42 @@ export class GiggleService {
             sign: hash.toUpperCase(),
         }
     }
+
+    /**
+     * Recursively sorts an object by its keys
+     * @param obj - The object to sort
+     * @param sortFn - Optional custom sort function for keys (default: alphabetical)
+     * @returns A new object with sorted keys at all levels
+     */
+    recursiveSortObjectByKey(obj: any, sortFn?: (a: string, b: string) => number): any {
+        // Handle null, undefined, or primitive values
+        if (obj === null || obj === undefined || typeof obj !== "object") {
+            return obj
+        }
+
+        // Handle arrays - recursively sort each element
+        if (Array.isArray(obj)) {
+            return obj.map((item) => this.recursiveSortObjectByKey(item, sortFn))
+        }
+
+        // Handle Date objects and other built-in objects
+        if (obj instanceof Date || obj instanceof RegExp || obj instanceof Error) {
+            return obj
+        }
+
+        // Handle plain objects - sort keys and recursively sort values
+        const keys = Object.keys(obj)
+        const sortedKeys = sortFn ? keys.sort(sortFn) : keys.sort()
+        const sortedObj: any = {}
+
+        for (const key of sortedKeys) {
+            sortedObj[key] = this.recursiveSortObjectByKey(obj[key], sortFn)
+        }
+
+        return sortedObj
+    }
+
+    //
 
     async uploadCoverImageFromS3(path: string): Promise<UploadCoverImageResponseDto> {
         try {
