@@ -794,6 +794,38 @@
         ]
       }
     },
+    "/api/v1/launch-agent/suggest-bonding-segments": {
+      "post": {
+        "operationId": "LaunchAgentController_suggestBondingSegments",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestBondingSegmentsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestBondingSegmentsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Suggest bonding segments",
+        "tags": [
+          "Launch Agent"
+        ]
+      }
+    },
     "/api/v1/nft/mint": {
       "post": {
         "description": "Mint a nft from an asset, you must use our asset service to upload the asset first, this api will create a task id, you can use the task id to retrieve the nft minting status",
@@ -5622,6 +5654,14 @@
         "type": "object",
         "properties": {}
       },
+      "SuggestBondingSegmentsRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SuggestBondingSegmentsResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
       "MintNftReqDto": {
         "type": "object",
         "properties": {
@@ -7838,6 +7878,10 @@
             "type": "number",
             "description": "total records"
           },
+          "is_agent": {
+            "type": "boolean",
+            "description": "is requester an agent"
+          },
           "list": {
             "description": "list",
             "type": "array",
@@ -7849,6 +7893,7 @@
         "required": [
           "summary",
           "total",
+          "is_agent",
           "list"
         ]
       },

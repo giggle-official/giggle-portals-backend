@@ -51,6 +51,9 @@ export class SalesAgentIncomeResDto {
     @ApiProperty({ description: "total records" })
     total: number
 
+    @ApiProperty({ description: "is requester an agent" })
+    is_agent: boolean
+
     @ApiProperty({ description: "list", type: [() => SalesAgentIncomeItemDto] })
     list: SalesAgentIncomeItemDto[]
 }

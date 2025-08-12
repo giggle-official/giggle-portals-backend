@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { IsNotEmpty, IsString } from "class-validator"
+import { IsNotEmpty, IsNumber, IsString } from "class-validator"
 
 export class CreateLaunchAgentResponseDto {
     agent_id: string
@@ -106,4 +106,19 @@ export class GenerateSolWalletsResponseDto {
         is_default: boolean
         created_at: string
     }[]
+}
+
+export class SuggestBondingSegmentsRequestDto {
+    @IsNumber()
+    @IsNotEmpty()
+    target_total_pct: number
+
+    @IsNumber()
+    @IsNotEmpty()
+    desired_cost: number
+}
+
+export class SuggestBondingSegmentsResponseDto {
+    success: boolean
+    message: string
 }

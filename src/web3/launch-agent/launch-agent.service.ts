@@ -11,6 +11,8 @@ import {
     CheckAgentWalletsStatusRequestDto,
     CheckAgentWalletsStatusResponseDto,
     GenerateSolWalletsResponseDto,
+    SuggestBondingSegmentsRequestDto,
+    SuggestBondingSegmentsResponseDto,
 } from "./launch-agent.dto"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom, Subscriber } from "rxjs"
@@ -517,6 +519,17 @@ export class LaunchAgentService {
     async getPermission(user: UserJwtExtractDto) {
         const allowedList = process.env.LAUNCH_AGENT_ALLOW_USERS?.toLowerCase().split(",")
         return { allowed: allowedList?.includes(user.email.toLowerCase()) }
+    }
+
+    async suggestBondingSegments(dto: SuggestBondingSegmentsRequestDto, user: UserJwtExtractDto) {
+        if (!this.getPermission(user)) {
+            throw new BadRequestException("You are not allowed to use launch agent")
+        }
+
+        const response: AxiosResponse<SuggestBondingSegmentsResponseDto> = await lastValueFrom(
+            this.httpService.post(`${this.launchAgentUrl}/api/agent/suggest_bonding_segments`, dto),
+        )
+        return response.data
     }
 
     //check agent status every 1 minute

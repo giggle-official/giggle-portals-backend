@@ -9,6 +9,8 @@ import {
     GenerateLaunchAgentWalletsResponseDto,
     ParseLaunchLaunchPlanRequestDto,
     ParseLaunchLaunchPlanResponseDto,
+    SuggestBondingSegmentsRequestDto,
+    SuggestBondingSegmentsResponseDto,
 } from "./launch-agent.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { Request } from "express"
@@ -68,5 +70,14 @@ export class LaunchAgentController {
     @UseGuards(AuthGuard("jwt"))
     async getPermission(@Req() req: Request) {
         return await this.launchAgentService.getPermission(req.user as UserJwtExtractDto)
+    }
+
+    @Post("/suggest-bonding-segments")
+    @ApiOperation({ summary: "Suggest bonding segments" })
+    @ApiBody({ type: SuggestBondingSegmentsRequestDto })
+    @ApiResponse({ type: SuggestBondingSegmentsResponseDto })
+    @UseGuards(AuthGuard("jwt"))
+    async suggestBondingSegments(@Body() dto: SuggestBondingSegmentsRequestDto, @Req() req: Request) {
+        return await this.launchAgentService.suggestBondingSegments(dto, req.user as UserJwtExtractDto)
     }
 }

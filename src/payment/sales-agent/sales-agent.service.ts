@@ -52,6 +52,25 @@ export class SalesAgentService {
             }
         }
 
+        //return if user is not an agent
+        const agent = await this.prisma.sales_agent.findUnique({
+            where: {
+                user: user.usernameShorted,
+            },
+        })
+        if (!agent) {
+            return {
+                summary: {
+                    total_orders: 0,
+                    total_referrends: 0,
+                    total_revenue: 0,
+                },
+                is_agent: false,
+                total: 0,
+                list: [],
+            }
+        }
+
         const salesAgentIncomes = await this.prisma.sales_agent_revenue.findMany({
             where: where,
             include: {
@@ -95,6 +114,7 @@ export class SalesAgentService {
                 total_revenue: (totalRevenue._sum.revenue || new Decimal(0)).toNumber(),
             },
             total: total,
+            is_agent: true,
             list: salesAgentIncomes.map((item) => ({
                 user_id: item.order_info.user_info.username_in_be,
                 user_avatar: item.order_info.user_info.avatar,
