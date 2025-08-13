@@ -76,6 +76,7 @@ export class OrderService {
         PaymentMethod.WALLET,
         PaymentMethod.WECHAT,
         PaymentMethod.CREDIT,
+        PaymentMethod.CREDIT_CARD,
     ]
 
     constructor(

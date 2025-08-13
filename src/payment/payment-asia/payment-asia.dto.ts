@@ -5,6 +5,13 @@ export enum PaymentAsiaOrderStatus {
     PROCESSING = "4",
 }
 
+export enum PaymentAsiaNetwork {
+    ALIPAY = "Alipay",
+    WECHAT = "Wechat",
+    USER_DEFINE = "UserDefine",
+    CREDIT_CARD = "CreditCard",
+}
+
 export class CreatePaymentOrderRequestDto {
     merchant_reference: string
     currency: "HKD"
@@ -15,7 +22,11 @@ export class CreatePaymentOrderRequestDto {
     customer_last_name: string
     customer_phone: string
     customer_email: string
-    network: "Alipay" | "Wechat" | "UserDefine"
+    customer_address?: string
+    customer_state?: string
+    customer_postal_code?: string
+    customer_country?: string
+    network: PaymentAsiaNetwork
     subject: string
     notify_url: string
 }

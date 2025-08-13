@@ -51,6 +51,7 @@ import {
     InvitationsDetailDto,
     InvitationsQueryDto,
     GetInviteCodeDto,
+    BillingInfoDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -151,12 +152,6 @@ export class UserInfoDTO extends LoginDTO {
     device_id?: string
 
     @ApiProperty()
-    phone_number?: string
-
-    @ApiProperty()
-    phone_national?: string
-
-    @ApiProperty()
     current_credit_balance?: number
 
     @ApiProperty()
@@ -170,6 +165,11 @@ export class UserInfoDTO extends LoginDTO {
         type: () => RegisterInfoDTO,
     })
     register_info?: RegisterInfoDTO
+
+    @ApiProperty({
+        type: () => BillingInfoDto,
+    })
+    billing_info?: BillingInfoDto
 }
 
 export class EmailLoginDto extends PickType(UserInfoDTO, ["email", "password"]) {}

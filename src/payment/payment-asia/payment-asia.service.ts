@@ -10,11 +10,17 @@ import { UserJwtExtractDto } from "src/user/user.controller"
 import { OrderService } from "../order/order.service"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
-import { CreatePaymentOrderRequestDto, PaymentAsiaCallbackDto, PaymentAsiaOrderStatus } from "./payment-asia.dto"
+import {
+    CreatePaymentOrderRequestDto,
+    PaymentAsiaCallbackDto,
+    PaymentAsiaNetwork,
+    PaymentAsiaOrderStatus,
+} from "./payment-asia.dto"
 import * as crypto from "crypto"
 import { UtilitiesService } from "src/common/utilities.service"
 import { Request, Response } from "express"
 import { URLSearchParams } from "url"
+import { BillingInfoDto } from "src/user/user.dto"
 
 @Injectable()
 export class PaymentAsiaService {
@@ -91,10 +97,10 @@ export class PaymentAsiaService {
             },
         })
 
-        const returnUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/redirect`
-        //const returnUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/redirect`
-        const notifyUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/callback`
-        //const notifyUrl = `https://2b25-218-247-161-11.ngrok-free.app/api/v1/order/payment-asia/callback`
+        const returnUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/redirect?method=${orderDto.method}`
+        //const returnUrl = `https://specially-picked-quetzal.ngrok-free.app/api/v1/order/payment-asia/redirect?method=${orderDto.method}`
+        const notifyUrl = `${process.env.FRONTEND_URL}/api/v1/order/payment-asia/callback?method=${orderDto.method}`
+        //const notifyUrl = `https://specially-picked-quetzal.ngrok-free.app/api/v1/order/payment-asia/callback?method=${orderDto.method}`
 
         const createPaymentOrderRequest: CreatePaymentOrderRequestDto = {
             merchant_reference: orderId,
@@ -106,9 +112,38 @@ export class PaymentAsiaService {
             customer_last_name: userProfile.username,
             customer_phone: orderDto.phone_national + orderDto.phone_number,
             customer_email: userProfile.email,
-            network: orderDto.method,
+            network: orderDto.method as PaymentAsiaNetwork,
             subject: `${orderRecord.description}`,
             notify_url: notifyUrl,
+        }
+
+        if (orderDto.method === "CreditCard") {
+            createPaymentOrderRequest.customer_first_name = orderDto.first_name
+            createPaymentOrderRequest.customer_last_name = orderDto.last_name
+            createPaymentOrderRequest.customer_address = orderDto.customer_address
+            createPaymentOrderRequest.customer_country = orderDto.customer_country
+            createPaymentOrderRequest.customer_postal_code = orderDto.customer_postal_code
+            createPaymentOrderRequest.customer_state = orderDto.customer_state || "NY"
+
+            const billingInfo: BillingInfoDto = {
+                first_name: orderDto.first_name,
+                last_name: orderDto.last_name,
+                phone_number: orderDto.phone_number,
+                phone_national: orderDto.phone_national,
+                billing_address: orderDto.customer_address,
+                billing_country: orderDto.customer_country,
+                billing_postal_code: orderDto.customer_postal_code,
+                billing_state: orderDto.customer_state,
+            }
+            //save users billing info
+            await this.prisma.users.update({
+                where: {
+                    username_in_be: userInfo.usernameShorted,
+                },
+                data: {
+                    billing_info: billingInfo as any,
+                },
+            })
         }
 
         const sign = this.signParams(createPaymentOrderRequest)
@@ -122,7 +157,7 @@ export class PaymentAsiaService {
         }
     }
 
-    async processPaymentAsiaCallback(body: PaymentAsiaCallbackDto) {
+    async processPaymentAsiaCallback(body: PaymentAsiaCallbackDto, method: PaymentAsiaNetwork) {
         this.logger.log(`Received payment asia callback: ${JSON.stringify(body)}`)
         //check sign
         const expecetdSign = this.signParams(body)
@@ -180,7 +215,7 @@ export class PaymentAsiaService {
             },
             data: {
                 current_status: OrderStatus.COMPLETED,
-                paid_method: PaymentMethod.WECHAT,
+                paid_method: this.convertPaymentAsiaNetworkToPaymentMethod(method),
                 paid_time: new Date(),
                 payment_asia_callback: body as any,
             },
@@ -206,6 +241,17 @@ export class PaymentAsiaService {
         }
         const url = `${process.env.FRONTEND_URL}/order?orderId=${order.order_id}&payment_asia_status=${body.status}`
         res.redirect(301, url)
+    }
+
+    convertPaymentAsiaNetworkToPaymentMethod(network: PaymentAsiaNetwork): PaymentMethod {
+        switch (network) {
+            case PaymentAsiaNetwork.WECHAT:
+                return PaymentMethod.WECHAT
+            case PaymentAsiaNetwork.CREDIT_CARD:
+                return PaymentMethod.CREDIT_CARD
+            default:
+                return PaymentMethod.WECHAT
+        }
     }
 
     covertUsdToHkd(amount: number) {

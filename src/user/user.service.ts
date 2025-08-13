@@ -146,8 +146,7 @@ export class UserService {
             device_id: userInfo?.device_id,
             is_developer: _userInfoFromDb?.is_developer,
             register_info: await this.getRegisterInfo(userInfo),
-            phone_number: _userInfoFromDb.phone_number,
-            phone_national: _userInfoFromDb.phone_national,
+            billing_info: _userInfoFromDb.billing_info,
             current_credit_balance: _userInfoFromDb.current_credit_balance,
         }
 
@@ -1051,8 +1050,7 @@ Message: ${contactInfo.message}
             following: record.following,
             can_create_ip: record?.can_create_ip || false,
             is_developer: record?.is_developer || false,
-            phone_number: record?.phone_number || "",
-            phone_national: record?.phone_national || "",
+            billing_info: record?.billing_info,
             current_credit_balance: record?.current_credit_balance || 0,
         }
     }

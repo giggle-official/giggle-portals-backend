@@ -44,6 +44,7 @@ model users {
   wallet_address                 String?                       @db.VarChar(64)
   phone_number                   String?                       @db.VarChar(32)
   phone_national                 String?                       @db.VarChar(16)
+  billing_info                   Json?
   collection                     String?                       @db.VarChar(64)
   universal_stimulator_videos    universal_stimulator_videos[]
   stripe_orders                  stripe_orders[]

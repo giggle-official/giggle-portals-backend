@@ -40,7 +40,7 @@ import { Request, Response } from "express"
 import Stripe from "stripe"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
 import { PaymentAsiaService } from "src/payment/payment-asia/payment-asia.service"
-import { PaymentAsiaCallbackDto } from "../payment-asia/payment-asia.dto"
+import { PaymentAsiaCallbackDto, PaymentAsiaNetwork } from "../payment-asia/payment-asia.dto"
 
 @Controller({ path: "/api/v1/order" })
 export class OrderController {
@@ -213,8 +213,8 @@ export class OrderController {
     @Post("/payment-asia/callback")
     @ApiExcludeEndpoint()
     @HttpCode(HttpStatus.OK)
-    async paymentAsiaCallback(@Body() body: PaymentAsiaCallbackDto) {
-        return await this.paymentAsiaService.processPaymentAsiaCallback(body)
+    async paymentAsiaCallback(@Body() body: PaymentAsiaCallbackDto, @Query("method") method: PaymentAsiaNetwork) {
+        return await this.paymentAsiaService.processPaymentAsiaCallback(body, method)
     }
 
     @Post("/payment-asia/redirect")

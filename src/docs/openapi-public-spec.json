@@ -4920,6 +4920,45 @@
           "from_widget_tag"
         ]
       },
+      "BillingInfoDto": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "phone_national": {
+            "type": "string"
+          },
+          "billing_postal_code": {
+            "type": "string"
+          },
+          "billing_country": {
+            "type": "string"
+          },
+          "billing_address": {
+            "type": "string"
+          },
+          "billing_state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "phone_number",
+          "phone_national",
+          "billing_postal_code",
+          "billing_country",
+          "billing_address",
+          "billing_state"
+        ]
+      },
       "UserInfoDTO": {
         "type": "object",
         "properties": {
@@ -4971,12 +5010,6 @@
           "device_id": {
             "type": "string"
           },
-          "phone_number": {
-            "type": "string"
-          },
-          "phone_national": {
-            "type": "string"
-          },
           "current_credit_balance": {
             "type": "number"
           },
@@ -4985,6 +5018,9 @@
           },
           "register_info": {
             "$ref": "#/components/schemas/RegisterInfoDTO"
+          },
+          "billing_info": {
+            "$ref": "#/components/schemas/BillingInfoDto"
           }
         },
         "required": [
@@ -5003,11 +5039,10 @@
           "is_developer",
           "permissions",
           "device_id",
-          "phone_number",
-          "phone_national",
           "current_credit_balance",
           "widget_info",
-          "register_info"
+          "register_info",
+          "billing_info"
         ]
       },
       "WalletCoinSummaryDto": {
@@ -6664,7 +6699,8 @@
                 "stripe",
                 "wallet",
                 "wechat",
-                "credit"
+                "credit",
+                "credit_card"
               ]
             }
           },

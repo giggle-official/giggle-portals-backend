@@ -10,7 +10,10 @@ import {
     IsString,
     Matches,
     Max,
+    MaxLength,
     Min,
+    MinLength,
+    ValidateIf,
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
@@ -37,6 +40,7 @@ export enum PaymentMethod {
     WALLET = "wallet",
     WECHAT = "wechat",
     CREDIT = "credit",
+    CREDIT_CARD = "credit_card",
 }
 
 export class OrderDto implements orders {
@@ -607,10 +611,52 @@ export class PayWithPaymentAsiaRequestDto {
     phone_number: string
 
     @ApiProperty({
-        description: "The method of the payment",
-        enum: ["Wechat", "Alipay"],
+        description: "The address of the user",
     })
-    method: "Wechat" | "Alipay"
+    customer_address: string
+
+    @ApiProperty({
+        description: "The country of the user",
+    })
+    @ValidateIf((object) => object.method === "CreditCard")
+    @IsString()
+    @MinLength(2)
+    @MaxLength(2)
+    customer_country: string
+
+    @ApiProperty({
+        description: "The postal code of the user",
+    })
+    @ValidateIf((object) => object.method === "CreditCard")
+    @IsString()
+    customer_postal_code: string
+
+    @ApiProperty({
+        description: "The state of the user",
+    })
+    @ValidateIf((object) => object.method === "CreditCard")
+    @IsString()
+    customer_state: string
+
+    @ApiProperty({
+        description: "The first name of the user",
+    })
+    @ValidateIf((object) => object.method === "CreditCard")
+    @IsString()
+    first_name: string
+
+    @ApiProperty({
+        description: "The last name of the user",
+    })
+    @ValidateIf((object) => object.method === "CreditCard")
+    @IsString()
+    last_name: string
+
+    @ApiProperty({
+        description: "The method of the payment",
+        enum: ["Wechat", "Alipay", "CreditCard"],
+    })
+    method: "Wechat" | "Alipay" | "CreditCard"
 }
 
 export class PayWithPaymentAsiaResponseDto {

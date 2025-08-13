@@ -246,3 +246,37 @@ export class GetInviteCodeDto {
     @IsString()
     code: string
 }
+
+export class BillingInfoDto {
+    @ApiProperty()
+    @IsString()
+    first_name: string
+
+    @ApiProperty()
+    @IsString()
+    last_name: string
+
+    @ApiProperty()
+    @IsString()
+    phone_number: string
+
+    @ApiProperty()
+    @IsString()
+    phone_national: string
+
+    @ApiProperty()
+    @IsString()
+    billing_postal_code: string
+
+    @ApiProperty()
+    @IsString()
+    billing_country: string
+
+    @ApiProperty()
+    @IsString()
+    billing_address: string
+
+    @ApiProperty()
+    @IsString()
+    billing_state: string
+}
