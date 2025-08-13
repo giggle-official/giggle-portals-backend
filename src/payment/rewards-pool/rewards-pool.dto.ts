@@ -316,11 +316,12 @@ export class DeveloperSpecifiedRewardSnapshotDto {
     revenue_ratio: RewardAllocateRatio[]
 
     @ApiProperty({
-        description: "Released token ratio for order paid, 1 means 1%, this must be 1-200(1%-200%)",
+        description:
+            "Released token ratio for order paid, 0 means no token released, 1 means 1%, this must be 0-200(0%-200%)",
     })
     @IsNumber()
     @IsPositive()
-    @Min(1)
+    @Min(0)
     @Max(200)
     released_token_ratio: number
 }
