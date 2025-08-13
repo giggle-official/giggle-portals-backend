@@ -320,7 +320,7 @@ export class DeveloperSpecifiedRewardSnapshotDto {
             "Released token ratio for order paid, 0 means no token released, 1 means 1%, this must be 0-200(0%-200%)",
     })
     @IsNumber()
-    @IsPositive()
+    @IsInt()
     @Min(0)
     @Max(200)
     released_token_ratio: number
