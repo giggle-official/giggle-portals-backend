@@ -590,11 +590,9 @@ export class OrderService {
         //const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
         const baseRewards = Math.round(new Decimal(order.amount).div(100).div(unitPrice).toNumber())
 
-        // Check if limit offer exists and is active
-        const ration = Number(rewards.limit_offer?.external_ratio || 100) / 100
-
         if (rewards.limit_offer) {
             // Apply external ratio if limit offer is active
+            const ration = Number(rewards.limit_offer?.external_ratio) / 100
             rewards = {
                 base_rewards: baseRewards,
                 bonus_rewards: Math.round(baseRewards * ration - baseRewards),
