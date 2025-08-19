@@ -418,6 +418,14 @@ export class GetListParams extends PaginationDto {
     @IsString()
     owner?: string
 
+    @ApiProperty({
+        required: false,
+        description: "email of the ip library",
+    })
+    @IsOptional()
+    @IsString()
+    email?: string
+
     @IsOptional()
     @IsEnum(["true", "false"])
     @ApiProperty({

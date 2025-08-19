@@ -447,6 +447,13 @@ export class IpLibraryService {
             params.launched_to_giggle = "true"
         }
 
+        if (params.email) {
+            const user = await this.prismaService.users.findUnique({
+                where: { email: params.email },
+            })
+            where.owner = user?.username_in_be || ""
+        }
+
         if (params.launched_to_giggle === "true") {
             where.token_info = {
                 path: "$.mint",
