@@ -7,6 +7,7 @@ import { UserService } from "src/user/user.service"
 import { WidgetsService } from "../widgets/widgets.service"
 import { GetUserTokenDto } from "./users.dto"
 import { users } from "@prisma/client"
+import { GetUserInfoQueryDto } from "./developer.dto"
 
 @Injectable()
 export class UsersService {
@@ -16,13 +17,31 @@ export class UsersService {
         private readonly widgetService: WidgetsService,
     ) {}
 
-    async getUserInfo(reqUser: UserJwtExtractDto, email: string) {
-        const user = await this.prisma.users.findUnique({
-            where: { email: email },
-        })
+    async getUserInfo(reqUser: UserJwtExtractDto, query: GetUserInfoQueryDto) {
+        if (query.email && query.user_id) {
+            throw new BadRequestException("email and user_id are mutually exclusive")
+        }
+        if (query.email) {
+            if (!isEmail(query.email)) {
+                throw new BadRequestException("Email is not valid")
+            }
+        }
+        let user: users | null = null
+        if (query.email) {
+            user = await this.prisma.users.findUnique({
+                where: { email: query.email },
+            })
+        }
+
+        if (query.user_id) {
+            user = await this.prisma.users.findUnique({
+                where: { username_in_be: query.user_id },
+            })
+        }
         if (!user) {
             throw new NotFoundException("User not found")
         }
+
         return this.userService.getProfile({ user_id: user.username_in_be, usernameShorted: user.username_in_be })
     }
 

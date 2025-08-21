@@ -2989,7 +2989,19 @@
             "name": "email",
             "required": true,
             "in": "query",
+            "description": "The email of the user",
             "schema": {
+              "example": "test@giggle.pro",
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": true,
+            "in": "query",
+            "description": "The user id of the user",
+            "schema": {
+              "example": "1234567890",
               "type": "string"
             }
           }
@@ -3273,6 +3285,15 @@
             }
           },
           {
+            "name": "email",
+            "required": false,
+            "in": "query",
+            "description": "email of the ip library",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "launched_to_giggle",
             "required": false,
             "in": "query",
@@ -3470,6 +3491,15 @@
             "required": false,
             "in": "query",
             "description": "owner of the ip library",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "required": false,
+            "in": "query",
+            "description": "email of the ip library",
             "schema": {
               "type": "string"
             }

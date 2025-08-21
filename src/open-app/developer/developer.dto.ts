@@ -202,3 +202,21 @@ export class NationCodeDto {
     })
     countries: NationCodeItemDto[]
 }
+
+export class GetUserInfoQueryDto {
+    @ApiProperty({
+        description: "The email of the user",
+        example: "test@giggle.pro",
+    })
+    @IsOptional()
+    @IsEmail()
+    email: string
+
+    @ApiProperty({
+        description: "The user id of the user",
+        example: "1234567890",
+    })
+    @IsOptional()
+    @IsString()
+    user_id: string
+}

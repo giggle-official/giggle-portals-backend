@@ -6,6 +6,7 @@ import {
     DeveloperWidgetDeleteDto,
     DeveloperWidgetDeleteResponseDto,
     DeveloperWidgetUpdateDto,
+    GetUserInfoQueryDto,
     NationCodeDto,
     RequestWidgetAccessTokenDto,
     WidgetAccessTokenDto,
@@ -109,8 +110,8 @@ export class DeveloperController {
     @ApiOperation({ summary: "get user info" })
     @ApiResponse({ type: UserInfoDTO })
     @UseGuards(IsWidgetGuard)
-    async getUserInfo(@Req() req: Request, @Query("email") email: string) {
-        return this.usersService.getUserInfo(req.user as UserJwtExtractDto, email)
+    async getUserInfo(@Req() req: Request, @Query() query: GetUserInfoQueryDto) {
+        return this.usersService.getUserInfo(req.user as UserJwtExtractDto, query)
     }
 
     //get user info
