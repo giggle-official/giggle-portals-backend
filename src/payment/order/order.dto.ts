@@ -432,7 +432,7 @@ export class CreateOrderDto {
     })
     @IsInt()
     @IsNotEmpty()
-    @Min(1)
+    @Min(0)
     amount: number
 
     @ApiProperty({
