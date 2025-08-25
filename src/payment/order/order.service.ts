@@ -72,9 +72,9 @@ export class OrderService {
     public readonly logger = new Logger(OrderService.name)
 
     public static readonly defaultPaymentMethod = [
-        PaymentMethod.STRIPE,
+        //PaymentMethod.STRIPE,
         PaymentMethod.WALLET,
-        PaymentMethod.WECHAT,
+        //PaymentMethod.WECHAT,
         PaymentMethod.CREDIT,
     ]
 
