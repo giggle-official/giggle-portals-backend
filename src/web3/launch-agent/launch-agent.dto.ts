@@ -69,6 +69,7 @@ export class GenerateLaunchAgentWalletsRequestDto {
     @IsNotEmpty()
     agent_id: string
     wallet_count: number
+    is_market_maker: boolean
 }
 
 export class CheckAgentWalletsStatusRequestDto {

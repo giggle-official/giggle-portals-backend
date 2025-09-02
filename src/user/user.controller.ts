@@ -111,6 +111,7 @@ export class UserInfoDTO extends LoginDTO {
 
     @ApiProperty()
     usernameShorted: string
+
     @ApiProperty()
     email?: string
 

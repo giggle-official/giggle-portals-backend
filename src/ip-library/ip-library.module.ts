@@ -20,6 +20,8 @@ import { HttpModule } from "@nestjs/axios"
 import { BlueprintController } from "./blueprint/blueprint.controller"
 import { NotificationModule } from "src/notification/notification.module"
 import { PdfService } from "src/common/pdf.service"
+import { MarketMakerController } from './market-maker/market-maker.controller';
+import { MarketMakerService } from './market-maker/market-maker.service';
 
 @Module({
     imports: [
@@ -36,6 +38,7 @@ import { PdfService } from "src/common/pdf.service"
         CommentsController,
         IpOrderController,
         BlueprintController,
+        MarketMakerController,
     ],
     providers: [
         IpLibraryService,
@@ -48,6 +51,7 @@ import { PdfService } from "src/common/pdf.service"
         IpOrderService,
         BlueprintService,
         PdfService,
+        MarketMakerService,
     ],
     exports: [IpLibraryService],
 })

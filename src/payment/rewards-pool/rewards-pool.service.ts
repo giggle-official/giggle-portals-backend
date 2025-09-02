@@ -618,7 +618,7 @@ ORDER BY d.date;`
         })
 
         //if (!widget) {
-            //throw new BadRequestException("Rewards pool is not subscribed to this widget")
+        //throw new BadRequestException("Rewards pool is not subscribed to this widget")
         //}
 
         let amount = new Decimal(0)
@@ -860,7 +860,7 @@ ORDER BY d.date;`
     */
 
     //create rewards pool if not exists
-    async createRewardsPool(ip_id: number, user_wallet: string, email: string): Promise<void> {
+    async createRewardsPool(ip_id: number): Promise<void> {
         const ip = await this.prisma.ip_library.findUnique({
             where: {
                 token_info: {

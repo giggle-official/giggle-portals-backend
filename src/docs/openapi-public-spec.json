@@ -4642,6 +4642,133 @@
         ]
       }
     },
+    "/api/v1/market-maker/info": {
+      "get": {
+        "operationId": "MarketMakerController_getInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get market maker info",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/ip-delegation": {
+      "get": {
+        "operationId": "MarketMakerController_getIpDelegation",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get ip delegation list",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/create": {
+      "post": {
+        "operationId": "MarketMakerController_apply",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMarketMakerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create market maker",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/launch-ip-token": {
+      "post": {
+        "description": "\nReturns SSE stream with progress updates and final result, same as /launch-ip-token\n",
+        "operationId": "MarketMakerController_launchIpToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchIpTokenByMarketMakerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SSEMessage"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Launch ip token",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
     "/api/v1/app/widgets": {
       "get": {
         "operationId": "WidgetsController_getWidgets",
@@ -8176,6 +8303,10 @@
             "type": "boolean",
             "description": "is public"
           },
+          "token_is_delegating": {
+            "type": "boolean",
+            "description": "is delegating"
+          },
           "ip_type": {
             "type": "string",
             "description": "ip type",
@@ -8249,6 +8380,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "token_is_delegating",
           "ip_type",
           "is_top",
           "ip_level",
@@ -8345,6 +8477,10 @@
             "type": "boolean",
             "description": "is public"
           },
+          "token_is_delegating": {
+            "type": "boolean",
+            "description": "is delegating"
+          },
           "ip_type": {
             "type": "string",
             "description": "ip type",
@@ -8440,6 +8576,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "token_is_delegating",
           "ip_type",
           "is_top",
           "ip_level",
@@ -9874,6 +10011,10 @@
             "type": "boolean",
             "description": "is public"
           },
+          "token_is_delegating": {
+            "type": "boolean",
+            "description": "is delegating"
+          },
           "ip_type": {
             "type": "string",
             "description": "ip type",
@@ -9954,6 +10095,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "token_is_delegating",
           "ip_type",
           "is_top",
           "ip_level",
@@ -10100,6 +10242,10 @@
             "type": "boolean",
             "description": "is public"
           },
+          "token_is_delegating": {
+            "type": "boolean",
+            "description": "is delegating"
+          },
           "ip_type": {
             "type": "string",
             "description": "ip type",
@@ -10202,6 +10348,7 @@
           "creator_description",
           "creator_avatar",
           "is_public",
+          "token_is_delegating",
           "ip_type",
           "is_top",
           "ip_level",
@@ -11039,6 +11186,43 @@
       "BlueprintResponseDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreateMarketMakerDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "LaunchIpTokenByMarketMakerDto": {
+        "type": "object",
+        "properties": {
+          "ip_id": {
+            "type": "number",
+            "description": "id of the ip library"
+          },
+          "purchase_strategy": {
+            "description": "purchase strategy of the ip library",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseStrategyDto"
+              }
+            ]
+          },
+          "delegation_id": {
+            "type": "number",
+            "description": "id of the delegation"
+          }
+        },
+        "required": [
+          "ip_id",
+          "purchase_strategy",
+          "delegation_id"
+        ]
       },
       "WidgetSummaryDto": {
         "type": "object",

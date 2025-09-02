@@ -219,6 +219,7 @@ To see how to process the event stream response, please refer to the [Event Stre
                 "Developer Utility",
                 "Launch Agent",
                 "Sales Agent",
+                "Market Maker",
             ],
         },
     ]

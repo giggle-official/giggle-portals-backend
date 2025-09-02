@@ -334,18 +334,18 @@ export class GiggleService {
             }
 
             //store meme info in db
-            await this.prismaService.asset_to_meme_record.create({
-                data: {
-                    asset_id: asset ? asset.id : null,
-                    ip_id: [{ ip_id: ipId }],
-                    owner: user.username_in_be,
-                    mint_params: signaturedParams,
-                    status: mintRes.status,
-                    token_info: mintRes as any,
-                    token_registered: false,
-                    token_registered_info: null,
-                },
-            })
+            //await this.prismaService.asset_to_meme_record.create({
+            //    data: {
+            //        asset_id: asset ? asset.id : null,
+            //        ip_id: [{ ip_id: ipId }],
+            //        owner: user.username_in_be,
+            //        mint_params: signaturedParams,
+            //        status: mintRes.status,
+            //        token_info: mintRes as any,
+            //        token_registered: false,
+            //        token_registered_info: null,
+            //    },
+            //})
 
             await this.logService.create(userInfo, {
                 product: "web",

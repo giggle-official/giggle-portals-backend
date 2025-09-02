@@ -25,8 +25,10 @@ import {
     EventDto,
     IpBindAppsDto,
     SourceWalletType,
+    DelegateIpTokenDto,
+    DelegateIpTokenResponseDto,
 } from "./ip-library.dto"
-import { app_bind_ips, ip_type, Prisma } from "@prisma/client"
+import { app_bind_ips, ip_type, ip_token_delegation_status, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { AssetsService } from "src/assets/assets.service"
@@ -42,6 +44,7 @@ import { OrderStatus } from "src/payment/order/order.dto"
 import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
 import { ParseLaunchLaunchPlanResponseDto } from "src/web3/launch-agent/launch-agent.dto"
 import { LaunchAgentService } from "src/web3/launch-agent/launch-agent.service"
+import { MarketMakerService } from "./market-maker/market-maker.service"
 
 @Injectable()
 export class IpLibraryService {
@@ -77,6 +80,9 @@ export class IpLibraryService {
 
         @Inject(forwardRef(() => LaunchAgentService))
         private readonly launchAgentService: LaunchAgentService,
+
+        @Inject(forwardRef(() => MarketMakerService))
+        private readonly marketMakerService: MarketMakerService,
     ) {}
 
     getLaunchIpTokenSteps(): EventDto[] {
@@ -585,6 +591,7 @@ export class IpLibraryService {
                     is_top: item.ip_library_child.length === 0,
                     ip_level: item.ip_levels,
                     is_public: item.is_public,
+                    token_is_delegating: item.token_is_delegating,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     meta_data,
                     creator_id: item.user_info?.username_in_be || "",
@@ -713,6 +720,7 @@ export class IpLibraryService {
                     ip_level: item.ip_levels,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
+                    token_is_delegating: item.token_is_delegating,
                     on_chain_detail: item.on_chain_detail as any,
                     token_info: this._processTokenInfo(item.token_info as any, item.current_token_info as any),
                     meta_data: item.meta_data as any,
@@ -757,6 +765,7 @@ export class IpLibraryService {
             is_top: data.ip_library_child === null,
             ip_level: data.ip_levels,
             is_public: data.is_public,
+            token_is_delegating: data.token_is_delegating,
             share_count: data.ip_share_count?.share_count || 0,
             creator_id: data.user_info?.username_in_be || "",
             creator: data.user_info?.username || "",
@@ -927,6 +936,50 @@ export class IpLibraryService {
             }
         }
         return { imageAsset, videoAsset }
+    }
+
+    async delegateIpToken(user: UserJwtExtractDto, body: DelegateIpTokenDto): Promise<DelegateIpTokenResponseDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: body.ip_id, owner: user.usernameShorted },
+        })
+        if (!ip) {
+            throw new NotFoundException("IP not found")
+        }
+
+        if (ip.token_info) {
+            throw new BadRequestException("IP already has tokenized")
+        }
+
+        if (ip.token_is_delegating) {
+            throw new BadRequestException("IP is already delegating")
+        }
+
+        //check if has pending delegation
+        const pendingDelegation = await this.prismaService.ip_token_delegation.findFirst({
+            where: { ip_id: body.ip_id, status: ip_token_delegation_status.pending },
+        })
+        if (pendingDelegation) {
+            throw new BadRequestException("IP already has a pending delegation")
+        }
+
+        return await this.prismaService.$transaction(async (tx) => {
+            await this.prismaService.ip_library.update({
+                where: { id: body.ip_id },
+                data: {
+                    token_is_delegating: true,
+                },
+            })
+
+            await this.prismaService.ip_token_delegation.create({
+                data: {
+                    ip_id: body.ip_id,
+                    status: ip_token_delegation_status.pending,
+                },
+            })
+            return {
+                status: ip_token_delegation_status.pending,
+            }
+        })
     }
 
     async validatePurchaseStrategy(purchase_strategy: PurchaseStrategyDto) {
@@ -1120,6 +1173,10 @@ export class IpLibraryService {
         user: UserJwtExtractDto,
         body: LaunchIpTokenDto,
         subscriber: Subscriber<SSEMessage>,
+        options?: {
+            market_maker?: string
+            delegation_id?: number
+        },
     ): Promise<void> {
         //validate purchase strategy
         subscriber.next({
@@ -1154,31 +1211,33 @@ export class IpLibraryService {
 
         const { create_amount, buy_amount } = await this._computeNeedUsdc(body.purchase_strategy)
         let ipId = body.ip_id
+        const isMarketMaker = !!options?.market_maker
 
         try {
-            const ipOwner = await this.prismaService.ip_library.findFirst({
-                where: { id: body.ip_id, owner: user.usernameShorted },
+            const findWhere = { id: body.ip_id, owner: user.usernameShorted }
+
+            // we no need check owner if requester is market maker
+            if (isMarketMaker) {
+                delete findWhere.owner
+            }
+
+            const ipExists = await this.prismaService.ip_library.findFirst({
+                where: findWhere,
             })
 
-            if (!ipOwner) {
+            if (!ipExists) {
                 throw new NotFoundException("IP not found")
             }
 
             const ipDetail = await this.detail(ipId.toString(), null)
 
-            const existingTokenInfo = await this.prismaService.asset_to_meme_record.findFirst({
-                where: {
-                    ip_id: {
-                        array_contains: {
-                            ip_id: ipId,
-                        },
-                    },
-                },
-            })
-
-            if (existingTokenInfo || ipDetail.token_info) {
+            if (ipDetail.token_info) {
                 throw new BadRequestException("IP already shared to giggle")
             }
+
+            const ipOwner = await this.prismaService.users.findUnique({
+                where: { username_in_be: ipDetail.creator },
+            })
 
             const ipCoverKey = await this.prismaService.ip_library.findUnique({
                 where: { id: ipId },
@@ -1227,21 +1286,21 @@ export class IpLibraryService {
                 false, //do not complete subscriber here
             )
 
-            const tokenInfo = await this.prismaService.asset_to_meme_record.findFirst({
-                where: {
-                    ip_id: {
-                        array_contains: {
-                            ip_id: ipId,
-                        },
-                    },
-                },
-            })
+            //const tokenInfo = await this.prismaService.asset_to_meme_record.findFirst({
+            //    where: {
+            //        ip_id: {
+            //            array_contains: {
+            //                ip_id: ipId,
+            //            },
+            //        },
+            //    },
+            //})
 
-            if (!tokenRes || !tokenInfo) {
+            if (!tokenRes) {
                 throw new BadRequestException("Failed to create ip token")
             }
 
-            const tokenMint = (tokenInfo?.token_info as any)?.mint
+            const tokenMint = tokenRes?.mint
             if (!tokenMint) {
                 throw new BadRequestException("Failed to get token mint")
             }
@@ -1249,7 +1308,7 @@ export class IpLibraryService {
             await this.prismaService.ip_library.update({
                 where: { id: ipId },
                 data: {
-                    token_info: tokenInfo?.token_info,
+                    token_info: tokenRes as any,
                     token_mint: tokenMint,
                 },
             })
@@ -1262,7 +1321,7 @@ export class IpLibraryService {
 
             //create rewards pool if not exists
 
-            await this.rewardsPoolService.createRewardsPool(ipId, userWalletAddr, user.email)
+            await this.rewardsPoolService.createRewardsPool(ipId)
 
             //run strategy if purchase strategy is agent
             if (body.purchase_strategy.type === PurchaseStrategyType.AGENT) {
@@ -1271,6 +1330,7 @@ export class IpLibraryService {
                     data: tokenMint,
                     event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_RUN_STRATEGY),
                 })
+
                 if (body.purchase_strategy.wallet_source === SourceWalletType.AGENT) {
                     await this.launchAgentService.start_multi_source_wallets(
                         body.purchase_strategy.agent_id,
@@ -1280,6 +1340,8 @@ export class IpLibraryService {
                             ip_id: ipId,
                         },
                         user,
+                        isMarketMaker,
+                        ipOwner.email,
                         subscriber,
                     )
                 } else {
@@ -1291,15 +1353,24 @@ export class IpLibraryService {
                             ip_id: ipId,
                         },
                         user,
+                        isMarketMaker,
+                        ipOwner.email,
                         subscriber,
                     )
                 }
             }
+
+            //finish delegation
+            if (isMarketMaker) {
+                await this.marketMakerService.completeDelegation(options?.delegation_id, user)
+            }
+
             subscriber.next({
                 event: IpEvents.IP_TOKEN_CREATED_ON_CHAIN,
                 event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_TOKEN_CREATED_ON_CHAIN),
                 data: await this.detail(ipId.toString(), null),
             })
+
             subscriber.complete()
         } catch (error) {
             let returnError = error?.message || "Failed to share to giggle"
@@ -1381,6 +1452,7 @@ export class IpLibraryService {
                     comments: item._count.ip_comments,
                     share_count: item.ip_share_count?.share_count || 0,
                     is_top: false,
+                    token_is_delegating: item.token_is_delegating,
                     ip_level: item.ip_levels,
                     creation_guide_lines: item.creation_guide_lines,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
@@ -1805,7 +1877,7 @@ export class IpLibraryService {
             })
             await tx.ip_library.update({
                 where: { id: body.id },
-                data: { token_info: null, current_token_info: null, token_mint: null },
+                data: { token_info: null, token_is_delegating: false, current_token_info: null, token_mint: null },
             })
         })
         return await this.detail(body.id.toString(), null)

@@ -73,6 +73,7 @@ model users {
   user_nfts                      user_nfts[]
   sales_agent                    sales_agent?
   orders                         orders[]
+  market_makers                  market_makers[]
 }
 
 model user_request_log {
@@ -297,6 +298,7 @@ model ip_library {
   creation_guide_lines    String?                     @db.Text
   meta_data               Json?
   token_mint              String?                     @db.VarChar(64)
+  token_is_delegating     Boolean?                    @default(false)
   token_info              Json?
   current_token_info      Json?
   created_at              DateTime?                   @default(now()) @db.DateTime(0)
@@ -318,6 +320,7 @@ model ip_library {
   ip_token_price_history  ip_token_price_history[]
   view_ip_incomes         view_ip_incomes[]
   launch_agent            launch_agents?              @relation(fields: [launch_agent_id], references: [agent_id])
+  ip_token_delegation     ip_token_delegation[]
 }
 
 model ip_library_tags {
@@ -1233,6 +1236,31 @@ model sales_agent_revenue {
   created_at  DateTime? @default(now()) @db.Timestamp(0)
   updated_at  DateTime? @default(now()) @db.Timestamp(0)
   order_info  orders?   @relation(fields: [order_id], references: [order_id])
+}
+
+enum ip_token_delegation_status {
+  pending
+  processing
+  completed
+  failed
+}
+
+model ip_token_delegation {
+  id           Int                         @id @default(autoincrement())
+  ip_id        Int
+  status       ip_token_delegation_status?
+  market_maker String?                     @db.VarChar(32)
+  created_at   DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?                   @default(now()) @db.Timestamp(0)
+  ip_info      ip_library?                 @relation(fields: [ip_id], references: [id])
+}
+
+model market_makers {
+  id         Int       @id @default(autoincrement())
+  user       String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  user_info  users?    @relation(fields: [user], references: [username_in_be])
 }
 
 model view_ip_token_prices {

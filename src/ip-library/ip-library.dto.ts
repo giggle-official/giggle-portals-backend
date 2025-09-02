@@ -1,5 +1,5 @@
 import { ApiProperty, IntersectionType, OmitType, PickType } from "@nestjs/swagger"
-import { ip_library_on_chain_status, ip_type } from "@prisma/client"
+import { ip_library_on_chain_status, ip_token_delegation_status, ip_type } from "@prisma/client"
 import {
     IsArray,
     IsBoolean,
@@ -679,6 +679,11 @@ export class IpSummaryDto {
     is_public: boolean
 
     @ApiProperty({
+        description: "is delegating",
+    })
+    token_is_delegating: boolean
+
+    @ApiProperty({
         description: "ip type",
         enum: ip_type,
     })
@@ -945,7 +950,6 @@ export class EditIpDto extends OmitType(CreateIpDto, ["parent_ip_library_id", "n
 }
 
 export class LaunchIpTokenDto {
-    @IsOptional()
     @IsNumber()
     @ApiProperty({
         description: "id of the ip library",
@@ -1094,4 +1098,16 @@ export class RemoveIpResponseDto {
         description: "success of the ip removal",
     })
     success: boolean
+}
+
+export class DelegateIpTokenDto {
+    @IsNotEmpty()
+    @IsNumber()
+    ip_id: number
+}
+
+export class DelegateIpTokenResponseDto {
+    @IsNotEmpty()
+    @IsEnum(ip_token_delegation_status)
+    status: ip_token_delegation_status
 }

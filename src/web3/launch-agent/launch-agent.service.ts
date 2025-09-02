@@ -165,6 +165,7 @@ export class LaunchAgentService {
             parsed_strategy: parsed_strategy,
             num_source_wallets: dto.wallet_count || 1,
             user_email: user.email,
+            is_market_maker: dto.is_market_maker,
             debug: this.launchAgentDebug,
         }
 
@@ -245,6 +246,8 @@ export class LaunchAgentService {
         agentId: string,
         initParams: StartLaunchAgentRequestDto,
         user: UserJwtExtractDto,
+        isMarketMaker: boolean,
+        ipOwnerEmail: string,
         subscriber?: Subscriber<SSEMessage>,
     ) {
         const agent = await this.prisma.launch_agents.findUnique({
@@ -264,6 +267,7 @@ export class LaunchAgentService {
             token_mint: initParams.token_mint,
             user_email: user.email,
             debug: this.launchAgentDebug,
+            is_market_maker: isMarketMaker,
         }
 
         const response: AxiosResponse<{ status: string; message: string }> = await lastValueFrom(
@@ -294,6 +298,8 @@ export class LaunchAgentService {
         agentId: string,
         initParams: StartLaunchAgentRequestDto,
         user: UserJwtExtractDto,
+        isMarketMaker: boolean,
+        ipOwnerEmail: string,
         subscriber?: Subscriber<SSEMessage>,
     ) {
         const userInfo = await this.prisma.users.findUnique({
@@ -447,6 +453,7 @@ export class LaunchAgentService {
             token_mint: initParams.token_mint,
             user_email: userInfo.email,
             source_wallet: solWalletAddress,
+            is_market_maker: isMarketMaker,
         }
 
         if (this.launchAgentDebug) {

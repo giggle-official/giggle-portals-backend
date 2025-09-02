@@ -32,6 +32,7 @@ import {
     IpEventsDetail,
     RemoveIpDto,
     RemoveIpResponseDto,
+    DelegateIpTokenDto,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -274,5 +275,16 @@ if error occurs, the event will be \`error\` and the data in \`data\` is the err
     @UseGuards(AuthGuard("jwt"))
     async getSignatureClipDetail(@Param("id") id: string) {
         return await this.ipLibraryService.signatureClipDetail(id)
+    }
+
+    @Post("/delegate-ip-token")
+    @ApiExcludeEndpoint()
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBody({ type: DelegateIpTokenDto })
+    @ApiResponse({ status: 200 })
+    @ApiBearerAuth()
+    @HttpCode(HttpStatus.OK)
+    async delegateIpToken(@Req() req: Request, @Body() body: DelegateIpTokenDto) {
+        return await this.ipLibraryService.delegateIpToken(req.user as UserJwtExtractDto, body)
     }
 }
