@@ -1240,9 +1240,8 @@ model sales_agent_revenue {
 
 enum ip_token_delegation_status {
   pending
-  processing
   completed
-  failed
+  cancelled
 }
 
 model ip_token_delegation {
@@ -1258,6 +1257,8 @@ model ip_token_delegation {
 model market_makers {
   id         Int       @id @default(autoincrement())
   user       String?   @db.VarChar(32)
+  nickname   String?   @db.VarChar(32)
+  email      String?   @db.VarChar(255)
   created_at DateTime? @default(now()) @db.Timestamp(0)
   updated_at DateTime? @default(now()) @db.Timestamp(0)
   user_info  users?    @relation(fields: [user], references: [username_in_be])

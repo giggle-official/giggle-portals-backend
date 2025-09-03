@@ -9,6 +9,11 @@ export class CreateMarketMakerDto {
     @IsNotEmpty()
     @IsEmail()
     email: string
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    nickname: string
 }
 
 export class CreateMarketMakerResponseDto {
@@ -16,6 +21,56 @@ export class CreateMarketMakerResponseDto {
     @ApiProperty()
     @IsString()
     message: string
+}
+
+export class DeleteMarketMakerDto {
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsEmail()
+    email: string
+}
+
+export class DeleteMarketMakerResponseDto {
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsString()
+    message: string
+}
+
+export class ListMarketMakerResponseByAdminDto {
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsNumber()
+    id: number
+
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsString()
+    nickname: string
+
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsEmail()
+    email: string
+}
+
+export class ListMarketMakerResponseDto {
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsNumber()
+    id: number
+
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsString()
+    nickname: string
+}
+
+export class CancelIpDelegationDto {
+    @IsNotEmpty()
+    @ApiProperty()
+    @IsNumber()
+    delegation_id: number
 }
 
 export class IpDelegationDto {

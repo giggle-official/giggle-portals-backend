@@ -4701,6 +4701,96 @@
         ]
       }
     },
+    "/api/v1/market-maker/cancel-delegation": {
+      "post": {
+        "operationId": "MarketMakerController_createIpDelegation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelIpDelegationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel an ip token launch delegation",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/market-maker-list": {
+      "get": {
+        "operationId": "MarketMakerController_getMarketMakerList",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListMarketMakerResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get market maker list",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/list": {
+      "get": {
+        "operationId": "MarketMakerController_listMarketMaker",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListMarketMakerResponseByAdminDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get market maker list by admin",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
     "/api/v1/market-maker/create": {
       "post": {
         "operationId": "MarketMakerController_apply",
@@ -4726,6 +4816,36 @@
           }
         ],
         "summary": "Create market maker",
+        "tags": [
+          "Market Maker"
+        ]
+      }
+    },
+    "/api/v1/market-maker/delete": {
+      "post": {
+        "operationId": "MarketMakerController_delete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteMarketMakerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete market maker",
         "tags": [
           "Market Maker"
         ]
@@ -11187,7 +11307,67 @@
         "type": "object",
         "properties": {}
       },
+      "CancelIpDelegationDto": {
+        "type": "object",
+        "properties": {
+          "delegation_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "delegation_id"
+        ]
+      },
+      "ListMarketMakerResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "nickname": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nickname"
+        ]
+      },
+      "ListMarketMakerResponseByAdminDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "email"
+        ]
+      },
       "CreateMarketMakerDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "nickname"
+        ]
+      },
+      "DeleteMarketMakerDto": {
         "type": "object",
         "properties": {
           "email": {

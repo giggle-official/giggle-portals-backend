@@ -2,13 +2,15 @@ import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException 
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import {
+    CancelIpDelegationDto,
     CreateMarketMakerDto,
+    DeleteMarketMakerDto,
     IpDelegationDto,
     IpDelegationQueryDto,
     IpDelegationResponseDto,
     LaunchIpTokenByMarketMakerDto,
 } from "./market-maker.dto"
-import { ip_library, ip_token_delegation, ip_token_delegation_status, users } from "@prisma/client"
+import { ip_library, ip_token_delegation, ip_token_delegation_status, Prisma, users } from "@prisma/client"
 import { Observable } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { IpLibraryService } from "../ip-library.service"
@@ -43,7 +45,12 @@ export class MarketMakerService {
             throw new BadRequestException("User is not a market maker")
         }
 
+        const where: Prisma.ip_token_delegationWhereInput = {
+            market_maker: user.usernameShorted,
+        }
+
         const ipDelegations = await this.prismaService.ip_token_delegation.findMany({
+            where,
             include: {
                 ip_info: {
                     include: {
@@ -56,7 +63,7 @@ export class MarketMakerService {
         })
 
         const total = await this.prismaService.ip_token_delegation.count({
-            //todo: add market maker filter
+            where,
         })
 
         return {
@@ -104,11 +111,86 @@ export class MarketMakerService {
         await this.prismaService.market_makers.create({
             data: {
                 user: user.username_in_be,
+                email: body.email,
+                nickname: body.nickname,
             },
         })
 
         return {
             message: "Market maker created successfully",
+        }
+    }
+
+    async cancelIpDelegation(user: UserJwtExtractDto, body: CancelIpDelegationDto) {
+        const isExist = await this.prismaService.ip_token_delegation.findFirst({
+            where: {
+                id: body.delegation_id,
+                status: ip_token_delegation_status.pending,
+                market_maker: user.usernameShorted,
+            },
+        })
+
+        if (!isExist) {
+            throw new BadRequestException("Ip delegation not found or not pending")
+        }
+
+        await this.prismaService.$transaction(async (tx) => {
+            await tx.ip_token_delegation.update({
+                where: { id: body.delegation_id },
+                data: { status: ip_token_delegation_status.cancelled },
+            })
+            await tx.ip_library.update({
+                where: { id: isExist.ip_id },
+                data: {
+                    token_is_delegating: false,
+                },
+            })
+        })
+    }
+
+    async getMarketMakerList() {
+        return this.prismaService.market_makers.findMany({
+            select: {
+                id: true,
+                nickname: true,
+            },
+        })
+    }
+
+    async getMarketMakersByAdmin() {
+        return this.prismaService.market_makers.findMany()
+    }
+
+    async delete(body: DeleteMarketMakerDto) {
+        const isExist = await this.prismaService.market_makers.findFirst({
+            where: {
+                email: body.email,
+            },
+        })
+
+        if (!isExist) {
+            throw new NotFoundException("Market maker not found")
+        }
+
+        const isExistIpDelegation = await this.prismaService.ip_token_delegation.findFirst({
+            where: {
+                market_maker: isExist.user,
+                status: ip_token_delegation_status.pending,
+            },
+        })
+
+        if (isExistIpDelegation) {
+            throw new BadRequestException("Market maker has pending ip delegation, can not delete")
+        }
+
+        await this.prismaService.market_makers.deleteMany({
+            where: {
+                email: body.email,
+            },
+        })
+
+        return {
+            message: "Market maker deleted successfully",
         }
     }
 

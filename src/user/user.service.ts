@@ -149,6 +149,7 @@ export class UserService {
             phone_number: _userInfoFromDb.phone_number,
             phone_national: _userInfoFromDb.phone_national,
             current_credit_balance: _userInfoFromDb.current_credit_balance,
+            wallet_address: _userInfoFromDb.wallet_address,
         }
 
         //if widget session is setting, we need to get the widget info
@@ -1054,6 +1055,7 @@ Message: ${contactInfo.message}
             phone_number: record?.phone_number || "",
             phone_national: record?.phone_national || "",
             current_credit_balance: record?.current_credit_balance || 0,
+            wallet_address: record?.wallet_address || "",
         }
     }
 

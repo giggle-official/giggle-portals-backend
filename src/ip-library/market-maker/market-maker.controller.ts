@@ -5,7 +5,15 @@ import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
-import { CreateMarketMakerDto, IpDelegationQueryDto, LaunchIpTokenByMarketMakerDto } from "./market-maker.dto"
+import {
+    CancelIpDelegationDto,
+    CreateMarketMakerDto,
+    DeleteMarketMakerDto,
+    IpDelegationQueryDto,
+    LaunchIpTokenByMarketMakerDto,
+    ListMarketMakerResponseByAdminDto,
+    ListMarketMakerResponseDto,
+} from "./market-maker.dto"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 import { ValidEventBody } from "src/common/rawbody.decorator"
@@ -31,6 +39,31 @@ export class MarketMakerController {
         return await this.marketMakerService.getIpDelegation(req.user as UserJwtExtractDto, query)
     }
 
+    @Post("/cancel-delegation")
+    @ApiOperation({ summary: "Cancel an ip token launch delegation" })
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    async createIpDelegation(@Req() req: Request, @Body() body: CancelIpDelegationDto) {
+        return await this.marketMakerService.cancelIpDelegation(req.user as UserJwtExtractDto, body)
+    }
+
+    @Get("/market-maker-list")
+    @ApiOperation({ summary: "Get market maker list" })
+    @ApiResponse({ type: ListMarketMakerResponseDto, isArray: true })
+    @ApiBearerAuth()
+    async getMarketMakerList() {
+        return await this.marketMakerService.getMarketMakerList()
+    }
+
+    @Get("/list")
+    @ApiOperation({ summary: "Get market maker list by admin" })
+    @UseGuards(IsAdminGuard)
+    @ApiResponse({ type: ListMarketMakerResponseByAdminDto, isArray: true })
+    @ApiBearerAuth()
+    async listMarketMaker() {
+        return await this.marketMakerService.getMarketMakersByAdmin()
+    }
+
     @Post("/create")
     @ApiOperation({ summary: "Create market maker" })
     @UseGuards(IsAdminGuard)
@@ -38,6 +71,15 @@ export class MarketMakerController {
     @ApiBearerAuth()
     async apply(@Body() body: CreateMarketMakerDto) {
         return await this.marketMakerService.create(body)
+    }
+
+    @Post("/delete")
+    @ApiOperation({ summary: "Delete market maker" })
+    @UseGuards(IsAdminGuard)
+    @ApiBody({ type: DeleteMarketMakerDto })
+    @ApiBearerAuth()
+    async delete(@Body() body: DeleteMarketMakerDto) {
+        return await this.marketMakerService.delete(body)
     }
 
     @Post("/launch-ip-token")

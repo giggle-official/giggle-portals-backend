@@ -962,6 +962,14 @@ export class IpLibraryService {
             throw new BadRequestException("IP already has a pending delegation")
         }
 
+        //check if market maker exists
+        const marketMaker = await this.prismaService.market_makers.findUnique({
+            where: { id: body.market_maker_id },
+        })
+        if (!marketMaker) {
+            throw new BadRequestException("Market maker not found")
+        }
+
         return await this.prismaService.$transaction(async (tx) => {
             await this.prismaService.ip_library.update({
                 where: { id: body.ip_id },
@@ -974,6 +982,7 @@ export class IpLibraryService {
                 data: {
                     ip_id: body.ip_id,
                     status: ip_token_delegation_status.pending,
+                    market_maker: marketMaker.user,
                 },
             })
             return {
@@ -1236,7 +1245,7 @@ export class IpLibraryService {
             }
 
             const ipOwner = await this.prismaService.users.findUnique({
-                where: { username_in_be: ipDetail.creator },
+                where: { username_in_be: ipDetail.creator_id },
             })
 
             const ipCoverKey = await this.prismaService.ip_library.findUnique({
