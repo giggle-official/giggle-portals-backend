@@ -524,8 +524,12 @@ export class LaunchAgentService {
     }
 
     async getPermission(user: UserJwtExtractDto) {
-        const allowedList = process.env.LAUNCH_AGENT_ALLOW_USERS?.toLowerCase().split(",")
-        return { allowed: allowedList?.includes(user.email.toLowerCase()) }
+        const userInfo = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: user.usernameShorted,
+            },
+        })
+        return { allowed: !!userInfo?.can_launch_by_agent }
     }
 
     async suggestBondingSegments(dto: SuggestBondingSegmentsRequestDto, user: UserJwtExtractDto) {

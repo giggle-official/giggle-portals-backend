@@ -108,12 +108,22 @@ export class MarketMakerService {
             throw new BadRequestException("Market maker already exists")
         }
 
-        await this.prismaService.market_makers.create({
-            data: {
-                user: user.username_in_be,
-                email: body.email,
-                nickname: body.nickname,
-            },
+        await this.prismaService.$transaction(async (tx) => {
+            await tx.market_makers.create({
+                data: {
+                    user: user.username_in_be,
+                    email: body.email,
+                    nickname: body.nickname,
+                },
+            })
+            await tx.users.update({
+                where: {
+                    username_in_be: user.username_in_be,
+                },
+                data: {
+                    can_launch_by_agent: true,
+                },
+            })
         })
 
         return {

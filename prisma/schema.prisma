@@ -30,6 +30,7 @@ model users {
   current_plan                   String?                       @default("none") @db.VarChar(32)
   is_admin                       Boolean?                      @default(false)
   can_create_ip                  Boolean?
+  can_launch_by_agent            Boolean?
   can_invite_user                Boolean?
   is_developer                   Boolean?                      @default(false)
   plan_settings                  Json?
