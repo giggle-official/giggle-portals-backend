@@ -10,7 +10,9 @@ import {
     IsString,
     Matches,
     Max,
+    MaxLength,
     Min,
+    MinLength,
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
@@ -55,6 +57,11 @@ export class OrderDto implements orders {
         description: "The amount of the order",
     })
     amount: number
+
+    @ApiProperty({
+        description: "The item of the order",
+    })
+    item: string
 
     @ApiProperty({
         description: "The ip id of the order",
@@ -434,6 +441,15 @@ export class CreateOrderDto {
     @IsNotEmpty()
     @Min(0)
     amount: number
+
+    @ApiProperty({
+        description: "The item of the order",
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(64)
+    item?: string
 
     @ApiProperty({
         description:

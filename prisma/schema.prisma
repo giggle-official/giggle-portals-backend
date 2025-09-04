@@ -866,6 +866,7 @@ model orders {
   order_id                       String                  @unique(map: "order_id") @db.VarChar(36)
   description                    String?                 @db.Text
   amount                         Int?
+  item                           String?                 @db.VarChar(64)
   owner                          String                  @db.VarChar(32)
   sales_agent                    String?                 @db.VarChar(32)
   ip_id                          Int?

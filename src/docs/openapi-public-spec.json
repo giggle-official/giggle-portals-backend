@@ -6697,6 +6697,10 @@
             "type": "number",
             "description": "The amount of the order"
           },
+          "item": {
+            "type": "string",
+            "description": "The item of the order"
+          },
           "ip_id": {
             "type": "number",
             "description": "The ip id of the order"
@@ -6856,6 +6860,7 @@
         "required": [
           "order_id",
           "amount",
+          "item",
           "ip_id",
           "owner",
           "is_credit_top_up",
@@ -6909,6 +6914,10 @@
           "amount": {
             "type": "number",
             "description": "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)"
+          },
+          "item": {
+            "type": "string",
+            "description": "The item of the order"
           },
           "release_rewards_after_paid": {
             "type": "boolean",
@@ -6990,6 +6999,10 @@
           "amount": {
             "type": "number",
             "description": "The amount of the order"
+          },
+          "item": {
+            "type": "string",
+            "description": "The item of the order"
           },
           "ip_id": {
             "type": "number",
@@ -7141,6 +7154,7 @@
         },
         "required": [
           "amount",
+          "item",
           "ip_id",
           "owner",
           "is_credit_top_up",
@@ -7341,6 +7355,10 @@
             "type": "number",
             "description": "The amount of the order"
           },
+          "item": {
+            "type": "string",
+            "description": "The item of the order"
+          },
           "ip_id": {
             "type": "number",
             "description": "The ip id of the order"
@@ -7504,6 +7522,7 @@
         "required": [
           "order_id",
           "amount",
+          "item",
           "ip_id",
           "owner",
           "is_credit_top_up",
