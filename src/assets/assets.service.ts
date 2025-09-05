@@ -21,7 +21,13 @@ import {
 } from "./assets.dto"
 import { Prisma } from "@prisma/client"
 import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
-import { NewImageProcessResult, NewVideoProcessResult, VideoInfoTaskResponseDto } from "src/task/task.dto"
+import {
+    AudioInfoTaskResponseDto,
+    NewAudioProcessResult,
+    NewImageProcessResult,
+    NewVideoProcessResult,
+    VideoInfoTaskResponseDto,
+} from "src/task/task.dto"
 import { TaskService } from "src/task/task.service"
 import sharp from "sharp"
 import { UserService } from "src/user/user.service"
@@ -239,11 +245,13 @@ export class AssetsService {
             if (fileType !== "video" && fileType !== "image" && fileType !== "audio")
                 throw new BadRequestException("Unknown file type")
 
-            let assetInfo: NewVideoProcessResult | NewImageProcessResult | null = null
+            let assetInfo: NewVideoProcessResult | NewImageProcessResult | NewAudioProcessResult | null = null
             if (fileType === "video") {
                 assetInfo = await this.processNewVideo(body.object_key, s3Client)
             } else if (fileType === "image") {
                 assetInfo = await this.processNewImage(body.object_key)
+            } else if (fileType === "audio") {
+                assetInfo = await this.processNewAudio(body.object_key, s3Client, fileInfo)
             }
 
             const created = await this.prismaService.$transaction(async (tx) => {
@@ -346,6 +354,58 @@ export class AssetsService {
         } catch (error) {
             this.logger.error("Error processing uploaded video:", error)
             throw new InternalServerErrorException("Failed to process uploaded video")
+        }
+    }
+
+    public async processNewAudio(
+        objectKey: string,
+        s3Client: AWS.S3,
+        fileInfo: AWS.S3.HeadObjectOutput,
+    ): Promise<NewAudioProcessResult> {
+        try {
+            const s3Info = await this.utilitiesService.getS3Info(false)
+
+            const videoStream = s3Client
+                .getObject({
+                    Bucket: s3Info.s3_bucket,
+                    Key: objectKey,
+                })
+                .createReadStream()
+
+            const metadata = await this.extractAudioMetadataFromStream(videoStream, fileInfo)
+
+            const audioInfo = metadata as AudioInfoTaskResponseDto
+
+            return {
+                audioInfo: audioInfo,
+            }
+        } catch (error) {
+            this.logger.error("Error processing uploaded video:", error)
+            throw new InternalServerErrorException("Failed to process uploaded video")
+        }
+    }
+
+    private async extractAudioMetadataFromStream(
+        stream: any,
+        fileInfo: AWS.S3.HeadObjectOutput,
+    ): Promise<AudioInfoTaskResponseDto> {
+        try {
+            const { parseStream } = await import("music-metadata")
+
+            const metadata = await parseStream(stream, { mimeType: "audio/*" })
+
+            if (!metadata.format) {
+                throw new Error("No audio format found")
+            }
+
+            console.log(metadata)
+
+            return {
+                metadata: metadata,
+                size: fileInfo.ContentLength || 0,
+            }
+        } catch (error) {
+            throw new Error(`Failed to extract audio metadata: ${error.message}`)
         }
     }
 

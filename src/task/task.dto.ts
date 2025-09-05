@@ -87,6 +87,11 @@ export class VideoInfoTaskResponseDto {
     height: number
 }
 
+export class AudioInfoTaskResponseDto {
+    metadata: any
+    size: number
+}
+
 export class QueuePositionTaskResponseDto {
     queue_total: number
     queue_number: number
@@ -139,6 +144,10 @@ export class NewVideoProcessResult {
     videoInfo: VideoInfoTaskResponseDto
     thumbnail: string
     optimizedResult?: any
+}
+
+export class NewAudioProcessResult {
+    audioInfo: AudioInfoTaskResponseDto
 }
 
 export class NewImageProcessResult {

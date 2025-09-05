@@ -74,7 +74,7 @@ export class AssetsDto implements assets {
     @ApiProperty({
         description: "info of the asset, normaly video or image metadata",
     })
-    asset_info: any | NewVideoProcessResult | null
+    asset_info: any | null
 
     @ApiProperty({
         description:
