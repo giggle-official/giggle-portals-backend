@@ -270,28 +270,34 @@ export class LaunchAgentService {
             is_market_maker: isMarketMaker,
         }
 
-        const response: AxiosResponse<{ status: string; message: string }> = await lastValueFrom(
-            this.httpService.post(
-                `${this.launchAgentUrl}/api/agent/${agentId}/start_multi_source_launch_agent`,
-                params,
-                {
-                    headers: {
-                        "Content-Type": "application/json",
+        try {
+            this.logger.log(`Start multi source launch agent params: ${JSON.stringify(params)}`)
+            const response: AxiosResponse<{ status: string; message: string }> = await lastValueFrom(
+                this.httpService.post(
+                    `${this.launchAgentUrl}/api/agent/${agentId}/start_multi_source_launch_agent`,
+                    params,
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
                     },
-                },
-            ),
-        )
-
-        if (response.data.status !== "success") {
-            throw new BadRequestException(response.data.message)
+                ),
+            )
+            this.logger.log(`Start multi source launch agent response: ${JSON.stringify(response.data)}`)
+            if (response.data.status !== "success") {
+                throw new BadRequestException(response.data.message)
+            }
+            if (subscriber) {
+                subscriber.next({
+                    event: IpEvents.IP_STRATEGY_AGENT_STARTED,
+                    event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_AGENT_STARTED),
+                })
+            }
+            return response.data
+        } catch (error) {
+            this.logger.error(`Start multi source launch agent error: ${JSON.stringify(error)}`)
+            throw new BadRequestException(error.message)
         }
-        if (subscriber) {
-            subscriber.next({
-                event: IpEvents.IP_STRATEGY_AGENT_STARTED,
-                event_detail: IpEventsDetail.find((item) => item.event === IpEvents.IP_STRATEGY_AGENT_STARTED),
-            })
-        }
-        return response.data
     }
 
     async start(
