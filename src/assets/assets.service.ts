@@ -236,7 +236,8 @@ export class AssetsService {
             const fileType = fileInfo?.ContentType.split("/")[0]
             const assetId = body.object_key.split("/").pop().split(".")[0]
 
-            if (fileType !== "video" && fileType !== "image") throw new BadRequestException("Unknown file type")
+            if (fileType !== "video" && fileType !== "image" && fileType !== "audio")
+                throw new BadRequestException("Unknown file type")
 
             let assetInfo: NewVideoProcessResult | NewImageProcessResult | null = null
             if (fileType === "video") {

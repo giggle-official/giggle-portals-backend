@@ -6305,7 +6305,7 @@
         "properties": {
           "file_name": {
             "type": "string",
-            "description": "name of the file, currently we support mp4, mov, mkv, jpeg, jpg, png"
+            "description": "\nName of the file. Currently we support below formats:\n- video: mp4, mov, mkv, jpeg, jpg, png, \n- image: jpeg, jpg, png, \n- audio: mp3, wav, m4a"
           },
           "content_type": {
             "type": "string",

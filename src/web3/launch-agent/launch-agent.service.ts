@@ -268,6 +268,7 @@ export class LaunchAgentService {
             user_email: user.email,
             debug: this.launchAgentDebug,
             is_market_maker: isMarketMaker,
+            ip_owner_email: ipOwnerEmail,
         }
 
         try {
@@ -460,6 +461,7 @@ export class LaunchAgentService {
             user_email: userInfo.email,
             source_wallet: solWalletAddress,
             is_market_maker: isMarketMaker,
+            ip_owner_email: ipOwnerEmail,
         }
 
         if (this.launchAgentDebug) {
