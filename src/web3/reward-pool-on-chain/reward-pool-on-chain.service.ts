@@ -1281,6 +1281,8 @@ export class RewardPoolOnChainService {
     //@Cron(CronExpression.EVERY_5_MINUTES)
     async createBuyBackOrders() {
         if (process.env.TASK_SLOT != "1") return
+
+        const MINIUM_ORDER_BUYBACK_AMOUNT = 3 //$3 minimum buyback amount
         //process order if buyback required
         const orders = await this.prisma.orders.findMany({
             where: {
@@ -1299,6 +1301,17 @@ export class RewardPoolOnChainService {
             this.logger.error(`[CreateBuyBackOrders]Admin user not found`)
             return
         }
+
+        //create a map to calculate total need buyback
+        const buybackMapping = new Map<
+            string,
+            {
+                orders: string[]
+                buybackAmount: Decimal
+                needToTransfer: { order_id: string; transferAmount: Decimal }[]
+                buybackWallet: string
+            }
+        >()
         for (const order of orders) {
             try {
                 const rewardsSnapshot = order.rewards_model_snapshot as any as RewardSnapshotDto
@@ -1311,6 +1324,16 @@ export class RewardPoolOnChainService {
                     this.logger.error(`[CreateBuyBackOrders]Reward pool not found: ${rewardsSnapshot.token}`)
                     continue
                 }
+
+                if (!buybackMapping.has(poolInfo.token)) {
+                    buybackMapping.set(poolInfo.token, {
+                        orders: [],
+                        buybackAmount: new Decimal(0),
+                        needToTransfer: [],
+                        buybackWallet: poolInfo.buyback_address,
+                    })
+                }
+
                 const needBuybackRatio = rewardsSnapshot.revenue_ratio
                     .filter((item: RewardAllocateRatio) => item.role === RewardAllocateRoles.BUYBACK)
                     .reduce((acc: number, curr: RewardAllocateRatio) => acc + curr.ratio, 0)
@@ -1321,12 +1344,53 @@ export class RewardPoolOnChainService {
 
                 const needBuybackAmount = new Decimal(order.amount).mul(needBuybackRatio).div(10000)
 
-                if (!order.buyback_fee_transferred) {
-                    //transfer if needed
-                    this.logger.log(
-                        `[CreateBuyBackOrders]Transfer ${needBuybackAmount.toNumber()} usdc to buyback wallet: ${poolInfo.buyback_address}`,
+                buybackMapping.set(poolInfo.token, {
+                    orders: [...buybackMapping.get(poolInfo.token).orders, order.order_id],
+                    buybackAmount: buybackMapping.get(poolInfo.token).buybackAmount.plus(needBuybackAmount),
+                    needToTransfer: [
+                        ...buybackMapping.get(poolInfo.token).needToTransfer,
+                        { order_id: order.order_id, transferAmount: needBuybackAmount },
+                    ],
+                    buybackWallet: poolInfo.buyback_address,
+                })
+
+                if (order.buyback_fee_transferred) {
+                    //we need to minus the needToTransfer if the buyback fee is transferred
+                    buybackMapping.set(poolInfo.token, {
+                        orders: buybackMapping.get(poolInfo.token).orders,
+                        buybackAmount: buybackMapping.get(poolInfo.token).buybackAmount,
+                        needToTransfer: buybackMapping
+                            .get(poolInfo.token)
+                            .needToTransfer.filter((item) => item.order_id !== order.order_id),
+                        buybackWallet: poolInfo.buyback_address,
+                    })
+                }
+            } catch (error) {
+                this.logger.error(`Mapping buyback amount failed: ${error}`)
+                continue
+            }
+        }
+
+        //loop through buyback mapping
+        if (buybackMapping.size > 0) {
+            buybackMapping.forEach(async (value, token) => {
+                if (value.buybackAmount.lt(MINIUM_ORDER_BUYBACK_AMOUNT)) {
+                    this.logger.warn(
+                        `[CreateBuyBackOrders]Buyback amount of token ${token} is less than ${MINIUM_ORDER_BUYBACK_AMOUNT}: ${JSON.stringify(value)}`,
                     )
-                    //console.log(poolInfo.buyback_address)
+                    return
+                }
+
+                if (value.needToTransfer.length > 0) {
+                    //transfer if needed
+                    const transferOrders = value.needToTransfer.map((item) => item.order_id)
+                    const transferAmount = value.needToTransfer.reduce(
+                        (acc, item) => acc.plus(item.transferAmount),
+                        new Decimal(0),
+                    )
+                    this.logger.log(
+                        `[CreateBuyBackOrders]Transfer buyback fee of token ${token}, amount: ${transferAmount.toNumber()} to buyback wallet: ${value.buybackWallet}`,
+                    )
                     const result = await this.giggleService.sendToken(
                         {
                             email: adminUser.email,
@@ -1334,35 +1398,39 @@ export class RewardPoolOnChainService {
                             usernameShorted: adminUser.username_in_be,
                         },
                         {
-                            amount: needBuybackAmount.toNumber(),
+                            amount: transferAmount.toNumber(),
                             mint: process.env.GIGGLE_LEGAL_USDC,
-                            receipt: poolInfo.buyback_address,
+                            receipt: value.buybackWallet,
                         },
                         this.settleWallet,
                     )
                     if (!result.sig) {
                         this.logger.error(`[CreateBuyBackOrders]Transfer failed: ${JSON.stringify(result)}`)
-                        continue
+                        return
                     }
-                    await this.prisma.orders.update({
+
+                    await this.prisma.orders.updateMany({
                         where: {
-                            id: order.id,
+                            order_id: {
+                                in: transferOrders,
+                            },
                         },
                         data: { buyback_fee_transferred: true },
                     })
-                } else {
-                    this.logger.warn(`[CreateBuyBackOrders] Order: ${order.id} buyback fee already transferred`)
                 }
-                //start buyback
-                const orderId = await this.startBuyback(rewardsSnapshot.token, needBuybackAmount.toNumber())
+
+                //create buyback order
+                const orderId = await this.startBuyback(token, value.buybackAmount.toNumber())
                 if (!orderId) {
-                    this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${rewardsSnapshot.token}`)
-                    continue
+                    this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${token}`)
+                    return
                 }
                 await this.prisma.$transaction(async (tx) => {
-                    await tx.orders.update({
+                    await tx.orders.updateMany({
                         where: {
-                            id: order.id,
+                            order_id: {
+                                in: value.orders,
+                            },
                         },
                         data: {
                             buyback_order_id: orderId,
@@ -1370,20 +1438,17 @@ export class RewardPoolOnChainService {
                     })
                     await tx.reward_pool_buybacks.create({
                         data: {
-                            token: rewardsSnapshot.token,
+                            token: token,
                             order_id: orderId,
                             request: {
-                                amount: needBuybackAmount.toNumber(),
-                                token: rewardsSnapshot.token,
+                                amount: value.buybackAmount.toNumber(),
+                                token: token,
                             },
                         },
                     })
                 })
                 this.logger.log(`[CreateBuyBackOrders]Create buyback order: ${orderId}`)
-            } catch (error) {
-                this.logger.error(`Create buyback order failed: ${error}`)
-                continue
-            }
+            })
         }
 
         //sleep 30 seconds to avoid duplicate buyback
@@ -1522,24 +1587,28 @@ export class RewardPoolOnChainService {
                     })
                 }
                 //check if this is an order triggered buyback
-                const order = await this.prisma.orders.findFirst({
+                const orders = await this.prisma.orders.findMany({
                     where: {
                         buyback_order_id: buyback.order_id,
                     },
                 })
-                if (order) {
+                if (orders.length > 0) {
                     //update order status
-                    await this.prisma.orders.update({
+                    await this.prisma.orders.updateMany({
                         where: {
-                            id: order.id,
+                            order_id: {
+                                in: orders.map((item) => item.order_id),
+                            },
                         },
                         data: {
                             buyback_result: result as any,
                         },
                     })
                     //release rewards
-                    if (order.release_rewards_after_paid && order.current_status === OrderStatus.COMPLETED) {
-                        await this.orderService.releaseRewards(order, null)
+                    for (const order of orders) {
+                        if (order.release_rewards_after_paid && order.current_status === OrderStatus.COMPLETED) {
+                            await this.orderService.releaseRewards(order, null)
+                        }
                     }
                 }
             } catch (error) {
