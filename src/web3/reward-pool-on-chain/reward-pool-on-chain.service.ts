@@ -561,7 +561,7 @@ export class RewardPoolOnChainService {
     //push current reward pool to chain
     @Cron(CronExpression.EVERY_MINUTE)
     async pushToChain() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         const rewardPools = await this.prisma.reward_pools.findFirst({
             where: {
@@ -634,7 +634,7 @@ export class RewardPoolOnChainService {
     //process withdraw token of history record
     @Cron(CronExpression.EVERY_MINUTE)
     async processWithdrawToken() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         const withdrawToken = await this.prisma.user_rewards_withdraw.findFirst({
             where: {
@@ -717,7 +717,7 @@ export class RewardPoolOnChainService {
 
     //process inject token of history record
     async settleInjectToken() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         const injectToken = await this.prisma.reward_pool_statement.findMany({
             where: {
@@ -811,7 +811,7 @@ export class RewardPoolOnChainService {
 
     //settle air drop statement to chain
     async settleAirDropStatement() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         const airdropStatement = await this.prisma.reward_pool_statement.findMany({
             where: {
                 type: reward_pool_type.airdrop,
@@ -905,7 +905,7 @@ export class RewardPoolOnChainService {
 
     //settle order statement to chain
     async settleStatement() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         const statementOrders = await this.prisma.reward_pool_statement.findMany({
             where: {
                 order_info: {
@@ -1071,7 +1071,7 @@ export class RewardPoolOnChainService {
     //check balance with chain
     @Cron(CronExpression.EVERY_DAY_AT_5AM)
     async settlePoolBalanceWithChain() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         if (process.env.ENV != "product") return
         const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyHook) {
@@ -1085,7 +1085,9 @@ export class RewardPoolOnChainService {
                 on_chain_status: reward_pool_on_chain_status.success,
                 statement: {
                     some: {
-                        type: reward_pool_type.injected,
+                        type: {
+                            in: [reward_pool_type.injected, reward_pool_type.buyback],
+                        },
                         chain_transaction: {
                             not: null,
                         },
@@ -1122,7 +1124,7 @@ export class RewardPoolOnChainService {
     @Cron(CronExpression.EVERY_DAY_AT_4AM)
     //@Cron(CronExpression.EVERY_MINUTE)
     async settleWithChain() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         if (process.env.ENV != "product") return
         const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyHook) {
@@ -1199,7 +1201,7 @@ export class RewardPoolOnChainService {
                     "\n"
             }
         }
-        tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
+        tableContent = "#### User's rewards summary " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
         this.logger.log("SETTLE WITH CHAIN: Notify done")
     }
@@ -1209,7 +1211,7 @@ export class RewardPoolOnChainService {
     //@Cron(CronExpression.EVERY_10_MINUTES)
     async processBuybackRecord() {
         return
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         if (process.env.ENV != "product") return
         const rewards_pools = await this.prisma.reward_pool_statement.groupBy({
             by: ["token"],
@@ -1280,7 +1282,7 @@ export class RewardPoolOnChainService {
     @Cron(CronExpression.EVERY_10_MINUTES)
     //@Cron(CronExpression.EVERY_5_MINUTES)
     async createBuyBackOrders() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         const MINIUM_ORDER_BUYBACK_AMOUNT = 3 //$3 minimum buyback amount
         //process order if buyback required
@@ -1517,7 +1519,7 @@ export class RewardPoolOnChainService {
     //check buyback result
     @Cron(CronExpression.EVERY_MINUTE)
     async checkBuybackResult() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         const buybacks = await this.prisma.reward_pool_buybacks.findMany({
             where: {
                 OR: [
@@ -1621,7 +1623,7 @@ export class RewardPoolOnChainService {
     //check reward pool balance every 10 minutes
     @Cron(CronExpression.EVERY_10_MINUTES)
     async checkRewardPoolBalance() {
-        if (process.env.TASK_SLOT != "1") {
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") {
             return
         }
         const notifyWebhook = process.env.STATEMENT_NOTIFY_ADDRESS
@@ -1657,7 +1659,7 @@ export class RewardPoolOnChainService {
     //settle statement
     @Cron(CronExpression.EVERY_5_MINUTES)
     async rewardToChain() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         if (await UtilitiesService.checkTaskRunning(this.onChainTaskId, this.onChainTaskTimeout)) {
             this.logger.log("Reward to chain task is running, skip")
@@ -1682,7 +1684,7 @@ export class RewardPoolOnChainService {
     //update buyback wallet
     @Cron(CronExpression.EVERY_5_MINUTES)
     async updateBuybackWallet() {
-        if (process.env.TASK_SLOT != "1") return
+        if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         const taskId = TASK_IDS.UPDATE_BUYBACK_WALLET
 
         if (await UtilitiesService.checkTaskRunning(taskId, this.onChainTaskTimeout)) {

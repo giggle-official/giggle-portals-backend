@@ -1692,7 +1692,6 @@ export class OrderService {
         }
 
         // check pool balance
-        // todo: maybe this will be removed, rewards pool allow negative balance
         if (rewardPool.current_balance.lt(allocatedTokenAmount)) {
             throw new BadRequestException("Reward pool balance is not enough")
         }
