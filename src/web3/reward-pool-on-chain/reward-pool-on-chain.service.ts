@@ -1176,7 +1176,7 @@ export class RewardPoolOnChainService {
             }
             onChainDataMapped.withdrawn = new Decimal(onChainData.totalAmount).minus(onChainData.availableAmount)
             const availableDiff = offChainAvailable.minus(onChainDataMapped.availableAmount)
-            if (availableDiff.abs().gt(0.1)) {
+            if (availableDiff.abs().gt(0.1) && data.rewards.toString() != onChainDataMapped.totalAmount.toString()) {
                 tableContent +=
                     "|" +
                     [
