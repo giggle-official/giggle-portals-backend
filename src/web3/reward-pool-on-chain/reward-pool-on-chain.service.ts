@@ -1562,6 +1562,21 @@ export class RewardPoolOnChainService {
                         continue
                     }
                     const buyAmount = new Decimal(record.number).div(10 ** 6)
+
+                    //check signature is exists
+                    const signatureExists = await this.prisma.reward_pool_statement.findFirst({
+                        where: {
+                            chain_transaction: {
+                                path: "$.signature",
+                                equals: record.sig,
+                            },
+                        },
+                    })
+
+                    if (signatureExists) {
+                        this.logger.error(`Signature already exists of buyback record: ${record.sig}, skip`)
+                        continue
+                    }
                     await this.prisma.$transaction(async (tx) => {
                         const newPoolInfo = await tx.reward_pools.update({
                             where: {
