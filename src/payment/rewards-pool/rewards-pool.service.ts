@@ -815,6 +815,7 @@ ORDER BY d.date;`
             injected_amount: data.injected_amount.toString(),
             rewarded_amount: data.rewarded_amount.toString(),
             current_balance: data.current_balance.toString(),
+            current_balance_in_usdc: data.current_balance.mul(data.unit_price).toNumber().toFixed(6),
             created_at: data.created_at,
             updated_at: data.updated_at,
             limit_offers: data.reward_pool_limit_offer.map((r) => ({

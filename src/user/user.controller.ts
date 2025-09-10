@@ -146,6 +146,9 @@ export class UserInfoDTO extends LoginDTO {
     is_developer?: boolean
 
     @ApiProperty()
+    is_sale_agent?: boolean
+
+    @ApiProperty()
     permissions?: JwtPermissions[]
 
     @ApiProperty()

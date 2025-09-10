@@ -5239,6 +5239,9 @@
           "is_developer": {
             "type": "boolean"
           },
+          "is_sale_agent": {
+            "type": "boolean"
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -5278,6 +5281,7 @@
           "can_create_ip",
           "wallet_address",
           "is_developer",
+          "is_sale_agent",
           "permissions",
           "device_id",
           "phone_number",
@@ -6561,6 +6565,10 @@
             "type": "string",
             "description": "Current balance of the pool"
           },
+          "current_balance_in_usdc": {
+            "type": "string",
+            "description": "Current balance of the pool in USDC"
+          },
           "limit_offers": {
             "description": "Limit offer of the pool",
             "type": "array",
@@ -6591,6 +6599,7 @@
           "injected_amount",
           "rewarded_amount",
           "current_balance",
+          "current_balance_in_usdc",
           "limit_offers",
           "owed_amount",
           "buyback_burn_ratio"

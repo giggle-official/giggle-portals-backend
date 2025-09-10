@@ -110,6 +110,9 @@ export class PoolResponseDto extends OmitType(Pool, [
     @ApiProperty({ description: "Current balance of the pool" })
     current_balance: string
 
+    @ApiProperty({ description: "Current balance of the pool in USDC" })
+    current_balance_in_usdc: string
+
     @ApiProperty({ description: "Limit offer of the pool", isArray: true })
     @ValidateNested({ each: true })
     @Type(() => LimitOffer)

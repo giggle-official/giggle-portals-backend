@@ -130,6 +130,12 @@ export class UserService {
         if (!_userInfoFromDb) {
             throw new UnauthorizedException("user not exists")
         }
+
+        const salsAgent = await this.prisma.sales_agent.findFirst({
+            where: {
+                user: userInfo.usernameShorted,
+            },
+        })
         const result: UserInfoDTO = {
             user_id: _userInfoFromDb.usernameShorted,
             username: _userInfoFromDb.username,
@@ -150,6 +156,7 @@ export class UserService {
             phone_national: _userInfoFromDb.phone_national,
             current_credit_balance: _userInfoFromDb.current_credit_balance,
             wallet_address: _userInfoFromDb.wallet_address,
+            is_sale_agent: !!salsAgent,
         }
 
         //if widget session is setting, we need to get the widget info
