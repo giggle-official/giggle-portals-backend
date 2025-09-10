@@ -32,6 +32,7 @@ import { RewardAllocateRatio, RewardAllocateRoles, RewardSnapshotDto } from "src
 import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
+import { TaskService } from "src/task/task.service"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -1517,9 +1518,15 @@ export class RewardPoolOnChainService {
     }
 
     //check buyback result
-    @Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async checkBuybackResult() {
         if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
+        if (await UtilitiesService.checkTaskRunning(this.onChainTaskId, TASK_IDS.CHECK_BUYBACK_RESULT)) {
+            this.logger.log("check buyback result task is running, skip")
+            return
+        }
+        //check jobid is running
+        await UtilitiesService.startTask(TASK_IDS.CHECK_BUYBACK_RESULT)
         const buybacks = await this.prisma.reward_pool_buybacks.findMany({
             where: {
                 OR: [
@@ -1633,6 +1640,8 @@ export class RewardPoolOnChainService {
                 continue
             }
         }
+        //stop task
+        await UtilitiesService.stopTask(TASK_IDS.CHECK_BUYBACK_RESULT)
     }
 
     //check reward pool balance every 10 minutes
