@@ -4026,6 +4026,37 @@
         ]
       }
     },
+    "/api/v1/ip-library/delegate-ip-token": {
+      "post": {
+        "operationId": "IpLibraryController_delegateIpToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelegateIpTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delegate an ip token to a market maker",
+        "tags": [
+          "IP Library",
+          "Market Maker"
+        ]
+      }
+    },
     "/api/v1/ip/announcement": {
       "post": {
         "operationId": "AnnouncementController_create",
@@ -4658,7 +4689,8 @@
         ],
         "summary": "Get market maker info",
         "tags": [
-          "Market Maker"
+          "MarketMaker",
+          "Market Maker Management"
         ]
       }
     },
@@ -4697,7 +4729,8 @@
         ],
         "summary": "Get ip delegation list",
         "tags": [
-          "Market Maker"
+          "MarketMaker",
+          "Market Maker Management"
         ]
       }
     },
@@ -4727,7 +4760,8 @@
         ],
         "summary": "Cancel an ip token launch delegation",
         "tags": [
-          "Market Maker"
+          "MarketMaker",
+          "Market Maker Management"
         ]
       }
     },
@@ -4757,6 +4791,7 @@
         ],
         "summary": "Get market maker list",
         "tags": [
+          "MarketMaker",
           "Market Maker"
         ]
       }
@@ -4787,7 +4822,8 @@
         ],
         "summary": "Get market maker list by admin",
         "tags": [
-          "Market Maker"
+          "MarketMaker",
+          "Market Maker Management"
         ]
       }
     },
@@ -4817,7 +4853,8 @@
         ],
         "summary": "Create market maker",
         "tags": [
-          "Market Maker"
+          "MarketMaker",
+          "Market Maker Management"
         ]
       }
     },
@@ -4847,7 +4884,7 @@
         ],
         "summary": "Delete market maker",
         "tags": [
-          "Market Maker"
+          "MarketMaker"
         ]
       }
     },
@@ -4885,7 +4922,7 @@
         ],
         "summary": "Launch ip token",
         "tags": [
-          "Market Maker"
+          "MarketMaker"
         ]
       }
     },
@@ -10929,6 +10966,23 @@
           "success"
         ]
       },
+      "DelegateIpTokenDto": {
+        "type": "object",
+        "properties": {
+          "ip_id": {
+            "type": "number",
+            "description": "ip id"
+          },
+          "market_maker_id": {
+            "type": "number",
+            "description": "market maker id"
+          }
+        },
+        "required": [
+          "ip_id",
+          "market_maker_id"
+        ]
+      },
       "CreateAnnouncementDto": {
         "type": "object",
         "properties": {
@@ -11583,7 +11637,8 @@
         "IP Library",
         "Announcement",
         "Comments",
-        "Link"
+        "Link",
+        "Market Maker"
       ]
     },
     {

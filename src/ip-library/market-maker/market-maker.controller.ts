@@ -19,7 +19,6 @@ import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 import { ValidEventBody } from "src/common/rawbody.decorator"
 
 @Controller("/api/v1/market-maker")
-@ApiTags("Market Maker")
 export class MarketMakerController {
     constructor(private readonly marketMakerService: MarketMakerService) {}
 
@@ -27,6 +26,7 @@ export class MarketMakerController {
     @ApiOperation({ summary: "Get market maker info" })
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
+    @ApiTags("Market Maker Management")
     async getInfo(@Req() req: Request) {
         return await this.marketMakerService.getInfo(req.user as UserJwtExtractDto)
     }
@@ -35,6 +35,7 @@ export class MarketMakerController {
     @ApiOperation({ summary: "Get ip delegation list" })
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
+    @ApiTags("Market Maker Management")
     async getIpDelegation(@Req() req: Request, @Query() query: IpDelegationQueryDto) {
         return await this.marketMakerService.getIpDelegation(req.user as UserJwtExtractDto, query)
     }
@@ -43,6 +44,7 @@ export class MarketMakerController {
     @ApiOperation({ summary: "Cancel an ip token launch delegation" })
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
+    @ApiTags("Market Maker Management")
     async createIpDelegation(@Req() req: Request, @Body() body: CancelIpDelegationDto) {
         return await this.marketMakerService.cancelIpDelegation(req.user as UserJwtExtractDto, body)
     }
@@ -51,6 +53,7 @@ export class MarketMakerController {
     @ApiOperation({ summary: "Get market maker list" })
     @ApiResponse({ type: ListMarketMakerResponseDto, isArray: true })
     @ApiBearerAuth()
+    @ApiTags("Market Maker")
     async getMarketMakerList() {
         return await this.marketMakerService.getMarketMakerList()
     }
@@ -60,6 +63,7 @@ export class MarketMakerController {
     @UseGuards(IsAdminGuard)
     @ApiResponse({ type: ListMarketMakerResponseByAdminDto, isArray: true })
     @ApiBearerAuth()
+    @ApiTags("Market Maker Management")
     async listMarketMaker() {
         return await this.marketMakerService.getMarketMakersByAdmin()
     }
@@ -69,6 +73,7 @@ export class MarketMakerController {
     @UseGuards(IsAdminGuard)
     @ApiBody({ type: CreateMarketMakerDto })
     @ApiBearerAuth()
+    @ApiTags("Market Maker Management")
     async apply(@Body() body: CreateMarketMakerDto) {
         return await this.marketMakerService.create(body)
     }

@@ -278,11 +278,12 @@ if error occurs, the event will be \`error\` and the data in \`data\` is the err
     }
 
     @Post("/delegate-ip-token")
-    @ApiExcludeEndpoint()
+    @ApiOperation({ summary: "Delegate an ip token to a market maker" })
     @UseGuards(AuthGuard("jwt"))
     @ApiBody({ type: DelegateIpTokenDto })
     @ApiResponse({ status: 200 })
     @ApiBearerAuth()
+    @ApiTags("Market Maker")
     @HttpCode(HttpStatus.OK)
     async delegateIpToken(@Req() req: Request, @Body() body: DelegateIpTokenDto) {
         return await this.ipLibraryService.delegateIpToken(req.user as UserJwtExtractDto, body)

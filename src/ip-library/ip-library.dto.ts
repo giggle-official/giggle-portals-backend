@@ -1103,6 +1103,9 @@ export class RemoveIpResponseDto {
 export class DelegateIpTokenDto {
     @IsNotEmpty()
     @IsNumber()
+    @ApiProperty({
+        description: "ip id",
+    })
     ip_id: number
 
     @IsNotEmpty()
