@@ -1377,80 +1377,85 @@ export class RewardPoolOnChainService {
         //loop through buyback mapping
         if (buybackMapping.size > 0) {
             buybackMapping.forEach(async (value, token) => {
-                if (value.buybackAmount.lt(MINIUM_ORDER_BUYBACK_AMOUNT)) {
-                    this.logger.warn(
-                        `[CreateBuyBackOrders]Buyback amount of token ${token} is less than ${MINIUM_ORDER_BUYBACK_AMOUNT}: ${JSON.stringify(value)}`,
-                    )
-                    return
-                }
-
-                if (value.needToTransfer.length > 0) {
-                    //transfer if needed
-                    const transferOrders = value.needToTransfer.map((item) => item.order_id)
-                    const transferAmount = value.needToTransfer.reduce(
-                        (acc, item) => acc.plus(item.transferAmount),
-                        new Decimal(0),
-                    )
-                    this.logger.log(
-                        `[CreateBuyBackOrders]Transfer buyback fee of token ${token}, amount: ${transferAmount.toNumber()} to buyback wallet: ${value.buybackWallet}`,
-                    )
-                    const result = await this.giggleService.sendToken(
-                        {
-                            email: adminUser.email,
-                            user_id: adminUser.username_in_be,
-                            usernameShorted: adminUser.username_in_be,
-                        },
-                        {
-                            amount: transferAmount.toNumber(),
-                            mint: process.env.GIGGLE_LEGAL_USDC,
-                            receipt: value.buybackWallet,
-                        },
-                        this.settleWallet,
-                    )
-                    if (!result.sig) {
-                        this.logger.error(`[CreateBuyBackOrders]Transfer failed: ${JSON.stringify(result)}`)
+                try {
+                    if (value.buybackAmount.lt(MINIUM_ORDER_BUYBACK_AMOUNT)) {
+                        this.logger.warn(
+                            `[CreateBuyBackOrders]Buyback amount of token ${token} is less than ${MINIUM_ORDER_BUYBACK_AMOUNT}: ${JSON.stringify(value)}`,
+                        )
                         return
                     }
 
-                    await this.prisma.orders.updateMany({
-                        where: {
-                            order_id: {
-                                in: transferOrders,
+                    if (value.needToTransfer.length > 0) {
+                        //transfer if needed
+                        const transferOrders = value.needToTransfer.map((item) => item.order_id)
+                        const transferAmount = value.needToTransfer.reduce(
+                            (acc, item) => acc.plus(item.transferAmount),
+                            new Decimal(0),
+                        )
+                        this.logger.log(
+                            `[CreateBuyBackOrders]Transfer buyback fee of token ${token}, amount: ${transferAmount.toNumber()} to buyback wallet: ${value.buybackWallet}`,
+                        )
+                        const result = await this.giggleService.sendToken(
+                            {
+                                email: adminUser.email,
+                                user_id: adminUser.username_in_be,
+                                usernameShorted: adminUser.username_in_be,
                             },
-                        },
-                        data: { buyback_fee_transferred: true },
-                    })
-                }
+                            {
+                                amount: transferAmount.toNumber(),
+                                mint: process.env.GIGGLE_LEGAL_USDC,
+                                receipt: value.buybackWallet,
+                            },
+                            this.settleWallet,
+                        )
+                        if (!result.sig) {
+                            this.logger.error(`[CreateBuyBackOrders]Transfer failed: ${JSON.stringify(result)}`)
+                            return
+                        }
 
-                //create buyback order
-                const orderId = await this.startBuyback(token, value.buybackAmount.toNumber())
-                if (!orderId) {
-                    this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${token}`)
+                        await this.prisma.orders.updateMany({
+                            where: {
+                                order_id: {
+                                    in: transferOrders,
+                                },
+                            },
+                            data: { buyback_fee_transferred: true },
+                        })
+                    }
+
+                    //create buyback order
+                    const orderId = await this.startBuyback(token, value.buybackAmount.toNumber())
+                    if (!orderId) {
+                        this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${token}`)
+                        return
+                    }
+                    await this.prisma.$transaction(async (tx) => {
+                        await tx.orders.updateMany({
+                            where: {
+                                order_id: {
+                                    in: value.orders,
+                                },
+                            },
+                            data: {
+                                buyback_order_id: orderId,
+                            },
+                        })
+                        await tx.reward_pool_buybacks.create({
+                            data: {
+                                token: token,
+                                order_id: orderId,
+                                request: {
+                                    amount: value.buybackAmount.toNumber(),
+                                    token: token,
+                                },
+                            },
+                        })
+                    })
+                    this.logger.log(`[CreateBuyBackOrders]Create buyback order: ${orderId}`)
+                } catch {
+                    this.logger.error(`[CreateBuyBackOrders]Create buyback order failed: ${token}`)
                     return
                 }
-                await this.prisma.$transaction(async (tx) => {
-                    await tx.orders.updateMany({
-                        where: {
-                            order_id: {
-                                in: value.orders,
-                            },
-                        },
-                        data: {
-                            buyback_order_id: orderId,
-                        },
-                    })
-                    await tx.reward_pool_buybacks.create({
-                        data: {
-                            token: token,
-                            order_id: orderId,
-                            request: {
-                                amount: value.buybackAmount.toNumber(),
-                                token: token,
-                            },
-                        },
-                    })
-                })
-                this.logger.log(`[CreateBuyBackOrders]Create buyback order: ${orderId}`)
             })
         }
 
