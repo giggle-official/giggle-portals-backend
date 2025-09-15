@@ -126,21 +126,30 @@ export class PoolResponseDto extends OmitType(Pool, [
 }
 
 export class RewardAllocateRatio {
-    @ApiProperty({ description: "Address of the account" })
+    @ApiProperty({
+        description: "Address of the account, if you setting customized role, you must set this",
+        required: false,
+    })
     @IsString()
     address: string
 
-    @ApiProperty({ description: "Ratio of tokens to be allocated to the pool" })
+    @ApiProperty({ description: "Ratio of tokens to be allocated to the pool, sum of ratios must be 90" })
     @IsNumber()
     @IsPositive()
     ratio: number
 
-    @ApiProperty({ description: "Role of the account", enum: RewardAllocateRoles })
+    @ApiProperty({
+        description: "Role of the account, platform always has 10% of the revenue",
+        enum: RewardAllocateRoles,
+    })
     @IsEnum(RewardAllocateRoles)
     @IsNotEmpty()
     role: RewardAllocateRoles
 
-    @ApiProperty({ description: "Type of the allocation", enum: RewardAllocateType })
+    @ApiProperty({
+        description: "Type of the allocation, currently we only support usdc, so keep this as usdc",
+        enum: RewardAllocateType,
+    })
     @IsEnum(RewardAllocateType)
     @IsNotEmpty()
     allocate_type: RewardAllocateType
@@ -190,11 +199,7 @@ export class CreateRewardsPoolDto {
     @ApiProperty({
         description: "Revenue ratio of the pool, all revenue will be allocated depends on this ratio",
         isArray: true,
-        properties: {
-            address: { type: "string", example: "" },
-            ratio: { type: "number", example: 40 },
-            role: { type: "string", enum: RewardAllocateRoles, example: RewardAllocateRoles.BUYBACK },
-        },
+        type: () => RewardAllocateRatio,
         example: [
             {
                 address: "",

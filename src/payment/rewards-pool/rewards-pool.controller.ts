@@ -29,7 +29,7 @@ export class RewardsPoolController {
     constructor(private readonly rewardsPoolService: RewardsPoolService) {}
     @ApiOperation({
         summary: "Create a rewards pool",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Create a rewards pool for a token",
     })
     @ApiBody({ type: CreateRewardsPoolDto })
@@ -42,7 +42,7 @@ export class RewardsPoolController {
 
     @ApiOperation({
         summary: "Update a rewards pool",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Update a rewards pool",
     })
     @ApiBody({ type: UpdateRewardsPoolDto })
@@ -55,7 +55,7 @@ export class RewardsPoolController {
 
     @ApiOperation({
         summary: "Inject tokens to a rewards pool",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Inject tokens to a rewards pool",
     })
     @ApiBody({ type: InjectTokensDto })
@@ -95,7 +95,7 @@ export class RewardsPoolController {
     @ApiResponse({ type: PoolsResponseListDto })
     @ApiOperation({
         summary: "Get all rewards pools",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Get all rewards pools",
     })
     async getPools(@Query() query: PoolsQueryDto) {
@@ -106,7 +106,7 @@ export class RewardsPoolController {
     @ApiResponse({ type: StatisticsSummaryDto })
     @ApiOperation({
         summary: "Get statistics summary",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Get statistics summary",
     })
     async getStatisticsSummary(@Query() query: StatisticsQueryDto): Promise<StatisticsSummaryDto> {
@@ -117,7 +117,7 @@ export class RewardsPoolController {
     @ApiResponse({ type: StatisticsIncomesDto, isArray: true })
     @ApiOperation({
         summary: "Get statistics incomes",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Get statistics incomes",
     })
     async getStatisticsIncomes(@Query() query: StatisticsQueryDto): Promise<StatisticsIncomesDto[]> {
@@ -128,7 +128,7 @@ export class RewardsPoolController {
     @ApiResponse({ type: StatementResponseListDto, isArray: true })
     @ApiOperation({
         summary: "Get statements",
-        tags: ["Rewards Pool Management"],
+        tags: ["Rewards Pool"],
         description: "Get statements",
     })
     async getStatement(@Query() query: StatementQueryDto): Promise<StatementResponseListDto> {

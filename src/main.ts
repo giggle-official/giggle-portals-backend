@@ -166,6 +166,10 @@ To see how to process the event stream response, please refer to the [Event Stre
             tags: ["IP Library", "Announcement", "Comments", "Link", "Market Maker"],
         },
         {
+            name: "Rewards Pool",
+            tags: ["Rewards Pool"],
+        },
+        {
             name: "Account",
             tags: ["Profile", "User Wallet", "Assets"],
         },

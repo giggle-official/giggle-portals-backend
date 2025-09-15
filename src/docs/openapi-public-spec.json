@@ -1727,7 +1727,7 @@
         },
         "summary": "Create a rewards pool",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -1760,7 +1760,7 @@
         },
         "summary": "Update a rewards pool",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -1793,7 +1793,7 @@
         },
         "summary": "Inject tokens to a rewards pool",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -1969,7 +1969,7 @@
         },
         "summary": "Get all rewards pools",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -2002,7 +2002,7 @@
         },
         "summary": "Get statistics summary",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -2038,7 +2038,7 @@
         },
         "summary": "Get statistics incomes",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -2137,7 +2137,7 @@
         },
         "summary": "Get statements",
         "tags": [
-          "Rewards Pool Management"
+          "Rewards Pool"
         ]
       }
     },
@@ -6433,15 +6433,15 @@
         "properties": {
           "address": {
             "type": "string",
-            "description": "Address of the account"
+            "description": "Address of the account, if you setting customized role, you must set this"
           },
           "ratio": {
             "type": "number",
-            "description": "Ratio of tokens to be allocated to the pool"
+            "description": "Ratio of tokens to be allocated to the pool, sum of ratios must be 90"
           },
           "role": {
             "type": "string",
-            "description": "Role of the account",
+            "description": "Role of the account, platform always has 10% of the revenue",
             "enum": [
               "buyback",
               "customized",
@@ -6451,7 +6451,7 @@
           },
           "allocate_type": {
             "type": "string",
-            "description": "Type of the allocation",
+            "description": "Type of the allocation, currently we only support usdc, so keep this as usdc",
             "enum": [
               "token",
               "usdc"
@@ -6459,7 +6459,6 @@
           }
         },
         "required": [
-          "address",
           "ratio",
           "role",
           "allocate_type"
@@ -7645,26 +7644,6 @@
           },
           "revenue_ratio": {
             "description": "Revenue ratio of the pool, all revenue will be allocated depends on this ratio",
-            "properties": {
-              "address": {
-                "type": "string",
-                "example": ""
-              },
-              "ratio": {
-                "type": "number",
-                "example": 40
-              },
-              "role": {
-                "type": "string",
-                "enum": {
-                  "BUYBACK": "buyback",
-                  "CUSTOMIZED": "customized",
-                  "PLATFORM": "platform",
-                  "IPHOLDER": "ip-holder"
-                },
-                "example": "buyback"
-              }
-            },
             "example": [
               {
                 "address": "",
@@ -7687,7 +7666,7 @@
             ],
             "type": "array",
             "items": {
-              "type": "array"
+              "$ref": "#/components/schemas/RewardAllocateRatio"
             }
           }
         },
@@ -7717,26 +7696,6 @@
           },
           "revenue_ratio": {
             "description": "Revenue ratio of the pool, all revenue will be allocated depends on this ratio",
-            "properties": {
-              "address": {
-                "type": "string",
-                "example": ""
-              },
-              "ratio": {
-                "type": "number",
-                "example": 40
-              },
-              "role": {
-                "type": "string",
-                "enum": {
-                  "BUYBACK": "buyback",
-                  "CUSTOMIZED": "customized",
-                  "PLATFORM": "platform",
-                  "IPHOLDER": "ip-holder"
-                },
-                "example": "buyback"
-              }
-            },
             "example": [
               {
                 "address": "",
@@ -7759,7 +7718,7 @@
             ],
             "type": "array",
             "items": {
-              "type": "array"
+              "$ref": "#/components/schemas/RewardAllocateRatio"
             }
           }
         },
@@ -11639,6 +11598,12 @@
         "Comments",
         "Link",
         "Market Maker"
+      ]
+    },
+    {
+      "name": "Rewards Pool",
+      "tags": [
+        "Rewards Pool"
       ]
     },
     {
