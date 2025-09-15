@@ -110,6 +110,12 @@ export class AuthService {
 
     async exchangeCode(code: string, app_id: string, device_id: string, invite_code?: string) {
         try {
+            this.logger.log(
+                "Google token exchange: code: " + code,
+                "app_id: " + app_id,
+                "device_id: " + device_id,
+                "invite_code: " + invite_code,
+            )
             const tokenResponse = await lastValueFrom(
                 this.googleLoginhttpService.post(
                     "https://oauth2.googleapis.com/token",
