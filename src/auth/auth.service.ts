@@ -228,6 +228,13 @@ export class AuthService {
                 })
             }
 
+            this.logger.log(
+                "Google token exchange success: code: " + code,
+                "app_id: " + app_id,
+                "device_id: " + device_id,
+                "invite_code: " + invite_code,
+            )
+
             return await this.login({
                 user_id: user.username_in_be,
                 username: user.username,
