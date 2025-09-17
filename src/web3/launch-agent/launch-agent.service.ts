@@ -13,17 +13,20 @@ import {
     GenerateSolWalletsResponseDto,
     SuggestBondingSegmentsRequestDto,
     SuggestBondingSegmentsResponseDto,
+    ParseLaunchLaunchPlanWsResponseDto,
 } from "./launch-agent.dto"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom, Subscriber } from "rxjs"
 import { AxiosResponse } from "axios"
 import { GiggleService } from "src/web3/giggle/giggle.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { PriceService } from "src/web3/price/price.service"
 import { Cron } from "@nestjs/schedule"
 import { CronExpression } from "@nestjs/schedule"
 import { SSEMessage } from "../giggle/giggle.dto"
 import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
+import WebSocket from "ws"
+import { HttpsProxyAgent } from "https-proxy-agent"
+import https from "https"
 
 @Injectable()
 export class LaunchAgentService {
@@ -33,12 +36,13 @@ export class LaunchAgentService {
     private readonly launchAgentWallet: string
     private readonly getSolWalletUrl: string
     private readonly usdcMint: string
+    private readonly wsTimeout: number = 100000 //100 seconds
+    private readonly wsProxy: https.Agent | undefined = undefined
 
     constructor(
         private readonly prisma: PrismaService,
         private readonly httpService: HttpService,
         private readonly giggleService: GiggleService,
-        private readonly priceService: PriceService,
     ) {
         this.launchAgentUrl = process.env.LAUNCH_AGENT_ENDPOINT
         this.launchAgentWallet = process.env.LAUNCH_AGENT_WALLET
@@ -54,6 +58,7 @@ export class LaunchAgentService {
             throw new Error("Get sol wallet url is not set")
         }
         this.launchAgentDebug = process.env.LAUNCH_AGENT_DEBUG === "true"
+        this.wsProxy = process.env.HTTP_PROXY ? new HttpsProxyAgent(process.env.HTTP_PROXY) : undefined
     }
 
     async createAgent(user: UserJwtExtractDto): Promise<{ agent_id: string }> {
@@ -101,7 +106,7 @@ export class LaunchAgentService {
             throw new BadRequestException("Agent not found")
         }
 
-        const response: AxiosResponse<ParseLaunchLaunchPlanResponseDto> = await lastValueFrom(
+        const response: AxiosResponse<ParseLaunchLaunchPlanWsResponseDto> = await lastValueFrom(
             this.httpService.post(
                 `${this.launchAgentUrl}/api/agent/${dto.agent_id}/parse_launch_plan`,
                 {
@@ -115,25 +120,86 @@ export class LaunchAgentService {
             ),
         )
 
-        if (response.data.status !== "success") {
+        if (response.data.status !== "started") {
             throw new BadRequestException("Failed to parse launch plan")
         }
 
-        //save
-        await this.prisma.launch_agents.update({
-            where: {
-                agent_id: dto.agent_id,
-            },
-            data: {
-                instruction: dto.instruction,
-                strategy_response: response.data as any,
-                current_status: "pending",
-            },
-        })
+        let wsUrl: string = `${this.launchAgentUrl.replace("http", "ws")}/ws/launch_plan/${dto.agent_id}`
 
-        return {
-            agent_id: dto.agent_id,
-            ...response.data,
+        try {
+            //start a ws client
+            let parseData: ParseLaunchLaunchPlanResponseDto = null
+            let wsError: Error = null
+
+            const wsClient = new WebSocket(wsUrl, {
+                agent: this.wsProxy,
+            })
+
+            wsClient.onerror = (event) => {
+                this.logger.error(`ws error from ${wsUrl}: ${JSON.stringify(event)}`)
+                wsError = new Error("Failed to parse launch plan")
+            }
+
+            wsClient.onmessage = async (event: WebSocket.MessageEvent) => {
+                try {
+                    this.logger.log(`event received from ${wsUrl}: ${event.data}`)
+                    const data = JSON.parse(event.data as string)
+
+                    if (data.type === "parsed") {
+                        const res = data?.parsed_strategy as ParseLaunchLaunchPlanResponseDto["parsed_strategy"]
+                        parseData = {
+                            agent_id: dto.agent_id,
+                            status: "success",
+                            parsed_strategy: res,
+                            ai_instruction_summary: res?.ai_instruction_summary,
+                            estimated_cost: {
+                                total_estimated_usdc: res?.total_estimated_usdc,
+                            },
+                        }
+                        wsClient.close()
+
+                        // Save to database
+                        await this.prisma.launch_agents.update({
+                            where: {
+                                agent_id: dto.agent_id,
+                            },
+                            data: {
+                                instruction: dto.instruction,
+                                strategy_response: parseData as any,
+                                current_status: "pending",
+                            },
+                        })
+                    }
+                } catch (error) {
+                    this.logger.error(`Error processing WebSocket message from ${wsUrl}: ${error}`)
+                    wsError = error
+                }
+            }
+
+            // Wait for response with timeout
+            const endTime = Date.now() + this.wsTimeout
+            while (!parseData && !wsError) {
+                await new Promise((resolve) => setTimeout(resolve, 1000))
+
+                if (Date.now() > endTime) {
+                    wsClient.close(1000, "request parse launch plan timeout")
+                    throw new Error("request parse launch plan timeout")
+                }
+            }
+
+            if (wsError) {
+                throw wsError
+            }
+
+            this.logger.log(`parse launch plan response from ${wsUrl}: ${JSON.stringify(parseData)}`)
+
+            return {
+                agent_id: dto.agent_id,
+                ...parseData,
+            }
+        } catch (error) {
+            this.logger.error(`Failed to parse launch plan from ${wsUrl}: ${JSON.stringify(error)}`)
+            throw new BadRequestException("Failed to parse launch plan")
         }
     }
 

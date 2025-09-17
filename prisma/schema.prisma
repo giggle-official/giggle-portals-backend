@@ -1222,23 +1222,25 @@ enum ip_token_delegation_status {
 }
 
 model ip_token_delegation {
-  id           Int                         @id @default(autoincrement())
-  ip_id        Int
-  status       ip_token_delegation_status?
-  market_maker String?                     @db.VarChar(32)
-  created_at   DateTime?                   @default(now()) @db.Timestamp(0)
-  updated_at   DateTime?                   @default(now()) @db.Timestamp(0)
-  ip_info      ip_library?                 @relation(fields: [ip_id], references: [id])
+  id                Int                         @id @default(autoincrement())
+  ip_id             Int
+  status            ip_token_delegation_status?
+  market_maker      String?                     @db.VarChar(32)
+  created_at        DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?                   @default(now()) @db.Timestamp(0)
+  ip_info           ip_library?                 @relation(fields: [ip_id], references: [id])
+  market_maker_info market_makers?              @relation(fields: [market_maker], references: [user])
 }
 
 model market_makers {
-  id         Int       @id @default(autoincrement())
-  user       String?   @db.VarChar(32)
-  nickname   String?   @db.VarChar(32)
-  email      String?   @db.VarChar(255)
-  created_at DateTime? @default(now()) @db.Timestamp(0)
-  updated_at DateTime? @default(now()) @db.Timestamp(0)
-  user_info  users?    @relation(fields: [user], references: [username_in_be])
+  id                  Int                   @id @default(autoincrement())
+  user                String?               @unique(map: "user") @db.VarChar(32)
+  nickname            String?               @db.VarChar(32)
+  email               String?               @db.VarChar(255)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(0)
+  user_info           users?                @relation(fields: [user], references: [username_in_be])
+  ip_token_delegation ip_token_delegation[]
 }
 
 model free_credit_issues {

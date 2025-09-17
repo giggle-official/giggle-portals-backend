@@ -16,6 +16,11 @@ export class ParseLaunchLaunchPlanRequestDto {
     instruction: string
 }
 
+export class ParseLaunchLaunchPlanWsResponseDto {
+    status: string
+    message: string
+}
+
 export class ParseLaunchLaunchPlanResponseDto {
     agent_id: string
     status: string
