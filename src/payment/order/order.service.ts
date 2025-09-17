@@ -415,7 +415,12 @@ export class OrderService {
 
         await this.prisma.$transaction(async (tx) => {
             const needCredits = orderRecord.amount
-            await this.creditService.consumeCredit(needCredits, orderRecord.order_id, userInfo, tx)
+            const { free_credit_consumed } = await this.creditService.consumeCredit(
+                needCredits,
+                orderRecord.order_id,
+                userInfo,
+                tx,
+            )
             await this.prisma.orders.update({
                 where: { id: orderRecord.id },
                 data: {
@@ -423,6 +428,7 @@ export class OrderService {
                     credit_paid_amount: needCredits,
                     paid_method: PaymentMethod.CREDIT,
                     paid_time: new Date(),
+                    free_credit_paid: free_credit_consumed,
                 },
             })
         })
@@ -455,7 +461,7 @@ export class OrderService {
         }
 
         if (orderRecord.current_status !== OrderStatus.COMPLETED) {
-            throw new BadRequestException("Order is not completed")
+            throw new BadRequestException("This order can not be refunded")
         }
 
         const dateBefore10days = new Date(Date.now() - 1000 * 60 * 60 * 24 * 10)
@@ -510,6 +516,7 @@ export class OrderService {
             item: data.item,
             description: data.description,
             current_status: data.current_status as OrderStatus,
+            free_credit_paid: data.free_credit_paid,
             created_at: data.created_at,
             updated_at: data.updated_at,
             paid_method: data.paid_method,

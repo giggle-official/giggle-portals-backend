@@ -53,7 +53,6 @@ model users {
   ip_library                     ip_library[]
   admin_logs                     admin_logs[]
   face_swap_videos               face_swap_videos[]
-  user_credit_issues             user_credit_issues[]
   generate_video_request         generate_video_request[]
   generate_image_request         generate_image_request[]
   user_logs                      user_logs[]
@@ -177,35 +176,6 @@ model universal_stimulator_users {
   s3_secret_key String?   @db.VarChar(255)
   created_at    DateTime? @default(now()) @db.Timestamp(0)
   updated_at    DateTime? @default(now()) @db.Timestamp(0)
-}
-
-model user_credit_consume {
-  id             Int                 @id @default(autoincrement())
-  credit_id      Int?
-  amount         Int?
-  consume_type   String?             @db.VarChar(32)
-  balance_before Int?
-  balance_after  Int?
-  status         String?             @db.VarChar(32)
-  consume_date   DateTime?           @db.DateTime(0)
-  created_at     DateTime?           @default(now()) @db.DateTime(0)
-  related_id     String?             @db.VarChar(255)
-  credit_info    user_credit_issues? @relation(fields: [credit_id], references: [id])
-}
-
-model user_credit_issues {
-  id                  Int                   @id @default(autoincrement())
-  user                String?               @db.VarChar(32)
-  credit              Int?
-  type                String?               @db.VarChar(32)
-  invoice_id          String?               @db.VarChar(255)
-  subscription_id     String?               @db.VarChar(255)
-  effective_date      DateTime?             @db.Date
-  expire_date         DateTime?             @db.Date
-  current_balance     Int?
-  created_at          DateTime?             @default(now()) @db.DateTime(0)
-  user_credit_consume user_credit_consume[]
-  user_info           users?                @relation(fields: [user], references: [username_in_be])
 }
 
 model stripe_webhook_log {
@@ -878,6 +848,7 @@ model orders {
   app_id                         String?                 @db.VarChar(32)
   is_credit_top_up               Boolean?                @default(false)
   current_status                 String?                 @db.VarChar(32)
+  free_credit_paid               Int?                    @default(0)
   paid_method                    String?                 @db.VarChar(32)
   stripe_invoice_id              String?                 @db.VarChar(32)
   stripe_invoice_detail          Json?
@@ -1161,6 +1132,8 @@ model widget_access_log {
 }
 
 enum credit_statement_type {
+  issue_free_credit
+  expire_free_credit
   top_up
   consume
   refund
@@ -1178,15 +1151,17 @@ model reward_pool_buybacks {
 }
 
 model credit_statements {
-  id         Int                    @id @default(autoincrement())
-  user       String?                @db.VarChar(32)
-  type       credit_statement_type?
-  amount     Int?
-  balance    Int?
-  order_id   String?                @db.VarChar(64)
-  created_at DateTime?              @default(now()) @db.Timestamp(0)
-  updated_at DateTime?              @default(now()) @db.Timestamp(0)
-  order      orders?                @relation(fields: [order_id], references: [order_id])
+  id                   Int                    @id @default(autoincrement())
+  user                 String?                @db.VarChar(32)
+  type                 credit_statement_type?
+  is_free_credit       Boolean?               @default(false)
+  free_credit_issue_id Int?
+  amount               Int?
+  balance              Int?
+  order_id             String?                @db.VarChar(64)
+  created_at           DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(0)
+  order                orders?                @relation(fields: [order_id], references: [order_id])
 }
 
 enum nft_task_status {
@@ -1264,6 +1239,19 @@ model market_makers {
   created_at DateTime? @default(now()) @db.Timestamp(0)
   updated_at DateTime? @default(now()) @db.Timestamp(0)
   user_info  users?    @relation(fields: [user], references: [username_in_be])
+}
+
+model free_credit_issues {
+  id          Int       @id @default(autoincrement())
+  user        String?   @db.VarChar(32)
+  widget_tag  String?   @db.VarChar(32)
+  app_id      String?   @db.VarChar(64)
+  description String?   @db.VarChar(1024)
+  amount      Int?
+  expire_date DateTime? @db.DateTime(0)
+  balance     Int?
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @default(now()) @db.Timestamp(0)
 }
 
 model view_ip_token_prices {

@@ -2141,6 +2141,28 @@
         ]
       }
     },
+    "/api/v1/credit/balance": {
+      "get": {
+        "operationId": "CreditController_getUserCredits",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreditBalanceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user credit balance",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/credit/top-up": {
       "post": {
         "operationId": "CreditController_topUp",
@@ -2202,6 +2224,8 @@
             "description": "filter by type",
             "schema": {
               "enum": [
+                "issue_free_credit",
+                "expire_free_credit",
                 "top_up",
                 "consume",
                 "refund"
@@ -2232,6 +2256,38 @@
           }
         },
         "summary": "Get credit statements",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
+    "/api/v1/credit/issue-free-credit": {
+      "post": {
+        "operationId": "CreditController_issueFreeCredit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueFreeCreditDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueFreeCreditResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Issue free credit",
         "tags": [
           "Credit"
         ]
@@ -5297,6 +5353,9 @@
           "current_credit_balance": {
             "type": "number"
           },
+          "free_credit_balance": {
+            "type": "number"
+          },
           "widget_info": {
             "type": "object"
           },
@@ -5324,6 +5383,7 @@
           "phone_number",
           "phone_national",
           "current_credit_balance",
+          "free_credit_balance",
           "widget_info",
           "register_info"
         ]
@@ -6770,6 +6830,10 @@
             "type": "string",
             "description": "The current status of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -6910,6 +6974,7 @@
           "owner",
           "is_credit_top_up",
           "current_status",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -7069,6 +7134,10 @@
             "type": "boolean",
             "description": "The is credit top up of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -7203,6 +7272,7 @@
           "ip_id",
           "owner",
           "is_credit_top_up",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -7428,6 +7498,10 @@
             "type": "string",
             "description": "The current status of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -7572,6 +7646,7 @@
           "owner",
           "is_credit_top_up",
           "current_status",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -8052,6 +8127,23 @@
           "total"
         ]
       },
+      "UserCreditBalanceDto": {
+        "type": "object",
+        "properties": {
+          "total_credit_balance": {
+            "type": "number",
+            "description": "The total credit balance of the user"
+          },
+          "free_credit_balance": {
+            "type": "number",
+            "description": "The free credit balance of the user"
+          }
+        },
+        "required": [
+          "total_credit_balance",
+          "free_credit_balance"
+        ]
+      },
       "TopUpDto": {
         "type": "object",
         "properties": {
@@ -8075,10 +8167,20 @@
             "type": "string",
             "description": "The type of the statement",
             "enum": [
+              "issue_free_credit",
+              "expire_free_credit",
               "top_up",
               "consume",
               "refund"
             ]
+          },
+          "is_free_credit": {
+            "type": "boolean",
+            "description": "The is free credit of the statement"
+          },
+          "free_credit_issue_id": {
+            "type": "number",
+            "description": "The free credit issue id of the statement"
           },
           "amount": {
             "type": "number",
@@ -8113,6 +8215,8 @@
         },
         "required": [
           "type",
+          "is_free_credit",
+          "free_credit_issue_id",
           "amount",
           "balance",
           "created_at",
@@ -8140,6 +8244,39 @@
         "required": [
           "count",
           "statements"
+        ]
+      },
+      "IssueFreeCreditDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount of the free credit, minimum 1 and maximum 10000"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email to issue the free credit"
+          },
+          "description": {
+            "type": "string",
+            "description": "credit description"
+          }
+        },
+        "required": [
+          "amount",
+          "email"
+        ]
+      },
+      "IssueFreeCreditResponseDto": {
+        "type": "object",
+        "properties": {
+          "credit_balance": {
+            "type": "number",
+            "description": "The credit balance of the user"
+          }
+        },
+        "required": [
+          "credit_balance"
         ]
       },
       "SalesAgentSummaryDto": {

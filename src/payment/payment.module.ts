@@ -42,6 +42,6 @@ import { SalesAgentService } from "./sales-agent/sales-agent.service"
         CreditService,
         SalesAgentService,
     ],
-    exports: [OrderService, RewardsPoolService, SalesAgentService],
+    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService],
 })
 export class PaymentModule {}

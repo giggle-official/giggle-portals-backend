@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator"
+import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { credit_statement_type, credit_statements } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
@@ -57,6 +57,15 @@ export class CreditStatementDto implements credit_statements {
         enum: credit_statement_type,
     })
     type: credit_statement_type
+    @ApiProperty({
+        description: "The is free credit of the statement",
+    })
+    is_free_credit: boolean
+
+    @ApiProperty({
+        description: "The free credit issue id of the statement",
+    })
+    free_credit_issue_id: number
 
     @ApiProperty({
         description: "The amount of the statement",
@@ -84,6 +93,51 @@ export class CreditStatementDto implements credit_statements {
     order_id: string
 }
 
+export class UserCreditBalanceDto {
+    @ApiProperty({
+        description: "The total credit balance of the user",
+    })
+    total_credit_balance: number
+
+    @ApiProperty({
+        description: "The free credit balance of the user",
+    })
+    free_credit_balance: number
+}
+
+export class IssueFreeCreditResponseDto {
+    @ApiProperty({
+        description: "The credit balance of the user",
+    })
+    credit_balance: number
+}
+
+export class IssueFreeCreditDto {
+    @ApiProperty({
+        description: "The amount of the free credit, minimum 1 and maximum 10000",
+    })
+    @Min(1)
+    @Max(10000)
+    @IsInt()
+    @IsNumber()
+    amount: number
+
+    @ApiProperty({
+        description: "The email to issue the free credit",
+    })
+    @IsEmail()
+    @IsNotEmpty()
+    email: string
+
+    @ApiProperty({
+        description: "credit description",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    description?: string
+}
+
 export class CreditStatementDetailDto extends OmitType(CreditStatementDto, ["user", "id"]) {
     @ApiProperty({
         description: "The widget tag of the order created by",
@@ -106,7 +160,7 @@ export class GetStatementsResponseDto {
 
     @ApiProperty({
         description: "The statements",
-        type: CreditStatementDetailDto,
+        type: () => CreditStatementDetailDto,
         isArray: true,
     })
     statements: CreditStatementDetailDto[]

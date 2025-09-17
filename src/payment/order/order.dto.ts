@@ -101,6 +101,11 @@ export class OrderDto implements orders {
     current_status: OrderStatus
 
     @ApiProperty({
+        description: "The free credit paid of the order",
+    })
+    free_credit_paid: number
+
+    @ApiProperty({
         description: "The paid method of the order",
     })
     paid_method: string
