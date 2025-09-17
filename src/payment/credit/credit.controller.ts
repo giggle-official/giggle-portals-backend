@@ -4,7 +4,6 @@ import {
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
-    IssueFreeCreditResponseDto,
     TopUpDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
@@ -55,9 +54,13 @@ export class CreditController {
     }
 
     @Post("/issue-free-credit")
-    @ApiOperation({ summary: "Issue free credit", tags: ["Credit"] })
+    @ApiOperation({
+        summary: "Issue free credit",
+        description: "Issue free credit to a user, you must be use widget jwt to call this api",
+        tags: ["Credit"],
+    })
     @ApiResponse({
-        type: IssueFreeCreditResponseDto,
+        type: UserCreditBalanceDto,
     })
     @ApiBody({
         type: IssueFreeCreditDto,

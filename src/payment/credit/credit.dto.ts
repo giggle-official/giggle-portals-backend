@@ -105,13 +105,6 @@ export class UserCreditBalanceDto {
     free_credit_balance: number
 }
 
-export class IssueFreeCreditResponseDto {
-    @ApiProperty({
-        description: "The credit balance of the user",
-    })
-    credit_balance: number
-}
-
 export class IssueFreeCreditDto {
     @ApiProperty({
         description: "The amount of the free credit, minimum 1 and maximum 10000",

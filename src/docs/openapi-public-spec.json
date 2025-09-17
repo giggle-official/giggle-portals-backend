@@ -2263,6 +2263,7 @@
     },
     "/api/v1/credit/issue-free-credit": {
       "post": {
+        "description": "Issue free credit to a user, you must be use widget jwt to call this api",
         "operationId": "CreditController_issueFreeCredit",
         "parameters": [],
         "requestBody": {
@@ -2281,7 +2282,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IssueFreeCreditResponseDto"
+                  "$ref": "#/components/schemas/UserCreditBalanceDto"
                 }
               }
             }
@@ -8302,18 +8303,6 @@
         "required": [
           "amount",
           "email"
-        ]
-      },
-      "IssueFreeCreditResponseDto": {
-        "type": "object",
-        "properties": {
-          "credit_balance": {
-            "type": "number",
-            "description": "The credit balance of the user"
-          }
-        },
-        "required": [
-          "credit_balance"
         ]
       },
       "SalesAgentSummaryDto": {
