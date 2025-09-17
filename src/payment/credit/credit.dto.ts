@@ -116,14 +116,14 @@ export class IssueFreeCreditDto {
     amount: number
 
     @ApiProperty({
-        description: "The email to issue the free credit",
+        description: "Email to receive the free credit",
     })
     @IsEmail()
     @IsNotEmpty()
     email: string
 
     @ApiProperty({
-        description: "credit description",
+        description: "Free credit description",
         required: false,
     })
     @IsString()

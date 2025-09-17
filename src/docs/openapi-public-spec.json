@@ -8293,11 +8293,11 @@
           },
           "email": {
             "type": "string",
-            "description": "The email to issue the free credit"
+            "description": "Email to receive the free credit"
           },
           "description": {
             "type": "string",
-            "description": "credit description"
+            "description": "Free credit description"
           }
         },
         "required": [
