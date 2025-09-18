@@ -5,12 +5,12 @@ import { ApiProperty, OmitType } from "@nestjs/swagger"
 
 export class TopUpDto {
     @ApiProperty({
-        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 500 credits and must be integer",
+        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 100 credits and must be integer",
     })
     @IsNotEmpty()
     @IsNumber()
     @IsInt()
-    @Min(500)
+    @Min(100)
     amount: number
 
     @ApiProperty({
