@@ -590,13 +590,19 @@ export class OrderService {
         }
 
         // Base rewards calculation
-        let orderAmount = new Decimal(order.amount).mul(90).div(10000)
-        const unitPrice = new Decimal(currentPrice?.unit_price || 0)
-        // minus costs allocation
-        for (const cost of order.costs_allocation) {
-            orderAmount = orderAmount.minus(new Decimal(cost.amount).div(100))
-        }
+        //let orderAmount = new Decimal(order.amount).mul(90).div(10000)
+        //// minus costs allocation
+        //for (const cost of order.costs_allocation) {
+        //    orderAmount = orderAmount.minus(new Decimal(cost.amount).div(100))
+        //}
         //const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
+
+        const unitPrice = new Decimal(currentPrice?.unit_price || 0)
+        if (order.supported_payment_method.includes(PaymentMethod.CREDIT)) {
+            const userCreditInfo = await this.creditService.getUserCredits(order.owner)
+            order.amount = Math.max(order.amount - userCreditInfo.free_credit_balance, 0)
+        }
+
         const baseRewards = Math.round(new Decimal(order.amount).div(100).div(unitPrice).toNumber())
 
         if (rewards.limit_offer) {
@@ -1395,7 +1401,8 @@ export class OrderService {
             unitPrice = new Decimal(unitPriceResponse.data[0].price)
         }
 
-        let orderAmount = new Decimal(orderRecord.amount).div(100)
+        let freeCreditAmount = new Decimal(orderRecord.free_credit_paid || 0)
+        let orderAmount = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
         let allocatedUSDCAmount = new Decimal(0)
         let allocatedTokenAmount = new Decimal(0)
         let totalCostsAllocation = new Decimal(0)
@@ -1489,7 +1496,7 @@ export class OrderService {
         //allocate order creator's rewards and minus the costs allocation
         let creatorNote = ""
         //let orderCreatorRewards = orderAmount.div(unitPrice)
-        const orderAmountInUSD = new Decimal(orderRecord.amount).div(100)
+        const orderAmountInUSD = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
         let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
         if (modelSnapshot?.limit_offer?.external_ratio) {
@@ -1680,7 +1687,7 @@ export class OrderService {
         }
 
         //ensure allocated usd amount is not greater than the order original amount, if greater, we need to minus the platform rewards
-        const orderOriginalAmount = new Decimal(orderRecord.amount).div(100)
+        const orderOriginalAmount = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
         if (allocatedUSDCAmount.gt(orderOriginalAmount)) {
             //minus platform rewards
             let newPlatformRewards = platformRewards.minus(allocatedUSDCAmount.minus(orderOriginalAmount))
