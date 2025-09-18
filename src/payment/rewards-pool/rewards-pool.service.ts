@@ -872,8 +872,8 @@ ORDER BY d.date;`
         })
         if (!ip) return
         const ratioDefault = [
-            { role: "buyback", ratio: 50, address: "", allocate_type: "usdc" },
-            { role: "ip-holder", ratio: 40, address: "", allocate_type: "usdc" },
+            { role: "buyback", ratio: 20, address: "", allocate_type: "usdc" },
+            { role: "ip-holder", ratio: 70, address: "", allocate_type: "usdc" },
             { role: "platform", ratio: 10, address: "", allocate_type: "usdc" },
         ]
         const tokenInfo = ip.token_info as any as CreateIpTokenGiggleResponseDto
