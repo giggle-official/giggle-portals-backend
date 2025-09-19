@@ -1107,13 +1107,6 @@ export class DelegateIpTokenDto {
         description: "ip id",
     })
     ip_id: number
-
-    @IsNotEmpty()
-    @IsNumber()
-    @ApiProperty({
-        description: "market maker id",
-    })
-    market_maker_id: number
 }
 
 export class DelegateIpTokenResponseDto {

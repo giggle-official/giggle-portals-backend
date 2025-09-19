@@ -121,7 +121,7 @@ export class DeveloperController {
     @ApiOperation({ summary: "get user token" })
     @ApiResponse({ type: LoginResponseDto })
     @ApiBody({ type: GetUserTokenDto })
-    @UseGuards(IsDeveloperGuard)
+    @UseGuards(IsWidgetGuard)
     async getUserToken(@Req() req: Request, @Body() body: GetUserTokenDto) {
         return this.usersService.getToken(req.user as UserJwtExtractDto, body)
     }

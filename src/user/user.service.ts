@@ -42,6 +42,7 @@ import { LinkService } from "src/open-app/link/link.service"
 import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
 import sharp from "sharp"
+import { CreditService } from "src/payment/credit/credit.service"
 
 @Injectable()
 export class UserService {
@@ -58,6 +59,9 @@ export class UserService {
 
         @Inject(forwardRef(() => UtilitiesService))
         private readonly utilitiesService: UtilitiesService,
+
+        @Inject(forwardRef(() => CreditService))
+        private readonly creditService: CreditService,
     ) {}
 
     async getUserInfoByEmail(email: string, app_id?: string): Promise<UserInfoDTO> {
@@ -136,6 +140,8 @@ export class UserService {
                 user: userInfo.usernameShorted,
             },
         })
+
+        const balanceInfo = await this.creditService.getUserCredits(userInfo.usernameShorted)
         const result: UserInfoDTO = {
             user_id: _userInfoFromDb.usernameShorted,
             username: _userInfoFromDb.username,
@@ -154,7 +160,8 @@ export class UserService {
             register_info: await this.getRegisterInfo(userInfo),
             phone_number: _userInfoFromDb.phone_number,
             phone_national: _userInfoFromDb.phone_national,
-            current_credit_balance: _userInfoFromDb.current_credit_balance,
+            current_credit_balance: balanceInfo.total_credit_balance,
+            free_credit_balance: balanceInfo.free_credit_balance,
             wallet_address: _userInfoFromDb.wallet_address,
             is_sale_agent: !!salsAgent,
         }

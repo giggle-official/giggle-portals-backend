@@ -16,7 +16,7 @@ export class UsersService {
         const where: Prisma.usersWhereInput = {
             ...query.filter,
         }
-        const orderBy: Prisma.user_credit_issuesOrderByWithRelationInput = {
+        const orderBy: Prisma.usersOrderByWithRelationInput = {
             [query.sort.field]: query.sort.order.toLowerCase() as "asc" | "desc",
         }
         const [list, count] = await this.prismaService.$transaction([

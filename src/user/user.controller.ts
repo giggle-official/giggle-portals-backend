@@ -164,6 +164,9 @@ export class UserInfoDTO extends LoginDTO {
     current_credit_balance?: number
 
     @ApiProperty()
+    free_credit_balance?: number
+
+    @ApiProperty()
     widget_info?: {
         user_subscribed: boolean
         widget_tag: string

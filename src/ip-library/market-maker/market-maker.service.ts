@@ -2,6 +2,8 @@ import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException 
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import {
+    AllIpDelegationsQueryDto,
+    AllocateDelegationToMarketMakerDto,
     CancelIpDelegationDto,
     CreateMarketMakerDto,
     DeleteMarketMakerDto,
@@ -10,7 +12,14 @@ import {
     IpDelegationResponseDto,
     LaunchIpTokenByMarketMakerDto,
 } from "./market-maker.dto"
-import { ip_library, ip_token_delegation, ip_token_delegation_status, Prisma, users } from "@prisma/client"
+import {
+    ip_library,
+    ip_token_delegation,
+    ip_token_delegation_status,
+    market_makers,
+    Prisma,
+    users,
+} from "@prisma/client"
 import { Observable } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { IpLibraryService } from "../ip-library.service"
@@ -71,9 +80,81 @@ export class MarketMakerService {
             total: total,
         }
     }
+    async getAllDelegations(query: AllIpDelegationsQueryDto): Promise<IpDelegationResponseDto> {
+        const where: Prisma.ip_token_delegationWhereInput = {
+            status: query?.status || undefined,
+            market_maker: query?.market_maker === "" ? null : query?.market_maker || undefined,
+        }
+
+        const ipDelegations = await this.prismaService.ip_token_delegation.findMany({
+            where,
+            include: {
+                ip_info: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+                market_maker_info: true,
+            },
+            skip: Math.max(0, parseInt(query.page.toString()) - 1) * Math.max(0, parseInt(query.page_size.toString())),
+            take: Math.max(0, parseInt(query.page_size.toString()) || 10),
+        })
+
+        const total = await this.prismaService.ip_token_delegation.count({
+            where,
+        })
+
+        return {
+            data: ipDelegations.map(this.mapIpDelegation),
+            total: total,
+        }
+    }
+
+    async allocateDelegationToMarketMaker(body: AllocateDelegationToMarketMakerDto): Promise<IpDelegationDto> {
+        const delegation = await this.prismaService.ip_token_delegation.findUnique({
+            where: { id: body.delegation_id },
+        })
+        if (!delegation) {
+            throw new BadRequestException("Delegation not found")
+        }
+
+        if (delegation.status !== "pending") {
+            throw new BadRequestException("Delegation is not pending")
+        }
+
+        const marketMaker = await this.prismaService.market_makers.findUnique({
+            where: { id: body.market_maker_id },
+        })
+        if (!marketMaker) {
+            throw new BadRequestException("Market maker not found")
+        }
+
+        await this.prismaService.ip_token_delegation.update({
+            where: { id: body.delegation_id },
+            data: {
+                market_maker: marketMaker.user,
+            },
+        })
+
+        const ipDelegation = await this.prismaService.ip_token_delegation.findUnique({
+            where: { id: body.delegation_id },
+            include: {
+                ip_info: {
+                    include: {
+                        user_info: true,
+                    },
+                },
+                market_maker_info: true,
+            },
+        })
+
+        return this.mapIpDelegation(ipDelegation)
+    }
 
     mapIpDelegation(
-        ipDelegation: ip_token_delegation & { ip_info: ip_library & { user_info: users } },
+        ipDelegation: ip_token_delegation & { ip_info: ip_library & { user_info: users } } & {
+            market_maker_info: market_makers
+        },
     ): IpDelegationDto {
         return {
             id: ipDelegation.id,
@@ -82,6 +163,10 @@ export class MarketMakerService {
             ip_id: ipDelegation.ip_info?.id,
             owner: ipDelegation.ip_info?.user_info?.email,
             status: ipDelegation.status as ip_token_delegation_status,
+            market_maker_info: {
+                id: ipDelegation.market_maker_info?.id,
+                nickname: ipDelegation.market_maker_info?.nickname,
+            },
             created_at: ipDelegation.created_at,
             updated_at: ipDelegation.updated_at,
         }

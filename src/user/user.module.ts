@@ -11,6 +11,7 @@ import { ApiKeysService } from "./api-keys/api-keys.service"
 import { Web3Module } from "src/web3/web3.module"
 import { OpenAppModule } from "src/open-app/open-app.module"
 import { UtilitiesService } from "src/common/utilities.service"
+import { PaymentModule } from "src/payment/payment.module"
 @Module({
     imports: [
         forwardRef(() => AuthModule),
@@ -18,6 +19,7 @@ import { UtilitiesService } from "src/common/utilities.service"
         HttpModule,
         forwardRef(() => Web3Module),
         forwardRef(() => OpenAppModule),
+        forwardRef(() => PaymentModule),
     ],
     controllers: [UserController],
     providers: [UserService, PrismaService, PaymentService, LogsService, ApiKeysService, UtilitiesService],

@@ -2141,6 +2141,28 @@
         ]
       }
     },
+    "/api/v1/credit/balance": {
+      "get": {
+        "operationId": "CreditController_getUserCredits",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreditBalanceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user credit balance",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/credit/top-up": {
       "post": {
         "operationId": "CreditController_topUp",
@@ -2202,6 +2224,8 @@
             "description": "filter by type",
             "schema": {
               "enum": [
+                "issue_free_credit",
+                "expire_free_credit",
                 "top_up",
                 "consume",
                 "refund"
@@ -2232,6 +2256,39 @@
           }
         },
         "summary": "Get credit statements",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
+    "/api/v1/credit/issue-free-credit": {
+      "post": {
+        "description": "Issue free credit to a user, you must be use widget jwt to call this api",
+        "operationId": "CreditController_issueFreeCredit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueFreeCreditDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreditBalanceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Issue free credit",
         "tags": [
           "Credit"
         ]
@@ -4694,9 +4751,9 @@
         ]
       }
     },
-    "/api/v1/market-maker/ip-delegation": {
+    "/api/v1/market-maker/delegations": {
       "get": {
-        "operationId": "MarketMakerController_getIpDelegation",
+        "operationId": "MarketMakerController_getAllDelegations",
         "parameters": [
           {
             "name": "page",
@@ -4715,11 +4772,41 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "filter by status of the delegation",
+            "schema": {
+              "enum": [
+                "pending",
+                "completed",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "market_maker",
+            "required": false,
+            "in": "query",
+            "description": "filter by market maker of the delegation",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
-          "200": {
-            "description": ""
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IpDelegationResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4727,7 +4814,45 @@
             "bearer": []
           }
         ],
-        "summary": "Get ip delegation list",
+        "summary": "Get all ip delegations by admin",
+        "tags": [
+          "MarketMaker",
+          "Market Maker Management"
+        ]
+      }
+    },
+    "/api/v1/market-maker/allocate-delegation-to-market-maker": {
+      "post": {
+        "operationId": "MarketMakerController_allocateDelegationToMarketMaker",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocateDelegationToMarketMakerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IpDelegationDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Allocate ip token launch delegation to market maker",
         "tags": [
           "MarketMaker",
           "Market Maker Management"
@@ -4762,37 +4887,6 @@
         "tags": [
           "MarketMaker",
           "Market Maker Management"
-        ]
-      }
-    },
-    "/api/v1/market-maker/market-maker-list": {
-      "get": {
-        "operationId": "MarketMakerController_getMarketMakerList",
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ListMarketMakerResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get market maker list",
-        "tags": [
-          "MarketMaker",
-          "Market Maker"
         ]
       }
     },
@@ -5297,6 +5391,9 @@
           "current_credit_balance": {
             "type": "number"
           },
+          "free_credit_balance": {
+            "type": "number"
+          },
           "widget_info": {
             "type": "object"
           },
@@ -5324,6 +5421,7 @@
           "phone_number",
           "phone_national",
           "current_credit_balance",
+          "free_credit_balance",
           "widget_info",
           "register_info"
         ]
@@ -6770,6 +6868,10 @@
             "type": "string",
             "description": "The current status of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -6910,6 +7012,7 @@
           "owner",
           "is_credit_top_up",
           "current_status",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -7069,6 +7172,10 @@
             "type": "boolean",
             "description": "The is credit top up of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -7203,6 +7310,7 @@
           "ip_id",
           "owner",
           "is_credit_top_up",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -7428,6 +7536,10 @@
             "type": "string",
             "description": "The current status of the order"
           },
+          "free_credit_paid": {
+            "type": "number",
+            "description": "The free credit paid of the order"
+          },
           "paid_method": {
             "type": "string",
             "description": "The paid method of the order"
@@ -7572,6 +7684,7 @@
           "owner",
           "is_credit_top_up",
           "current_status",
+          "free_credit_paid",
           "paid_method",
           "release_rewards_after_paid",
           "buyback_after_paid",
@@ -8052,6 +8165,23 @@
           "total"
         ]
       },
+      "UserCreditBalanceDto": {
+        "type": "object",
+        "properties": {
+          "total_credit_balance": {
+            "type": "number",
+            "description": "The total credit balance of the user"
+          },
+          "free_credit_balance": {
+            "type": "number",
+            "description": "The free credit balance of the user"
+          }
+        },
+        "required": [
+          "total_credit_balance",
+          "free_credit_balance"
+        ]
+      },
       "TopUpDto": {
         "type": "object",
         "properties": {
@@ -8075,10 +8205,20 @@
             "type": "string",
             "description": "The type of the statement",
             "enum": [
+              "issue_free_credit",
+              "expire_free_credit",
               "top_up",
               "consume",
               "refund"
             ]
+          },
+          "is_free_credit": {
+            "type": "boolean",
+            "description": "The is free credit of the statement"
+          },
+          "free_credit_issue_id": {
+            "type": "number",
+            "description": "The free credit issue id of the statement"
           },
           "amount": {
             "type": "number",
@@ -8113,6 +8253,8 @@
         },
         "required": [
           "type",
+          "is_free_credit",
+          "free_credit_issue_id",
           "amount",
           "balance",
           "created_at",
@@ -8140,6 +8282,27 @@
         "required": [
           "count",
           "statements"
+        ]
+      },
+      "IssueFreeCreditDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount of the free credit, minimum 1 and maximum 10000"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email to receive the free credit"
+          },
+          "description": {
+            "type": "string",
+            "description": "Free credit description"
+          }
+        },
+        "required": [
+          "amount",
+          "email"
         ]
       },
       "SalesAgentSummaryDto": {
@@ -10931,15 +11094,10 @@
           "ip_id": {
             "type": "number",
             "description": "ip id"
-          },
-          "market_maker_id": {
-            "type": "number",
-            "description": "market maker id"
           }
         },
         "required": [
-          "ip_id",
-          "market_maker_id"
+          "ip_id"
         ]
       },
       "CreateAnnouncementDto": {
@@ -11348,18 +11506,7 @@
         "type": "object",
         "properties": {}
       },
-      "CancelIpDelegationDto": {
-        "type": "object",
-        "properties": {
-          "delegation_id": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "delegation_id"
-        ]
-      },
-      "ListMarketMakerResponseDto": {
+      "MarketMakerDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -11372,6 +11519,117 @@
         "required": [
           "id",
           "nickname"
+        ]
+      },
+      "IpDelegationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "id of the delegation"
+          },
+          "ip_name": {
+            "type": "string",
+            "description": "name of the ip"
+          },
+          "ip_ticker": {
+            "type": "string",
+            "description": "ticker of the ip"
+          },
+          "ip_id": {
+            "type": "number",
+            "description": "id of the ip"
+          },
+          "owner": {
+            "type": "string",
+            "description": "owner of the ip"
+          },
+          "status": {
+            "type": "string",
+            "description": "status of the delegation",
+            "enum": [
+              "pending",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "market_maker_info": {
+            "description": "Market maker info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MarketMakerDto"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "ip_name",
+          "ip_ticker",
+          "ip_id",
+          "owner",
+          "status",
+          "market_maker_info",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "IpDelegationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "List of ip delegations",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpDelegationDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of ip delegations"
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "AllocateDelegationToMarketMakerDto": {
+        "type": "object",
+        "properties": {
+          "delegation_id": {
+            "type": "number",
+            "description": "id of the delegation"
+          },
+          "market_maker_id": {
+            "type": "number",
+            "description": "id of the market maker"
+          }
+        },
+        "required": [
+          "delegation_id",
+          "market_maker_id"
+        ]
+      },
+      "CancelIpDelegationDto": {
+        "type": "object",
+        "properties": {
+          "delegation_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "delegation_id"
         ]
       },
       "ListMarketMakerResponseByAdminDto": {
