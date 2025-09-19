@@ -1495,7 +1495,7 @@ export class RewardPoolOnChainService {
                 )
 
                 //we need to minus the order buyback amount
-                const orderBuybackAmount = buybackMapping.get(reward_pool.token).buybackAmount.toNumber()
+                const orderBuybackAmount = buybackMapping.get(reward_pool.token)?.buybackAmount.toNumber() || 0
 
                 const buybackUsdcAmount = (Number(buybackBalance?.[0]?.amount) || 0) - orderBuybackAmount
 
