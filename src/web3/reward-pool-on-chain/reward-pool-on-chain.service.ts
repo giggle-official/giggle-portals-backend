@@ -1500,7 +1500,9 @@ export class RewardPoolOnChainService {
                 const buybackUsdcAmount = (Number(buybackBalance?.[0]?.amount) || 0) - orderBuybackAmount
 
                 if (buybackUsdcAmount < 10) {
-                    this.logger.log(`Buyback balance is less than 10 usdc, skip: ${reward_pool.token}`)
+                    this.logger.log(
+                        `Buyback balance is less than 10 usdc, wallet balance: ${buybackBalance?.[0]?.amount}, pending order buyback amount: ${orderBuybackAmount}, buyback usdc amount: ${buybackUsdcAmount}, skip: ${reward_pool.token}`,
+                    )
                     continue
                 }
 
