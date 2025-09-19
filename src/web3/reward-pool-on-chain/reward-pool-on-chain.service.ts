@@ -1493,11 +1493,17 @@ export class RewardPoolOnChainService {
                     poolInfo.buyback_address,
                     process.env.GIGGLE_LEGAL_USDC,
                 )
-                const buybackUsdcAmount = Number(buybackBalance?.[0]?.amount) || 0
+
+                //we need to minus the order buyback amount
+                const orderBuybackAmount = buybackMapping.get(reward_pool.token).buybackAmount.toNumber()
+
+                const buybackUsdcAmount = (Number(buybackBalance?.[0]?.amount) || 0) - orderBuybackAmount
+
                 if (buybackUsdcAmount < 10) {
                     this.logger.log(`Buyback balance is less than 10 usdc, skip: ${reward_pool.token}`)
                     continue
                 }
+
                 //create buyback order
                 const orderId = await this.startBuyback(reward_pool.token, buybackUsdcAmount)
                 if (!orderId) {
