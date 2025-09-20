@@ -8187,7 +8187,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "description": "The amount of the top up, every 1 credit is 0.01 USDC, minimum 500 credits and must be integer"
+            "description": "The amount of the top up, every 1 credit is 0.01 USDC, minimum 100 credits and must be integer"
           },
           "callback_url": {
             "type": "string",

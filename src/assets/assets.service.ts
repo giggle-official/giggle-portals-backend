@@ -240,7 +240,16 @@ export class AssetsService {
             }
 
             const fileType = fileInfo?.ContentType.split("/")[0]
-            const assetId = body.object_key.split("/").pop().split(".")[0]
+            let assetId = body.object_key.split("/").pop().split(".")[0]
+
+            //check if asset already exists
+            const existingAsset = await this.prismaService.assets.findUnique({
+                where: { asset_id: assetId },
+            })
+            if (existingAsset) {
+                //generate a new asset id
+                assetId = Math.random().toString(36).substring(2, 15)
+            }
 
             if (fileType !== "video" && fileType !== "image" && fileType !== "audio")
                 throw new BadRequestException("Unknown file type")
