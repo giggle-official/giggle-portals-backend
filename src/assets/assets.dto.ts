@@ -150,6 +150,12 @@ export class AssetListReqDto extends PaginationDto {
         description: "type of the asset, all, video, image",
     })
     type: string
+
+    @ApiProperty({
+        description: "object key of the asset in s3",
+        required: false,
+    })
+    object_key?: string
 }
 
 export class AssetRenameReqDto extends PickType(AssetsDto, ["asset_id"] as const) {

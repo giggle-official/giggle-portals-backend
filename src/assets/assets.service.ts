@@ -69,6 +69,7 @@ export class AssetsService {
             user: user.usernameShorted,
         }
         if (query.type && query.type !== "all") where.type = query.type
+        if (query.object_key) where.path = query.object_key
 
         if (userProfile.widget_info?.widget_tag) where.widget_tag = userProfile.widget_info.widget_tag
 

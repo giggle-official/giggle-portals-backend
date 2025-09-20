@@ -972,6 +972,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "object_key",
+            "required": false,
+            "in": "query",
+            "description": "object key of the asset in s3",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
