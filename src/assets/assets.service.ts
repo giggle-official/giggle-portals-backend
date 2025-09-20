@@ -395,8 +395,6 @@ export class AssetsService {
                 throw new Error("No audio format found")
             }
 
-            console.log(metadata)
-
             return {
                 metadata: metadata,
                 size: fileInfo.ContentLength || 0,
