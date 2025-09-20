@@ -221,7 +221,7 @@ export class AssetsService {
             })
 
             if (existingAsset) {
-                throw new BadRequestException("this object key already registered")
+                throw new Error("this object key already registered")
             }
 
             let isPublic = false
@@ -244,16 +244,16 @@ export class AssetsService {
             } catch (error) {
                 this.logger.error("Error checking file in S3:", JSON.stringify(error))
                 if (error.code === "NotFound") {
-                    throw new NotFoundException("File not found in S3")
+                    throw new Error("File not found in S3")
                 }
-                throw new InternalServerErrorException("Error checking file in S3")
+                throw new Error("Error checking file in S3")
             }
 
             const fileType = fileInfo?.ContentType.split("/")[0]
             const assetId = Math.random().toString(36).substring(2, 15)
 
             if (fileType !== "video" && fileType !== "image" && fileType !== "audio")
-                throw new BadRequestException("Unknown file type")
+                throw new Error("Unknown file type")
 
             let assetInfo: NewVideoProcessResult | NewImageProcessResult | NewAudioProcessResult | null = null
             if (fileType === "video") {
@@ -292,7 +292,7 @@ export class AssetsService {
             return await this.getAsset(userInfo, created.asset_id)
         } catch (error) {
             this.logger.error("Error uploading asset:", error)
-            throw new InternalServerErrorException("Failed to upload asset")
+            throw new InternalServerErrorException("Failed to upload asset: " + error.message)
         }
     }
 
