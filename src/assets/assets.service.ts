@@ -214,6 +214,15 @@ export class AssetsService {
 
     async registerAsset(userInfo: UserJwtExtractDto, body: RegisterAssetDto): Promise<AssetDetailDto> {
         try {
+            //check path is exists
+            const existingAsset = await this.prismaService.assets.findFirst({
+                where: { path: body.object_key },
+            })
+
+            if (existingAsset) {
+                throw new BadRequestException("this object key already registered")
+            }
+
             let isPublic = false
             if (body.object_key.startsWith("public/")) {
                 isPublic = true
