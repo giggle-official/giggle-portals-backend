@@ -254,24 +254,21 @@ export class AssetsService {
                 assetInfo = await this.processNewAudio(body.object_key, s3Client, fileInfo)
             }
 
-            const created = await this.prismaService.$transaction(async (tx) => {
-                const created = await tx.assets.create({
-                    data: {
-                        user: userInfo.usernameShorted,
-                        name: body.name,
-                        head_object: fileInfo as any,
-                        asset_id: assetId,
-                        type: fileType,
-                        app_id: userInfoDetail.widget_info?.app_id,
-                        widget_tag: userInfoDetail.widget_info?.widget_tag,
-                        path: body.object_key,
-                        path_optimized: (assetInfo as any)?.optimizedResult || null,
-                        thumbnail: (assetInfo as any)?.thumbnail || null,
-                        asset_info: assetInfo as any,
-                        exported_by_task_id: body instanceof UploadedByTaskDto ? body.task_id : null,
-                    },
-                })
-                return created
+            const created = await this.prismaService.assets.create({
+                data: {
+                    user: userInfo.usernameShorted,
+                    name: body.name,
+                    head_object: fileInfo as any,
+                    asset_id: assetId,
+                    type: fileType,
+                    app_id: userInfoDetail.widget_info?.app_id,
+                    widget_tag: userInfoDetail.widget_info?.widget_tag,
+                    path: body.object_key,
+                    path_optimized: (assetInfo as any)?.optimizedResult || null,
+                    thumbnail: (assetInfo as any)?.thumbnail || null,
+                    asset_info: assetInfo as any,
+                    exported_by_task_id: body instanceof UploadedByTaskDto ? body.task_id : null,
+                },
             })
             //put asset to ipfs queue
             await this.ipfsUploadQueue.add(
