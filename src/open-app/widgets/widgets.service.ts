@@ -82,6 +82,7 @@ export class WidgetsService {
                     settings: this.parseSettings(body.settings, body) as any,
                     secret_key: identify.secret_key,
                     access_key: identify.access_key,
+                    request_permissions: process.env.ENV !== "product" ? { can_get_user_token: true } : null,
                 },
             })
             return widget
