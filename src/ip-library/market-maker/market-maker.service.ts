@@ -1,4 +1,4 @@
-import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import {
@@ -23,9 +23,12 @@ import {
 import { Observable } from "rxjs"
 import { SSEMessage } from "src/web3/giggle/giggle.dto"
 import { IpLibraryService } from "../ip-library.service"
+import { Cron, CronExpression } from "@nestjs/schedule"
+import { PurchaseStrategyType, SourceWalletType } from "../ip-library.dto"
 
 @Injectable()
 export class MarketMakerService {
+    private readonly logger = new Logger(MarketMakerService.name)
     constructor(
         private readonly prismaService: PrismaService,
 
@@ -324,5 +327,67 @@ export class MarketMakerService {
                     subscriber.error(error)
                 })
         })
+    }
+
+    //on test env, we need to complete the delegation
+    @Cron(CronExpression.EVERY_MINUTE)
+    async completeDelegationOnTestEnv() {
+        if (process.env.ENV === "product" || process.env.TASK_SLOT !== "1") return
+        //find list
+        const delegation = await this.prismaService.ip_token_delegation.findFirst({
+            where: {
+                status: ip_token_delegation_status.pending,
+            },
+        })
+        const marketMaker = await this.prismaService.market_makers.findFirst()
+
+        //find first market maker
+        if (!marketMaker) {
+            this.logger.error("Market maker not found")
+            return
+        }
+
+        await this.allocateDelegationToMarketMaker({
+            delegation_id: delegation.id,
+            market_maker_id: marketMaker.id,
+        })
+
+        try {
+            this.logger.log("Launching ip token", `delegation_id: ${delegation.id}`)
+            //launch
+            const sseStream = this.launchIpToken(
+                { user_id: marketMaker.user, usernameShorted: marketMaker.user, email: marketMaker.email },
+                {
+                    ip_id: delegation.ip_id,
+                    purchase_strategy: {
+                        type: PurchaseStrategyType.NONE,
+                        percentage: 0,
+                        prompt: "",
+                        agent_id: "",
+                        wallet_source: SourceWalletType.GIGGLE,
+                        strategy_detail: {},
+                    },
+                    delegation_id: delegation.id,
+                },
+            )
+            sseStream.subscribe({
+                next: (data) => {
+                    this.logger.log("SSE stream", data)
+                },
+                error: (error) => {
+                    this.logger.error("Error launching ip token", error, `delegation_id: ${delegation.id}`)
+                },
+                complete: () => {
+                    this.logger.log("SSE stream completed", `delegation_id: ${delegation.id}`)
+                },
+            })
+        } catch (error) {
+            //cancel
+            await this.cancelIpDelegation(
+                { user_id: marketMaker.user, usernameShorted: marketMaker.user, email: marketMaker.email },
+                { delegation_id: delegation.id },
+            )
+            this.logger.error("Error launching ip token", error, `delegation_id: ${delegation.id}`)
+        }
     }
 }
