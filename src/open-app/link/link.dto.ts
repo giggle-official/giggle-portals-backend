@@ -43,6 +43,12 @@ export class LinkStatisticsDto {
         description: "invited new user count",
     })
     invited_new_user_count: number
+
+    @ApiProperty({
+        description: "short link status",
+        required: false,
+    })
+    short_link_status?: any
 }
 
 export class UserLinkStatisticsDto extends LinkStatisticsDto {

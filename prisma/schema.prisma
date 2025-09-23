@@ -916,6 +916,7 @@ model app_links {
   unique_str      String?   @unique(map: "unique_str") @db.VarChar(32)
   link            String?   @db.VarChar(1024)
   full_short_link String?   @db.VarChar(1024)
+  short_link_id   String?   @db.VarChar(64)
   app_id          String?   @db.VarChar(32)
   widget_tag      String?   @db.VarChar(255)
   widget_message  String?   @db.VarChar(2048)

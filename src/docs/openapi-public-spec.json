@@ -10125,6 +10125,10 @@
           "invited_new_user_count": {
             "type": "number",
             "description": "invited new user count"
+          },
+          "short_link_status": {
+            "type": "object",
+            "description": "short link status"
           }
         },
         "required": [
@@ -10228,6 +10232,10 @@
           "invited_new_user_count": {
             "type": "number",
             "description": "invited new user count"
+          },
+          "short_link_status": {
+            "type": "object",
+            "description": "short link status"
           },
           "link_count": {
             "type": "number",

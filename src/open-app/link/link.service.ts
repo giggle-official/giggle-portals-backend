@@ -11,10 +11,8 @@ import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { PrismaService } from "src/common/prisma.service"
 import { OpenAppService } from "src/open-app/open-app.service"
-import { Cron } from "@nestjs/schedule"
-import { CronExpression } from "@nestjs/schedule"
 import { HttpService } from "@nestjs/axios"
-import { async, lastValueFrom } from "rxjs"
+import { lastValueFrom } from "rxjs"
 @Injectable()
 export class LinkService {
     public shortLinkServiceEndpoint = ""
@@ -128,6 +126,7 @@ export class LinkService {
                 unique_str: uniqueStr,
                 creator: userInfo.usernameShorted,
                 full_short_link: response.data.link,
+                short_link_id: response.data.id,
                 enable_login: body.enable_login,
                 link_pic: body.link_pic,
             },
@@ -188,10 +187,30 @@ export class LinkService {
             statistics: {
                 bind_device_count: statistics,
                 invited_new_user_count: invitedNewUserCount,
+                short_link_status: await this.getShortLinkStatus(link.short_link_id),
             },
             created_at: link.created_at,
             updated_at: link.updated_at,
             app_info: await this.appService.getAppDetail(link.app_id, null),
+        }
+    }
+
+    async getShortLinkStatus(link_id: string) {
+        try {
+            if (!link_id) {
+                return null
+            }
+            const shortLinkStatus = await lastValueFrom(
+                this.httpService.get(`${this.shortLinkServiceEndpoint}/links/${link_id}/stats`, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": this.shortLinkServiceApiKey,
+                    },
+                }),
+            )
+            return shortLinkStatus.data
+        } catch (error) {
+            return null
         }
     }
 
@@ -279,6 +298,7 @@ export class LinkService {
                 from_source_link: { in: links.map((link) => link.unique_str) },
             },
         })
+
         return {
             link_count: links.length,
             bind_device_count: bindDeviceCount,
