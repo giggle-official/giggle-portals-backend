@@ -917,6 +917,7 @@ model app_links {
   link            String?   @db.VarChar(1024)
   full_short_link String?   @db.VarChar(1024)
   short_link_id   String?   @db.VarChar(64)
+  destination     String?   @db.Text
   app_id          String?   @db.VarChar(32)
   widget_tag      String?   @db.VarChar(255)
   widget_message  String?   @db.VarChar(2048)

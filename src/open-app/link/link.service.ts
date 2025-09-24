@@ -57,8 +57,11 @@ export class LinkService {
             throw new BadRequestException("Widget tag or link is required")
         }
 
+        console.log(body.link)
+        const isExternalLink = body.link.startsWith("http://") || body.link.startsWith("https://")
+
         //find unique
-        if (!widgetTag) {
+        if (!widgetTag && !isExternalLink) {
             const existingLink = await this.prisma.app_links.findFirst({
                 where: {
                     link: body.link,
@@ -74,9 +77,12 @@ export class LinkService {
                     short_link: existingLink.full_short_link,
                     enable_login: existingLink.enable_login,
                     link_pic: existingLink.link_pic,
+                    destination: existingLink.destination,
                 }
             }
-        } else {
+        }
+
+        if (widgetTag && !isExternalLink) {
             const existingLink = await this.prisma.app_links.findFirst({
                 where: {
                     widget_tag: widgetTag,
@@ -93,13 +99,38 @@ export class LinkService {
                     short_link: existingLink.full_short_link,
                     enable_login: existingLink.enable_login,
                     link_pic: existingLink.link_pic,
+                    destination: existingLink.destination,
+                }
+            }
+        }
+
+        if (isExternalLink) {
+            const existingLink = await this.prisma.app_links.findFirst({
+                where: {
+                    destination: body.link,
+                    app_id: app_id,
+                    creator: userInfo.usernameShorted,
+                    widget_tag: widgetTag || "",
+                    widget_message: body.widget_message || "",
+                    enable_login: body.enable_login,
+                    link_pic: body.link_pic,
+                },
+            })
+            if (existingLink) {
+                return {
+                    link_id: existingLink.unique_str,
+                    short_link: existingLink.full_short_link,
+                    enable_login: existingLink.enable_login,
+                    link_pic: existingLink.link_pic,
+                    destination: existingLink.destination,
                 }
             }
         }
 
         //create new link
         const uniqueStr = "gig" + Math.random().toString(36).substring(2, 16)
-        const url = this._generateLink(uniqueStr)
+        const url = isExternalLink ? body.link : this._generateLink(uniqueStr)
+
         const createShortLinkParams = {
             target: url,
         }
@@ -129,6 +160,7 @@ export class LinkService {
                 short_link_id: response.data.id,
                 enable_login: body.enable_login,
                 link_pic: body.link_pic,
+                destination: url,
             },
         })
 
@@ -137,6 +169,7 @@ export class LinkService {
             short_link: response.data.link,
             enable_login: body.enable_login,
             link_pic: body.link_pic,
+            destination: url,
         }
     }
 
@@ -183,6 +216,7 @@ export class LinkService {
             widget_message: link.widget_message,
             link_pic: link.link_pic,
             redirect_to_link: link.link,
+            destination: link.destination,
             app_id: link.app_id,
             statistics: {
                 bind_device_count: statistics,

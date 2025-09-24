@@ -10084,13 +10084,18 @@
           "link_pic": {
             "type": "string",
             "description": "The og-picture of the link"
+          },
+          "destination": {
+            "type": "string",
+            "description": "The destination of the link"
           }
         },
         "required": [
           "link_id",
           "short_link",
           "enable_login",
-          "link_pic"
+          "link_pic",
+          "destination"
         ]
       },
       "BindDeviceRequestDto": {
@@ -10175,6 +10180,10 @@
             "type": "string",
             "description": "The link of the link"
           },
+          "destination": {
+            "type": "string",
+            "description": "The destination of the link"
+          },
           "app_id": {
             "type": "string",
             "description": "The app id of the link"
@@ -10215,6 +10224,7 @@
           "redirect_to_widget",
           "widget_message",
           "redirect_to_link",
+          "destination",
           "app_id",
           "app_info",
           "statistics",

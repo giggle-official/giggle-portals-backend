@@ -78,6 +78,11 @@ export class CreateLinkResponseDto {
         description: "The og-picture of the link",
     })
     link_pic: string
+
+    @ApiProperty({
+        description: "The destination of the link",
+    })
+    destination: string
 }
 export class LinkCreatorDto {
     @ApiProperty({
@@ -137,6 +142,11 @@ export class LinkDetailDto {
         description: "The link of the link",
     })
     redirect_to_link: string
+
+    @ApiProperty({
+        description: "The destination of the link",
+    })
+    destination: string
 
     @ApiProperty({
         description: "The app id of the link",
