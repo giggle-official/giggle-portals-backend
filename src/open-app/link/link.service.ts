@@ -57,8 +57,7 @@ export class LinkService {
             throw new BadRequestException("Widget tag or link is required")
         }
 
-        console.log(body.link)
-        const isExternalLink = body.link.startsWith("http://") || body.link.startsWith("https://")
+        const isExternalLink = body?.link && (body.link.startsWith("http://") || body.link.startsWith("https://"))
 
         //find unique
         if (!widgetTag && !isExternalLink) {

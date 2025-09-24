@@ -334,14 +334,20 @@ export class MarketMakerService {
     @Cron(CronExpression.EVERY_5_MINUTES)
     async completeDelegationOnTestEnv() {
         if (process.env.ENV === "product" || process.env.TASK_SLOT !== "1") return
-        //find list
+        this.logger.log("starting complete delegation on test env")
+        //find pending delegation
         const delegation = await this.prismaService.ip_token_delegation.findFirst({
             where: {
                 status: ip_token_delegation_status.pending,
             },
         })
-        const marketMaker = await this.prismaService.market_makers.findFirst()
 
+        if (!delegation) {
+            this.logger.log("no pending delegation found, skip")
+            return
+        }
+
+        const marketMaker = await this.prismaService.market_makers.findFirst()
         //find first market maker
         if (!marketMaker) {
             this.logger.error("Market maker not found")
