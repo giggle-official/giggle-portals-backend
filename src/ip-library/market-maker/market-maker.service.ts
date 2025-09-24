@@ -330,6 +330,7 @@ export class MarketMakerService {
     }
 
     //on test env, we need to complete the delegation
+    //!!! never do this on production env
     @Cron(CronExpression.EVERY_5_MINUTES)
     async completeDelegationOnTestEnv() {
         if (process.env.ENV === "product" || process.env.TASK_SLOT !== "1") return

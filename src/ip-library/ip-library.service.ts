@@ -479,9 +479,7 @@ export class IpLibraryService {
         }
 
         if (params.is_top === "true") {
-            where.ip_library_child = {
-                none: {},
-            }
+            where.ip_levels = 1
         }
 
         if (params.ip_level) {
@@ -588,7 +586,7 @@ export class IpLibraryService {
                     cover_image: cover_image,
                     cover_hash,
                     creation_guide_lines: item.creation_guide_lines,
-                    is_top: item.ip_library_child.length === 0,
+                    is_top: item.ip_levels === 1,
                     ip_level: item.ip_levels,
                     is_public: item.is_public,
                     token_is_delegating: item.token_is_delegating,
@@ -716,7 +714,7 @@ export class IpLibraryService {
                     likes: item.likes,
                     comments: item._count.ip_comments,
                     share_count: item.ip_share_count?.share_count || 0,
-                    is_top: item.ip_library_child.length === 0,
+                    is_top: item.ip_levels === 1,
                     ip_level: item.ip_levels,
                     is_user_liked: await this.isUserLiked(item.id, request_user),
                     is_public: item.is_public,
@@ -762,7 +760,7 @@ export class IpLibraryService {
             creation_guide_lines: data.creation_guide_lines,
             comments: data._count.ip_comments,
             is_user_liked: await this.isUserLiked(data.id, request_user),
-            is_top: data.ip_library_child === null,
+            is_top: data.ip_levels === 1,
             ip_level: data.ip_levels,
             is_public: data.is_public,
             token_is_delegating: data.token_is_delegating,
