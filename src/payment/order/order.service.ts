@@ -543,6 +543,7 @@ export class OrderService {
                 base_rewards: 0,
                 bonus_rewards: 0,
                 total_rewards: 0,
+                rewards_after_credit_deduct: 0,
                 limit_offer: null,
             },
             ip_holder_revenue_reallocation:
@@ -570,6 +571,7 @@ export class OrderService {
             base_rewards: 0,
             bonus_rewards: 0,
             total_rewards: 0,
+            rewards_after_credit_deduct: 0,
             limit_offer: order?.rewards_model_snapshot?.limit_offer,
         }
 
@@ -598,9 +600,14 @@ export class OrderService {
         //const baseRewards = Math.round(orderAmount.div(unitPrice).toNumber())
 
         const unitPrice = new Decimal(currentPrice?.unit_price || 0)
+        let credit_deduct_rewards = 0
         if (order.supported_payment_method.includes(PaymentMethod.CREDIT)) {
             const userCreditInfo = await this.creditService.getUserCredits(order.owner)
-            order.amount = Math.max(order.amount - userCreditInfo.free_credit_balance, 0)
+            if (userCreditInfo.free_credit_balance > 0) {
+                credit_deduct_rewards = Math.round(
+                    new Decimal(userCreditInfo.free_credit_balance).div(100).div(unitPrice).toNumber(),
+                )
+            }
         }
 
         const baseRewards = Math.round(new Decimal(order.amount).div(100).div(unitPrice).toNumber())
@@ -613,6 +620,7 @@ export class OrderService {
                 bonus_rewards: Math.round(baseRewards * ration - baseRewards),
                 total_rewards: Math.round(baseRewards * ration),
                 limit_offer: rewards.limit_offer,
+                rewards_after_credit_deduct: Math.round((baseRewards - credit_deduct_rewards) * ration),
             }
         } else {
             rewards = {
@@ -620,6 +628,7 @@ export class OrderService {
                 bonus_rewards: 0,
                 total_rewards: baseRewards,
                 limit_offer: null,
+                rewards_after_credit_deduct: credit_deduct_rewards,
             }
         }
 

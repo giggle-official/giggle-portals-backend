@@ -284,6 +284,12 @@ export class EstimatedRewardsDto {
     total_rewards: number
 
     @ApiProperty({
+        description:
+            "Rewards amount after credit deducted of the order, this may different from base_rewards if user has free credit and payment method includes credit",
+    })
+    rewards_after_credit_deduct: number
+
+    @ApiProperty({
         description: "The limit offer of the order",
     })
     limit_offer: LimitOffer

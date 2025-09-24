@@ -6818,6 +6818,10 @@
             "type": "number",
             "description": "The total rewards of the order"
           },
+          "rewards_after_credit_deduct": {
+            "type": "number",
+            "description": "Rewards amount after credit deducted of the order, this may different from base_rewards if user has free credit and payment method includes credit"
+          },
           "limit_offer": {
             "description": "The limit offer of the order",
             "allOf": [
@@ -6831,6 +6835,7 @@
           "base_rewards",
           "bonus_rewards",
           "total_rewards",
+          "rewards_after_credit_deduct",
           "limit_offer"
         ]
       },
