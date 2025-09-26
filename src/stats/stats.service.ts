@@ -142,6 +142,37 @@ from allocation a
     }
 
     async genreateTotalRevenueByIp(): Promise<TotalRevenueByIpDto[]> {
+        //        const totalRevenueByIp = await this.prisma.$queryRaw<TotalRevenueByIpDto[]>`
+        //with statements as (select id, widget_tag
+        //                    from reward_pool_statement
+        //                    where related_order_id in (select order_id from orders where current_status = 'rewards_released')
+        //                      and widget_tag is not null
+        //                      and chain_transaction is not null
+        //                      and type = 'released'
+        //                      and widget_tag != ''),
+        //     yesterday as (SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as yesterday,
+        //                          CURDATE()                           as today),
+        //     revenue_with_app as (select a.widget_tag,
+        //                                 b.app_id,
+        //                                 sum(case when date(a.created_at) = y.yesterday then usd_revenue else 0 end) as day_usd_revenue,
+        //                                 sum(case
+        //                                         when year(a.created_at) = year(y.yesterday) and
+        //                                              month(a.created_at) = month(y.yesterday)
+        //                                             then usd_revenue
+        //                                         else 0 end)                                                         as month_usd_revenue,
+        //                                 sum(usd_revenue)                                                            as total_usd_revenue
+        //                          from reward_pool_statement a
+        //                                   left join orders b on a.related_order_id = b.order_id
+        //                                   cross join yesterday y
+        //                          where a.id in (select id from statements)
+        //                          group by widget_tag, b.app_id)
+        //select a.*, c.name as ip_name, d.name as widget_name
+        //from revenue_with_app a
+        //         left join app_bind_ips b on a.app_id = b.app_id
+        //         left join ip_library c on b.ip_id = c.id
+        //         left join widgets d on d.tag = a.widget_tag;
+        //        `
+
         const totalRevenueByIp = await this.prisma.$queryRaw<TotalRevenueByIpDto[]>`
 with statements as (select id, widget_tag
                     from reward_pool_statement
@@ -151,27 +182,23 @@ with statements as (select id, widget_tag
                       and type = 'released'
                       and widget_tag != ''),
      yesterday as (SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as yesterday,
-                          CURDATE()                           as today),
-     revenue_with_app as (select a.widget_tag,
-                                 b.app_id,
-                                 sum(case when date(a.created_at) = y.yesterday then usd_revenue else 0 end) as day_usd_revenue,
-                                 sum(case
-                                         when year(a.created_at) = year(y.yesterday) and
-                                              month(a.created_at) = month(y.yesterday)
-                                             then usd_revenue
-                                         else 0 end)                                                         as month_usd_revenue,
-                                 sum(usd_revenue)                                                            as total_usd_revenue
-                          from reward_pool_statement a
-                                   left join orders b on a.related_order_id = b.order_id
-                                   cross join yesterday y
-                          where a.id in (select id from statements)
-                          group by widget_tag, b.app_id)
-select a.*, c.name as ip_name, d.name as widget_name
-from revenue_with_app a
-         left join app_bind_ips b on a.app_id = b.app_id
-         left join ip_library c on b.ip_id = c.id
-         left join widgets d on d.tag = a.widget_tag;
-        `
+                          CURDATE()                           as today)
+select d.name                                                                      as ip_name,
+       sum(case when date(a.created_at) = y.yesterday then usd_revenue else 0 end) as day_usd_revenue,
+       sum(case
+               when year(a.created_at) = year(y.yesterday) and
+                    month(a.created_at) = month(y.yesterday)
+                   then usd_revenue
+               else 0 end)                                                         as month_usd_revenue,
+       sum(usd_revenue)                                                            as total_usd_revenue
+from reward_pool_statement a
+         left join orders b on a.related_order_id = b.order_id
+         left join app_bind_ips c on c.app_id = b.app_id
+         left join ip_library d on c.ip_id = d.id
+         cross join yesterday y
+where a.id in (select id from statements)
+group by d.name;
+`
         return totalRevenueByIp
     }
 
@@ -189,9 +216,7 @@ select sum(case when date(a.created_at) = y.yesterday then 1 else 0 end) as day_
                     month(a.created_at) = month(y.yesterday) then 1
                else 0 end)                                               as month_registered,
        sum(1)                                                            as total_registered,
-       register_app_id,
-       c.name                                                            as ip_name,
-       e.name                                                            as widget_name
+       c.name                                                            as ip_name
 from users a
          left join app_bind_ips b on a.register_app_id = b.app_id
          left join ip_library c on b.ip_id = c.id
@@ -200,8 +225,13 @@ from users a
          cross join yesterday y
 where register_app_id != ''
   and register_app_id is not null
-group by register_app_id, c.name, e.name;
+group by c.name;
         `
+        //              register_app_id,
+        //              c.name                                                            as ip_name,
+        //              e.name                                                            as widget_name
+        //
+        //group by register_app_id, c.name, e.name;
         return totalRegisterdUser
     }
 
@@ -265,8 +295,8 @@ group by register_app_id, c.name, e.name;
      */
     private formatIpRevenueDataForTemplate(ipRevenueData: TotalRevenueByIpDto[]) {
         return ipRevenueData.map((data) => ({
-            widget_name: data.widget_name || data.widget_tag || "N/A",
-            app_id: data.app_id || "N/A",
+            // widget_name: data.widget_name || data.widget_tag || "N/A",
+            // app_id: data.app_id || "N/A",
             ip_name: data.ip_name || "Unknown IP",
             day_usd_revenue: Number(data.day_usd_revenue || 0).toFixed(2),
             month_usd_revenue: Number(data.month_usd_revenue || 0).toFixed(2),
@@ -279,9 +309,9 @@ group by register_app_id, c.name, e.name;
      */
     private formatIpUserDataForTemplate(ipUserData: TotalRegisterdUserDto[]) {
         return ipUserData.map((data) => ({
-            register_app_id: data.register_app_id || "N/A",
-            ip_name: data.ip_name || "Unknown IP",
-            widget_name: data.widget_name || "Unknown Widget",
+            // register_app_id: data.register_app_id || "N/A",
+            ip_name: data.ip_name || "-",
+            // widget_name: data.widget_name || "Unknown Widget",
             day_registered: Number(data.day_registered || 0),
             month_registered: Number(data.month_registered || 0),
             total_registered: Number(data.total_registered || 0),
@@ -308,15 +338,15 @@ group by register_app_id, c.name, e.name;
      * Environment Variable Required: BOSS_EMAIL_LIST (comma-separated email addresses)
      * Example: BOSS_EMAIL_LIST=boss1@company.com,boss2@company.com,ceo@company.com
      */
-    @Cron(CronExpression.EVERY_DAY_AT_1AM) // generate report at 0 AM
-    //@Cron(CronExpression.EVERY_5_MINUTES) //for testing
+    //@Cron(CronExpression.EVERY_DAY_AT_1AM) // generate report at 0 AM
+    @Cron(CronExpression.EVERY_5_MINUTES) //for testing
     async sendRevenueStatsEmail(): Promise<void> {
         try {
-            if (process.env.TASK_SLOT != "1") return
-            if (process.env.ENV !== "product") {
-                this.logger.log("Skipping revenue stats email generation in non-production environment")
-                return
-            }
+            //if (process.env.TASK_SLOT != "1") return
+            //if (process.env.ENV !== "product") {
+            //    this.logger.log("Skipping revenue stats email generation in non-production environment")
+            //    return
+            //}
             this.logger.log("Starting revenue stats email generation...")
 
             // Get all data concurrently

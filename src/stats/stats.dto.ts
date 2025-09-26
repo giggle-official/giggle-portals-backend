@@ -41,8 +41,8 @@ export class RevenueStatsDto {
 }
 
 export class TotalRevenueByIpDto {
-    widget_tag: string
-    app_id: string
+    //widget_tag: string
+    //app_id: string
     day_usd_revenue: Decimal
     month_usd_revenue: Decimal
     total_usd_revenue: Decimal
@@ -54,7 +54,7 @@ export class TotalRegisterdUserDto {
     day_registered: number
     month_registered: number
     total_registered: number
-    register_app_id: string
+    // register_app_id: string
     ip_name: string
-    widget_name: string
+    // widget_name: string
 }
