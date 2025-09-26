@@ -70,15 +70,16 @@ export class UtilitiesService {
 
             const fileUrl = `${this.cloudFrontDomain}/${key}`
             const isPublic = key.startsWith("public/")
+            const isDownload = !!download
 
-            if (isPublic && !download) {
+            if (isPublic && !isDownload) {
                 return fileUrl
             }
 
             const now = new Date()
             const expirationDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59)
 
-            if (download) {
+            if (isDownload) {
                 // Use custom policy for download with Content-Disposition
                 const policy = {
                     Statement: [
