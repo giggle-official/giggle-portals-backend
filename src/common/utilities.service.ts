@@ -69,8 +69,9 @@ export class UtilitiesService {
             if (!key) return ""
 
             const fileUrl = `${this.cloudFrontDomain}/${key}`
+            const isPublic = key.startsWith("public/")
 
-            if (key.startsWith("public/")) {
+            if (isPublic && !download) {
                 return fileUrl
             }
 
