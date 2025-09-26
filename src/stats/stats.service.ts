@@ -338,15 +338,15 @@ group by c.name;
      * Environment Variable Required: BOSS_EMAIL_LIST (comma-separated email addresses)
      * Example: BOSS_EMAIL_LIST=boss1@company.com,boss2@company.com,ceo@company.com
      */
-    //@Cron(CronExpression.EVERY_DAY_AT_1AM) // generate report at 0 AM
-    @Cron(CronExpression.EVERY_5_MINUTES) //for testing
+    @Cron(CronExpression.EVERY_DAY_AT_1AM) // generate report at 0 AM
+    //@Cron(CronExpression.EVERY_5_MINUTES) //for testing
     async sendRevenueStatsEmail(): Promise<void> {
         try {
-            //if (process.env.TASK_SLOT != "1") return
-            //if (process.env.ENV !== "product") {
-            //    this.logger.log("Skipping revenue stats email generation in non-production environment")
-            //    return
-            //}
+            if (process.env.TASK_SLOT != "1") return
+            if (process.env.ENV !== "product") {
+                this.logger.log("Skipping revenue stats email generation in non-production environment")
+                return
+            }
             this.logger.log("Starting revenue stats email generation...")
 
             // Get all data concurrently
