@@ -6453,7 +6453,7 @@
         "properties": {
           "file_name": {
             "type": "string",
-            "description": "\nName of the file. Currently we support below formats:\n- video: mp4, mov, mkv, jpeg, jpg, png, \n- image: jpeg, jpg, png, \n- audio: mp3, wav, m4a"
+            "description": "Name of the file"
           },
           "content_type": {
             "type": "string",

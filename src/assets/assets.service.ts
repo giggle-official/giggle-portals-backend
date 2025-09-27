@@ -249,11 +249,8 @@ export class AssetsService {
                 throw new Error("Error checking file in S3")
             }
 
-            const fileType = fileInfo?.ContentType.split("/")[0]
+            let fileType = fileInfo?.ContentType.split("/")[0] || "unknown"
             const assetId = Math.random().toString(36).substring(2, 15)
-
-            if (fileType !== "video" && fileType !== "image" && fileType !== "audio")
-                throw new Error("Unknown file type")
 
             let assetInfo: NewVideoProcessResult | NewImageProcessResult | NewAudioProcessResult | null = null
             if (fileType === "video") {

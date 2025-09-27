@@ -167,16 +167,9 @@ export class AssetRenameReqDto extends PickType(AssetsDto, ["asset_id"] as const
 
 export class GetPresignedUploadUrlReqDto {
     @ApiProperty({
-        description: `
-Name of the file. Currently we support below formats:
-- video: mp4, mov, mkv, jpeg, jpg, png, 
-- image: jpeg, jpg, png, 
-- audio: mp3, wav, m4a`,
+        description: "Name of the file",
     })
     @IsString()
-    @Matches(/\.mp4|mov|mkv|jpeg|jpg|png|mp3|wav|m4a$/i, {
-        message: "File name must end with .mp4, .mov, .mkv, .jpeg, .jpg, .png, .mp3, .wav, .m4a",
-    })
     file_name: string
 
     @ApiProperty({
