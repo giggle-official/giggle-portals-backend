@@ -1545,7 +1545,7 @@ export class OrderService {
         let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
         if (
-            modelSnapshot?.limit_offer?.external_ratio !== undefined ||
+            modelSnapshot?.limit_offer?.external_ratio !== undefined &&
             modelSnapshot?.limit_offer?.external_ratio !== null
         ) {
             // orderCreatorRewards = orderAmount
