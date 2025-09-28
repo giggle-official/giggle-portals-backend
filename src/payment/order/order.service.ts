@@ -209,6 +209,7 @@ export class OrderService {
                 //process rewards_model
                 if (isDeveloperRequester && order.rewards_model) {
                     rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                        widgetTag,
                         order.rewards_model,
                         pool.pools[0],
                     )
@@ -225,6 +226,7 @@ export class OrderService {
                     relatedRewardId = rewardPool?.pools?.[0]?.id
                     if (isDeveloperRequester && order.rewards_model) {
                         rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                            widgetTag,
                             order.rewards_model,
                             rewardPool?.pools?.[0],
                         )
@@ -325,6 +327,7 @@ export class OrderService {
     }
 
     async processDeveloperSpecifiedRewardSnapshot(
+        widgetTag: string,
         rewardsModel: DeveloperSpecifiedRewardSnapshotDto,
         pool: PoolResponseDto,
     ): Promise<RewardSnapshotDto> {
@@ -341,8 +344,21 @@ export class OrderService {
             }
         }
 
-        if (sumRatio !== 90) {
-            throw new BadRequestException("Sum of revenue ratio must be 90")
+        //if widget allow 100% allocation
+        let allowedAllocationRatio = 90
+        if (widgetTag) {
+            const widget = await this.prisma.widgets.findUnique({
+                where: {
+                    tag: widgetTag,
+                },
+            })
+            if (widget && (widget.request_permissions as any)?.can_get_platform_revenue) {
+                allowedAllocationRatio = 100
+            }
+        }
+
+        if (sumRatio > allowedAllocationRatio || sumRatio < 90) {
+            throw new BadRequestException("Sum of revenue ratio must be between 90 and " + allowedAllocationRatio)
         }
 
         if (rewardsModel.released_token_ratio !== 100) {
@@ -1416,32 +1432,52 @@ export class OrderService {
         let allocatedTokenAmount = new Decimal(0)
         let totalCostsAllocation = new Decimal(0)
 
-        //add platform cost (10%)
-        const platformRewards = orderAmount.mul(new Decimal(10)).div(100)
-        rewards.push({
-            order_id: orderRecord.order_id,
-            user: "",
-            role: RewardAllocateRoles.PLATFORM,
-            expected_role: RewardAllocateRoles.PLATFORM,
-            token: process.env.GIGGLE_LEGAL_USDC,
-            ticker: "usdc",
-            wallet_address: process.env.PLATFORM_WALLET,
-            rewards: platformRewards,
-            start_allocate: currentDate,
-            end_allocate: currentDate, //usdc is released immediately
-            released_per_day: platformRewards,
-            released_rewards: platformRewards,
-            locked_rewards: 0,
-            allocate_snapshot: modelSnapshot as any,
-            withdraw_rewards: 0,
-            note: "",
-            is_cost: true,
-            cost_type: OrderCostType.PLATFORM,
-            cost_amount: platformRewards,
-        })
+        //check platform profit
 
-        allocatedUSDCAmount = allocatedUSDCAmount.plus(platformRewards)
-        orderAmount = orderAmount.minus(platformRewards)
+        let platformProfit = 0
+        let platformNote = ""
+        if (modelSnapshot.revenue_ratio.length > 0) {
+            for (const ratio of modelSnapshot.revenue_ratio) {
+                platformProfit += ratio.ratio
+                if (ratio.allocate_type !== RewardAllocateType.USDC) {
+                    throw new BadRequestException("Currently we only support USDC revenue ratio")
+                }
+            }
+            platformProfit = 100 - platformProfit
+        }
+
+        if (platformProfit < 0 || platformProfit > 100) throw new BadRequestException("Platform profit is not valid")
+        if (platformProfit !== 10) platformNote = `Platform profit: ${platformProfit}%`
+
+        let platformRewards = new Decimal(0)
+        if (platformProfit > 0) {
+            //add platform cost
+            platformRewards = orderAmount.mul(new Decimal(platformProfit)).div(100)
+            rewards.push({
+                order_id: orderRecord.order_id,
+                user: "",
+                role: RewardAllocateRoles.PLATFORM,
+                expected_role: RewardAllocateRoles.PLATFORM,
+                token: process.env.GIGGLE_LEGAL_USDC,
+                ticker: "usdc",
+                wallet_address: process.env.PLATFORM_WALLET,
+                rewards: platformRewards,
+                start_allocate: currentDate,
+                end_allocate: currentDate, //usdc is released immediately
+                released_per_day: platformRewards,
+                released_rewards: platformRewards,
+                locked_rewards: 0,
+                allocate_snapshot: modelSnapshot as any,
+                withdraw_rewards: 0,
+                note: platformNote,
+                is_cost: true,
+                cost_type: OrderCostType.PLATFORM,
+                cost_amount: platformRewards,
+            })
+
+            allocatedUSDCAmount = allocatedUSDCAmount.plus(platformRewards)
+            orderAmount = orderAmount.minus(platformRewards)
+        }
 
         //process costs allocation
         const costsAllocation = orderRecord.costs_allocation as unknown as OrderCostsAllocationDto[]
@@ -1508,7 +1544,7 @@ export class OrderService {
         const orderAmountInUSD = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
         let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
-        if (modelSnapshot?.limit_offer?.external_ratio) {
+        if (modelSnapshot?.limit_offer?.external_ratio !== undefined) {
             // orderCreatorRewards = orderAmount
             orderCreatorRewards = orderAmountInUSD
                 .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
@@ -1516,6 +1552,7 @@ export class OrderService {
                 .div(100)
             creatorNote = `External ratio: ${modelSnapshot.limit_offer.external_ratio}%`
         }
+
         let currentRewardPoolBalance = new Decimal(rewardPool.current_balance)
 
         if (orderCreatorRewards.gt(currentRewardPoolBalance)) {
@@ -1528,23 +1565,25 @@ export class OrderService {
         }
         currentRewardPoolBalance = Decimal.max(currentRewardPoolBalance.minus(orderCreatorRewards), new Decimal(0))
 
-        rewards.push({
-            order_id: orderRecord.order_id,
-            user: orderRecord.owner,
-            role: "order_creator",
-            token: modelSnapshot.token,
-            ticker: modelSnapshot.ticker,
-            wallet_address: "",
-            rewards: orderCreatorRewards,
-            start_allocate: currentDate,
-            end_allocate: releaseEndTime,
-            released_per_day: orderCreatorRewards.div(180), //token rewards is released in 180 days
-            released_rewards: 0,
-            locked_rewards: orderCreatorRewards,
-            allocate_snapshot: modelSnapshot as any,
-            withdraw_rewards: 0,
-            note: creatorNote,
-        })
+        if (orderCreatorRewards.gt(0)) {
+            rewards.push({
+                order_id: orderRecord.order_id,
+                user: orderRecord.owner,
+                role: "order_creator",
+                token: modelSnapshot.token,
+                ticker: modelSnapshot.ticker,
+                wallet_address: "",
+                rewards: orderCreatorRewards,
+                start_allocate: currentDate,
+                end_allocate: releaseEndTime,
+                released_per_day: orderCreatorRewards.div(180), //token rewards is released in 180 days
+                released_rewards: 0,
+                locked_rewards: orderCreatorRewards,
+                allocate_snapshot: modelSnapshot as any,
+                withdraw_rewards: 0,
+                note: creatorNote,
+            })
+        }
 
         allocatedTokenAmount = allocatedTokenAmount.plus(orderCreatorRewards)
 
