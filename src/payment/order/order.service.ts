@@ -1544,7 +1544,10 @@ export class OrderService {
         const orderAmountInUSD = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
         let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
-        if (modelSnapshot?.limit_offer?.external_ratio !== undefined) {
+        if (
+            modelSnapshot?.limit_offer?.external_ratio !== undefined ||
+            modelSnapshot?.limit_offer?.external_ratio !== null
+        ) {
             // orderCreatorRewards = orderAmount
             orderCreatorRewards = orderAmountInUSD
                 .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
