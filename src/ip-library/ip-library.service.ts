@@ -27,6 +27,8 @@ import {
     SourceWalletType,
     DelegateIpTokenDto,
     DelegateIpTokenResponseDto,
+    UpdateTokenMetadataDto,
+    UpdateTokenMetadataResponseDto,
 } from "./ip-library.dto"
 import { app_bind_ips, ip_type, ip_token_delegation_status, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -2005,5 +2007,39 @@ export class IpLibraryService {
                 })),
             }
         })
+    }
+
+    async updateTokenUri(
+        user: UserJwtExtractDto,
+        body: UpdateTokenMetadataDto,
+    ): Promise<UpdateTokenMetadataResponseDto> {
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: body.ip_id, owner: user.usernameShorted },
+        })
+        if (!ip) {
+            throw new BadRequestException("IP not found or you are not the owner of this IP")
+        }
+
+        if (!ip.token_info) {
+            throw new BadRequestException("IP is not tokenized")
+        }
+
+        const payer = ip.token_info as any
+        if (!payer.user_address) {
+            throw new BadRequestException("Ip owner invalid")
+        }
+
+        const { tx, signature } = await this.ipOnChainService.updateTokenMetadata(
+            user.email,
+            ip.token_mint,
+            payer.user_address,
+            body.meta_data,
+        )
+
+        return {
+            success: true,
+            tx: tx,
+            signature: signature,
+        }
     }
 }

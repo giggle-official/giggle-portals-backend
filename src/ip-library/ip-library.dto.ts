@@ -1114,3 +1114,36 @@ export class DelegateIpTokenResponseDto {
     @IsEnum(ip_token_delegation_status)
     status: ip_token_delegation_status
 }
+
+export class UpdateTokenMetadataDto {
+    @IsNotEmpty()
+    @IsNumber()
+    @ApiProperty({
+        description: "ip id",
+    })
+    ip_id: number
+
+    @IsNotEmpty()
+    @IsObject()
+    @ApiProperty({
+        description: "meta data",
+    })
+    meta_data: Record<string, any>
+}
+
+export class UpdateTokenMetadataResponseDto {
+    @ApiProperty({
+        description: "success of the token uri update",
+    })
+    success: boolean
+
+    @ApiProperty({
+        description: "tx of the token uri update",
+    })
+    tx: string
+
+    @ApiProperty({
+        description: "signature of the token uri update",
+    })
+    signature: string
+}

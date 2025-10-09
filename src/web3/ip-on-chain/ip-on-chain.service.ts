@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, forwardRef } from "@nestjs/common"
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { PushIpToChainResponseDto, RegisterTokenResponseDto, UntokenizeResponseDto } from "./ip-on-chain.dto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
@@ -9,6 +9,8 @@ import { HttpService } from "@nestjs/axios"
 import { lastValueFrom } from "rxjs"
 import { AxiosResponse } from "axios"
 import { CreateIpTokenGiggleResponseDto } from "../giggle/giggle.dto"
+import { GiggleService } from "../giggle/giggle.service"
+
 @Injectable()
 export class IpOnChainService {
     private readonly ipOnChainEndpoint: string
@@ -25,11 +27,14 @@ export class IpOnChainService {
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
 
+        @Inject(forwardRef(() => GiggleService))
+        private readonly giggleService: GiggleService,
+
         private readonly httpService: HttpService,
     ) {
         this.ipOnChainEndpoint = process.env.IP_ON_CHAIN_ENDPOINT
         this.ipOnChainToken = process.env.IP_ON_CHAIN_TOKEN
-        this.ipfsPrefix = "https://ipfs.io/ipfs/"
+        this.ipfsPrefix = process.env.PINATA_GATEWAY + "/ipfs/"
         if (!this.ipOnChainEndpoint || !this.ipOnChainToken) {
             throw new Error("IP on chain endpoint or token is not set")
         }
@@ -218,6 +223,63 @@ export class IpOnChainService {
         } catch (error) {
             this.logger.error("Error untokenizing:", error)
             return { isSucc: false, err: { type: "error", message: error.message } }
+        }
+    }
+
+    async updateTokenMetadata(
+        email: string,
+        token: string,
+        ipOwnerAddress: string,
+        metaData: Record<string, any>,
+    ): Promise<{ tx: string; signature: string }> {
+        try {
+            //upload metadata to ipfs
+            const pinata = new PinataSDK({
+                pinataJwt: process.env.PINATA_JWT,
+                pinataGateway: process.env.PINATA_GATEWAY,
+            })
+            const metaUriResponse = await pinata.upload.json(metaData)
+
+            const updateTokenMetadataRequestParams = {
+                tokenAddr: token,
+                uri: `${this.ipfsPrefix}${metaUriResponse.IpfsHash}`,
+                payer: ipOwnerAddress,
+                __authToken: this.ipOnChainToken,
+            }
+
+            this.logger.log(
+                `[UPDATE TOKEN METADATA] Update token metadata request params: ${JSON.stringify(updateTokenMetadataRequestParams)}`,
+            )
+
+            const updateTokenMetadataRequest = this.httpService.post(
+                this.ipOnChainEndpoint + "/UpdateToken",
+                updateTokenMetadataRequestParams,
+                { timeout: this.requestTimeout },
+            )
+            const updateTokenMetadataResponse: AxiosResponse<{ isSucc: boolean; tx: string }> =
+                await lastValueFrom(updateTokenMetadataRequest)
+
+            if (!updateTokenMetadataResponse.data.isSucc) {
+                this.logger.error(
+                    "Failed to update token metadata: " + JSON.stringify(updateTokenMetadataResponse.data),
+                )
+                throw new Error("Failed to update token metadata.")
+            }
+
+            //sign
+            const signers = [ipOwnerAddress]
+            const signature = await this.giggleService.signTx(updateTokenMetadataResponse.data.tx, signers, email)
+            if (!signature) {
+                this.logger.error(
+                    `[UPDATE TOKEN METADATA] Sign tx failed: ${updateTokenMetadataResponse.data.tx}, request params: ${JSON.stringify(updateTokenMetadataRequestParams)}`,
+                )
+                throw new Error("Sign tx failed")
+            }
+
+            return { tx: updateTokenMetadataResponse.data.tx, signature: signature }
+        } catch (error) {
+            this.logger.error("Error updating token metadata:", error)
+            throw new BadRequestException("Error updating token metadata: " + error.message)
         }
     }
 }

@@ -33,6 +33,8 @@ import {
     RemoveIpDto,
     RemoveIpResponseDto,
     DelegateIpTokenDto,
+    UpdateTokenMetadataDto,
+    UpdateTokenMetadataResponseDto,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -237,6 +239,17 @@ if error occurs, the event will be \`error\` and the data in \`data\` is the err
     @NologInterceptor()
     launchIpToken(@Req() req: Request, @ValidEventBody() body: LaunchIpTokenDto) {
         return this.ipLibraryService.launchIpToken(req.user as UserJwtExtractDto, body)
+    }
+
+    @Post("/update-token-metadata")
+    @ApiOperation({ summary: "Update token metadata" })
+    @ApiBody({ type: UpdateTokenMetadataDto })
+    @ApiResponse({ type: UpdateTokenMetadataResponseDto, status: 200 })
+    @UseGuards(AuthGuard("jwt"))
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    async updateTokenMetadata(@Req() req: Request, @Body() body: UpdateTokenMetadataDto) {
+        return await this.ipLibraryService.updateTokenUri(req.user as UserJwtExtractDto, body)
     }
 
     @Post("/remove-ip")

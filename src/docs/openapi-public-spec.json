@@ -4024,6 +4024,43 @@
         ]
       }
     },
+    "/api/v1/ip-library/update-token-metadata": {
+      "post": {
+        "operationId": "IpLibraryController_updateTokenMetadata",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTokenMetadataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTokenMetadataResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update token metadata",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/ip-library/remove-ip": {
       "post": {
         "operationId": "IpLibraryController_removeIp",
@@ -11094,6 +11131,45 @@
         },
         "required": [
           "event"
+        ]
+      },
+      "UpdateTokenMetadataDto": {
+        "type": "object",
+        "properties": {
+          "ip_id": {
+            "type": "number",
+            "description": "ip id"
+          },
+          "meta_data": {
+            "type": "object",
+            "description": "meta data"
+          }
+        },
+        "required": [
+          "ip_id",
+          "meta_data"
+        ]
+      },
+      "UpdateTokenMetadataResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "success of the token uri update"
+          },
+          "tx": {
+            "type": "string",
+            "description": "tx of the token uri update"
+          },
+          "signature": {
+            "type": "string",
+            "description": "signature of the token uri update"
+          }
+        },
+        "required": [
+          "success",
+          "tx",
+          "signature"
         ]
       },
       "RemoveIpDto": {
