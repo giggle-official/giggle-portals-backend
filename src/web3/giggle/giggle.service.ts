@@ -1114,6 +1114,7 @@ export class GiggleService {
                         id: { in: staticIps },
                     },
                     data: {
+                        token_mint: token.new_info.token_info.mint,
                         token_info: token.new_info.token_info,
                         current_token_info: token.new_info.current_token_info,
                     },

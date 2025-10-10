@@ -8,6 +8,7 @@ export interface StaticTokens {
         current_token_info: any
     }
     new_info: {
+        enable_buyback: boolean
         token_info: any
         current_token_info: any
     }
@@ -83,6 +84,7 @@ export const STATIC_TOKENS: StaticTokens[] = [
             },
         },
         new_info: {
+            enable_buyback: false,
             token_info: {
                 version: "v3",
                 user_address: "CGvh7rub99xN5XNh4W5EC3njhPRUPYDB17majF44cXKu",

@@ -33,6 +33,7 @@ import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
 import { TaskService } from "src/task/task.service"
+import { STATIC_TOKENS } from "src/common/static-tokens"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -1320,6 +1321,17 @@ export class RewardPoolOnChainService {
         >()
         for (const order of orders) {
             try {
+                //skip if token is static and buyback disabled
+                const staticToken = STATIC_TOKENS.find(
+                    (token) => token.ip_id === order.ip_id && token.env === process.env.ENV,
+                )
+                if (staticToken && !staticToken.new_info.enable_buyback) {
+                    this.logger.log(
+                        `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled for ip: ${order.ip_id}`,
+                    )
+                    continue
+                }
+
                 const rewardsSnapshot = order.rewards_model_snapshot as any as RewardSnapshotDto
                 const poolInfo = await this.prisma.reward_pools.findUnique({
                     where: {
@@ -1481,6 +1493,18 @@ export class RewardPoolOnChainService {
         })
         for (const reward_pool of rewards_pools) {
             try {
+                //skip if token is static and buyback disabled
+                const staticToken = STATIC_TOKENS.find(
+                    (token) =>
+                        token.new_info.current_token_info.mint === reward_pool.token && token.env === process.env.ENV,
+                )
+                if (staticToken && !staticToken.new_info.enable_buyback) {
+                    this.logger.warn(
+                        `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled, skip!`,
+                    )
+                    continue
+                }
+
                 if (new Decimal(reward_pool._sum.usd_revenue || 0).lt(10)) {
                     this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
                     continue
