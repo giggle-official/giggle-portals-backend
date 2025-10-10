@@ -291,6 +291,7 @@ export class EstimatedRewardsDto {
 
     @ApiProperty({
         description: "The limit offer of the order",
+        type: () => LimitOffer,
     })
     limit_offer: LimitOffer
 }

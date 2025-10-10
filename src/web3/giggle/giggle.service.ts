@@ -1,5 +1,12 @@
 import { HttpService } from "@nestjs/axios"
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common"
+import {
+    BadRequestException,
+    forwardRef,
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+} from "@nestjs/common"
 import * as crypto from "crypto"
 import { lastValueFrom, Observable, Subscriber } from "rxjs"
 import {
@@ -41,6 +48,8 @@ import { HttpsProxyAgent } from "https-proxy-agent"
 import axios from "axios"
 import https from "https"
 import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
+import { STATIC_TOKENS } from "src/common/static-tokens"
+import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
 
 @Injectable()
 export class GiggleService {
@@ -57,6 +66,9 @@ export class GiggleService {
         private readonly utilitiesService: UtilitiesService,
         private readonly logService: LogsService,
         private readonly web3HttpService: HttpService,
+
+        @Inject(forwardRef(() => RewardsPoolService))
+        private readonly rewardsPoolService: RewardsPoolService,
     ) {
         this.appid = process.env.GIGGLE_APP_ID
         this.apiKey = process.env.GIGGLE_API_KEY
@@ -1091,6 +1103,28 @@ export class GiggleService {
             return
         }
 
+        //update static tokens
+        const staticTokens = STATIC_TOKENS.filter((token) => token.env === process.env.ENV)
+        let staticIps = staticTokens.map((token) => token.ip_id)
+        if (staticIps.length > 0) {
+            for (const token of staticTokens) {
+                //update static tokens
+                await this.prismaService.ip_library.updateMany({
+                    where: {
+                        id: { in: staticIps },
+                    },
+                    data: {
+                        token_info: token.new_info.token_info,
+                        current_token_info: token.new_info.current_token_info,
+                    },
+                })
+                //create reward pool
+                await this.rewardsPoolService.createRewardsPool(token.ip_id)
+            }
+        } else {
+            this.logger.log("No static tokens found")
+        }
+
         this.logger.log("Fetching newest token info from Giggle API")
         const batchSize = 10
         const tokenCount = await this.prismaService.ip_library.count({
@@ -1098,6 +1132,7 @@ export class GiggleService {
                 token_info: {
                     not: null,
                 },
+                id: { notIn: staticIps },
             },
         })
         this.logger.log(`total token count: ${tokenCount}`)
@@ -1110,6 +1145,7 @@ export class GiggleService {
                         token_info: {
                             not: null,
                         },
+                        id: { notIn: staticIps },
                     },
                     skip: i * batchSize,
                     take: batchSize,
@@ -1130,6 +1166,7 @@ export class GiggleService {
                 for (const item of data) {
                     await this.prismaService.ip_library.updateMany({
                         where: {
+                            id: { notIn: staticIps },
                             token_info: {
                                 path: "$.mint",
                                 equals: item.mint,
@@ -1153,6 +1190,7 @@ export class GiggleService {
                     })
                     await this.prismaService.asset_to_meme_record.updateMany({
                         where: {
+                            id: { notIn: staticIps },
                             token_info: {
                                 path: "$.mint",
                                 equals: item.mint,
@@ -1176,6 +1214,7 @@ export class GiggleService {
                     //update rewards pool price
                     await this.prismaService.reward_pools.updateMany({
                         where: {
+                            id: { notIn: staticIps },
                             token: item.mint,
                         },
                         data: {

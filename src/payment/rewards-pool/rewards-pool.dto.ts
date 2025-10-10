@@ -307,7 +307,7 @@ export class RewardSnapshotDto {
     @ApiProperty({ description: "Snapshot date" })
     snapshot_date: Date
 
-    @ApiProperty({ description: "Limit offer of the pool", required: false })
+    @ApiProperty({ description: "Limit offer of the pool", required: false, type: () => LimitOffer })
     limit_offer: LimitOffer
 }
 

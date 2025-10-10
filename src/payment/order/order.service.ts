@@ -83,6 +83,8 @@ export class OrderService {
 
         @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
+
+        @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
         private readonly httpService: HttpService,
 

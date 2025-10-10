@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     CreatePoolDto,
@@ -49,7 +49,10 @@ export class RewardPoolOnChainService {
 
     constructor(
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
+
         private readonly salesAgentService: SalesAgentService,
         private readonly orderService: OrderService,
     ) {

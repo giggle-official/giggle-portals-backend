@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import {
     ParseLaunchLaunchPlanRequestDto,
@@ -42,6 +42,8 @@ export class LaunchAgentService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly httpService: HttpService,
+
+        @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
     ) {
         this.launchAgentUrl = process.env.LAUNCH_AGENT_ENDPOINT
