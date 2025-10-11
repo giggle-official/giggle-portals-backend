@@ -32,7 +32,6 @@ import { RewardAllocateRatio, RewardAllocateRoles, RewardSnapshotDto } from "src
 import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
-import { TaskService } from "src/task/task.service"
 import { STATIC_TOKENS } from "src/common/static-tokens"
 
 @Injectable()
@@ -361,7 +360,7 @@ export class RewardPoolOnChainService {
         token: string,
         user_wallet: string,
     ): Promise<RetrieveUserTokenBalanceResponseDto | null> {
-        const func = "/CreateFiUserVestingInfo"
+        const func = "/CreateFiUserVestingInfoNew"
         const requestParams = {
             createFiToken: token,
             user: user_wallet,
@@ -388,7 +387,7 @@ export class RewardPoolOnChainService {
     }
 
     //withdraw token to wallet
-    async withdrawTokenToWallet(dto: WithdrawTokenToWalletDto, user_email: string): Promise<TransactionDto> {
+    async withdrawTokenToWallet(dto: WithdrawTokenToWalletDto, user_email: string): Promise<TransactionDto[]> {
         const func = "/ClaimCreateFiVesting"
         const requestParams = {
             user: dto.user_wallet,
@@ -404,18 +403,22 @@ export class RewardPoolOnChainService {
             throw new BadRequestException("Withdraw token to wallet failed")
         }
 
+        let result: TransactionDto[] = []
         //sign tx
-        const signers = [this.settleWallet]
-        const signature = await this.giggleService.signTx(response.data.res.tx, signers, user_email)
-        if (!signature) {
-            throw new BadRequestException("Sign tx failed")
+        for (const tx of response.data.res.tx) {
+            const signers = [this.settleWallet]
+            const signature = await this.giggleService.signTx(tx, signers, user_email)
+            if (!signature) {
+                throw new BadRequestException("Sign tx failed")
+            }
+            result.push({
+                tx: tx,
+                signature: signature,
+                request_params: requestParams,
+            })
         }
 
-        return {
-            tx: response.data.res.tx,
-            signature: signature,
-            request_params: requestParams,
-        }
+        return result
     }
 
     //backback record
@@ -1739,13 +1742,13 @@ export class RewardPoolOnChainService {
         try {
             await Promise.all([
                 this.settleInjectToken().catch((error) => {
-                    this.logger.error(`[Reward to chain task]Settle inject token failed: ${JSON.stringify(error)}`)
+                    this.logger.error(`[Reward to chain task] Settle inject token failed: ${JSON.stringify(error)}`)
                 }),
                 this.settleStatement().catch((error) => {
-                    this.logger.error(`[Reward to chain task]Settle statement failed: ${JSON.stringify(error)}`)
+                    this.logger.error(`[Reward to chain task] Settle statement failed: ${JSON.stringify(error)}`)
                 }),
                 this.settleAirDropStatement().catch((error) => {
-                    this.logger.error(`[Reward to chain task]Settle airdrop failed: ${JSON.stringify(error)}`)
+                    this.logger.error(`[Reward to chain task] Settle airdrop failed: ${JSON.stringify(error)}`)
                 }),
             ])
         } catch (error) {

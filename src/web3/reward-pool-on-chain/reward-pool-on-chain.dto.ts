@@ -35,8 +35,8 @@ export class RetrieveUserTokenBalanceResponseDto {
     lockedAmount: number
     availableAmount: number
     initialized: boolean
-    releaseStart: number
-    releaseDayCount: number
+    //releaseStart: number
+    //releaseDayCount: number
 }
 
 export class InjectTokenDto {
@@ -80,7 +80,7 @@ export class WithdrawTokenToWalletDto {
 }
 
 export class WithdrawTokenToWalletResponseDto {
-    tx: string
+    tx: string[]
 }
 
 export class BuyBackRecord {

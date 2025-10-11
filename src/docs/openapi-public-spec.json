@@ -6563,6 +6563,10 @@
               "token",
               "usdc"
             ]
+          },
+          "remark": {
+            "type": "string",
+            "description": "Remark of the allocation"
           }
         },
         "required": [
@@ -7793,7 +7797,8 @@
                 "address": "some customized address",
                 "ratio": 10,
                 "role": "customized",
-                "allocate_type": "usdc"
+                "allocate_type": "usdc",
+                "remark": "some remark"
               }
             ],
             "type": "array",
@@ -7845,7 +7850,8 @@
                 "address": "some customized address",
                 "ratio": 10,
                 "role": "customized",
-                "allocate_type": "usdc"
+                "allocate_type": "usdc",
+                "remark": "some remark"
               }
             ],
             "type": "array",

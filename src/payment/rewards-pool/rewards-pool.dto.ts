@@ -153,6 +153,11 @@ export class RewardAllocateRatio {
     @IsEnum(RewardAllocateType)
     @IsNotEmpty()
     allocate_type: RewardAllocateType
+
+    @ApiProperty({ description: "Remark of the allocation", required: false })
+    @IsString()
+    @IsOptional()
+    remark?: string
 }
 
 export class LimitOffer {
@@ -232,6 +237,7 @@ export class CreateRewardsPoolDto {
                 ratio: 10,
                 role: RewardAllocateRoles.CUSTOMIZED,
                 allocate_type: "usdc",
+                remark: "some remark",
             },
         ],
     })
