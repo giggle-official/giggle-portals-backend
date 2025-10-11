@@ -437,12 +437,14 @@ export class RewardPoolOnChainService {
 
     //airdrop statement to chain
     async airdropStatementToChain(airdropDto: AirdropStatementToChainDto, creator_email: string) {
-        const func = "/CreateFiAirdrop"
+        const func = "/CreateFiAirdropNew"
         const requestParams = {
             user: airdropDto.user_wallet,
             creator: airdropDto.owner_wallet,
             createFiToken: airdropDto.token,
             amount: Math.round(airdropDto.amount * 10 ** 6).toString(),
+            dropNow: airdropDto.dropNow,
+            releaseDayCount: airdropDto.releaseDayCount,
             orderTime: airdropDto.timestamp,
             payer: this.settleWallet,
             __authToken: this.authToken,
@@ -862,6 +864,7 @@ export class RewardPoolOnChainService {
             }
 
             const userReward = new Decimal(statement.user_rewards[0].rewards)
+            const releaseDetail = statement.user_rewards[0]
 
             //check reward pool token balance
             const tokenBalance = await this.retrieve(statement.token)
@@ -891,6 +894,8 @@ export class RewardPoolOnChainService {
                     token: statement.token,
                     amount: userReward.toNumber(),
                     timestamp: statement.created_at.getTime() / 1000,
+                    dropNow: releaseDetail.lock_days === 0 ? 10000 : 0,
+                    releaseDayCount: releaseDetail.lock_days === 0 ? 180 : releaseDetail.lock_days,
                 }
 
                 const transaction = await this.airdropStatementToChain(reqParam, statement.reward_pools.user_info.email)
@@ -1731,18 +1736,23 @@ export class RewardPoolOnChainService {
         }
 
         await UtilitiesService.startTask(this.onChainTaskId)
-
-        //settle inject
-        await this.settleInjectToken()
-
-        //settle statement
-        await this.settleStatement()
-
-        //settle airdrop
-        await this.settleAirDropStatement()
-
-        //stop task
-        await UtilitiesService.stopTask(this.onChainTaskId)
+        try {
+            await Promise.all([
+                this.settleInjectToken().catch((error) => {
+                    this.logger.error(`[Reward to chain task]Settle inject token failed: ${JSON.stringify(error)}`)
+                }),
+                this.settleStatement().catch((error) => {
+                    this.logger.error(`[Reward to chain task]Settle statement failed: ${JSON.stringify(error)}`)
+                }),
+                this.settleAirDropStatement().catch((error) => {
+                    this.logger.error(`[Reward to chain task]Settle airdrop failed: ${JSON.stringify(error)}`)
+                }),
+            ])
+        } catch (error) {
+            this.logger.error(`Reward to chain task failed: ${JSON.stringify(error)}`)
+        } finally {
+            await UtilitiesService.stopTask(this.onChainTaskId)
+        }
     }
 
     //update buyback wallet

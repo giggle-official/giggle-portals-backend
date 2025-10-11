@@ -24,6 +24,7 @@ import {
     AirdropResponseListDto,
     AirdropType,
     StatementStatus,
+    SupportedLockDays,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -653,9 +654,14 @@ ORDER BY d.date;`
             throw new BadRequestException("Insufficient balance")
         }
 
-        const releasePerDay = amount.div(180)
+        if (body.lock_days === undefined) {
+            body.lock_days = SupportedLockDays.SIX_MONTHS
+        }
+
+        const releaseDays = body.lock_days === SupportedLockDays.IMMEDIATELY ? 0 : 180
         const currentDate = new Date(Date.now())
-        const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
+        let releaseEndTime = new Date(currentDate.getTime() + releaseDays * 24 * 60 * 60 * 1000) //180 days
+        let releasePerDay = amount.div(releaseDays === 0 ? 1 : releaseDays)
 
         const { statement, userRewards } = await this.prisma.$transaction(async (tx) => {
             const newPoolInfo = await tx.reward_pools.update({
@@ -689,11 +695,12 @@ ORDER BY d.date;`
                     rewards: amount,
                     token: body.token,
                     ticker: rewardsPools.ticker,
+                    lock_days: body.lock_days,
                     released_per_day: releasePerDay,
                     start_allocate: currentDate,
                     end_allocate: releaseEndTime,
-                    released_rewards: 0,
-                    locked_rewards: amount,
+                    released_rewards: releaseDays === 0 ? amount : 0,
+                    locked_rewards: releaseDays === 0 ? 0 : amount,
                     withdraw_rewards: 0,
                 },
                 include: {

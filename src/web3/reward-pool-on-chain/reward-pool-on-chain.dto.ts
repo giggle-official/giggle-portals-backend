@@ -68,6 +68,8 @@ export class AirdropStatementToChainDto {
     owner_wallet: string
     token: string
     amount: number
+    dropNow: number
+    releaseDayCount: number
     timestamp: number
 }
 

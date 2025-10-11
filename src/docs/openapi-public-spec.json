@@ -7388,6 +7388,10 @@
             "type": "string",
             "description": "The token of the order rewards"
           },
+          "lock_days": {
+            "type": "number",
+            "description": "The lock days of the order rewards"
+          },
           "ticker": {
             "type": "string",
             "description": "The ticker of the order rewards"
@@ -7463,6 +7467,7 @@
           "expected_role",
           "wallet_address",
           "token",
+          "lock_days",
           "ticker",
           "start_allocate",
           "end_allocate",
@@ -7889,6 +7894,15 @@
           "token_amount": {
             "type": "number",
             "description": "Amount of tokens to be airdropped, if you want airdrop USDC valued amount, set this to 0 and provide usd_amount."
+          },
+          "lock_days": {
+            "type": "number",
+            "description": "Amount lock days, currently we only support 0 and 180, 0 means release rewards immediately, 180 means 180 days",
+            "default": 180,
+            "enum": [
+              0,
+              180
+            ]
           },
           "type": {
             "type": "string",

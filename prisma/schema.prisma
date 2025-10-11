@@ -1046,6 +1046,7 @@ model user_rewards {
   rewards           Decimal?               @db.Decimal(65, 6)
   token             String?                @db.VarChar(64)
   ticker            String?                @db.VarChar(32)
+  lock_days         Int?
   released_per_day  Decimal?               @db.Decimal(65, 6)
   start_allocate    DateTime?              @db.DateTime(0)
   end_allocate      DateTime?              @db.DateTime(0)

@@ -445,6 +445,11 @@ export class StatementQueryDto extends PaginationDto {
     only_settled?: string
 }
 
+export enum SupportedLockDays {
+    IMMEDIATELY = 0,
+    SIX_MONTHS = 180,
+}
+
 export class RequestAirdropDto {
     @ApiProperty({ description: "token address" })
     @IsString()
@@ -471,6 +476,17 @@ export class RequestAirdropDto {
     @IsNumber()
     @Min(0)
     token_amount: number
+
+    @ApiProperty({
+        description:
+            "Amount lock days, currently we only support 0 and 180, 0 means release rewards immediately, 180 means 180 days",
+        default: SupportedLockDays.SIX_MONTHS,
+        enum: SupportedLockDays,
+        required: false,
+    })
+    @IsEnum(SupportedLockDays)
+    @IsOptional()
+    lock_days?: SupportedLockDays
 
     @ApiProperty({ description: "type of airdrop", enum: AirdropType })
     @IsEnum(AirdropType)

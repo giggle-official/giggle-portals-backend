@@ -755,6 +755,11 @@ export class UserRewards implements user_rewards {
     token: string
 
     @ApiProperty({
+        description: "The lock days of the order rewards",
+    })
+    lock_days: number
+
+    @ApiProperty({
         description: "The ticker of the order rewards",
     })
     ticker: string
