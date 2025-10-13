@@ -1617,6 +1617,8 @@ export class RewardPoolOnChainService {
                         continue
                     }
                     const buyAmount = new Decimal(record.number).div(10 ** 6)
+                    const orderAmount = new Decimal((buyback.request as any)?.amount || 0)
+                    const buybackPrice = orderAmount.div(buyAmount)
 
                     //check signature is exists
                     const signatureExists = await this.prisma.reward_pool_statement.findFirst({
@@ -1649,6 +1651,7 @@ export class RewardPoolOnChainService {
                                 token: buyback.token,
                                 type: reward_pool_type.buyback,
                                 amount: buyAmount,
+                                unit_price: buybackPrice,
                                 buyback_id: record.id,
                                 chain_transaction: {
                                     signature: record.sig,
