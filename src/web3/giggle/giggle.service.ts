@@ -724,6 +724,7 @@ export class GiggleService {
         }
 
         return {
+            ...response.data.data,
             status: response.data.data.status,
             sign: response.data.data.sign,
         }
