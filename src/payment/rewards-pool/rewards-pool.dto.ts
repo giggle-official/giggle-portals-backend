@@ -442,7 +442,7 @@ export class StatementQueryDto extends PaginationDto {
     @IsOptional()
     widget_tag?: string
 
-    @ApiProperty({ description: "type", required: false })
+    @ApiProperty({ description: "type", required: false, enum: StatementType })
     @IsOptional()
     type?: StatementType
 
