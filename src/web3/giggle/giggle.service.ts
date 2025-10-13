@@ -18,6 +18,7 @@ import {
     GetIpTokenListResponseDto,
     GetUploadTokenResponseDto,
     GiggleApiResponseDto,
+    HolderDto,
     PaymentCallbackDto,
     PaymentDto,
     PaymentResponseDto,
@@ -536,6 +537,21 @@ export class GiggleService {
         if (response.data.code !== 0) {
             this.logger.error("Failed to get wallet balance: " + JSON.stringify(response.data))
             throw new BadRequestException("Failed to get wallet balance: " + response.data.msg)
+        }
+        return response.data.data
+    }
+
+    async holder(params: HolderDto): Promise<any> {
+        const signatureParams = this.generateSignature(params)
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/holder", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+
+        if (response.data.code !== 0) {
+            this.logger.error("Failed to get holder: " + JSON.stringify(response.data))
+            throw new BadRequestException("Failed to get holder: " + response.data.msg)
         }
         return response.data.data
     }

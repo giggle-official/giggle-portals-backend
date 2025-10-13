@@ -31,6 +31,7 @@ import { AuthGuard } from "@nestjs/passport"
 import {
     GetIpTokenListQueryDto,
     GetIpTokenListResponseDto,
+    HolderDto,
     SendTokenDto,
     SendTokenResponseDto,
     TradeDto,
@@ -164,6 +165,17 @@ export class GiggleController {
     @ApiResponse({ type: String, status: 200, description: "USDC balance" })
     async usdcBalance(@Req() req: Request) {
         return this.giggleService.getUsdcBalance(req.user as UserJwtExtractDto)
+    }
+
+    @ApiTags("IP Tokens")
+    @Post("/holder")
+    @HttpCode(HttpStatus.OK)
+    @ApiBody({ type: HolderDto })
+    @ApiBearerAuth()
+    @ApiOperation({ summary: "Retrive token holder rank" })
+    @ApiResponse({ status: 200 })
+    async holder(@Body() body: HolderDto) {
+        return this.giggleService.holder(body)
     }
     /*
     @Post("/payment-callback")

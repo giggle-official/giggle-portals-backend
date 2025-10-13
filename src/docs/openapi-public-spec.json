@@ -583,6 +583,37 @@
         ]
       }
     },
+    "/api/v1/web3/giggle/holder": {
+      "post": {
+        "operationId": "GiggleController_holder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retrive token holder rank",
+        "tags": [
+          "Giggle",
+          "IP Tokens"
+        ]
+      }
+    },
     "/api/v1/web3/price/percentage-to-credits/{percentage}": {
       "get": {
         "description": "Convert a percentage to the need usdcs and expect purchased giggle tokens when launch ip token, percentage must be between 1 and 98",
@@ -6022,6 +6053,18 @@
         "required": [
           "status",
           "sign"
+        ]
+      },
+      "HolderDto": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string",
+            "description": "token mint address"
+          }
+        },
+        "required": [
+          "mint"
         ]
       },
       "PercentageToCreditsDTO": {

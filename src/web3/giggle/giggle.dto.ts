@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from "@nestjs/swagger"
 import { ip_type } from "@prisma/client"
-import { IsEnum, IsNumber, IsString, MinLength } from "class-validator"
+import { IsEnum, IsNotEmpty, IsNumber, IsString, MinLength } from "class-validator"
 import { EventDto, IpEvents } from "src/ip-library/ip-library.dto"
 
 export class UploadCoverImageResponseDto {
@@ -575,4 +575,13 @@ export type TopUpResponseDto = string
 export class SwapUsdcToSolResponseDto {
     signature: string
     solChange: string
+}
+
+export class HolderDto {
+    @ApiProperty({
+        description: "token mint address",
+    })
+    @IsNotEmpty()
+    @IsString()
+    mint: string
 }
