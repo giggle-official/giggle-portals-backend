@@ -116,6 +116,7 @@ export class RewardsPoolService {
                 data: {
                     token: body.token,
                     amount: body.amount,
+                    unit_price: new Prisma.Decimal(unitPrice),
                     type: "injected",
                     current_balance: body.amount,
                 },
