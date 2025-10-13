@@ -511,6 +511,9 @@ export class StatementResponseDto {
     @ApiProperty({ description: "date" })
     date: Date
 
+    @ApiProperty({ description: "unit price", type: "string" })
+    unit_price: Decimal
+
     @ApiProperty({ description: "usd revenue", type: "string" })
     usd_revenue: Decimal
 

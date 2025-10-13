@@ -786,6 +786,7 @@ ORDER BY d.date;`
             order_id: statement.related_order_id,
             widget_tag: statement.widget_tag || statement.order_info?.widget_tag,
             usd_revenue: statement.usd_revenue,
+            unit_price: statement.unit_price,
             rewarded_amount: statement.amount,
             balance: statement.current_balance,
             type: statement.type as StatementType,
