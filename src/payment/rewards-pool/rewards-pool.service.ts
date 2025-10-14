@@ -543,6 +543,13 @@ ORDER BY d.date;`
             where.created_at = { lte: new Date(query.end_date) }
         }
 
+        if (query.start_date && query.end_date) {
+            where.created_at = {
+                gte: new Date(query.start_date),
+                lte: new Date(query.end_date),
+            }
+        }
+
         if (query.type) {
             where.type = query.type
         }
