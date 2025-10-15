@@ -453,6 +453,9 @@ export class StatementQueryDto extends PaginationDto {
 
 export enum SupportedLockDays {
     IMMEDIATELY = 0,
+    ONE_MONTH = 30,
+    TWO_MONTHS = 60,
+    THREE_MONTHS = 90,
     SIX_MONTHS = 180,
 }
 
