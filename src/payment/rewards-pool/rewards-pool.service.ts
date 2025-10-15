@@ -703,7 +703,7 @@ ORDER BY d.date;`
                     rewards: amount,
                     token: body.token,
                     ticker: rewardsPools.ticker,
-                    lock_days: body.lock_days,
+                    lock_days: releaseDays,
                     released_per_day: releasePerDay,
                     start_allocate: currentDate,
                     end_allocate: releaseEndTime,
