@@ -2147,6 +2147,12 @@
             "in": "query",
             "description": "type",
             "schema": {
+              "enum": [
+                "released",
+                "injected",
+                "airdrop",
+                "buyback"
+              ],
               "type": "string"
             }
           },
@@ -7950,6 +7956,9 @@
             "default": 180,
             "enum": [
               0,
+              30,
+              60,
+              90,
               180
             ]
           },
@@ -7982,6 +7991,10 @@
             "format": "date-time",
             "type": "string",
             "description": "date"
+          },
+          "unit_price": {
+            "type": "string",
+            "description": "unit price"
           },
           "usd_revenue": {
             "type": "string",
@@ -8046,6 +8059,7 @@
         "required": [
           "id",
           "date",
+          "unit_price",
           "usd_revenue",
           "order_id",
           "widget_tag",

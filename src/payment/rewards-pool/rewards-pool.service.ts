@@ -666,7 +666,7 @@ ORDER BY d.date;`
             body.lock_days = SupportedLockDays.SIX_MONTHS
         }
 
-        const releaseDays = body.lock_days === SupportedLockDays.IMMEDIATELY ? 0 : 180
+        const releaseDays = body.lock_days === SupportedLockDays.IMMEDIATELY ? 0 : body.lock_days
         const currentDate = new Date(Date.now())
         let releaseEndTime = new Date(currentDate.getTime() + releaseDays * 24 * 60 * 60 * 1000) //180 days
         let releasePerDay = amount.div(releaseDays === 0 ? 1 : releaseDays)
