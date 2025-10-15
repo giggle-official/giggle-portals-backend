@@ -453,6 +453,7 @@ export class RewardPoolOnChainService {
             __authToken: this.authToken,
         }
 
+        this.logger.log(`AIRDROP STATEMENT TO CHAIN: ${JSON.stringify(requestParams)}`)
         const response: AxiosResponse<RpcResponseDto<AirdropResponseDto>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )

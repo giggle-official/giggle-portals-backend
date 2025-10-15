@@ -671,6 +671,14 @@ ORDER BY d.date;`
         let releaseEndTime = new Date(currentDate.getTime() + releaseDays * 24 * 60 * 60 * 1000)
         let releasePerDay = amount.div(releaseDays === 0 ? 1 : releaseDays)
 
+        const ipInfo = await this.prisma.ip_library.findFirst({
+            where: {
+                token_mint: body.token,
+            },
+        })
+
+        const unitPrice = new Decimal((ipInfo?.current_token_info as any)?.price || 0)
+
         const { statement, userRewards } = await this.prisma.$transaction(async (tx) => {
             const newPoolInfo = await tx.reward_pools.update({
                 where: { token: body.token },
@@ -687,6 +695,7 @@ ORDER BY d.date;`
                     amount: amount.mul(-1),
                     type: "airdrop",
                     widget_tag: user.developer_info.tag,
+                    unit_price: unitPrice,
                     airdrop_type: body.type,
                     current_balance: newPoolInfo.current_balance,
                 },
