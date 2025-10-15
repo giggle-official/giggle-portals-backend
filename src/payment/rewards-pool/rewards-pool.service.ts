@@ -668,7 +668,7 @@ ORDER BY d.date;`
 
         const releaseDays = body.lock_days === SupportedLockDays.IMMEDIATELY ? 0 : body.lock_days
         const currentDate = new Date(Date.now())
-        let releaseEndTime = new Date(currentDate.getTime() + releaseDays * 24 * 60 * 60 * 1000) //180 days
+        let releaseEndTime = new Date(currentDate.getTime() + releaseDays * 24 * 60 * 60 * 1000)
         let releasePerDay = amount.div(releaseDays === 0 ? 1 : releaseDays)
 
         const { statement, userRewards } = await this.prisma.$transaction(async (tx) => {
