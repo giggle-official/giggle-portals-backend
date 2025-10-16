@@ -791,7 +791,7 @@ export class WidgetsService {
             device_id: deviceId,
         }
         const eccess_token = this.jwtService.sign(userInfoForSign, {
-            expiresIn: "1d",
+            expiresIn: "7d",
         })
 
         //update the widget session
@@ -799,7 +799,7 @@ export class WidgetsService {
             where: { session_id: widgetSession.session_id },
             data: {
                 jwt_string: eccess_token,
-                expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
             },
         })
         return {
