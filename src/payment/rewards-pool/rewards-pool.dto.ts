@@ -16,7 +16,9 @@ import {
     IsPositive,
     IsString,
     Max,
+    MaxLength,
     Min,
+    MinLength,
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
@@ -442,6 +444,11 @@ export class StatementQueryDto extends PaginationDto {
     @IsOptional()
     widget_tag?: string
 
+    @ApiProperty({ description: "request id", required: false })
+    @IsString()
+    @IsOptional()
+    request_id?: string
+
     @ApiProperty({ description: "type", required: false, enum: StatementType })
     @IsOptional()
     type?: StatementType
@@ -500,6 +507,16 @@ export class RequestAirdropDto {
     @ApiProperty({ description: "type of airdrop", enum: AirdropType })
     @IsEnum(AirdropType)
     type: AirdropType
+
+    @ApiProperty({
+        description:
+            "request id to avoid duplicate airdrop, if not specified, we will generate an uuid, if you specify this, you must ensure the request id is unique",
+    })
+    @IsString()
+    @IsOptional()
+    @MinLength(1)
+    @MaxLength(64)
+    request_id?: string
 }
 
 export enum StatementStatus {
@@ -510,6 +527,9 @@ export enum StatementStatus {
 export class StatementResponseDto {
     @ApiProperty({ description: "id" })
     id: number
+
+    @ApiProperty({ description: "request id" })
+    request_id: string
 
     @ApiProperty({ description: "date" })
     date: Date

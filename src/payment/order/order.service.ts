@@ -1798,6 +1798,7 @@ export class OrderService {
                     amount: allocatedTokenAmount.mul(new Decimal(-1)),
                     usd_revenue: orderOriginalAmount,
                     unit_price: modelSnapshot.unit_price,
+                    request_id: uuidv4(),
                     related_order_id: orderRecord.order_id,
                     type: "released",
                     current_balance: newPoolInfo.current_balance,

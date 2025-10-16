@@ -1001,6 +1001,7 @@ model reward_pool_statement {
   unit_price         Decimal?          @db.Decimal(65, 12)
   amount             Decimal?          @db.Decimal(65, 6)
   related_order_id   String?           @db.VarChar(36)
+  request_id         String            @unique(map: "request_id") @db.VarChar(64)
   buyback_id         Int?
   type               reward_pool_type?
   chain_transaction  Json?

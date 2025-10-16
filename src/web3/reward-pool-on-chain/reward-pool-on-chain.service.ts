@@ -33,6 +33,7 @@ import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
 import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
 import { STATIC_TOKENS } from "src/common/static-tokens"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -1274,6 +1275,7 @@ export class RewardPoolOnChainService {
 
                         await tx.reward_pool_statement.create({
                             data: {
+                                request_id: uuidv4(),
                                 token: reward_pool.token,
                                 type: reward_pool_type.buyback,
                                 amount: buyAmount,
@@ -1654,6 +1656,7 @@ export class RewardPoolOnChainService {
                                 amount: buyAmount,
                                 unit_price: buybackPrice,
                                 buyback_id: record.id,
+                                request_id: uuidv4(),
                                 chain_transaction: {
                                     signature: record.sig,
                                 },

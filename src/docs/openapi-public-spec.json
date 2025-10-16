@@ -2142,6 +2142,15 @@
             }
           },
           {
+            "name": "request_id",
+            "required": false,
+            "in": "query",
+            "description": "request id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "type",
             "required": false,
             "in": "query",
@@ -7970,6 +7979,10 @@
               "interact",
               "other"
             ]
+          },
+          "request_id": {
+            "type": "string",
+            "description": "request id to avoid duplicate airdrop, if not specified, we will generate an uuid, if you specify this, you must ensure the request id is unique"
           }
         },
         "required": [
@@ -7977,7 +7990,8 @@
           "email",
           "usd_amount",
           "token_amount",
-          "type"
+          "type",
+          "request_id"
         ]
       },
       "AirdropResponseDto": {
@@ -7986,6 +8000,10 @@
           "id": {
             "type": "number",
             "description": "id"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "request id"
           },
           "date": {
             "format": "date-time",
@@ -8058,6 +8076,7 @@
         },
         "required": [
           "id",
+          "request_id",
           "date",
           "unit_price",
           "usd_revenue",

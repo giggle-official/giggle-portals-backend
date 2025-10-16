@@ -43,6 +43,7 @@ import { OrderService } from "src/payment/order/order.service"
 import { CreateIpTokenGiggleResponseDto } from "src/web3/giggle/giggle.dto"
 import { RewardPoolOnChainService } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.service"
 import { TransactionDto } from "src/web3/reward-pool-on-chain/reward-pool-on-chain.dto"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class RewardsPoolService {
@@ -115,6 +116,7 @@ export class RewardsPoolService {
             })
             await tx.reward_pool_statement.create({
                 data: {
+                    request_id: uuidv4(),
                     token: body.token,
                     amount: body.amount,
                     unit_price: new Prisma.Decimal(unitPrice),
@@ -225,6 +227,7 @@ export class RewardsPoolService {
             })
             await tx.reward_pool_statement.create({
                 data: {
+                    request_id: uuidv4(),
                     token: body.token,
                     amount: body.append_amount,
                     type: "injected",
@@ -564,6 +567,10 @@ ORDER BY d.date;`
             }
         }
 
+        if (query.request_id) {
+            where.request_id = query.request_id
+        }
+
         const statement = await this.prisma.reward_pool_statement.findMany({
             where,
             include: {
@@ -589,6 +596,22 @@ ORDER BY d.date;`
     }
 
     async airdrop(body: RequestAirdropDto, user: UserJwtExtractDto): Promise<AirdropResponseDto> {
+        if (body.request_id) {
+            const statement = await this.prisma.reward_pool_statement.findFirst({
+                where: {
+                    request_id: body.request_id,
+                },
+            })
+            if (statement) {
+                throw new BadRequestException("Request id already exists")
+            }
+        }
+
+        let requestId = uuidv4()
+        if (body.request_id) {
+            requestId = body.request_id
+        }
+
         if (body.usd_amount == 0 && body.token_amount == 0) {
             throw new BadRequestException(
                 "The amount of airdrop must be greater than 0 or token_amount must be greater than 0",
@@ -691,6 +714,7 @@ ORDER BY d.date;`
 
             const statement = await tx.reward_pool_statement.create({
                 data: {
+                    request_id: requestId,
                     token: body.token,
                     amount: amount.mul(-1),
                     type: "airdrop",
@@ -798,6 +822,7 @@ ORDER BY d.date;`
                 : null
         return {
             id: statement.id,
+            request_id: statement.request_id,
             date: statement.created_at,
             order_id: statement.related_order_id,
             widget_tag: statement.widget_tag || statement.order_info?.widget_tag,
