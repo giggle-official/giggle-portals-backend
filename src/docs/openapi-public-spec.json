@@ -7990,8 +7990,7 @@
           "email",
           "usd_amount",
           "token_amount",
-          "type",
-          "request_id"
+          "type"
         ]
       },
       "AirdropResponseDto": {

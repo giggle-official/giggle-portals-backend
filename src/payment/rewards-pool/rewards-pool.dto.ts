@@ -511,6 +511,7 @@ export class RequestAirdropDto {
     @ApiProperty({
         description:
             "request id to avoid duplicate airdrop, if not specified, we will generate an uuid, if you specify this, you must ensure the request id is unique",
+        required: false,
     })
     @IsString()
     @IsOptional()
