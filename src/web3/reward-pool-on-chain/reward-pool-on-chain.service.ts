@@ -1332,9 +1332,10 @@ export class RewardPoolOnChainService {
         >()
         for (const order of orders) {
             try {
+                const rewardsSnapshot = order.rewards_model_snapshot as any as RewardSnapshotDto
                 //skip if token is static and buyback disabled
                 const staticToken = STATIC_TOKENS.find(
-                    (token) => token.ip_id === order.ip_id && token.env === process.env.ENV,
+                    (staticToken) => rewardsSnapshot.token === staticToken.token && staticToken.env === process.env.ENV,
                 )
                 if (staticToken && !staticToken.new_info.enable_buyback) {
                     this.logger.log(
@@ -1343,12 +1344,12 @@ export class RewardPoolOnChainService {
                     continue
                 }
 
-                const rewardsSnapshot = order.rewards_model_snapshot as any as RewardSnapshotDto
                 const poolInfo = await this.prisma.reward_pools.findUnique({
                     where: {
                         token: rewardsSnapshot.token,
                     },
                 })
+
                 if (!poolInfo) {
                     this.logger.error(`[CreateBuyBackOrders]Reward pool not found: ${rewardsSnapshot.token}`)
                     continue
