@@ -110,6 +110,13 @@ export class IpDelegationDto {
         type: MarketMakerDto,
     })
     market_maker_info: MarketMakerDto
+
+    @ApiProperty({
+        description: "metadata of the delegation, this part will be passed to agent as extra data",
+        required: false,
+    })
+    metadata: Record<string, any>
+
     @ApiProperty({
         description: "Created at",
     })

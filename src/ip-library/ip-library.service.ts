@@ -973,6 +973,7 @@ export class IpLibraryService {
                     ip_id: body.ip_id,
                     status: ip_token_delegation_status.pending,
                     market_maker: null,
+                    metadata: body.metadata,
                 },
             })
             return {

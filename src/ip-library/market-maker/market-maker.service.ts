@@ -170,6 +170,7 @@ export class MarketMakerService {
                 id: ipDelegation.market_maker_info?.id,
                 nickname: ipDelegation.market_maker_info?.nickname,
             },
+            metadata: ipDelegation.metadata as Record<string, any>,
             created_at: ipDelegation.created_at,
             updated_at: ipDelegation.updated_at,
         }

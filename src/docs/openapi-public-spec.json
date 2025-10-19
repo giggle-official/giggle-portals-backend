@@ -11221,6 +11221,10 @@
           "ip_id": {
             "type": "number",
             "description": "ip id"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "metadata of the delegation, this part will be passed to agent as extra data"
           }
         },
         "required": [
@@ -11687,6 +11691,10 @@
                 "$ref": "#/components/schemas/MarketMakerDto"
               }
             ]
+          },
+          "metadata": {
+            "type": "object",
+            "description": "metadata of the delegation, this part will be passed to agent as extra data"
           },
           "created_at": {
             "format": "date-time",

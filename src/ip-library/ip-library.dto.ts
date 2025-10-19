@@ -1107,6 +1107,14 @@ export class DelegateIpTokenDto {
         description: "ip id",
     })
     ip_id: number
+
+    @IsOptional()
+    @IsObject()
+    @ApiProperty({
+        description: "metadata of the delegation, this part will be passed to agent as extra data",
+        required: false,
+    })
+    metadata?: Record<string, any>
 }
 
 export class DelegateIpTokenResponseDto {
