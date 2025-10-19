@@ -935,6 +935,7 @@ export class OrderService {
             role: reward.role as RewardAllocateRoles,
             expected_role: reward.expected_role as RewardAllocateRoles,
             note: reward.note,
+            remark: reward.remark,
             created_at: reward.created_at,
             updated_at: reward.updated_at,
             start_allocate: reward.start_allocate,
@@ -1604,7 +1605,7 @@ export class OrderService {
             const rewardUSDAmount = this._calculateUSDCRewards(reward, orderAmount.plus(platformRewards))
             const rewardType = reward.allocate_type as unknown as RewardAllocateType
 
-            const { user, address, expectedAllocateRole, actualAllocateRole, note } = await this.getUser(
+            const { user, address, expectedAllocateRole, actualAllocateRole, note, remark } = await this.getUser(
                 orderRecord,
                 reward,
                 rewardPool.owner,
@@ -1840,6 +1841,7 @@ export class OrderService {
         actualAllocateRole: RewardAllocateRoles
         expectedAllocateRole: RewardAllocateRoles
         note: string
+        remark: string
     }> {
         switch (allocateRatio.role) {
             case RewardAllocateRoles.BUYBACK:
@@ -1849,6 +1851,7 @@ export class OrderService {
                     expectedAllocateRole: RewardAllocateRoles.BUYBACK,
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "",
+                    remark: allocateRatio?.remark || "",
                 }
             case RewardAllocateRoles.IPHOLDER:
                 const user = await this.prisma.users.findUnique({
@@ -1862,6 +1865,7 @@ export class OrderService {
                     expectedAllocateRole: RewardAllocateRoles.IPHOLDER,
                     actualAllocateRole: RewardAllocateRoles.IPHOLDER,
                     note: "",
+                    remark: allocateRatio?.remark || "",
                 }
             /*
             case RewardAllocateRoles.INVITER:
@@ -2000,6 +2004,7 @@ export class OrderService {
                     expectedAllocateRole: RewardAllocateRoles.CUSTOMIZED,
                     actualAllocateRole: RewardAllocateRoles.CUSTOMIZED,
                     note: "",
+                    remark: allocateRatio?.remark || "",
                 }
             default:
                 return {
@@ -2008,6 +2013,7 @@ export class OrderService {
                     expectedAllocateRole: RewardAllocateRoles.BUYBACK,
                     actualAllocateRole: RewardAllocateRoles.BUYBACK,
                     note: "unknown role, reward to buyback wallet",
+                    remark: allocateRatio?.remark || "",
                 }
         }
     }

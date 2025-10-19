@@ -1056,6 +1056,7 @@ model user_rewards {
   withdraw_rewards  Decimal?               @db.Decimal(65, 6)
   allocate_snapshot Json?
   note              String?                @db.Text
+  remark            String?                @db.Text
   created_at        DateTime?              @default(now()) @db.Timestamp(0)
   updated_at        DateTime?              @default(now()) @db.Timestamp(0)
   order_info        orders?                @relation(fields: [order_id], references: [order_id])

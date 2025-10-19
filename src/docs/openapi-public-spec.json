@@ -7472,6 +7472,10 @@
             "type": "string",
             "description": "The note of the order rewards"
           },
+          "remark": {
+            "type": "string",
+            "description": "The remark of the order rewards, this value is specified by developer"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string",
@@ -7534,6 +7538,7 @@
           "start_allocate",
           "end_allocate",
           "note",
+          "remark",
           "created_at",
           "updated_at",
           "rewards",

@@ -805,6 +805,11 @@ export class UserRewards implements user_rewards {
     note: string
 
     @ApiProperty({
+        description: "The remark of the order rewards, this value is specified by developer",
+    })
+    remark: string
+
+    @ApiProperty({
         description: "The created at of the order rewards",
     })
     created_at: Date
