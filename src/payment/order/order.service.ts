@@ -1478,6 +1478,7 @@ export class OrderService {
                 is_cost: true,
                 cost_type: OrderCostType.PLATFORM,
                 cost_amount: platformRewards,
+                remark: "",
             })
 
             allocatedUSDCAmount = allocatedUSDCAmount.plus(platformRewards)
@@ -1537,6 +1538,7 @@ export class OrderService {
                     cost_type: cost.type as OrderCostType,
                     cost_amount: costAmount,
                     note: "",
+                    remark: "",
                 })
                 allocatedUSDCAmount = allocatedUSDCAmount.plus(costAmount)
                 orderAmount = orderAmount.minus(costAmount)
@@ -1592,6 +1594,7 @@ export class OrderService {
                 allocate_snapshot: modelSnapshot as any,
                 withdraw_rewards: 0,
                 note: creatorNote,
+                remark: "",
             })
         }
 
@@ -1650,6 +1653,7 @@ export class OrderService {
                             allocate_snapshot: modelSnapshot as any,
                             withdraw_rewards: 0,
                             note: `Allocated to ${user.username_in_be} ${reAllocation.percent}% of the ip holder revenue`,
+                            remark: remark,
                         })
                         usdcRewards = usdcRewards.minus(reAllocatedAmount)
                     }
@@ -1681,6 +1685,7 @@ export class OrderService {
                         allocate_snapshot: modelSnapshot as any,
                         withdraw_rewards: 0,
                         note: note,
+                        remark: remark,
                     })
                 }
             } else {
@@ -1719,6 +1724,7 @@ export class OrderService {
                         allocate_snapshot: modelSnapshot as any,
                         withdraw_rewards: 0,
                         note: tokenNote,
+                        remark: remark,
                     })
                     buybackNote = `We need to allocate ${rewardTokenAmount} ${modelSnapshot.ticker} to the ${expectedAllocateRole} in order to give the ${actualAllocateRole} the corresponding token rewards.`
                     allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
@@ -1743,6 +1749,7 @@ export class OrderService {
                     allocate_snapshot: modelSnapshot as any,
                     withdraw_rewards: 0,
                     note: buybackNote,
+                    remark: remark,
                 })
             }
             allocatedUSDCAmount = allocatedUSDCAmount.plus(rewardUSDAmount)
