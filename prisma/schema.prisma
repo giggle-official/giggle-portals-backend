@@ -832,25 +832,25 @@ model user_invited_record {
 }
 
 model orders {
-  id                             Int                     @id @default(autoincrement())
-  order_id                       String                  @unique(map: "order_id") @db.VarChar(36)
-  description                    String?                 @db.Text
+  id                             Int       @id @default(autoincrement())
+  order_id                       String    @unique(map: "order_id") @db.VarChar(36)
+  description                    String?   @db.Text
   amount                         Int?
-  item                           String?                 @db.VarChar(64)
-  owner                          String                  @db.VarChar(32)
-  sales_agent                    String?                 @db.VarChar(32)
+  item                           String?   @db.VarChar(64)
+  owner                          String    @db.VarChar(32)
+  sales_agent                    String?   @db.VarChar(32)
   ip_id                          Int?
-  phone_number                   String?                 @db.VarChar(32)
-  phone_national                 String?                 @db.VarChar(16)
-  from_source_link               String?                 @db.VarChar(32)
-  customer_ip                    String?                 @db.VarChar(32)
-  widget_tag                     String?                 @db.VarChar(32)
-  app_id                         String?                 @db.VarChar(32)
-  is_credit_top_up               Boolean?                @default(false)
-  current_status                 String?                 @db.VarChar(32)
-  free_credit_paid               Int?                    @default(0)
-  paid_method                    String?                 @db.VarChar(32)
-  stripe_invoice_id              String?                 @db.VarChar(32)
+  phone_number                   String?   @db.VarChar(32)
+  phone_national                 String?   @db.VarChar(16)
+  from_source_link               String?   @db.VarChar(32)
+  customer_ip                    String?   @db.VarChar(32)
+  widget_tag                     String?   @db.VarChar(32)
+  app_id                         String?   @db.VarChar(32)
+  is_credit_top_up               Boolean?  @default(false)
+  current_status                 String?   @db.VarChar(32)
+  free_credit_paid               Int?      @default(0)
+  paid_method                    String?   @db.VarChar(32)
+  stripe_invoice_id              String?   @db.VarChar(32)
   stripe_invoice_detail          Json?
   payment_asia_callback          Json?
   wallet_paid_detail             Json?
@@ -858,31 +858,33 @@ model orders {
   rewards_model_snapshot         Json?
   costs_allocation               Json?
   ip_holder_revenue_reallocation Json?
-  release_rewards_after_paid     Boolean?                @default(false)
-  buyback_after_paid             Boolean?                @default(false)
+  release_rewards_after_paid     Boolean?  @default(false)
+  buyback_after_paid             Boolean?  @default(false)
   buyback_result                 Json?
-  buyback_order_id               String?                 @db.VarChar(255)
-  buyback_fee_transferred        Boolean?                @default(false)
+  buyback_order_id               String?   @db.VarChar(255)
+  buyback_fee_transferred        Boolean?  @default(false)
   supported_payment_method       Json?
-  callback_url                   String?                 @db.VarChar(1024)
-  redirect_url                   String?                 @db.VarChar(4096)
+  callback_url                   String?   @db.VarChar(1024)
+  redirect_url                   String?   @db.VarChar(4096)
   credit_paid_amount             Int?
-  paid_time                      DateTime?               @db.DateTime(0)
-  cancelled_time                 DateTime?               @db.DateTime(0)
-  expire_time                    DateTime?               @db.DateTime(0)
+  paid_time                      DateTime? @db.DateTime(0)
+  cancelled_time                 DateTime? @db.DateTime(0)
+  expire_time                    DateTime? @db.DateTime(0)
   cancelled_detail               Json?
-  created_at                     DateTime?               @default(now()) @db.Timestamp(0)
-  updated_at                     DateTime?               @default(now()) @db.Timestamp(0)
-  refund_time                    DateTime?               @db.DateTime(0)
-  refund_status                  String?                 @db.VarChar(32)
+  refunded_amount                Int?      @default(0)
+  refund_time                    DateTime? @db.DateTime(0)
+  refund_status                  String?   @db.VarChar(32)
   refund_error                   Json?
   refund_detail                  Json?
-  third_level_ip_orders          third_level_ip_orders[]
-  reward_pool_statement          reward_pool_statement[]
-  user_rewards                   user_rewards[]
-  credit_statements              credit_statements[]
-  sales_agent_revenue            sales_agent_revenue[]
-  user_info                      users?                  @relation(fields: [owner], references: [username_in_be])
+  created_at                     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at                     DateTime? @default(now()) @db.Timestamp(0)
+
+  third_level_ip_orders third_level_ip_orders[]
+  reward_pool_statement reward_pool_statement[]
+  user_rewards          user_rewards[]
+  credit_statements     credit_statements[]
+  sales_agent_revenue   sales_agent_revenue[]
+  user_info             users?                  @relation(fields: [owner], references: [username_in_be])
 }
 
 model order_callback_record {
