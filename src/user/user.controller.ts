@@ -51,6 +51,7 @@ import {
     InvitationsDetailDto,
     InvitationsQueryDto,
     GetInviteCodeDto,
+    UserWalletDetailOnchainQueryDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -415,6 +416,20 @@ export class UserController {
             parseInt(query.page_size),
             query.mint,
         )
+    }
+
+    @Get("/web3-wallet-onchain")
+    @ApiTags("User Wallet")
+    @ApiOperation({
+        summary: "Get user web3 wallet info on chain",
+        description:
+            "Get user web3 wallet on chain, this will return all token info of users wallet (include not launched by our platform) and their balance",
+    })
+    @UseGuards(AuthGuard("jwt"))
+    @ApiBearerAuth()
+    @HttpCode(HttpStatus.OK)
+    async walletDetailOnChain(@Req() req: Request, @Query() query: UserWalletDetailOnchainQueryDto) {
+        return this.userService.getUserWalletDetailonChain(req.user as UserJwtExtractDto, query.mint)
     }
 
     /*

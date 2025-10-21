@@ -76,6 +76,16 @@ export class UserWalletDetailQueryDto extends PaginationDto {
     mint?: string
 }
 
+export class UserWalletDetailOnchainQueryDto {
+    @ApiProperty({
+        description: "mint address of token to query",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    mint?: string
+}
+
 export class UserTokenRewardsQueryDto extends PaginationDto {
     @ApiProperty({
         description: "The token to query",

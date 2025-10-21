@@ -409,6 +409,15 @@ export class UserService {
         }
     }
 
+    //get user wallet detail
+    async getUserWalletDetailonChain(userInfo: UserJwtExtractDto, mint?: string) {
+        const userProfile = await this.getProfile(userInfo)
+        if (!userProfile.email) {
+            throw new BadRequestException("user email not found")
+        }
+        return await this.giggleService.getWalletBalance(userInfo.wallet_address, mint)
+    }
+
     //follow
     async follow(userInfo: UserJwtExtractDto, user: string) {
         if (userInfo.usernameShorted === user) {
