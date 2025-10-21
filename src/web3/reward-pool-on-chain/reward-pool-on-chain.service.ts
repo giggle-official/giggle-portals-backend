@@ -674,10 +674,22 @@ export class RewardPoolOnChainService {
         }
 
         //append on_chain_try_count
-        await this.prisma.user_rewards_withdraw.update({
+        const updatedWithdrawToken = await this.prisma.user_rewards_withdraw.update({
             where: { id: withdrawToken.id },
             data: { on_chain_try_count: withdrawToken.on_chain_try_count + 1 },
         })
+
+        //update status to faild if exceed max on chain try count
+        if (updatedWithdrawToken.on_chain_try_count > this.maxOnChainTryCount) {
+            this.logger.error(
+                `withdrawn request: ${updatedWithdrawToken.id} exceeds max on chain try count, set it to failed`,
+            )
+            await this.prisma.user_rewards_withdraw.update({
+                where: { id: withdrawToken.id },
+                data: { status: "failed" },
+            })
+            return
+        }
 
         const userBalance = await this.retrieveUserTokenBalance(
             withdrawToken.token,
