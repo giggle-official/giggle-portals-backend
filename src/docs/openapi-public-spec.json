@@ -7205,6 +7205,7 @@
                 "stripe",
                 "wallet",
                 "wechat",
+                "alipay",
                 "credit"
               ]
             }

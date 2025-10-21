@@ -22,6 +22,12 @@ export class TopUpDto {
     callback_url?: string
 }
 
+export class PayTopUpOrderDto extends TopUpDto {
+    @IsEmail()
+    @IsNotEmpty()
+    email: string
+}
+
 export class GetStatementQueryDto extends PaginationDto {
     @ApiProperty({
         description: "filter by type",

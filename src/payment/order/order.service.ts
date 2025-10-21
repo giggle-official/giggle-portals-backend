@@ -479,6 +479,10 @@ export class OrderService {
             throw new BadRequestException("Order not found")
         }
 
+        if (orderRecord.is_credit_top_up) {
+            throw new BadRequestException("Credit top up order can not be refunded")
+        }
+
         if (
             orderRecord.current_status !== OrderStatus.COMPLETED &&
             orderRecord.current_status !== OrderStatus.PARTIAL_REFUNDED

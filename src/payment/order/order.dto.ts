@@ -39,6 +39,7 @@ export enum PaymentMethod {
     STRIPE = "stripe",
     WALLET = "wallet",
     WECHAT = "wechat",
+    ALIPAY = "alipay",
     CREDIT = "credit",
 }
 

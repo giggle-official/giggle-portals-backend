@@ -392,6 +392,14 @@ export class CreditService {
         return await this.getUserCredits(issuedFreeCredit.username_in_be)
     }
 
+    async payTopUpOrder(body: TopUpDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        //todo..
+        return await this.orderService.createOrder(body, userInfo, {
+            related_to_reward_pool: false,
+            is_credit_top_up: true,
+        })
+    }
+
     //expire free credit everyday
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     //@Cron(CronExpression.EVERY_MINUTE) //test
