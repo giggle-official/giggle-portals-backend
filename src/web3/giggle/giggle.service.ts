@@ -1126,9 +1126,9 @@ export class GiggleService {
         if (staticIps.length > 0) {
             for (const token of staticTokens) {
                 //update static tokens
-                await this.prismaService.ip_library.updateMany({
+                await this.prismaService.ip_library.update({
                     where: {
-                        id: { in: staticIps },
+                        id: token.ip_id,
                     },
                     data: {
                         token_mint: token.new_info.token_info.mint,

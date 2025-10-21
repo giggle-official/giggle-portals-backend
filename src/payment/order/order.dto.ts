@@ -28,6 +28,7 @@ import { Type } from "class-transformer"
 export enum OrderStatus {
     PENDING = "pending",
     REFUNDING = "refunding",
+    PARTIAL_REFUNDED = "partial_refunded",
     REFUNDED = "refunded",
     COMPLETED = "completed",
     CANCELLED = "cancelled",
@@ -39,6 +40,23 @@ export enum PaymentMethod {
     WALLET = "wallet",
     WECHAT = "wechat",
     CREDIT = "credit",
+}
+
+export class OrderRefundedDetailDto {
+    @ApiProperty({
+        description: "The amount of the refunded credit",
+    })
+    amount: number
+
+    @ApiProperty({
+        description: "The order amount after refund",
+    })
+    order_amount_after_refund: number
+
+    @ApiProperty({
+        description: "The refunded time",
+    })
+    refunded_time: Date
 }
 
 export class OrderDto implements orders {
@@ -247,6 +265,11 @@ export class OrderDto implements orders {
     credit_paid_amount: number
 
     @ApiProperty({
+        description: "The refunded amount of the order",
+    })
+    refunded_amount: number
+
+    @ApiProperty({
         description: "The refund time of the order",
     })
     refund_time: Date
@@ -313,6 +336,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "buyback_result",
     "buyback_order_id",
     "buyback_fee_transferred",
+    "refund_detail",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",
@@ -357,6 +381,12 @@ export class OrderDetailDto extends OmitType(OrderDto, [
         type: () => EstimatedRewardsDto,
     })
     estimated_rewards: EstimatedRewardsDto
+
+    @ApiProperty({
+        description: "The refund detail of the order",
+        type: () => [OrderRefundedDetailDto],
+    })
+    refund_detail: OrderRefundedDetailDto[]
 }
 
 export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) {}
@@ -614,6 +644,16 @@ export class RefundOrderDto {
         description: "The order id",
     })
     order_id: string
+
+    @ApiProperty({
+        description:
+            "The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01)",
+        required: false,
+    })
+    @IsInt()
+    @IsOptional()
+    @Min(1)
+    refund_amount?: number
 }
 
 export class PayWithPaymentAsiaRequestDto {

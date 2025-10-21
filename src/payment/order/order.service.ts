@@ -19,6 +19,7 @@ import {
     OrderDetailDto,
     OrderListDto,
     OrderListQueryDto,
+    OrderRefundedDetailDto,
     OrderRewardsDto,
     OrderStatus,
     PaymentMethod,
@@ -466,8 +467,8 @@ export class OrderService {
         return await this.mapOrderDetail(newOrder)
     }
 
-    async refundOrder(order: RefundOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
-        const orderId = order.order_id
+    async refundOrder(dto: RefundOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const orderId = dto.order_id
         const orderRecord = await this.prisma.orders.findUnique({
             where: {
                 order_id: orderId,
@@ -478,7 +479,10 @@ export class OrderService {
             throw new BadRequestException("Order not found")
         }
 
-        if (orderRecord.current_status !== OrderStatus.COMPLETED) {
+        if (
+            orderRecord.current_status !== OrderStatus.COMPLETED &&
+            orderRecord.current_status !== OrderStatus.PARTIAL_REFUNDED
+        ) {
             throw new BadRequestException("This order can not be refunded")
         }
 
@@ -487,26 +491,55 @@ export class OrderService {
             throw new BadRequestException("Order is no longer refundable after paid 10 days")
         }
 
+        let refundAmount = dto.refund_amount ? dto.refund_amount : orderRecord.amount - orderRecord.refunded_amount
+        const canRefundedAmount = orderRecord.amount - orderRecord.refunded_amount
+        if (refundAmount > canRefundedAmount) {
+            throw new BadRequestException("Refund amount is greater than can refunded amount")
+        }
+
         switch (orderRecord.paid_method) {
             case PaymentMethod.CREDIT:
-                return await this.refundCreditOrder(orderRecord, userInfo)
+                return await this.refundCreditOrder(orderRecord, refundAmount, userInfo)
             //todo: support more payment methods
             default:
                 throw new BadRequestException("Currently we only support refund with credit")
         }
     }
 
-    async refundCreditOrder(order: orders, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+    async refundCreditOrder(order: orders, refundAmount: number, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const orderRefunded = await this.prisma.$transaction(async (tx) => {
-            await this.creditService.refundCredit(order.credit_paid_amount, order.order_id, userInfo, tx)
-            return await tx.orders.update({
-                where: { id: order.id },
+            await this.creditService.refundCredit(refundAmount, order.order_id, userInfo, tx)
+            let refundedDetail = ((order.refund_detail as any) || []) as OrderRefundedDetailDto[]
+
+            refundedDetail.push({
+                amount: refundAmount,
+                order_amount_after_refund: order.amount - (order.refunded_amount || 0) - refundAmount,
+                refunded_time: new Date(),
+            })
+
+            let updated = await tx.orders.update({
+                where: { order_id: order.order_id },
                 data: {
-                    current_status: OrderStatus.REFUNDED,
+                    refunded_amount: {
+                        increment: refundAmount,
+                    },
+                    current_status: OrderStatus.PARTIAL_REFUNDED,
                     refund_time: new Date(),
                     refund_status: "success",
+                    refund_detail: refundedDetail as any,
                 },
             })
+            if (updated.refunded_amount > order.amount) {
+                throw new BadRequestException("Refund amount is greater than order amount")
+            } else if (updated.refunded_amount === order.amount) {
+                updated = await tx.orders.update({
+                    where: { order_id: order.order_id },
+                    data: {
+                        current_status: OrderStatus.REFUNDED,
+                    },
+                })
+            }
+            return updated
         })
         return await this.mapOrderDetail(orderRefunded)
     }
@@ -553,10 +586,11 @@ export class OrderService {
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
             current_reward_pool_detail: current_reward_pool_detail,
             credit_paid_amount: data.credit_paid_amount,
+            refunded_amount: data.refunded_amount,
             refund_time: data.refund_time,
             refund_status: data.refund_status,
             refund_error: data.refund_error,
-            refund_detail: data.refund_detail,
+            refund_detail: data.refund_detail as any as OrderRefundedDetailDto[],
             estimated_rewards: {
                 base_rewards: 0,
                 bonus_rewards: 0,

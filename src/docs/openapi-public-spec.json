@@ -126,6 +126,38 @@
         ]
       }
     },
+    "/api/v1/user/web3-wallet-onchain": {
+      "get": {
+        "description": "Get user web3 wallet on chain, this will return all token info of users wallet (include not launched by our platform) and their balance",
+        "operationId": "UserController_walletDetailOnChain",
+        "parameters": [
+          {
+            "name": "mint",
+            "required": false,
+            "in": "query",
+            "description": "mint address of token to query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user web3 wallet info on chain",
+        "tags": [
+          "User",
+          "User Wallet"
+        ]
+      }
+    },
     "/api/v1/user/update": {
       "post": {
         "description": "update username and description",
@@ -6901,6 +6933,29 @@
           "limit_offer"
         ]
       },
+      "OrderRefundedDetailDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount of the refunded credit"
+          },
+          "order_amount_after_refund": {
+            "type": "number",
+            "description": "The order amount after refund"
+          },
+          "refunded_time": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The refunded time"
+          }
+        },
+        "required": [
+          "amount",
+          "order_amount_after_refund",
+          "refunded_time"
+        ]
+      },
       "OrderDetailDto": {
         "type": "object",
         "properties": {
@@ -7012,6 +7067,10 @@
             "type": "number",
             "description": "The credit paid amount of the order"
           },
+          "refunded_amount": {
+            "type": "number",
+            "description": "The refunded amount of the order"
+          },
           "refund_time": {
             "format": "date-time",
             "type": "string",
@@ -7024,10 +7083,6 @@
           "refund_error": {
             "type": "object",
             "description": "The refund error of the order"
-          },
-          "refund_detail": {
-            "type": "object",
-            "description": "The refund detail of the order"
           },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
@@ -7078,6 +7133,13 @@
                 "$ref": "#/components/schemas/EstimatedRewardsDto"
               }
             ]
+          },
+          "refund_detail": {
+            "description": "The refund detail of the order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderRefundedDetailDto"
+            }
           }
         },
         "required": [
@@ -7102,14 +7164,15 @@
           "updated_at",
           "from_source_link",
           "credit_paid_amount",
+          "refunded_amount",
           "refund_time",
           "refund_status",
           "refund_error",
-          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
           "order_url",
-          "estimated_rewards"
+          "estimated_rewards",
+          "refund_detail"
         ]
       },
       "DeveloperSpecifiedRewardSnapshotDto": {
@@ -7316,6 +7379,10 @@
             "type": "number",
             "description": "The credit paid amount of the order"
           },
+          "refunded_amount": {
+            "type": "number",
+            "description": "The refunded amount of the order"
+          },
           "refund_time": {
             "format": "date-time",
             "type": "string",
@@ -7328,10 +7395,6 @@
           "refund_error": {
             "type": "object",
             "description": "The refund error of the order"
-          },
-          "refund_detail": {
-            "type": "object",
-            "description": "The refund detail of the order"
           },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
@@ -7378,6 +7441,13 @@
                 "$ref": "#/components/schemas/EstimatedRewardsDto"
               }
             ]
+          },
+          "refund_detail": {
+            "description": "The refund detail of the order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderRefundedDetailDto"
+            }
           }
         },
         "required": [
@@ -7400,13 +7470,14 @@
           "updated_at",
           "from_source_link",
           "credit_paid_amount",
+          "refunded_amount",
           "refund_time",
           "refund_status",
           "refund_error",
-          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
-          "estimated_rewards"
+          "estimated_rewards",
+          "refund_detail"
         ]
       },
       "ReleaseRewardsDto": {
@@ -7690,6 +7761,10 @@
             "type": "number",
             "description": "The credit paid amount of the order"
           },
+          "refunded_amount": {
+            "type": "number",
+            "description": "The refunded amount of the order"
+          },
           "refund_time": {
             "format": "date-time",
             "type": "string",
@@ -7702,10 +7777,6 @@
           "refund_error": {
             "type": "object",
             "description": "The refund error of the order"
-          },
-          "refund_detail": {
-            "type": "object",
-            "description": "The refund detail of the order"
           },
           "rewards_model_snapshot": {
             "description": "The rewards model snapshot of the order",
@@ -7757,6 +7828,13 @@
               }
             ]
           },
+          "refund_detail": {
+            "description": "The refund detail of the order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderRefundedDetailDto"
+            }
+          },
           "jwt_verify": {
             "type": "string",
             "description": "The jwt verify of the order"
@@ -7784,14 +7862,15 @@
           "updated_at",
           "from_source_link",
           "credit_paid_amount",
+          "refunded_amount",
           "refund_time",
           "refund_status",
           "refund_error",
-          "refund_detail",
           "rewards_model_snapshot",
           "current_reward_pool_detail",
           "order_url",
           "estimated_rewards",
+          "refund_detail",
           "jwt_verify"
         ]
       },
@@ -7801,6 +7880,10 @@
           "order_id": {
             "type": "string",
             "description": "The order id"
+          },
+          "refund_amount": {
+            "type": "number",
+            "description": "The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01)"
           }
         },
         "required": [

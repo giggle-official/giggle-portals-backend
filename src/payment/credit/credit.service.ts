@@ -13,6 +13,7 @@ import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
 import { credit_statement_type, orders, Prisma } from "@prisma/client"
 import { Cron, CronExpression } from "@nestjs/schedule"
+import { record } from "zod"
 
 @Injectable()
 export class CreditService {
