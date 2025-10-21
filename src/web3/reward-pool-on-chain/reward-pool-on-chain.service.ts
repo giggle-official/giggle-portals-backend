@@ -389,7 +389,7 @@ export class RewardPoolOnChainService {
 
     //withdraw token to wallet
     async withdrawTokenToWallet(dto: WithdrawTokenToWalletDto, user_email: string): Promise<TransactionDto[]> {
-        const func = "/ClaimCreateFiVesting"
+        const func = "/ClaimCreateFiVestingNew"
         const requestParams = {
             user: dto.user_wallet,
             createFiToken: dto.token,
