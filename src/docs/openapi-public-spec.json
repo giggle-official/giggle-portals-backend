@@ -126,6 +126,38 @@
         ]
       }
     },
+    "/api/v1/user/web3-wallet-onchain": {
+      "get": {
+        "description": "Get user web3 wallet on chain, this will return all token info of users wallet (include not launched by our platform) and their balance",
+        "operationId": "UserController_walletDetailOnChain",
+        "parameters": [
+          {
+            "name": "mint",
+            "required": false,
+            "in": "query",
+            "description": "mint address of token to query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user web3 wallet info on chain",
+        "tags": [
+          "User",
+          "User Wallet"
+        ]
+      }
+    },
     "/api/v1/user/update": {
       "post": {
         "description": "update username and description",
