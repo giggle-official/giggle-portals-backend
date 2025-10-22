@@ -7198,6 +7198,10 @@
       "CreateOrderDto": {
         "type": "object",
         "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "The order id, if provided, this parameter is use for avoid duplicate order,if not provided, a new order id will be generated."
+          },
           "amount": {
             "type": "number",
             "description": "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)"
@@ -7238,7 +7242,8 @@
                 "wallet",
                 "wechat",
                 "alipay",
-                "credit"
+                "credit",
+                "customized"
               ]
             }
           },
@@ -7274,6 +7279,7 @@
           }
         },
         "required": [
+          "order_id",
           "amount"
         ]
       },
@@ -10226,7 +10232,7 @@
           },
           "app_id": {
             "type": "string",
-            "description": "email"
+            "description": "app_id"
           }
         },
         "required": [

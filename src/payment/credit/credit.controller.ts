@@ -4,6 +4,7 @@ import {
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
+    PayTopUpOrderDto,
     TopUpDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
@@ -70,10 +71,10 @@ export class CreditController {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
     }
 
-    @Post("/pay-top-up-order")
+    @Post("/issue-credit")
     @ApiExcludeEndpoint()
     @UseGuards(IsWidgetGuard)
-    async payTopUpOrder(@Body() body: TopUpDto, @Req() req: Request) {
-        return this.creditService.payTopUpOrder(body, req.user as UserJwtExtractDto)
+    async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
+        return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
     }
 }

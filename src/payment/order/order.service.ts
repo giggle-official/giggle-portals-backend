@@ -77,6 +77,7 @@ export class OrderService {
         PaymentMethod.WALLET,
         //PaymentMethod.WECHAT,
         PaymentMethod.CREDIT,
+        PaymentMethod.CUSTOMIZED,
     ]
 
     constructor(
@@ -113,11 +114,23 @@ export class OrderService {
         let userProfile: UserInfoDTO = null
         let appId = ""
         let widgetTag = ""
-        const orderId = uuidv4()
         let relatedRewardId = null
         let rewardsModelSnapshot = null
+        let orderId = uuidv4()
 
         const isDeveloperRequester = requester.developer_info ? true : false
+
+        if (order.order_id) {
+            const existingOrder = await this.prisma.orders.findUnique({
+                where: {
+                    order_id: order.order_id,
+                },
+            })
+            if (existingOrder) {
+                throw new BadRequestException("Order already exists")
+            }
+            orderId = order.order_id
+        }
 
         if (isDeveloperRequester) {
             if (!order.user_jwt) {
