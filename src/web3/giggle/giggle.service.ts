@@ -1066,7 +1066,7 @@ export class GiggleService {
     async getTokenPrice(mint: string): Promise<Decimal> {
         //find if token is a static token
         const staticTokens = STATIC_TOKENS.filter((token) => token.env === process.env.ENV)
-        const staticToken = staticTokens.find((token) => token.new_info.token_info === mint)
+        const staticToken = staticTokens.find((token) => token.new_info.token_info?.mint === mint)
 
         if (staticToken) {
             return new Decimal(staticToken.new_info.token_info.price)
