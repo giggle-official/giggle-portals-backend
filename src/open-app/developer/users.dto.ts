@@ -12,7 +12,7 @@ export class GetUserTokenDto {
     @IsEmail()
     email?: string
 
-    @ApiProperty({ description: "email" })
+    @ApiProperty({ description: "app_id" })
     @IsString()
     app_id: string
 }

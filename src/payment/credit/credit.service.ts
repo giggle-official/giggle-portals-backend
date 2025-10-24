@@ -1,10 +1,11 @@
 import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { UserJwtExtractDto } from "src/user/user.controller"
+import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import {
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
+    PayTopUpOrderDto,
     TopUpDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
@@ -13,7 +14,7 @@ import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
 import { credit_statement_type, orders, Prisma } from "@prisma/client"
 import { Cron, CronExpression } from "@nestjs/schedule"
-import { record } from "zod"
+import * as crypto from "crypto"
 
 @Injectable()
 export class CreditService {
@@ -390,6 +391,69 @@ export class CreditService {
         })
 
         return await this.getUserCredits(issuedFreeCredit.username_in_be)
+    }
+
+    async payTopUpOrder(body: PayTopUpOrderDto, developer: UserJwtExtractDto): Promise<{ success: boolean }> {
+        const widgetTag = developer.developer_info.tag
+        const widget = await this.prisma.widgets.findUnique({
+            where: { tag: widgetTag },
+        })
+        if (!widget) throw new BadRequestException("Widget not found")
+        const permissions: any = widget.request_permissions
+        if (!permissions?.can_issue_token) {
+            throw new BadRequestException("Widget does not have permission to issue token")
+        }
+
+        const userEmail = body.email
+        let userProfile: UserJwtExtractDto = await this.userService.getUserInfoByEmail(userEmail)
+        //we need create user if user not exists
+        if (!userProfile) {
+            const userNameShorted = this.userService.generateShortName()
+            const username = userEmail.split("@")[0]
+            const newUserInfo: CreateUserDto = {
+                user_id: userNameShorted,
+                username: username,
+                password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
+                email: userEmail,
+                usernameShorted: userNameShorted,
+                app_id: "",
+                from_source_link: "",
+                from_device_id: "",
+                can_create_ip: false,
+                invited_by: "",
+            }
+            userProfile = await this.userService.createUser(newUserInfo)
+        }
+
+        const order = await this.orderService.createOrder(
+            {
+                order_id: body.order_id,
+                amount: body.amount,
+                description: `Top up ${body.amount} credits`,
+                callback_url: body.callback_url,
+                release_rewards_after_paid: false,
+                user_jwt: body.user_jwt,
+                allowed_payment_methods: [PaymentMethod.CUSTOMIZED],
+            },
+            developer,
+            {
+                related_to_reward_pool: false,
+                is_credit_top_up: true,
+            },
+        )
+
+        const paidOrder = await this.prisma.orders.update({
+            where: { order_id: order.order_id },
+            data: {
+                current_status: OrderStatus.COMPLETED,
+                paid_method: PaymentMethod.CUSTOMIZED,
+                paid_time: new Date(),
+            },
+        })
+
+        await this.issueCredit(paidOrder)
+
+        return { success: true }
     }
 
     //expire free credit everyday

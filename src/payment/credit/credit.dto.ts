@@ -1,4 +1,16 @@
-import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from "class-validator"
+import {
+    IsEmail,
+    IsEnum,
+    IsInt,
+    IsJWT,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    IsUUID,
+    Max,
+    Min,
+} from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { credit_statement_type, credit_statements } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
@@ -20,6 +32,20 @@ export class TopUpDto {
     @IsString()
     @IsOptional()
     callback_url?: string
+}
+
+export class PayTopUpOrderDto extends TopUpDto {
+    @IsUUID()
+    @IsNotEmpty()
+    order_id: string
+
+    @IsJWT()
+    @IsNotEmpty()
+    user_jwt: string
+
+    @IsEmail()
+    @IsNotEmpty()
+    email: string
 }
 
 export class GetStatementQueryDto extends PaginationDto {

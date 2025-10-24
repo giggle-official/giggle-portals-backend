@@ -4,6 +4,7 @@ import {
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
+    PayTopUpOrderDto,
     TopUpDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
@@ -11,7 +12,7 @@ import { Request } from "express"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { OrderDetailDto } from "../order/order.dto"
 import { AuthGuard } from "@nestjs/passport"
-import { ApiOperation, ApiResponse, ApiBody, ApiTags } from "@nestjs/swagger"
+import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
 
 @Controller("/api/v1/credit")
@@ -68,5 +69,12 @@ export class CreditController {
     @UseGuards(IsWidgetGuard)
     async issueFreeCredit(@Body() body: IssueFreeCreditDto, @Req() req: Request) {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/issue-credit")
+    @ApiExcludeEndpoint()
+    @UseGuards(IsWidgetGuard)
+    async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
+        return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
     }
 }

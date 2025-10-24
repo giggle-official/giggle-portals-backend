@@ -8,6 +8,7 @@ import {
     IsNotEmpty,
     IsOptional,
     IsString,
+    IsUUID,
     Matches,
     Max,
     MaxLength,
@@ -39,7 +40,9 @@ export enum PaymentMethod {
     STRIPE = "stripe",
     WALLET = "wallet",
     WECHAT = "wechat",
+    ALIPAY = "alipay",
     CREDIT = "credit",
+    CUSTOMIZED = "customized",
 }
 
 export class OrderRefundedDetailDto {
@@ -476,6 +479,14 @@ export class OrderCostsAllocationDto {
 }
 
 export class CreateOrderDto {
+    @ApiProperty({
+        description:
+            "The order id, if provided, this parameter is use for avoid duplicate order,if not provided, a new order id will be generated.",
+    })
+    @IsUUID()
+    @IsOptional()
+    order_id?: string
+
     @ApiProperty({
         description: "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)",
     })
