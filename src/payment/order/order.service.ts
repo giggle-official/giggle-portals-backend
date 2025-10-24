@@ -1381,25 +1381,7 @@ export class OrderService {
             throw new BadRequestException("Reward pool not found")
         }
 
-        //get newest unit price
-        const unitPriceResponse = await this.giggleService.getIpTokenList({
-            mint: modelSnapshot.token,
-            page: "1",
-            page_size: "1",
-            site: "3body",
-        })
-
-        if (
-            !unitPriceResponse ||
-            !unitPriceResponse.data ||
-            !unitPriceResponse.data.length ||
-            !unitPriceResponse.data?.[0]?.price
-        ) {
-            this.logger.error(`Unit price not found for order ${order_id}`)
-            throw new BadRequestException("Unit price not found")
-        }
-
-        return await this.releaseRewards(order, new Decimal(unitPriceResponse.data[0].price))
+        return await this.releaseRewards(order, await this.giggleService.getTokenPrice(modelSnapshot.token))
     }
 
     async releaseRewards(order: ReleaseRewardsDto, unitPrice: Decimal = null): Promise<OrderRewardsDto[]> {
@@ -1444,24 +1426,12 @@ export class OrderService {
         const releaseEndTime = new Date(currentDate.getTime() + 180 * 24 * 60 * 60 * 1000) //180 days
 
         if (!unitPrice) {
-            //get newest unit price
-            const unitPriceResponse = await this.giggleService.getIpTokenList({
-                mint: modelSnapshot.token,
-                page: "1",
-                page_size: "1",
-                site: "3body",
-            })
-
-            if (
-                !unitPriceResponse ||
-                !unitPriceResponse.data ||
-                !unitPriceResponse.data.length ||
-                !unitPriceResponse.data?.[0]?.price
-            ) {
-                this.logger.error(`Unit price not found for order ${order_id}`)
+            try {
+                unitPrice = await this.giggleService.getTokenPrice(modelSnapshot.token)
+            } catch {
+                this.logger.error(`get token price failed for order ${order_id}, token: ${modelSnapshot.token}`)
                 return []
             }
-            unitPrice = new Decimal(unitPriceResponse.data[0].price)
         }
 
         let freeCreditAmount = new Decimal(orderRecord.free_credit_paid || 0)

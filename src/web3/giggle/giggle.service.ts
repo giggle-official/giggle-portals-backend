@@ -51,6 +51,7 @@ import https from "https"
 import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
 import { STATIC_TOKENS } from "src/common/static-tokens"
 import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
+import { Decimal } from "@prisma/client/runtime/library"
 
 @Injectable()
 export class GiggleService {
@@ -1059,6 +1060,35 @@ export class GiggleService {
             return false
         }
         return true
+    }
+
+    //get token price
+    async getTokenPrice(mint: string): Promise<Decimal> {
+        //find if token is a static token
+        const staticTokens = STATIC_TOKENS.filter((token) => token.env === process.env.ENV)
+        const staticToken = staticTokens.find((token) => token.new_info.token_info === mint)
+
+        if (staticToken) {
+            return new Decimal(staticToken.new_info.token_info.price)
+        }
+
+        const unitPriceResponse = await this.getIpTokenList({
+            mint: mint,
+            page: "1",
+            page_size: "1",
+            site: "3body",
+        })
+
+        if (
+            !unitPriceResponse ||
+            !unitPriceResponse.data ||
+            !unitPriceResponse.data.length ||
+            !unitPriceResponse.data?.[0]?.price
+        ) {
+            this.logger.error(`Unit price not found for token:${mint}`)
+            throw new Error(`Unit price not found for token:${mint}`)
+        }
+        return new Decimal(unitPriceResponse.data[0].price)
     }
 
     @Cron(CronExpression.EVERY_DAY_AT_5AM) //est time
