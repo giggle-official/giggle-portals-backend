@@ -9,18 +9,18 @@ import { orders } from "@prisma/client"
 
 @Injectable()
 export class Credit2cService {
+    public readonly logger = new Logger(Credit2cService.name)
     private readonly credit2cApiUrl = process.env.C2_API_ENDPOINT
     private readonly credit2cApiKey = process.env.C2_API_KEY
     private readonly credit2cApiSecret = process.env.C2_API_SECRET
-
-    private readonly logger = new Logger(Credit2cService.name)
+    private readonly credit2cHkUrl = process.env.C2_HK_URL
 
     constructor(
         private readonly jwtService: JwtService,
         private readonly httpService: HttpService,
     ) {
-        if (!this.credit2cApiUrl || !this.credit2cApiKey || !this.credit2cApiSecret) {
-            throw new Error("C2_API_ENDPOINT or C2_API_KEY or C2_API_SECRET is not set")
+        if (!this.credit2cApiUrl || !this.credit2cApiKey || !this.credit2cApiSecret || !this.credit2cHkUrl) {
+            throw new Error("C2_API_ENDPOINT or C2_API_KEY or C2_API_SECRET or C2_HK_URL is not set")
         }
     }
 
@@ -54,7 +54,7 @@ export class Credit2cService {
     }
 
     async getTopUpUrl(user: UserJwtExtractDto): Promise<{ url: string }> {
-        const url = new URL(this.credit2cApiUrl + "/top-up")
+        const url = new URL(this.credit2cHkUrl + "/top-up")
         url.searchParams.set("access_token", this.getAuthorizedToken(user.email))
         url.searchParams.set("show-header", "false")
         url.searchParams.set("close_window_after_payment", "true")
