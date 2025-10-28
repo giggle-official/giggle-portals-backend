@@ -1372,9 +1372,12 @@ export class OrderService {
             this.logger.error(`Order ${order_id} not found`)
             throw new NotFoundException("Order not found")
         }
-        if (orderRecord.current_status !== OrderStatus.COMPLETED) {
-            this.logger.error(`Order ${order_id} is not completed`)
-            throw new BadRequestException("Order is not completed")
+        if (
+            orderRecord.current_status !== OrderStatus.COMPLETED &&
+            orderRecord.current_status !== OrderStatus.PARTIAL_REFUNDED
+        ) {
+            this.logger.error(`Order ${order_id} is not completed or partial refunded`)
+            throw new BadRequestException("Order is not completed or partial refunded")
         }
         if (!orderRecord.related_reward_id || !orderRecord.rewards_model_snapshot) {
             this.logger.error(`Order ${order_id} has no reward pool`)
@@ -1417,10 +1420,14 @@ export class OrderService {
             return []
         }
 
-        if (orderRecord.current_status !== OrderStatus.COMPLETED) {
-            this.logger.error(`Order ${order_id} is not completed`)
+        if (
+            orderRecord.current_status !== OrderStatus.COMPLETED &&
+            orderRecord.current_status !== OrderStatus.PARTIAL_REFUNDED
+        ) {
+            this.logger.error(`Order ${order_id} is not completed or partial refunded`)
             return []
         }
+
         if (!orderRecord.related_reward_id || !orderRecord.rewards_model_snapshot) {
             this.logger.error(`Order ${order_id} has no reward pool`)
             return []
@@ -1452,7 +1459,17 @@ export class OrderService {
         }
 
         let freeCreditAmount = new Decimal(orderRecord.free_credit_paid || 0)
-        let orderAmount = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
+
+        let refundedAmount = Decimal.max(
+            new Decimal(0),
+            new Decimal(orderRecord.refunded_amount || 0).minus(freeCreditAmount),
+        )
+
+        let orderAmount = Decimal.max(
+            new Decimal(0),
+            new Decimal(orderRecord.amount).minus(freeCreditAmount).minus(refundedAmount).div(100),
+        )
+
         let allocatedUSDCAmount = new Decimal(0)
         let allocatedTokenAmount = new Decimal(0)
         let totalCostsAllocation = new Decimal(0)
@@ -1570,7 +1587,10 @@ export class OrderService {
         //allocate order creator's rewards and minus the costs allocation
         let creatorNote = ""
         //let orderCreatorRewards = orderAmount.div(unitPrice)
-        const orderAmountInUSD = new Decimal(orderRecord.amount).minus(freeCreditAmount).div(100)
+        const orderAmountInUSD = Decimal.max(
+            new Decimal(0),
+            new Decimal(orderRecord.amount).minus(freeCreditAmount).minus(refundedAmount).div(100),
+        )
         let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
         //external rewards
         if (
