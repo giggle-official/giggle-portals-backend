@@ -18,6 +18,8 @@ import { PaymentAsiaService } from "./payment-asia/payment-asia.service"
 import { CreditController } from "./credit/credit.controller"
 import { SalesAgentController } from "./sales-agent/sales-agent.controller"
 import { SalesAgentService } from "./sales-agent/sales-agent.service"
+import { Credit2cService } from "./credit-2c/credit-2c.service"
+import { Credit2cController } from './credit-2c/credit-2c.controller';
 
 @Module({
     imports: [
@@ -30,7 +32,7 @@ import { SalesAgentService } from "./sales-agent/sales-agent.service"
         forwardRef(() => OpenAppModule),
         JwtModule.register({}),
     ],
-    controllers: [PaymentController, OrderController, RewardsPoolController, CreditController, SalesAgentController],
+    controllers: [PaymentController, OrderController, RewardsPoolController, CreditController, SalesAgentController, Credit2cController],
     providers: [
         PaymentService,
         PrismaService,
@@ -41,6 +43,7 @@ import { SalesAgentService } from "./sales-agent/sales-agent.service"
         PaymentAsiaService,
         CreditService,
         SalesAgentService,
+        Credit2cService,
     ],
     exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService],
 })

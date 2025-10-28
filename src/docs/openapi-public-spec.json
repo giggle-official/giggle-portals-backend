@@ -1598,6 +1598,38 @@
         ]
       }
     },
+    "/api/v1/order/payWithCredit2c": {
+      "post": {
+        "operationId": "OrderController_payWithCredit2c",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayWithCredit2cRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pay an order with credit2c",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
     "/api/v1/order/rewards-detail": {
       "get": {
         "operationId": "OrderController_getRewardsDetail",
@@ -2519,6 +2551,34 @@
         "summary": "Get a sales agent detail",
         "tags": [
           "Sales Agent"
+        ]
+      }
+    },
+    "/api/v1/credit-2c/balance": {
+      "get": {
+        "operationId": "Credit2cController_getBalance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Credit2c Management"
+        ]
+      }
+    },
+    "/api/v1/credit-2c/top-up-url": {
+      "get": {
+        "operationId": "Credit2cController_topUpUrl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Credit2c Management"
         ]
       }
     },
@@ -7241,8 +7301,8 @@
                 "stripe",
                 "wallet",
                 "wechat",
-                "alipay",
                 "credit",
+                "2c-credit",
                 "customized"
               ]
             }
@@ -7891,6 +7951,18 @@
           "refund_amount": {
             "type": "number",
             "description": "The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01)"
+          }
+        },
+        "required": [
+          "order_id"
+        ]
+      },
+      "PayWithCredit2cRequestDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "The order id"
           }
         },
         "required": [

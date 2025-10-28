@@ -62,6 +62,7 @@ import {
 import { Decimal } from "@prisma/client/runtime/library"
 import { JwtService } from "@nestjs/jwt"
 import { CreditService } from "../credit/credit.service"
+import { Credit2cService } from "../credit-2c/credit-2c.service"
 
 interface CreateOrderOptions {
     related_to_reward_pool?: boolean
@@ -77,6 +78,7 @@ export class OrderService {
         PaymentMethod.WALLET,
         //PaymentMethod.WECHAT,
         PaymentMethod.CREDIT,
+        PaymentMethod.CREDIT2C,
         PaymentMethod.CUSTOMIZED,
     ]
 
@@ -101,6 +103,9 @@ export class OrderService {
 
         @Inject(forwardRef(() => CreditService))
         private readonly creditService: CreditService,
+
+        @Inject(forwardRef(() => Credit2cService))
+        private readonly credit2cService: Credit2cService,
     ) {}
 
     async createOrder(
@@ -814,6 +819,39 @@ export class OrderService {
                     paid_detail: walletPaidDetail as any,
                     callback_detail: walletPaidCallback as any,
                 },
+            },
+        })
+
+        await this.updateBindRewards(orderRecord) // we need update bind rewards price after paid
+
+        if (orderRecord.release_rewards_after_paid) {
+            await this.releaseRewards(orderRecord)
+        }
+
+        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
+        return await this.mapOrderDetail(orderRecord)
+    }
+
+    async payWithCredit2c(order: PayWithWalletRequestDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const userProfile = await this.userService.getProfile(userInfo)
+        const orderId = order.order_id
+        const {
+            allow,
+            message,
+            order: orderRecord,
+        } = await this.allowPayOrder(orderId, userProfile, PaymentMethod.CREDIT2C)
+        if (!allow) {
+            throw new BadRequestException(message)
+        }
+
+        await this.credit2cService.payWithCredit2c(userInfo, orderRecord)
+
+        await this.prisma.orders.update({
+            where: { id: orderRecord.id },
+            data: {
+                current_status: OrderStatus.COMPLETED,
+                paid_method: PaymentMethod.CREDIT2C,
+                paid_time: new Date(),
             },
         })
 

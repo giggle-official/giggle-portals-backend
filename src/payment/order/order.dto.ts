@@ -13,7 +13,6 @@ import {
     Max,
     MaxLength,
     Min,
-    MinLength,
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
@@ -40,8 +39,8 @@ export enum PaymentMethod {
     STRIPE = "stripe",
     WALLET = "wallet",
     WECHAT = "wechat",
-    ALIPAY = "alipay",
     CREDIT = "credit",
+    CREDIT2C = "2c-credit",
     CUSTOMIZED = "customized",
 }
 
@@ -949,4 +948,11 @@ export class GetRewardsDetailQueryDto {
         required: false,
     })
     statement_id?: string
+}
+
+export class PayWithCredit2cRequestDto {
+    @ApiProperty({
+        description: "The order id",
+    })
+    order_id: string
 }

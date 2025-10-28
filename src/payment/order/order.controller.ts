@@ -21,6 +21,7 @@ import {
     OrderListDto,
     OrderListQueryDto,
     OrderRewardsDto,
+    PayWithCredit2cRequestDto,
     PayWithPaymentAsiaRequestDto,
     PayWithPaymentAsiaResponseDto,
     PayWithStripeRequestDto,
@@ -208,6 +209,17 @@ export class OrderController {
         @Req() req: Request,
     ): Promise<PayWithPaymentAsiaResponseDto> {
         return await this.paymentAsiaService.payWithPaymentAsia(order, req.user as UserJwtExtractDto, req)
+    }
+
+    //pay with credit2c
+    @Post("/payWithCredit2c")
+    @ApiOperation({ summary: "Pay an order with credit2c", tags: ["Order"] })
+    @ApiBody({ type: PayWithCredit2cRequestDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payWithCredit2c(@Body() order: PayWithCredit2cRequestDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return await this.orderService.payWithCredit2c(order, req.user as UserJwtExtractDto)
     }
 
     @Post("/payment-asia/callback")

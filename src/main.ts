@@ -224,6 +224,7 @@ To see how to process the event stream response, please refer to the [Event Stre
                 "Launch Agent",
                 "Sales Agent",
                 "Market Maker Management",
+                "Credit2c Management",
             ],
         },
     ]

@@ -73,7 +73,7 @@ export class CreditService {
                 description: `Top up ${body.amount} credits`,
                 callback_url: body.callback_url,
                 release_rewards_after_paid: false,
-                allowed_payment_methods: [PaymentMethod.STRIPE, PaymentMethod.WECHAT, PaymentMethod.WALLET],
+                allowed_payment_methods: [PaymentMethod.CREDIT2C, PaymentMethod.WALLET],
             },
             userInfo,
             {
