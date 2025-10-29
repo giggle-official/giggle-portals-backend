@@ -964,6 +964,37 @@ export class LaunchIpTokenDto {
     purchase_strategy: PurchaseStrategyDto
 }
 
+export class LaunchIpStaticTokenAllocationDto {
+    @IsString()
+    @ApiProperty({
+        description: "address of the receiver",
+    })
+    address: string
+
+    @IsNumber()
+    @ApiProperty({
+        description: "ratio of the allocation",
+    })
+    ratio: number
+}
+
+export class LaunchIpStaticTokenDto {
+    @IsNumber()
+    @ApiProperty({
+        description: "id of the ip library",
+    })
+    ip_id: number
+
+    @ApiProperty({
+        description: "allocations of the ip library, sum of ratios must be 1000",
+        type: () => [LaunchIpStaticTokenAllocationDto],
+    })
+    @ValidateNested({ each: true })
+    @IsArray()
+    @ArrayMinSize(1)
+    allocations: LaunchIpStaticTokenAllocationDto[]
+}
+
 export class IpProcessStepsDto {
     ipId: number
     ipPushedToChain: boolean

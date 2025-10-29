@@ -25,8 +25,16 @@ export class RegisterTokenRequestDto {
     signature: string
 }
 
+export class LaunchStaticTokeResDto {
+    tokenAddr: string
+    txIds: string
+    metadataHash: string
+}
+
 export class PushIpToChainResponseDto extends IpToChainResDto<OnChainDetailDto> {}
 
 export class RegisterTokenResponseDto extends IpToChainResDto<RegisterTokenRequestDto> {}
 
 export class UntokenizeResponseDto extends IpToChainResDto<RegisterTokenRequestDto> {}
+
+export class LaunchStaticTokenResponseDto extends IpToChainResDto<LaunchStaticTokeResDto> {}

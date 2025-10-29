@@ -27,6 +27,7 @@ import {
     SourceWalletType,
     DelegateIpTokenDto,
     DelegateIpTokenResponseDto,
+    LaunchIpStaticTokenDto,
 } from "./ip-library.dto"
 import { app_bind_ips, ip_type, ip_token_delegation_status, Prisma } from "@prisma/client"
 import { UtilitiesService } from "src/common/utilities.service"
@@ -1613,6 +1614,109 @@ export class IpLibraryService {
         })
 
         return coverAsset?.asset_id
+    }
+
+    async launchIpStaticToken(body: LaunchIpStaticTokenDto): Promise<CreateIpTokenGiggleResponseDto> {
+        //check sum of ratio is 1000
+        if (body.allocations.reduce((a, b) => a + b.ratio, 0) !== 1000) {
+            throw new BadRequestException("Allocation ratios must sum to 1000")
+        }
+
+        const ip = await this.prismaService.ip_library.findUnique({
+            where: { id: body.ip_id },
+        })
+
+        if (!ip) {
+            throw new BadRequestException("IP not found")
+        }
+
+        if (ip.token_info || ip.token_mint) {
+            throw new BadRequestException("IP already has token")
+        }
+
+        let coverHash = ip?.cover_images?.[0]?.hash
+        if (!coverHash) {
+            //upload cover image to ipfs
+            const coverImageHash = await this.assetsService.uploadAssetToIpfs(
+                ip.cover_images?.[0]?.key,
+                ip.cover_images?.[0]?.asset_id,
+            )
+            if (!coverImageHash) {
+                throw new BadRequestException("Failed to upload cover image to ipfs")
+            }
+            coverHash = coverImageHash
+            await this.prismaService.ip_library.update({
+                where: { id: ip.id },
+                data: { cover_images: [{ ...ip.cover_images[0], hash: coverImageHash }] },
+            })
+        }
+
+        //generate matadata
+        const tokenMetaData = {
+            name: ip.name,
+            symbol: ip.ticker,
+            description: ip.description,
+            image: `${process.env.PINATA_GATEWAY}/ipfs/${coverHash}`,
+            twitter: (ip.extra_info as any)?.twitter,
+            telegram: (ip.extra_info as any)?.telegram,
+            website: (ip.extra_info as any)?.website,
+            tiktok: (ip.extra_info as any)?.tiktok,
+        }
+
+        const launchStaticTokenResponse = await this.ipOnChainService.launchStaticToken(
+            ip,
+            tokenMetaData,
+            body.allocations,
+        )
+
+        if (!launchStaticTokenResponse.tokenAddr) {
+            throw new BadRequestException("Failed to launch static token, token address not found")
+        }
+
+        const ipOwner = await this.prismaService.users.findUnique({
+            where: { username_in_be: ip.owner },
+        })
+        const tokenInfo: CreateIpTokenGiggleResponseDto = {
+            mint: launchStaticTokenResponse.tokenAddr,
+            name: ip.name,
+            symbol: ip.ticker,
+            user_address: ipOwner?.wallet_address || "",
+            description: ip.description,
+            cover_url: `${process.env.PINATA_GATEWAY}/ipfs/${coverHash}`,
+            file_url: "",
+            twitter: (ip.extra_info as any)?.twitter,
+            telegram: (ip.extra_info as any)?.telegram,
+            website: (ip.extra_info as any)?.website,
+            status: "completed",
+            signature: "",
+            metadata_uri: `${process.env.PINATA_GATEWAY}/ipfs/${coverHash}`,
+            sequels_amount: "0",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            bonding_curve: "",
+            bonding_curve_progress: 0,
+            price: "0.01",
+            market_cap: (1000000000 * 0.01).toString(),
+            circulating_supply: "0",
+            total_supply: (1000000000 * 0.01).toString(),
+            credit_price: 0,
+            visitLink: "",
+        }
+
+        await this.prismaService.ip_library.update({
+            where: { id: ip.id },
+            data: {
+                token_info: tokenInfo as any,
+                token_mint: launchStaticTokenResponse.tokenAddr,
+                meta_hash: launchStaticTokenResponse.metadataHash,
+                current_token_info: { tokenInfo, is_static_token: true } as any,
+            },
+        })
+
+        //create rewards pool
+        await this.rewardsPoolService.createRewardsPool(ip.id)
+
+        return tokenInfo
     }
 
     private _processTokenInfo(

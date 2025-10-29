@@ -1072,6 +1072,17 @@ export class GiggleService {
             return new Decimal(staticToken.new_info.token_info.price)
         }
 
+        //find if token is a static token
+        const ipInfo = await this.prismaService.ip_library.findFirst({
+            where: {
+                token_mint: mint,
+            },
+        })
+
+        if (ipInfo && (ipInfo.current_token_info as any)?.is_static_token) {
+            return new Decimal((ipInfo.current_token_info as any)?.price || "0")
+        }
+
         const unitPriceResponse = await this.getIpTokenList({
             mint: mint,
             page: "1",

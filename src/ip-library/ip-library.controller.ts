@@ -33,6 +33,7 @@ import {
     RemoveIpDto,
     RemoveIpResponseDto,
     DelegateIpTokenDto,
+    LaunchIpStaticTokenDto,
 } from "./ip-library.dto"
 import {
     ApiBody,
@@ -47,11 +48,12 @@ import {
 import { AuthGuard } from "@nestjs/passport"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { Request } from "express"
-import { SSEMessage } from "src/web3/giggle/giggle.dto"
+import { CreateIpTokenGiggleResponseDto, SSEMessage } from "src/web3/giggle/giggle.dto"
 import { NologInterceptor } from "src/common/bypass-nolog.decorator"
 import { ValidEventBody } from "src/common/rawbody.decorator"
 import { OptionalJwtAuthGuard } from "src/auth/optional-jwt-auth.guard"
 import { CheckJwtPolicies, JwtPoliciesGuard } from "src/guards/jwt-policies.guard"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
 
 @Controller("/api/v1/ip-library")
 @ApiTags("IP Library")
@@ -230,13 +232,26 @@ ${IpEventsDetail.map((item) => `- ${item.event}\n\n \`\`\`json\n${JSON.stringify
 if error occurs, the event will be \`error\` and the data in \`data\` is the error message, sse will be closed.
 `,
     })
-    @ApiResponse({ type: SSEMessage, status: 200 })
     @ApiBearerAuth()
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @NologInterceptor()
     launchIpToken(@Req() req: Request, @ValidEventBody() body: LaunchIpTokenDto) {
         return this.ipLibraryService.launchIpToken(req.user as UserJwtExtractDto, body)
+    }
+
+    @Post("/launch-ip-static-token")
+    @ApiBody({ type: LaunchIpStaticTokenDto })
+    @ApiResponse({ type: CreateIpTokenGiggleResponseDto, status: 200 })
+    @ApiOperation({
+        summary: "Launch static token for an ip",
+        description: `Launch static token for an ip, the token will be allocated to the given addresses with the given amounts. and no bonding curve. only allow developer to launch static token.`,
+    })
+    @ApiBearerAuth()
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(IsWidgetGuard)
+    async launchIpStaticToken(@Body() body: LaunchIpStaticTokenDto) {
+        return await this.ipLibraryService.launchIpStaticToken(body)
     }
 
     @Post("/remove-ip")

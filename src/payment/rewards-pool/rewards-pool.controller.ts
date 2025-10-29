@@ -15,6 +15,7 @@ import {
     AirdropResponseDto,
     AirdropQueryDto,
     AirdropResponseListDto,
+    InjectTokensFromAnotherWalletDto,
 } from "./rewards-pool.dto"
 import { RewardsPoolService } from "./rewards-pool.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -64,6 +65,19 @@ export class RewardsPoolController {
     @UseGuards(AuthGuard("jwt"))
     async injectTokens(@Body() body: InjectTokensDto, @Req() req: Request) {
         return await this.rewardsPoolService.injectTokens(body, req.user as UserJwtExtractDto)
+    }
+
+    @ApiOperation({
+        summary: "Inject tokens to rewards pool from another wallet",
+        tags: ["Rewards Pool"],
+        description: "Inject tokens to a rewards pool from another wallet, only allow widget to call this endpoint",
+    })
+    @ApiBody({ type: InjectTokensFromAnotherWalletDto })
+    @ApiResponse({ type: PoolResponseDto })
+    @Post("/inject-tokens-from-another-wallet")
+    @UseGuards(IsWidgetGuard)
+    async injectTokensFromAnotherWallet(@Body() body: InjectTokensFromAnotherWalletDto) {
+        return await this.rewardsPoolService.injectTokensFromAnotherWallet(body)
     }
 
     @ApiOperation({

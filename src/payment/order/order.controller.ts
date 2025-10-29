@@ -42,6 +42,7 @@ import Stripe from "stripe"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
 import { PaymentAsiaService } from "src/payment/payment-asia/payment-asia.service"
 import { PaymentAsiaCallbackDto } from "../payment-asia/payment-asia.dto"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
 
 @Controller({ path: "/api/v1/order" })
 export class OrderController {
@@ -188,12 +189,13 @@ export class OrderController {
             "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
         tags: ["Order"],
     })
+    @ApiBearerAuth("widget")
     @ApiBody({ type: RefundOrderDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    async refundOrder(@Body() body: RefundOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return await this.orderService.refundOrder(body, req.user as UserJwtExtractDto)
+    @UseGuards(IsWidgetGuard)
+    async refundOrder(@Body() body: RefundOrderDto): Promise<OrderDetailDto> {
+        return await this.orderService.refundOrder(body)
     }
 
     //payment asia

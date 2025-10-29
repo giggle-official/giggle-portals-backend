@@ -25,6 +25,7 @@ import {
     AirdropType,
     StatementStatus,
     SupportedLockDays,
+    InjectTokensFromAnotherWalletDto,
 } from "./rewards-pool.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
@@ -201,15 +202,55 @@ export class RewardsPoolService {
             throw new BadRequestException("Pool is not on chain")
         }
 
-        const transaction = await this.rewardPoolOnChainService.injectToken(
-            {
-                token_mint: poolExists.token,
-                amount: body.append_amount,
-                user_wallet: user.wallet_address,
-                email: user.email,
-            },
-            user,
-        )
+        const transaction = await this.rewardPoolOnChainService.injectToken({
+            token_mint: poolExists.token,
+            amount: body.append_amount,
+            user_wallet: user.wallet_address,
+            email: user.email,
+        })
+
+        const newInjectedAmount = poolExists.injected_amount.plus(body.append_amount)
+        return await this.prisma.$transaction(async (tx) => {
+            const poolUpdated = await tx.reward_pools.update({
+                where: { token: body.token },
+                data: {
+                    injected_amount: newInjectedAmount,
+                    current_balance: {
+                        increment: body.append_amount,
+                    },
+                },
+                include: {
+                    reward_pool_limit_offer: true,
+                },
+            })
+            await tx.reward_pool_statement.create({
+                data: {
+                    request_id: uuidv4(),
+                    token: body.token,
+                    amount: body.append_amount,
+                    type: "injected",
+                    current_balance: poolUpdated.current_balance,
+                    chain_transaction: transaction as any,
+                },
+            })
+            return this.mapToPoolData(poolUpdated)
+        })
+    }
+
+    async injectTokensFromAnotherWallet(body: InjectTokensFromAnotherWalletDto): Promise<PoolResponseDto> {
+        const poolExists = await this.prisma.reward_pools.findFirst({
+            where: { token: body.token },
+        })
+        if (!poolExists) {
+            throw new BadRequestException("Pool does not exist")
+        }
+
+        const transaction = await this.rewardPoolOnChainService.injectToken({
+            token_mint: poolExists.token,
+            amount: body.append_amount,
+            user_wallet: body.wallet_address,
+            email: "",
+        })
 
         const newInjectedAmount = poolExists.injected_amount.plus(body.append_amount)
         return await this.prisma.$transaction(async (tx) => {
