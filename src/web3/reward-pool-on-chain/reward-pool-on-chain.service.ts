@@ -1803,6 +1803,9 @@ export class RewardPoolOnChainService {
         await UtilitiesService.startTask(this.onChainTaskId)
         try {
             await Promise.all([
+                this.updatePoolAddress().catch((error) => {
+                    this.logger.error(`[Reward to chain task] Update pool address failed: ${JSON.stringify(error)}`)
+                }),
                 this.settleInjectToken().catch((error) => {
                     this.logger.error(`[Reward to chain task] Settle inject token failed: ${JSON.stringify(error)}`)
                 }),
@@ -1817,6 +1820,29 @@ export class RewardPoolOnChainService {
             this.logger.error(`Reward to chain task failed: ${JSON.stringify(error)}`)
         } finally {
             await UtilitiesService.stopTask(this.onChainTaskId)
+        }
+    }
+
+    //update pool address
+    async updatePoolAddress() {
+        const rewardPools = await this.prisma.reward_pools.findMany({
+            where: {
+                on_chain_status: reward_pool_on_chain_status.success,
+                address: null,
+            },
+        })
+
+        for (const rewardPool of rewardPools) {
+            try {
+                const newContent = await this.retrieve(rewardPool.token)
+                await this.prisma.reward_pools.update({
+                    where: { id: rewardPool.id },
+                    data: { address: (newContent as any)?.addr },
+                })
+            } catch (error) {
+                this.logger.error(`Update pool address failed: ${error}`)
+                continue
+            }
         }
     }
 
