@@ -154,7 +154,8 @@ export class OrderService {
             appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
 
-            if (widgetTag !== requester.developer_info.tag) {
+            //in product environment, we need check if widget tag is valid
+            if (widgetTag !== requester.developer_info.tag && process.env.ENV === "product") {
                 throw new BadRequestException("Widget tag is not valid in user jwt")
             }
         } else {
