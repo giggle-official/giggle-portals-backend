@@ -1425,17 +1425,10 @@ export class OrderService {
         )
     }
 
-    async releaseRewardsByUser(order: ReleaseRewardsDto, userInfo: UserJwtExtractDto): Promise<OrderRewardsDto[]> {
-        let orderRecord = null
-        if (userInfo.developer_info) {
-            orderRecord = await this.prisma.orders.findFirst({
-                where: { widget_tag: userInfo.developer_info.tag, order_id: order.order_id },
-            })
-        } else {
-            orderRecord = await this.prisma.orders.findFirst({
-                where: { owner: userInfo.usernameShorted, order_id: order.order_id },
-            })
-        }
+    async releaseRewardsByDeveloper(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
+        const orderRecord = await this.prisma.orders.findFirst({
+            where: { order_id: order.order_id },
+        })
         if (!orderRecord) {
             throw new NotFoundException("Order not found")
         }

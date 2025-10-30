@@ -108,10 +108,10 @@ export class OrderController {
     })
     @ApiBody({ type: ReleaseRewardsDto })
     @ApiResponse({ type: OrderRewardsDto, isArray: true })
-    @UseGuards(AuthGuard("jwt"))
+    @UseGuards(IsWidgetGuard)
     @HttpCode(HttpStatus.OK)
-    async releaseRewardsByUser(@Body() body: ReleaseRewardsDto, @Req() req: Request) {
-        return await this.orderService.releaseRewardsByUser(body, req.user as UserJwtExtractDto)
+    async releaseRewardsByDeveloper(@Body() body: ReleaseRewardsDto) {
+        return await this.orderService.releaseRewardsByDeveloper(body)
     }
 
     @Post("/bind-reward-pool")
