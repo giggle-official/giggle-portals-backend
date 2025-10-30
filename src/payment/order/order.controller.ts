@@ -110,8 +110,8 @@ export class OrderController {
     @ApiResponse({ type: OrderRewardsDto, isArray: true })
     @UseGuards(IsWidgetGuard)
     @HttpCode(HttpStatus.OK)
-    async releaseRewardsByUser(@Body() body: ReleaseRewardsDto) {
-        return await this.orderService.releaseRewardsByUser(body)
+    async releaseRewardsByDeveloper(@Body() body: ReleaseRewardsDto) {
+        return await this.orderService.releaseRewardsByDeveloper(body)
     }
 
     @Post("/bind-reward-pool")

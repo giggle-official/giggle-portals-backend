@@ -1384,7 +1384,7 @@ export class OrderService {
         )
     }
 
-    async releaseRewardsByUser(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
+    async releaseRewardsByDeveloper(order: ReleaseRewardsDto): Promise<OrderRewardsDto[]> {
         const orderRecord = await this.prisma.orders.findFirst({
             where: { order_id: order.order_id },
         })
