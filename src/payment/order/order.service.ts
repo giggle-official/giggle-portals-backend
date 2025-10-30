@@ -490,7 +490,7 @@ export class OrderService {
         const orderRecord = await this.prisma.orders.findUnique({
             where: {
                 order_id: orderId,
-                owner: userInfo.usernameShorted,
+                //owner: userInfo.usernameShorted,
             },
         })
         if (!orderRecord) {

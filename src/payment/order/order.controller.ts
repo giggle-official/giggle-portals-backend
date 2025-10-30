@@ -42,6 +42,7 @@ import Stripe from "stripe"
 import { IsAdminGuard } from "src/auth/is_admin.guard"
 import { PaymentAsiaService } from "src/payment/payment-asia/payment-asia.service"
 import { PaymentAsiaCallbackDto } from "../payment-asia/payment-asia.dto"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
 
 @Controller({ path: "/api/v1/order" })
 export class OrderController {
@@ -191,7 +192,7 @@ export class OrderController {
     @ApiBody({ type: RefundOrderDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
+    @UseGuards(IsWidgetGuard)
     async refundOrder(@Body() body: RefundOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
         return await this.orderService.refundOrder(body, req.user as UserJwtExtractDto)
     }
