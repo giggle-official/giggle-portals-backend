@@ -1086,7 +1086,8 @@ export class GiggleService {
             !unitPriceResponse.data?.[0]?.price
         ) {
             this.logger.error(`Unit price not found for token:${mint}`)
-            throw new Error(`Unit price not found for token:${mint}`)
+            return new Decimal(0)
+            //throw new Error(`Unit price not found for token:${mint}`)
         }
         return new Decimal(unitPriceResponse.data[0].price)
     }
