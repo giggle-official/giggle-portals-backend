@@ -1622,7 +1622,7 @@ export class OrderService {
             new Decimal(0),
             new Decimal(orderRecord.amount).minus(freeCreditAmount).minus(refundedAmount).div(100),
         )
-        let orderCreatorRewards = orderAmountInUSD.div(unitPrice)
+        let orderCreatorRewards = unitPrice.gt(0) ? orderAmountInUSD.div(unitPrice) : new Decimal(0)
         //external rewards
         if (
             modelSnapshot?.limit_offer?.external_ratio !== undefined &&
