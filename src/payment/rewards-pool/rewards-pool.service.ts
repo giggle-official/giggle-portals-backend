@@ -655,22 +655,12 @@ ORDER BY d.date;`
 
         let amount = new Decimal(0)
         if (body.usd_amount > 0) {
-            const tokenInfo = await this.giggleService.getIpTokenList({
-                mint: body.token,
-                page: "1",
-                page_size: "1",
-                site: "3body",
-            })
-            if (!tokenInfo || !tokenInfo.data || !tokenInfo.data.length) {
-                throw new BadRequestException("Token not found")
-            }
-
-            const unitPrice = tokenInfo.data?.[0]?.price
-            if (!unitPrice) {
+            const tokenPrice = await this.giggleService.getTokenPrice(body.token)
+            if (tokenPrice.equals(0)) {
                 throw new BadRequestException("Token price not found")
             }
 
-            amount = new Decimal(body.usd_amount).div(unitPrice)
+            amount = new Decimal(body.usd_amount).div(tokenPrice)
         } else {
             if (body.token_amount < 1) {
                 throw new BadRequestException("The minimum amount of airdrop is 1")
