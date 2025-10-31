@@ -1404,7 +1404,7 @@
     "/api/v1/order/release-rewards": {
       "post": {
         "description": "Release rewards for an order, after the released, order can not be refunded",
-        "operationId": "OrderController_releaseRewardsByUser",
+        "operationId": "OrderController_releaseRewardsByDeveloper",
         "parameters": [],
         "requestBody": {
           "required": true,
