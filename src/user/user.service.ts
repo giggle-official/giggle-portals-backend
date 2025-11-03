@@ -261,7 +261,7 @@ export class UserService {
     }
 
     //claim rewards
-    async claimRewards(userInfo: UserJwtExtractDto, body: ClaimRewardsDto): Promise<UserTokenRewardsListDto> {
+    async claimRewards(userInfo: UserJwtExtractDto, body: ClaimRewardsDto): Promise<ClaimRewardsHistoryListDto> {
         const user = await this.prisma.users.findUnique({
             where: {
                 username_in_be: userInfo.usernameShorted,
@@ -287,7 +287,7 @@ export class UserService {
             throw new BadRequestException("not enough available")
         }
 
-        await this.prisma.user_rewards_withdraw.create({
+        const claim = await this.prisma.user_rewards_withdraw.create({
             data: {
                 user: user.username_in_be,
                 token: body.token,
@@ -296,7 +296,8 @@ export class UserService {
             },
         })
 
-        return await this.getTokenRewards(userInfo, {
+        return await this.getClaimRewardsHistory(userInfo, {
+            id: claim.id.toString(),
             token: body.token,
             page: "1",
             page_size: "1",
@@ -325,7 +326,7 @@ export class UserService {
         }
 
         if (query.id) {
-            where.id = query.id
+            where.id = parseInt(query.id.toString())
         }
 
         const claims = await this.prisma.user_rewards_withdraw.findMany({

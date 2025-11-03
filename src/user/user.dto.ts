@@ -185,9 +185,9 @@ export class ClaimRewardsQueryDto extends PaginationDto {
         description: "Claim id",
         required: false,
     })
-    @IsNumber()
+    @IsString()
     @IsOptional()
-    id?: number
+    id?: string
 }
 
 export class UserRewardsClaimDto {
