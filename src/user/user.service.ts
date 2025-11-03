@@ -324,10 +324,18 @@ export class UserService {
             where.token = query.token
         }
 
+        if (query.id) {
+            where.id = query.id
+        }
+
         const claims = await this.prisma.user_rewards_withdraw.findMany({
             where: where,
             take: parseInt(query.page_size),
             skip: Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size)),
+        })
+
+        const total = await this.prisma.user_rewards_withdraw.count({
+            where: where,
         })
 
         return {
@@ -340,7 +348,7 @@ export class UserService {
                 updated_at: claim.updated_at,
                 user: claim.user,
             })),
-            total: claims.length,
+            total: total,
         }
     }
 

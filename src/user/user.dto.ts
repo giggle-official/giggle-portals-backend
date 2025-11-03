@@ -180,6 +180,14 @@ export class ClaimRewardsQueryDto extends PaginationDto {
     @IsString()
     @IsOptional()
     token?: string
+
+    @ApiProperty({
+        description: "Claim id",
+        required: false,
+    })
+    @IsNumber()
+    @IsOptional()
+    id?: number
 }
 
 export class UserRewardsClaimDto {
