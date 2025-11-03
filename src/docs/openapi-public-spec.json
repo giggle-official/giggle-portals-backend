@@ -400,6 +400,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "Claim id",
+            "schema": {
+              "type": "number"
+            }
           }
         ],
         "responses": {
