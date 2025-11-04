@@ -202,6 +202,11 @@ export class UserRewardsClaimDto {
     token: string
 
     @ApiProperty({
+        description: "Token ticker",
+    })
+    ticker: string
+
+    @ApiProperty({
         description: "Claim status",
         enum: ClaimStatus,
     })

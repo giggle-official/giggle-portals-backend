@@ -292,6 +292,7 @@ export class UserService {
             data: {
                 user: user.username_in_be,
                 token: body.token,
+                ticker: token.ticker,
                 withdrawn: body.amount,
                 status: ClaimStatus.PENDING,
             },
@@ -344,6 +345,7 @@ export class UserService {
             claims: claims.map((claim) => ({
                 id: claim.id,
                 token: claim.token,
+                ticker: claim.ticker,
                 withdrawn: claim.withdrawn.toNumber(),
                 status: claim.status as ClaimStatus,
                 created_at: claim.created_at,

@@ -5998,6 +5998,10 @@
             "type": "string",
             "description": "Token address"
           },
+          "ticker": {
+            "type": "string",
+            "description": "Token ticker"
+          },
           "status": {
             "type": "string",
             "description": "Claim status",
@@ -6030,6 +6034,7 @@
         "required": [
           "id",
           "token",
+          "ticker",
           "status",
           "created_at",
           "updated_at",
