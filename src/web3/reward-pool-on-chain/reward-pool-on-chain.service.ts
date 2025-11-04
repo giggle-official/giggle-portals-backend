@@ -1039,7 +1039,12 @@ export class RewardPoolOnChainService {
             const arr = []
             let amountIn = new Decimal(0)
             let needTokens = new Decimal(0)
-            for (const userReward of statement.user_rewards) {
+            for (let index = 0; index < statement.user_rewards.length; index++) {
+                const userReward = statement.user_rewards[index]
+
+                this.logger.debug(
+                    `SETTLE ORDER REWARD: ${statement.id}, reward#${index}: ${JSON.stringify(userReward)}`,
+                )
                 //continue if userReward.rewards is 0
                 if (userReward.rewards.eq(0)) {
                     this.logger.warn(
@@ -1047,6 +1052,8 @@ export class RewardPoolOnChainService {
                     )
                     continue
                 }
+
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, reward#${index}, role: ${userReward.role}`)
 
                 //determine wallet address
                 let walletAddress = ""
