@@ -1629,10 +1629,9 @@ export class OrderService {
             modelSnapshot?.limit_offer?.external_ratio !== null
         ) {
             // orderCreatorRewards = orderAmount
-            orderCreatorRewards = orderAmountInUSD
-                .mul(new Decimal(modelSnapshot.limit_offer.external_ratio))
-                .div(unitPrice)
-                .div(100)
+            orderCreatorRewards = unitPrice.gt(0)
+                ? orderAmountInUSD.mul(new Decimal(modelSnapshot.limit_offer.external_ratio)).div(unitPrice).div(100)
+                : new Decimal(0)
             creatorNote = `External ratio: ${modelSnapshot.limit_offer.external_ratio}%`
         }
 
@@ -1670,6 +1669,8 @@ export class OrderService {
             })
         }
 
+        this.logger.debug(`ORDER ${orderRecord.order_id}, order creator rewards: ${orderCreatorRewards.toString()}`)
+        this.logger.debug(`ORDER ${orderRecord.order_id}, allocated token amount: ${allocatedTokenAmount.toString()}`)
         allocatedTokenAmount = allocatedTokenAmount.plus(orderCreatorRewards)
 
         for (const reward of modelSnapshot.revenue_ratio) {
@@ -1799,6 +1800,10 @@ export class OrderService {
                         remark: remark,
                     })
                     buybackNote = `We need to allocate ${rewardTokenAmount} ${modelSnapshot.ticker} to the ${expectedAllocateRole} in order to give the ${actualAllocateRole} the corresponding token rewards.`
+                    this.logger.debug(`ORDER ${orderRecord.order_id}, buyback note: ${buybackNote}`)
+                    this.logger.debug(
+                        `ORDER ${orderRecord.order_id}, reward token amount: ${rewardTokenAmount.toString()}`,
+                    )
                     allocatedTokenAmount = allocatedTokenAmount.plus(rewardTokenAmount)
                 }
 
