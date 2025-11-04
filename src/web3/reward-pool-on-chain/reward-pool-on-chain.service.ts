@@ -1048,12 +1048,10 @@ export class RewardPoolOnChainService {
                 //continue if userReward.rewards is 0
                 if (userReward.rewards.equals(new Decimal(0))) {
                     this.logger.warn(
-                        `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, user: ${userReward.user_info.email}`,
+                        `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, reward: ${JSON.stringify(userReward)}`,
                     )
                     continue
                 }
-
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, reward#${index}, role: ${userReward.role}`)
 
                 //determine wallet address
                 let walletAddress = ""
