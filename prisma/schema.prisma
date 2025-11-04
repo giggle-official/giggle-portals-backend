@@ -1071,6 +1071,7 @@ model user_rewards_withdraw {
   id                 Int       @id @default(autoincrement())
   user               String?   @db.VarChar(32)
   token              String?   @db.VarChar(64)
+  ticker             String?   @db.VarChar(32)
   withdrawn          Decimal?  @db.Decimal(65, 6)
   status             String?   @db.VarChar(32)
   on_chain_try_count Int?      @default(0)

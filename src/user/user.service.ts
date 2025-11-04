@@ -43,6 +43,7 @@ import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
 import sharp from "sharp"
 import { CreditService } from "src/payment/credit/credit.service"
+import { Decimal } from "@prisma/client/runtime/library"
 
 @Injectable()
 export class UserService {
@@ -291,6 +292,7 @@ export class UserService {
             data: {
                 user: user.username_in_be,
                 token: body.token,
+                ticker: token.ticker,
                 withdrawn: body.amount,
                 status: ClaimStatus.PENDING,
             },
@@ -343,6 +345,7 @@ export class UserService {
             claims: claims.map((claim) => ({
                 id: claim.id,
                 token: claim.token,
+                ticker: claim.ticker,
                 withdrawn: claim.withdrawn.toNumber(),
                 status: claim.status as ClaimStatus,
                 created_at: claim.created_at,
