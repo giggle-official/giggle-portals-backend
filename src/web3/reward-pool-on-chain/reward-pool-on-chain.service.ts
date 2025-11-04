@@ -960,6 +960,8 @@ export class RewardPoolOnChainService {
             },
         })
 
+        this.logger.log(`SETTLE ORDER REWARD: ${statementOrders.length} statements need settle`)
+
         if (statementOrders.length === 0) {
             this.logger.log("No statement need settle")
             return
@@ -978,6 +980,9 @@ export class RewardPoolOnChainService {
                 this.settleWallet,
                 process.env.GIGGLE_LEGAL_USDC,
             )
+
+            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usdc balance: ${usdcBalance.length}`)
+
             if (usdcBalance.length === 0) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
@@ -985,6 +990,12 @@ export class RewardPoolOnChainService {
                 continue
             }
             const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
+
+            this.logger.debug(
+                `SETTLE ORDER REWARD: ${statement.id}, usdc balance amount: ${usdcBalanceAmount.toString()}`,
+            )
+            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usd revenue: ${statement.usd_revenue.toString()}`)
+
             if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toString()} < ${statement.usd_revenue.toString()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
@@ -992,21 +1003,38 @@ export class RewardPoolOnChainService {
                 continue
             }
 
+            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token: ${statement.token}`)
+
             //check reward pool token balance
             const tokenBalance = await this.retrieve(statement.token)
+
+            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance: ${JSON.stringify(tokenBalance)}`)
             if (!tokenBalance) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}, balance: ${tokenBalance.totalAmount}`,
                 )
                 continue
             }
+
+            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalance.totalAmount}`)
             const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount).div(10 ** 6)
+
+            this.logger.debug(
+                `SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalanceAmount.toString()}`,
+            )
+            this.logger.debug(
+                `SETTLE ORDER REWARD: ${statement.id}, statement amount: ${statement.amount.mul(-1).toString()}`,
+            )
             if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
                 this.logger.error(
                     `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toString()}, need tokens: ${statement.amount.mul(-1).toString()}`,
                 )
                 continue
             }
+
+            this.logger.debug(
+                `SETTLE ORDER REWARD: ${statement.id}, user rewards: ${JSON.stringify(statement.user_rewards)}`,
+            )
 
             const arr = []
             let amountIn = new Decimal(0)
@@ -1041,10 +1069,18 @@ export class RewardPoolOnChainService {
                     share: userReward.rewards,
                     token: userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : 1,
                 })
+
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, user reward: ${JSON.stringify(userReward)}`)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, wallet address: ${walletAddress}`)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, share: ${userReward.rewards}`)
                 amountIn = amountIn.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? userReward.rewards : 0)
                 needTokens = needTokens.plus(
                     userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : userReward.rewards,
                 )
+
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}`)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}`)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, arr: ${JSON.stringify(arr)}`)
             }
 
             if (arr.length === 0) {
@@ -1076,7 +1112,12 @@ export class RewardPoolOnChainService {
                     revenue_allocate_details: arr,
                 }
 
+                this.logger.debug(
+                    `SETTLE ORDER REWARD: ${statement.id}, allocate params: ${JSON.stringify(allocateParams)}`,
+                )
+
                 const transaction = await this.allocateRevenue(allocateParams)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, transaction: ${JSON.stringify(transaction)}`)
                 await this.prisma.reward_pool_statement.update({
                     where: {
                         id: statement.id,
@@ -1084,7 +1125,9 @@ export class RewardPoolOnChainService {
                     data: { chain_transaction: transaction as any },
                 })
                 //settle sales agent revenue
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue`)
                 await this.salesAgentService.settleStatement(statement.id)
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue done`)
                 this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
                 //sleep 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000))

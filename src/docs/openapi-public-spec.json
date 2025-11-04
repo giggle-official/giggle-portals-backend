@@ -407,7 +407,7 @@
             "in": "query",
             "description": "Claim id",
             "schema": {
-              "type": "number"
+              "type": "string"
             }
           }
         ],
