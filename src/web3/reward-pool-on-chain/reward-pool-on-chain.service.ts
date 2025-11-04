@@ -1046,7 +1046,7 @@ export class RewardPoolOnChainService {
                     `SETTLE ORDER REWARD: ${statement.id}, reward#${index}: ${JSON.stringify(userReward)}`,
                 )
                 //continue if userReward.rewards is 0
-                if (userReward.rewards.eq(new Decimal(0))) {
+                if (userReward.rewards.equals(new Decimal(0))) {
                     this.logger.warn(
                         `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, user: ${userReward.user_info.email}`,
                     )
