@@ -3,7 +3,7 @@ import { user_subscribed_widgets, widgets } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import { PickType } from "@nestjs/swagger"
 import { IsNotEmpty, IsString, MinLength, MaxLength } from "class-validator"
-import { JwtPermissions, ROLES } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
+import { WIDGET_PERMISSIONS_LIST, WidgetPermissions } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 import { PaginationDto } from "src/common/common.dto"
 
 export class WidgetSettingsDto {
@@ -22,8 +22,8 @@ export class WidgetSettingsDto {
     @ApiProperty({ description: "repository url" })
     repository_url?: string
 
-    @ApiProperty({ description: "permissions", required: true, enum: ROLES })
-    permissions: JwtPermissions[]
+    @ApiProperty({ description: "permissions", required: true, enum: WIDGET_PERMISSIONS_LIST })
+    permissions: WidgetPermissions[]
 
     @ApiProperty({ description: "type", required: true, enum: ["iframe", "system"] })
     type: "iframe" | "system"

@@ -58,7 +58,7 @@ export class DeveloperService {
                     demo_url: mappedWidget.demo_url,
                     secret_key: identify.secret_key,
                     access_key: identify.access_key,
-                    request_permissions: process.env.ENV !== "product" ? { can_get_user_token: true } : null,
+                    request_permissions: process.env.ENV !== "product" ? { can_get_user_token: true } : {},
                 },
             })
 

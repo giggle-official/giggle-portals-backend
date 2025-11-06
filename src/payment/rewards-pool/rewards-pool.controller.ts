@@ -24,6 +24,8 @@ import { ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { ApiBody } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
+import { WIDGET_PERMISSIONS_LIST } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
+import { CheckWidgetPolicies, WidgetPoliciesGuard } from "src/guards/widget-policies.guard"
 
 @Controller("/api/v1/rewards-pool")
 export class RewardsPoolController {
@@ -86,7 +88,8 @@ export class RewardsPoolController {
         description: "Airdrop tokens to an user",
     })
     @Post("/airdrop")
-    @UseGuards(IsWidgetGuard)
+    @UseGuards(IsWidgetGuard, WidgetPoliciesGuard)
+    @CheckWidgetPolicies((ability) => ability.can(WIDGET_PERMISSIONS_LIST.CAN_AIRDROP))
     @ApiBody({ type: RequestAirdropDto })
     @ApiResponse({ type: AirdropResponseDto })
     async airdrop(@Body() body: RequestAirdropDto, @Req() req: Request) {

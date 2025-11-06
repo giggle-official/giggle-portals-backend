@@ -19,7 +19,8 @@ import { CreditController } from "./credit/credit.controller"
 import { SalesAgentController } from "./sales-agent/sales-agent.controller"
 import { SalesAgentService } from "./sales-agent/sales-agent.service"
 import { Credit2cService } from "./credit-2c/credit-2c.service"
-import { Credit2cController } from './credit-2c/credit-2c.controller';
+import { Credit2cController } from "./credit-2c/credit-2c.controller"
+import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 
 @Module({
     imports: [
@@ -32,7 +33,14 @@ import { Credit2cController } from './credit-2c/credit-2c.controller';
         forwardRef(() => OpenAppModule),
         JwtModule.register({}),
     ],
-    controllers: [PaymentController, OrderController, RewardsPoolController, CreditController, SalesAgentController, Credit2cController],
+    controllers: [
+        PaymentController,
+        OrderController,
+        RewardsPoolController,
+        CreditController,
+        SalesAgentController,
+        Credit2cController,
+    ],
     providers: [
         PaymentService,
         PrismaService,
@@ -44,6 +52,7 @@ import { Credit2cController } from './credit-2c/credit-2c.controller';
         CreditService,
         SalesAgentService,
         Credit2cService,
+        WidgetCaslAbilityFactory,
     ],
     exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService],
 })
