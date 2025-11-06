@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, Body, Get, Param, Query } from "@nestjs/common"
+import { Controller, Post, Req, UseGuards, Body, Get, Param, Query, Headers } from "@nestjs/common"
 import { DeveloperService } from "./developer.service"
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import {
@@ -9,6 +9,7 @@ import {
     GetUserInfoQueryDto,
     NationCodeDto,
     RequestWidgetAccessTokenDto,
+    SendLoginCodeDto,
     WidgetAccessTokenDto,
     WidgetIdentityDto,
 } from "./developer.dto"
@@ -21,6 +22,9 @@ import { UsersService } from "./users.service"
 import * as nationCodes from "./nation-codes.json"
 import { LoginResponseDto } from "../auth/auto.dto"
 import { GetUserTokenDto } from "./users.dto"
+import { LoginCodeResponseDto } from "src/user/user.dto"
+import { LoginResponseDTO, LoginWithCodeReqDto } from "src/auth/auth.dto"
+import { AuthGuard } from "@nestjs/passport"
 
 @Controller("/api/v1/developer")
 @ApiTags("Widgets Management")
@@ -124,5 +128,31 @@ export class DeveloperController {
     @UseGuards(IsWidgetGuard)
     async getUserToken(@Req() req: Request, @Body() body: GetUserTokenDto) {
         return this.usersService.getToken(req.user as UserJwtExtractDto, body)
+    }
+
+    //send login code
+    @Post("/send-login-code")
+    @ApiBearerAuth("jwt")
+    @ApiTags("Developer Utility")
+    @ApiOperation({
+        summary: `send login code to an email`,
+        description: `send login code to an email, if user not exists, a new user will be created, you must be a developer to use this api, after code sent, user can login with this code using [loginWithCode](https://app.giggle.pro/api/reference/api-v1-auth-loginWithCode) api`,
+    })
+    @ApiResponse({ type: LoginCodeResponseDto })
+    @ApiBody({ type: SendLoginCodeDto })
+    @UseGuards(IsWidgetGuard)
+    async sendLoginCode(@Body() body: SendLoginCodeDto, @Headers("app-id") appId: string, @Req() req: Request) {
+        return await this.developerService.sendLoginCode(body, appId, req.user as UserJwtExtractDto)
+    }
+
+    //login with code
+    @Post("/login-with-code")
+    @ApiTags("Developer Utility")
+    @ApiOperation({ summary: "login with code" })
+    @UseGuards(AuthGuard("code"))
+    @ApiResponse({ type: LoginResponseDTO })
+    @ApiBody({ type: LoginWithCodeReqDto })
+    async loginWithCode(@Req() req: Request) {
+        return await this.developerService.loginWithCode(req.user as UserJwtExtractDto)
     }
 }
