@@ -108,7 +108,7 @@ export class AuthService {
         return {}
     }
 
-    async exchangeCode(code: string, app_id: string, device_id: string, invite_code?: string) {
+    async exchangeCode(code: string, app_id: string, device_id: string, invite_code?: string, source_link_id?: string) {
         try {
             this.logger.log(
                 "Google token exchange: code: " + code,
@@ -178,6 +178,21 @@ export class AuthService {
                 },
             })
             if (!user) {
+                let fromSourceLink = ""
+                let newUserAppId = app_id
+                if (source_link_id) {
+                    const linkDetail = await this.prismaService.app_links.findUnique({
+                        where: {
+                            unique_str: source_link_id,
+                        },
+                    })
+                    if (linkDetail) {
+                        invited_by = linkDetail.creator
+                        fromSourceLink = source_link_id
+                        newUserAppId = linkDetail.app_id
+                    }
+                }
+
                 const userNameShorted = this.userService.generateShortName()
                 const username = userInfo.email.split("@")[0]
                 const newUserInfo: CreateUserDto = {
@@ -186,27 +201,11 @@ export class AuthService {
                     password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                     email: userInfo.email,
                     usernameShorted: userNameShorted,
-                    app_id: app_id,
-                    from_source_link: "",
+                    app_id: newUserAppId,
+                    from_source_link: fromSourceLink,
                     from_device_id: device_id,
                     can_create_ip: invited_by ? true : false,
                     invited_by: invited_by,
-                }
-                if (device_id) {
-                    //update register source link
-                    const sourceLink = await this.linkService.getLinkByDeviceId(device_id)
-                    newUserInfo.from_source_link = sourceLink
-                    if (sourceLink) {
-                        const linkDetail = await this.prismaService.app_links.findUnique({
-                            where: {
-                                unique_str: sourceLink,
-                            },
-                        })
-                        if (linkDetail) {
-                            newUserInfo.app_id = linkDetail.app_id
-                            newUserInfo.invited_by = linkDetail.creator
-                        }
-                    }
                 }
                 const createdUser = await this.userService.createUser(newUserInfo)
                 user = await this.prismaService.users.findUnique({

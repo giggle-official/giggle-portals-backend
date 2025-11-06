@@ -936,7 +936,7 @@ Message: ${contactInfo.message}
         }
 
         let inviteUser = ""
-        if (userInfo.invite_code) {
+        if (userInfo.source_link_id) {
             const iUser = await this.prisma.users.findFirst({
                 where: {
                     invite_code: userInfo.invite_code,
@@ -947,6 +947,24 @@ Message: ${contactInfo.message}
 
         let user = await this.getUserInfoByEmail(userInfo.email)
         if (!user) {
+            //find invited user
+
+            let fromSourceLink = ""
+            let newUserAppId = appId
+
+            if (userInfo.source_link_id) {
+                const linkId = userInfo.source_link_id
+                const linkDetail = await this.prisma.app_links.findUnique({
+                    where: {
+                        unique_str: linkId,
+                    },
+                })
+                if (linkDetail) {
+                    inviteUser = linkDetail.creator
+                    fromSourceLink = linkId
+                    newUserAppId = linkDetail.app_id
+                }
+            }
             //create user
             const userNameShorted = this.generateShortName()
             const username = userInfo.email.split("@")[0]
@@ -956,27 +974,11 @@ Message: ${contactInfo.message}
                 password: crypto.randomBytes(9).toString("hex"), //a random string as password, user need reset this password later
                 email: userInfo.email,
                 usernameShorted: userNameShorted,
-                app_id: appId,
-                from_source_link: "",
+                app_id: newUserAppId,
+                from_source_link: fromSourceLink,
                 from_device_id: deviceId,
                 can_create_ip: inviteUser ? true : false,
                 invited_by: inviteUser,
-            }
-            if (deviceId) {
-                //update register source link
-                const sourceLink = await this.linkService.getLinkByDeviceId(deviceId)
-                newUserInfo.from_source_link = sourceLink
-                if (sourceLink) {
-                    const linkDetail = await this.prisma.app_links.findUnique({
-                        where: {
-                            unique_str: sourceLink,
-                        },
-                    })
-                    if (linkDetail) {
-                        newUserInfo.app_id = linkDetail.app_id
-                        newUserInfo.invited_by = linkDetail.creator
-                    }
-                }
             }
             user = await this.createUser(newUserInfo)
         }

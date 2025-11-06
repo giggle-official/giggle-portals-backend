@@ -72,4 +72,9 @@ export class GoogleLoginConfigDto {
     @IsString()
     @IsOptional()
     invite_code?: string
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
+    source_link_id?: string
 }
