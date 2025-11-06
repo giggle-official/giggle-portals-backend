@@ -4,7 +4,6 @@ import { JwtService } from "@nestjs/jwt"
 import { PrismaService } from "src/common/prisma.service"
 import { UserService } from "src/user/user.service"
 import { EmailConfirmationDto, LoginResponseDTO } from "./auth.dto"
-import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 import { lastValueFrom } from "rxjs"
 import { HttpService } from "@nestjs/axios"
 import { HttpsProxyAgent } from "https-proxy-agent"
@@ -55,7 +54,7 @@ export class AuthService {
         return user
     }
 
-    async login(userInfo: UserJwtExtractDto, permissions?: JwtPermissions[]): Promise<LoginResponseDTO> {
+    async login(userInfo: UserJwtExtractDto): Promise<LoginResponseDTO> {
         // Check if the user is blocked
         const user = await this.prismaService.users.findUnique({
             where: {

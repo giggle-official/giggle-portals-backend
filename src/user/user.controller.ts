@@ -55,9 +55,7 @@ import {
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
-import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
-import { userInfo } from "os"
 
 export class nouceDto {
     @ApiProperty()
@@ -150,7 +148,7 @@ export class UserInfoDTO extends LoginDTO {
     is_sale_agent?: boolean
 
     @ApiProperty()
-    permissions?: JwtPermissions[]
+    permissions?: any
 
     @ApiProperty()
     device_id?: string

@@ -31,7 +31,6 @@ import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { JwtService } from "@nestjs/jwt"
 import { v4 as uuidv4 } from "uuid"
-import { JwtPermissions } from "src/casl/casl-ability.factory/jwt-casl-ability.factory"
 import * as crypto from "crypto"
 
 @Injectable()
@@ -82,7 +81,7 @@ export class WidgetsService {
                     settings: this.parseSettings(body.settings, body) as any,
                     secret_key: identify.secret_key,
                     access_key: identify.access_key,
-                    request_permissions: process.env.ENV !== "product" ? { can_get_user_token: true } : null,
+                    request_permissions: process.env.ENV !== "product" ? { can_get_user_token: true } : {},
                 },
             })
             return widget
@@ -773,7 +772,7 @@ export class WidgetsService {
                 user: user.usernameShorted,
                 widget_tag: body.tag,
                 app_id: appId,
-                permission: (widgetInfo.settings as any)?.permissions as JwtPermissions[],
+                permission: widgetInfo.request_permissions,
                 user_subscribed_widget: userSubscribedWidget ? true : false,
             },
         })

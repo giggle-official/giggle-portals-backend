@@ -43,7 +43,6 @@ import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
 import sharp from "sharp"
 import { CreditService } from "src/payment/credit/credit.service"
-import { Decimal } from "@prisma/client/runtime/library"
 
 @Injectable()
 export class UserService {
