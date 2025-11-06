@@ -131,6 +131,63 @@ export class CreditService {
                 },
             })
         })
+
+        //process rewards
+        this.processRewards(order)
+    }
+
+    async processRewards(order: orders): Promise<void> {
+        //if first order issue free credit to invited user
+        const userFirstOrder = await this.prisma.orders.findFirst({
+            where: {
+                owner: order.owner,
+                is_credit_top_up: true,
+                current_status: { in: [OrderStatus.COMPLETED, OrderStatus.REWARDS_RELEASED] },
+            },
+            orderBy: {
+                id: "asc",
+            },
+        })
+        if (userFirstOrder.order_id !== order.order_id) {
+            this.logger.warn(
+                `[PROCESS TOPUP CREDIT REWARDS] order ${order.order_id} is not the first order of user ${order.owner}, skip process rewards`,
+            )
+            return
+        }
+
+        const userInfo = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: order.owner,
+            },
+        })
+        if (!userInfo || !userInfo.invited_by) {
+            this.logger.error(
+                `[PROCESS TOPUP CREDIT REWARDS] user ${order.owner} not found or not invited by anyone, skip process rewards`,
+            )
+            return
+        }
+
+        const invitedUser = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.invited_by,
+            },
+        })
+        if (!invitedUser) {
+            this.logger.error(
+                `[PROCESS TOPUP CREDIT REWARDS] invited user ${userInfo.invited_by} not found, skip process rewards`,
+            )
+            return
+        }
+
+        await this.issueFreeCredit(
+            { email: invitedUser.email, amount: 500 },
+            {
+                user_id: order.owner,
+                usernameShorted: order.owner,
+                app_id: order.app_id,
+                developer_info: { tag: order.widget_tag, usernameShorted: "" },
+            },
+        )
     }
 
     async getStatements(query: GetStatementQueryDto, userInfo: UserJwtExtractDto): Promise<GetStatementsResponseDto> {

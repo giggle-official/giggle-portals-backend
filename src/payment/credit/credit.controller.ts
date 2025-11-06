@@ -14,6 +14,8 @@ import { OrderDetailDto } from "../order/order.dto"
 import { AuthGuard } from "@nestjs/passport"
 import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
+import { CheckWidgetPolicies, WidgetPoliciesGuard } from "src/guards/widget-policies.guard"
+import { WIDGET_PERMISSIONS_LIST } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 
 @Controller("/api/v1/credit")
 export class CreditController {
@@ -66,15 +68,17 @@ export class CreditController {
     @ApiBody({
         type: IssueFreeCreditDto,
     })
-    @UseGuards(IsWidgetGuard)
+    @UseGuards(IsWidgetGuard, WidgetPoliciesGuard)
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
     async issueFreeCredit(@Body() body: IssueFreeCreditDto, @Req() req: Request) {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
     }
 
-    @Post("/issue-credit")
-    @ApiExcludeEndpoint()
-    @UseGuards(IsWidgetGuard)
-    async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
-        return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
-    }
+    //@Post("/issue-credit")
+    //@ApiExcludeEndpoint()
+    //@CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
+    //@UseGuards(IsWidgetGuard)
+    //async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
+    //    return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
+    //}
 }
