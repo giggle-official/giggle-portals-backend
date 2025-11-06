@@ -59,6 +59,11 @@ export class LoginCodeReqDto {
     @IsString()
     @IsOptional()
     invite_code?: string
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
+    source_link_id?: string
 }
 
 export class LoginCodeResponseDto {
