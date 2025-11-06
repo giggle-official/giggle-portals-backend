@@ -9870,7 +9870,8 @@
               "can_issue_token",
               "can_get_user_token",
               "can_get_platform_revenue",
-              "can_airdrop"
+              "can_airdrop",
+              "can_issue_free_credit"
             ]
           },
           "type": {
