@@ -220,3 +220,13 @@ export class GetUserInfoQueryDto {
     @IsString()
     user_id: string
 }
+
+export class SendLoginCodeDto {
+    @ApiProperty({
+        description: "The email of the user",
+        example: "test@giggle.pro",
+    })
+    @IsNotEmpty()
+    @IsEmail()
+    email: string
+}

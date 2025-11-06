@@ -3281,6 +3281,87 @@
         ]
       }
     },
+    "/api/v1/developer/send-login-code": {
+      "post": {
+        "description": "send login code to an email, if user not exists, a new user will be created, you must be a developer to use this api, after code sent, user can login with this code using [loginWithCode](https://app.giggle.pro/api/reference/api-v1-auth-loginWithCode) api",
+        "operationId": "DeveloperController_sendLoginCode",
+        "parameters": [
+          {
+            "name": "app-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendLoginCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginCodeResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "send login code to an email",
+        "tags": [
+          "Widgets Management",
+          "Developer Utility"
+        ]
+      }
+    },
+    "/api/v1/developer/login-with-code": {
+      "post": {
+        "operationId": "DeveloperController_loginWithCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginWithCodeReqDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "summary": "login with code",
+        "tags": [
+          "Widgets Management",
+          "Developer Utility"
+        ]
+      }
+    },
     "/api/v1/link/create": {
       "post": {
         "description": "Create a short link you can share to anywhere, default is to a portal page.\n        The link redirect url is depends users token, if token is from a widget, the link will be to the widget in portal, you can specify the widget message when widget loaded.\n        ",
@@ -10318,6 +10399,30 @@
         },
         "required": [
           "app_id"
+        ]
+      },
+      "SendLoginCodeDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The email of the user",
+            "example": "test@giggle.pro"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "LoginCodeResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
         ]
       },
       "CreateLinkRequestDto": {

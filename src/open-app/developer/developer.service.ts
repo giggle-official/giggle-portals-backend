@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { DeveloperWidgetCreateDto, DeveloperWidgetUpdateDto, RequestWidgetAccessTokenDto } from "./developer.dto"
+import {
+    DeveloperWidgetCreateDto,
+    DeveloperWidgetUpdateDto,
+    RequestWidgetAccessTokenDto,
+    SendLoginCodeDto,
+} from "./developer.dto"
 import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import { WidgetSettingsDto } from "../widgets/widget.dto"
 import { WidgetsService } from "../widgets/widgets.service"
@@ -10,6 +15,8 @@ import { UserService } from "src/user/user.service"
 import * as crypto from "crypto"
 import { isEmail } from "class-validator"
 import { JwtService } from "@nestjs/jwt"
+import { LoginWithCodeReqDto } from "src/auth/auth.dto"
+import { AuthService } from "src/auth/auth.service"
 @Injectable()
 export class DeveloperService {
     constructor(
@@ -17,6 +24,8 @@ export class DeveloperService {
         private readonly widgetsService: WidgetsService,
         private readonly usersService: UserService,
         private readonly jwtService: JwtService,
+
+        @Inject(forwardRef(() => AuthService)) private readonly authService: AuthService,
     ) {}
 
     async createWidget(body: DeveloperWidgetCreateDto, user: UserJwtExtractDto) {
@@ -419,5 +428,36 @@ export class DeveloperService {
                 expiresIn: "10m",
             },
         )
+    }
+
+    async sendLoginCode(body: SendLoginCodeDto, appId: string, developer: UserJwtExtractDto) {
+        //find app
+        const app = await this.prisma.apps.findUnique({
+            where: { app_id: appId },
+        })
+        if (!app) {
+            throw new BadRequestException("App not found")
+        }
+
+        //find app bind widgets
+        const appBindWidgets = await this.prisma.app_bind_widgets.findMany({
+            where: {
+                app_id: appId,
+            },
+        })
+        if (appBindWidgets.length === 0) {
+            throw new BadRequestException("App not bind to any widget")
+        }
+
+        const isBindWidget = appBindWidgets.some((bind) => bind.widget_tag === developer.developer_info.tag)
+        if (!isBindWidget) {
+            throw new BadRequestException("This app has not bind this widget")
+        }
+
+        return this.usersService.sendLoginCode(body, appId)
+    }
+
+    async loginWithCode(body: UserJwtExtractDto) {
+        return this.authService.login(body)
     }
 }
