@@ -153,7 +153,7 @@ export class UserService {
             followers: _userInfoFromDb.followers,
             following: _userInfoFromDb.following,
             can_create_ip: _userInfoFromDb.can_create_ip,
-            permissions: ["all"],
+            permissions: {},
             widget_info: null,
             device_id: userInfo?.device_id,
             is_developer: _userInfoFromDb?.is_developer,
