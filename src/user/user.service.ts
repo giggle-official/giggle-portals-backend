@@ -179,7 +179,7 @@ export class UserService {
                 app_id: widgetSession.app_id,
                 user_subscribed: widgetSession.user_subscribed_widget,
             }
-            result.permissions = widgetSession.permission as any
+            //result.permissions = widgetSession.permission as any
         } else if (userInfo?.app_id) {
             //if app_id is provided, we need find app bind widget info
             const appBindWidget = await this.prisma.app_bind_widgets.findFirst({
