@@ -15,7 +15,6 @@ import { UserService } from "src/user/user.service"
 import * as crypto from "crypto"
 import { isEmail } from "class-validator"
 import { JwtService } from "@nestjs/jwt"
-import { LoginWithCodeReqDto } from "src/auth/auth.dto"
 import { AuthService } from "src/auth/auth.service"
 @Injectable()
 export class DeveloperService {
@@ -457,7 +456,21 @@ export class DeveloperService {
         return this.usersService.sendLoginCode(body, appId)
     }
 
-    async loginWithCode(body: UserJwtExtractDto) {
-        return this.authService.login(body)
+    async loginWithCode(body: UserJwtExtractDto, appId: string) {
+        //find app id bind widgets
+        const appBindWidgets = await this.prisma.app_bind_widgets.findMany({
+            where: {
+                app_id: appId,
+                enabled: true,
+                widget_tag: {
+                    not: "login_from_external",
+                },
+            },
+        })
+        if (appBindWidgets.length === 0) {
+            throw new BadRequestException("This app has not bind any widget")
+        }
+        const widgetTag = appBindWidgets[0].widget_tag
+        return this.widgetsService.getAccessToken({ tag: widgetTag, app_id: appId }, body, "")
     }
 }
