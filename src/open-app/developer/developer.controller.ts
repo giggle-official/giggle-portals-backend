@@ -152,7 +152,7 @@ export class DeveloperController {
     @UseGuards(AuthGuard("code"))
     @ApiResponse({ type: LoginResponseDTO })
     @ApiBody({ type: LoginWithCodeReqDto })
-    async loginWithCode(@Req() req: Request) {
-        return await this.developerService.loginWithCode(req.user as UserJwtExtractDto)
+    async loginWithCode(@Req() req: Request, @Headers("app-id") appId: string) {
+        return await this.developerService.loginWithCode(req.user as UserJwtExtractDto, appId)
     }
 }

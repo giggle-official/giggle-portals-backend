@@ -6,6 +6,7 @@ export class IsWidgetGuard extends AuthGuard("jwt") {
         if (!user.developer_info) {
             throw new ForbiddenException("You are not an authorized developer")
         }
+        console.log("user", user)
         return user
     }
 }
