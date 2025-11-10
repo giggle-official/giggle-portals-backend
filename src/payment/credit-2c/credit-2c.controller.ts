@@ -11,6 +11,12 @@ import { Credit2cPaymentCallbackDto } from "./credit-2c.dto"
 @ApiTags("Credit2c Management")
 export class Credit2cController {
     constructor(private readonly credit2cService: Credit2cService) {}
+    @Post("/payment-callback")
+    @UseGuards(IsWidgetGuard)
+    @HttpCode(HttpStatus.OK)
+    async paymentCallback(@Body() body: Credit2cPaymentCallbackDto) {
+        return await this.credit2cService.processPaymentCallback(body)
+    }
 
     @Get("/balance")
     @UseGuards(AuthGuard("jwt"))
@@ -22,12 +28,5 @@ export class Credit2cController {
     @UseGuards(AuthGuard("jwt"))
     async topUpUrl(@Req() req: Request, @Query("amount") amount: number, @Query("order_id") order_id: string) {
         return this.credit2cService.getTopUpUrl(req.user as UserJwtExtractDto, amount, order_id)
-    }
-
-    @Post("/payment-callback")
-    @UseGuards(IsWidgetGuard)
-    @HttpCode(HttpStatus.OK)
-    async paymentCallback(@Body() body: Credit2cPaymentCallbackDto) {
-        return this.credit2cService.processPaymentCallback(body)
     }
 }

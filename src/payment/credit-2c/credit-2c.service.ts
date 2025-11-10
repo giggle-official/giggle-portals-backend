@@ -72,6 +72,7 @@ export class Credit2cService {
     async processPaymentCallback(body: Credit2cPaymentCallbackDto): Promise<{}> {
         const order = await this.prisma.orders.findUnique({
             where: { order_id: body.order_id },
+            include: { user_info: true },
         })
         if (!order) {
             return {}
@@ -79,7 +80,7 @@ export class Credit2cService {
 
         return this.orderService.payWithCredit2c(
             { order_id: body.order_id },
-            { usernameShorted: order.owner, user_id: order.owner },
+            { usernameShorted: order.owner, user_id: order.owner, email: order.user_info.email },
         )
     }
 
