@@ -844,6 +844,13 @@ export class OrderService {
             throw new BadRequestException(message)
         }
 
+        if (orderRecord.current_status !== OrderStatus.PENDING) {
+            this.logger.error(
+                `[PAY ORDER WITH CREDIT2C] Order ${orderId} is not pending, current status: ${orderRecord.current_status}`,
+            )
+            throw new BadRequestException("Order is not pending")
+        }
+
         await this.credit2cService.payWithCredit2c(userInfo, orderRecord)
 
         await this.prisma.orders.update({

@@ -1,11 +1,13 @@
 import { HttpService } from "@nestjs/axios"
-import { BadRequestException, HttpStatus, Injectable, Logger } from "@nestjs/common"
+import { BadRequestException, forwardRef, HttpStatus, Inject, Injectable, Logger } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import { lastValueFrom } from "rxjs"
 import { AxiosResponse } from "axios"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { Credit2cBalanceDto, Credit2cResponse } from "./credit-2c.dto"
+import { Credit2cBalanceDto, Credit2cPaymentCallbackDto, Credit2cResponse } from "./credit-2c.dto"
 import { orders } from "@prisma/client"
+import { PrismaService } from "src/common/prisma.service"
+import { OrderService } from "../order/order.service"
 
 @Injectable()
 export class Credit2cService {
@@ -18,6 +20,10 @@ export class Credit2cService {
     constructor(
         private readonly jwtService: JwtService,
         private readonly httpService: HttpService,
+        private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => OrderService))
+        private readonly orderService: OrderService,
     ) {
         if (!this.credit2cApiUrl || !this.credit2cApiKey || !this.credit2cApiSecret || !this.credit2cHkUrl) {
             throw new Error("C2_API_ENDPOINT or C2_API_KEY or C2_API_SECRET or C2_HK_URL is not set")
@@ -53,12 +59,28 @@ export class Credit2cService {
         return response.data.data
     }
 
-    async getTopUpUrl(user: UserJwtExtractDto): Promise<{ url: string }> {
+    async getTopUpUrl(user: UserJwtExtractDto, amount: number, order_id: string): Promise<{ url: string }> {
         const url = new URL(this.credit2cHkUrl + "/top-up")
         url.searchParams.set("access_token", this.getAuthorizedToken(user.email))
         url.searchParams.set("show-header", "false")
         url.searchParams.set("close_window_after_payment", "true")
+        url.searchParams.set("amount", amount.toString())
+        url.searchParams.set("order_id", order_id)
         return { url: url.toString() }
+    }
+
+    async processPaymentCallback(body: Credit2cPaymentCallbackDto): Promise<{}> {
+        const order = await this.prisma.orders.findUnique({
+            where: { order_id: body.order_id },
+        })
+        if (!order) {
+            return {}
+        }
+
+        return this.orderService.payWithCredit2c(
+            { order_id: body.order_id },
+            { usernameShorted: order.owner, user_id: order.owner },
+        )
     }
 
     async payWithCredit2c(user: UserJwtExtractDto, order: orders): Promise<void> {
