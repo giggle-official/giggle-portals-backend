@@ -2618,7 +2618,48 @@
     "/api/v1/credit-2c/top-up-url": {
       "get": {
         "operationId": "Credit2cController_topUpUrl",
+        "parameters": [
+          {
+            "name": "amount",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "order_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Credit2c Management"
+        ]
+      }
+    },
+    "/api/v1/credit-2c/payment-callback": {
+      "post": {
+        "operationId": "Credit2cController_paymentCallback",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credit2cPaymentCallbackDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": ""
@@ -8866,6 +8907,10 @@
         ]
       },
       "SalesAgentDetailDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "Credit2cPaymentCallbackDto": {
         "type": "object",
         "properties": {}
       },
