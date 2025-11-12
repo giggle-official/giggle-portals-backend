@@ -421,6 +421,14 @@ export class RewardsPoolService {
             },
         })
 
+        //buyback amount in usdc
+        const buybackAmountInUsdc = await this.prisma.$queryRaw<{ total_usdc: Decimal }[]>`
+SELECT SUM(coalesce(unit_price, 0) * coalesce(amount, 0)) as total_usdc
+FROM reward_pool_statement
+WHERE token = ${query.token}
+  AND type = 'buyback'
+`
+
         //tokenInfo
         const tokenInfo = await this.prisma.view_ip_token_prices.findFirst({
             where: {
@@ -443,6 +451,7 @@ export class RewardsPoolService {
             injected_amount: pool.injected_amount.toNumber(),
             rewarded_amount: pool.rewarded_amount.toNumber(),
             buyback_amount: buybackAmount._sum.amount?.toNumber() || 0,
+            buyback_amount_in_usdc: Number(new Decimal(buybackAmountInUsdc[0].total_usdc).toFixed(6)) || 0,
             roles_income: roleIncomes.map((r) => ({
                 role: r.role as RewardAllocateRoles,
                 income: r._sum.rewards.toNumber(),
