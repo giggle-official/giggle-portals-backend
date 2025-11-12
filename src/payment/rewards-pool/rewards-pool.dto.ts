@@ -423,6 +423,9 @@ export class StatisticsSummaryDto {
     @ApiProperty({ description: "buyback amount" })
     buyback_amount: number
 
+    @ApiProperty({ description: "buyback amount in usdc" })
+    buyback_amount_in_usdc: number
+
     @ApiProperty({ description: "rewarded amount" })
     rewarded_amount: number
 

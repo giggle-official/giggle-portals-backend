@@ -8620,6 +8620,10 @@
             "type": "number",
             "description": "buyback amount"
           },
+          "buyback_amount_in_usdc": {
+            "type": "number",
+            "description": "buyback amount in usdc"
+          },
           "rewarded_amount": {
             "type": "number",
             "description": "rewarded amount"
@@ -8643,6 +8647,7 @@
           "current_balance",
           "injected_amount",
           "buyback_amount",
+          "buyback_amount_in_usdc",
           "rewarded_amount",
           "roles_income"
         ]
