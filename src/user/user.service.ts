@@ -164,6 +164,7 @@ export class UserService {
             free_credit_balance: balanceInfo.free_credit_balance,
             wallet_address: _userInfoFromDb.wallet_address,
             is_sale_agent: !!salsAgent,
+            invite_code: (await this.getInviteCode(userInfo)).code,
         }
 
         //if widget session is setting, we need to get the widget info
@@ -934,23 +935,21 @@ Message: ${contactInfo.message}
             throw new BadRequestException("email is invalid")
         }
 
-        let inviteUser = ""
-        if (userInfo.source_link_id) {
-            const iUser = await this.prisma.users.findFirst({
-                where: {
-                    invite_code: userInfo.invite_code,
-                },
-            })
-            inviteUser = iUser?.username_in_be
-        }
-
         let user = await this.getUserInfoByEmail(userInfo.email)
+        let inviteUser = ""
         if (!user) {
-            //find invited user
+            if (userInfo.invite_code) {
+                const iUser = await this.prisma.users.findFirst({
+                    where: {
+                        invite_code: userInfo.invite_code,
+                    },
+                })
+                inviteUser = iUser?.username_in_be
+            }
 
+            //find invited user
             let fromSourceLink = ""
             let newUserAppId = appId
-
             if (userInfo.source_link_id) {
                 const linkId = userInfo.source_link_id
                 const linkDetail = await this.prisma.app_links.findUnique({

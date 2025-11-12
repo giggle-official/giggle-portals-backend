@@ -5648,6 +5648,9 @@
           "app_id": {
             "type": "string"
           },
+          "invite_code": {
+            "type": "string"
+          },
           "can_create_ip": {
             "type": "boolean"
           },
@@ -5696,6 +5699,7 @@
           "followers",
           "following",
           "app_id",
+          "invite_code",
           "can_create_ip",
           "wallet_address",
           "is_developer",
@@ -10463,10 +10467,15 @@
             "type": "string",
             "description": "The email of the user",
             "example": "test@giggle.pro"
+          },
+          "invite_code": {
+            "type": "string",
+            "description": "The invite code of the user"
           }
         },
         "required": [
-          "email"
+          "email",
+          "invite_code"
         ]
       },
       "LoginCodeResponseDto": {
