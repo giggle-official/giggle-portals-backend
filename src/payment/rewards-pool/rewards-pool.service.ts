@@ -625,9 +625,7 @@ ORDER BY d.date;`
         })
 
         const count = await this.prisma.reward_pool_statement.count({
-            where: {
-                token: query.token,
-            },
+            where,
         })
 
         return {
