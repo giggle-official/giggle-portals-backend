@@ -229,4 +229,11 @@ export class SendLoginCodeDto {
     @IsNotEmpty()
     @IsEmail()
     email: string
+
+    @ApiProperty({
+        description: "The invite code of the user",
+    })
+    @IsOptional()
+    @IsString()
+    invite_code?: string
 }

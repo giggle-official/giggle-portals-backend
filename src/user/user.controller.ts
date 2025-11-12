@@ -136,6 +136,9 @@ export class UserInfoDTO extends LoginDTO {
     app_id?: string
 
     @ApiProperty()
+    invite_code?: string
+
+    @ApiProperty()
     can_create_ip?: boolean
 
     @ApiProperty()

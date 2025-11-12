@@ -1459,7 +1459,7 @@ export class OrderService {
             throw new BadRequestException("Order is not completed or partial refunded")
         }
         if (!orderRecord.related_reward_id || !orderRecord.rewards_model_snapshot) {
-            this.logger.error(`Order ${order_id} has no reward pool`)
+            this.logger.warn(`Order ${order_id} has no reward pool`)
             throw new BadRequestException("Order has no reward pool")
         }
 
