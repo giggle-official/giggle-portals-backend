@@ -75,7 +75,33 @@ export class LoginDTO {
     password?: string
 }
 
+export class InvitedByDto {
+    @ApiProperty({
+        description: "The user id of the invited by",
+    })
+    user_id: string
+
+    @ApiProperty({
+        description: "The username of the invited by",
+    })
+    username: string
+    @ApiProperty({
+        description: "The avatar of the invited by",
+    })
+    avatar: string
+
+    @ApiProperty({
+        description: "The email of the invited by",
+    })
+    email: string
+}
+
 export class RegisterInfoDTO {
+    @ApiProperty({
+        description: "The invited by of the register info",
+    })
+    invited_by: InvitedByDto
+
     @ApiProperty({
         description: "The type of the register info",
         enum: ["direct", "widget", "other"],
