@@ -492,7 +492,7 @@ WHERE token = ${query.token}
             injected_amount: pool.injected_amount.toNumber(),
             rewarded_amount: pool.rewarded_amount.toNumber(),
             buyback_amount: buybackAmount._sum.amount?.toNumber() || 0,
-            buyback_amount_in_usdc: Number(new Decimal(buybackAmountInUsdc[0].total_usdc).toFixed(6)) || 0,
+            buyback_amount_in_usdc: Number(new Decimal(buybackAmountInUsdc?.[0]?.total_usdc || 0).toFixed(6)),
             roles_income: roleIncomes.map((r) => ({
                 role: r.role as RewardAllocateRoles,
                 income: r._sum.rewards.toNumber(),
