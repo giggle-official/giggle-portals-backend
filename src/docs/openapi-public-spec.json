@@ -5610,6 +5610,33 @@
       }
     },
     "schemas": {
+      "InvitedByDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user id of the invited by"
+          },
+          "username": {
+            "type": "string",
+            "description": "The username of the invited by"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "The avatar of the invited by"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email of the invited by"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "avatar",
+          "email"
+        ]
+      },
       "LinkCreatorDto": {
         "type": "object",
         "properties": {
@@ -5661,6 +5688,14 @@
       "RegisterInfoDTO": {
         "type": "object",
         "properties": {
+          "invited_by": {
+            "description": "The invited by of the register info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InvitedByDto"
+              }
+            ]
+          },
           "type": {
             "type": "string",
             "description": "The type of the register info",
@@ -5692,6 +5727,7 @@
           }
         },
         "required": [
+          "invited_by",
           "type",
           "source_link_summary",
           "source_link",

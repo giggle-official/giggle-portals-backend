@@ -408,16 +408,16 @@ export class RewardsPoolService {
     }
 
     async getStatisticsSummary(query: StatisticsQueryDto): Promise<StatisticsSummaryDto> {
-        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
+        const pool = await this.prisma.reward_pools.findUnique({
             where: { token: query.token },
             include: {
-                statement: {
-                    where: {
-                        type: "released",
-                    },
-                },
+                statement: true,
             },
         })
+
+        if (!pool) {
+            throw new BadRequestException("Pool does not exist")
+        }
 
         const roleIncomes = await this.prisma.user_rewards.groupBy({
             by: ["role"],
