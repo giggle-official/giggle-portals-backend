@@ -1709,7 +1709,7 @@ export class IpLibraryService {
                 token_info: tokenInfo as any,
                 token_mint: launchStaticTokenResponse.tokenAddr,
                 meta_hash: launchStaticTokenResponse.metadataHash,
-                current_token_info: { tokenInfo, is_static_token: true } as any,
+                current_token_info: { ...tokenInfo, is_static_token: true } as any,
             },
         })
 
