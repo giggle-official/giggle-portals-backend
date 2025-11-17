@@ -368,7 +368,17 @@ export class UserService {
             source_link: null,
             app_id: null,
             from_widget_tag: null,
-            source_link_summary: null,
+            source_link_summary: {
+                creator: null,
+                short_link: null,
+                link_pic: null,
+            },
+            invited_by: {
+                user_id: "",
+                username: "",
+                avatar: "",
+                email: "",
+            },
         }
 
         if (!user.from_source_link) {
@@ -392,6 +402,21 @@ export class UserService {
             registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
         }
 
+        if (user.invited_by) {
+            const invitedUser = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: user.invited_by,
+                },
+            })
+            if (invitedUser) {
+                registerInfo.invited_by = {
+                    user_id: invitedUser.username_in_be || "",
+                    username: invitedUser.username || "",
+                    avatar: invitedUser.avatar || "",
+                    email: invitedUser.email || "",
+                }
+            }
+        }
         return registerInfo
     }
 
