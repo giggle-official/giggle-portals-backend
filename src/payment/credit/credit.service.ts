@@ -15,6 +15,7 @@ import { UserService } from "src/user/user.service"
 import { credit_statement_type, orders, Prisma } from "@prisma/client"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import * as crypto from "crypto"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class CreditService {
@@ -440,6 +441,7 @@ export class CreditService {
                     amount: body.amount,
                     balance: userBalanceUpdated.current_credit_balance,
                     is_free_credit: true,
+                    order_id: uuidv4() as string,
                     type: credit_statement_type.issue_free_credit,
                     free_credit_issue_id: issueRecord.id,
                 },
