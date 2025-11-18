@@ -15,6 +15,7 @@ import { UserService } from "src/user/user.service"
 import { credit_statement_type, orders, Prisma } from "@prisma/client"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import * as crypto from "crypto"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class CreditService {
@@ -243,13 +244,17 @@ export class CreditService {
         order_id: string,
         userInfo: UserJwtExtractDto,
         tx: Prisma.TransactionClient,
+        allow_free_credit: boolean = true,
     ): Promise<{ free_credit_consumed: number; total_credit_consumed: number }> {
-        const user = await tx.users.findUnique({
-            where: {
-                username_in_be: userInfo.usernameShorted,
-            },
-        })
-        if (!user || user.current_credit_balance < amount) {
+        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userInfo.usernameShorted)
+
+        if (!allow_free_credit && total_credit_balance - free_credit_balance < amount) {
+            throw new BadRequestException(
+                "This consumption is not allowed to use free credit and the total credit balance is not enough",
+            )
+        }
+
+        if (allow_free_credit && total_credit_balance < amount) {
             throw new BadRequestException("Insufficient credit balance")
         }
 
@@ -268,7 +273,7 @@ export class CreditService {
             },
         })
 
-        if (freeCredits.length > 0) {
+        if (freeCredits.length > 0 && allow_free_credit) {
             //start consume free credit
             for (const freeCredit of freeCredits) {
                 const consumeAmount = Math.min(freeCredit.balance, needCreditConsumed)
@@ -337,12 +342,7 @@ export class CreditService {
         }
     }
 
-    async refundCredit(
-        amount: number,
-        order_id: string,
-        userInfo: UserJwtExtractDto,
-        tx: Prisma.TransactionClient,
-    ): Promise<void> {
+    async refundCredit(amount: number, order_id: string, user: string, tx: Prisma.TransactionClient): Promise<void> {
         //find statement
         const statements = await tx.credit_statements.findMany({
             where: {
@@ -378,14 +378,14 @@ export class CreditService {
 
             //update user table
             const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: userInfo.usernameShorted },
+                where: { username_in_be: user },
                 data: { current_credit_balance: { increment: _refundAmount } },
             })
 
             //create statement
             await tx.credit_statements.create({
                 data: {
-                    user: userInfo.usernameShorted,
+                    user: user,
                     type: credit_statement_type.refund,
                     amount: _refundAmount,
                     balance: userBalanceUpdated.current_credit_balance,
@@ -441,6 +441,7 @@ export class CreditService {
                     amount: body.amount,
                     balance: userBalanceUpdated.current_credit_balance,
                     is_free_credit: true,
+                    order_id: uuidv4() as string,
                     type: credit_statement_type.issue_free_credit,
                     free_credit_issue_id: issueRecord.id,
                 },
