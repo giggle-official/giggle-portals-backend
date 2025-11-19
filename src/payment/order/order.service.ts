@@ -530,7 +530,7 @@ export class OrderService {
 
     async refundCreditOrder(order: orders, refundAmount: number, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const orderRefunded = await this.prisma.$transaction(async (tx) => {
-            await this.creditService.refundCredit(refundAmount, order.order_id, userInfo, tx)
+            await this.creditService.refundCredit(refundAmount, order.order_id, userInfo.usernameShorted, tx)
             let refundedDetail = ((order.refund_detail as any) || []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
