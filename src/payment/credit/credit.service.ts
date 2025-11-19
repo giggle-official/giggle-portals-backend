@@ -224,6 +224,7 @@ export class CreditService {
 
         return {
             statements: statements.map((statement) => ({
+                id: statement.id,
                 order_id: statement.order_id,
                 widget_tag: statement.order?.widget_tag,
                 ip_id: statement.order?.ip_id,

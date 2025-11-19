@@ -157,7 +157,7 @@ export class IssueFreeCreditDto {
     description?: string
 }
 
-export class CreditStatementDetailDto extends OmitType(CreditStatementDto, ["user", "id"]) {
+export class CreditStatementDetailDto extends OmitType(CreditStatementDto, ["user"]) {
     @ApiProperty({
         description: "The widget tag of the order created by",
     })
