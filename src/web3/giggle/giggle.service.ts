@@ -400,6 +400,42 @@ export class GiggleService {
         }
     }
 
+    async pushStaticToken(params: CreateIpTokenDto, email: string, mint: string) {
+        const mintParams: any = {
+            email: email,
+            name: params.name,
+            coverUrl: params.cover_image,
+            fileUrl: "",
+            symbol: params.ticker,
+            description: params.description,
+            twitter: params?.twitter,
+            telegram: params?.telegram,
+            website: params?.website,
+            isUsdc: true,
+            amount: 0,
+            sourceType: params.ip_type,
+            metaData: params.metadata || {},
+            isStatic: true,
+            mint: mint,
+            //metaData: {},
+        }
+        const signaturedParams = this.generateSignature(mintParams)
+        const request = this.web3HttpService.post(this.endpoint + "/cus/mint", signaturedParams, {
+            headers: { "Content-Type": "application/json" },
+            timeout: this.requestTimeout,
+        })
+        const response: AxiosResponse<GiggleApiResponseDto<CreateIpTokenGiggleResponseDto>> =
+            await lastValueFrom(request)
+
+        this.logger.log(
+            "push static token response:" +
+                JSON.stringify(response.data) +
+                `, request: ${JSON.stringify(signaturedParams)}`,
+        )
+
+        return response.data.data
+    }
+
     private async uploadAsset(path: string, subscriber: Subscriber<SSEMessage>): Promise<string> {
         const fileName = path.split("/").pop()
         if (!fileName.endsWith(".mp4") && !fileName.endsWith(".mov") && !fileName.endsWith(".mkv")) {

@@ -1716,6 +1716,24 @@ export class IpLibraryService {
         //create rewards pool
         await this.rewardsPoolService.createRewardsPool(ip.id)
 
+        try {
+            //need push to giggle
+            const params: CreateIpTokenDto = {
+                name: ip.name,
+                cover_image: `${process.env.PINATA_GATEWAY}/ipfs/${coverHash}`,
+                ticker: ip.ticker,
+                description: ip.description,
+                twitter: (ip.extra_info as any)?.twitter,
+                telegram: (ip.extra_info as any)?.telegram,
+                website: (ip.extra_info as any)?.website,
+                ip_type: ip.ip_type,
+                //metadata: ip.meta_data || {},
+            }
+            await this.giggleService.pushStaticToken(params, ipOwner.email, launchStaticTokenResponse.tokenAddr)
+        } catch (error) {
+            this.logger.error("Failed to push static token to giggle: " + error.message)
+        }
+
         return tokenInfo
     }
 
@@ -1737,6 +1755,7 @@ export class IpLibraryService {
             volume: currentTokenInfo?.tradeVolume || "0",
             on_exchange: currentTokenInfo?.on_exchange || false,
             poolAddress: currentTokenInfo?.poolAddress || "",
+            tradeUsdcVolume: currentTokenInfo?.tradeUsdcVolume || { in24H: "0" },
         }
     }
 

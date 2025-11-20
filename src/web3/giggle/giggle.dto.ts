@@ -308,6 +308,14 @@ export class CreateIpTokenGiggleResponseDto {
         required: false,
     })
     poolAddress?: string
+
+    @ApiProperty({
+        description: "trade usdc volume of the ip token",
+        required: false,
+    })
+    tradeUsdcVolume?: {
+        in24H?: string
+    }
 }
 
 export class GetIpTokenListQueryDto {
