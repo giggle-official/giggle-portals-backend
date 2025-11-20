@@ -1757,7 +1757,7 @@ export class IpLibraryService {
             on_exchange: currentTokenInfo?.on_exchange || false,
             poolAddress: currentTokenInfo?.poolAddress || "",
             tradeUsdcVolume: currentTokenInfo?.tradeUsdcVolume || { in24H: "0" },
-            isStatic: currentTokenInfo?.is_static_token || false,
+            isStatic: currentTokenInfo?.is_static_token || currentTokenInfo?.isStatic || false,
         }
     }
 
