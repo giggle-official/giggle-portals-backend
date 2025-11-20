@@ -1698,7 +1698,7 @@ export class IpLibraryService {
             price: "0.01",
             market_cap: (1000000000 * 0.01).toString(),
             circulating_supply: "0",
-            total_supply: (1000000000 * 0.01).toString(),
+            total_supply: (1000000000).toString(),
             credit_price: 0,
             visitLink: "",
         }
