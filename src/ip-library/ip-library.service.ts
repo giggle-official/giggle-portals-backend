@@ -1701,6 +1701,7 @@ export class IpLibraryService {
             total_supply: (1000000000).toString(),
             credit_price: 0,
             visitLink: "",
+            isStatic: true,
         }
 
         await this.prismaService.ip_library.update({

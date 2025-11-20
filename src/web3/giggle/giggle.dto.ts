@@ -316,6 +316,12 @@ export class CreateIpTokenGiggleResponseDto {
     tradeUsdcVolume?: {
         in24H?: string
     }
+
+    @ApiProperty({
+        description: "is static token of the ip token",
+        required: false,
+    })
+    isStatic?: boolean
 }
 
 export class GetIpTokenListQueryDto {

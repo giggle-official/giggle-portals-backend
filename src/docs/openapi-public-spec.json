@@ -6131,6 +6131,10 @@
           "tradeUsdcVolume": {
             "type": "object",
             "description": "trade usdc volume of the ip token"
+          },
+          "isStatic": {
+            "type": "boolean",
+            "description": "is static token of the ip token"
           }
         },
         "required": [
