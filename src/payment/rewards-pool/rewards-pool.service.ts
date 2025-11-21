@@ -459,7 +459,7 @@ export class RewardsPoolService {
                         not: { in: ["platform", "order_creator"] },
                     },
                     order_id: {
-                        in: pool.statement.map((s) => s.related_order_id),
+                        in: pool.statement.map((s) => s.related_order_id).filter((id) => id !== null),
                     },
                 },
             })
