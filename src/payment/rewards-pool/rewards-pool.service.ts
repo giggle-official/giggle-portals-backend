@@ -367,48 +367,67 @@ export class RewardsPoolService {
     }
 
     async getStatisticsSummary(query: StatisticsQueryDto): Promise<StatisticsSummaryDto> {
-        const pool = await this.prisma.reward_pools.findUniqueOrThrow({
+        const pool = await this.prisma.reward_pools.findUnique({
             where: { token: query.token },
             include: {
-                statement: {
-                    where: {
-                        type: "released",
+                statement: true,
+            },
+        })
+
+        if (!pool) {
+            throw new BadRequestException("Pool does not exist")
+        }
+
+        const orderIds = pool.statement.map((s) => s.related_order_id).filter((id) => id !== null)
+
+        let roleIncomes: { role: string; _sum: { rewards: Decimal } }[] = []
+        if (orderIds.length > 0) {
+            const _roleIncomes = await this.prisma.user_rewards.groupBy({
+                by: ["role"],
+                _sum: {
+                    rewards: true,
+                },
+                where: {
+                    ticker: "usdc",
+                    role: {
+                        not: { in: ["platform", "order_creator"] },
+                    },
+                    order_id: {
+                        in: orderIds.filter((id) => id !== null),
                     },
                 },
-            },
-        })
-
-        const roleIncomes = await this.prisma.user_rewards.groupBy({
-            by: ["role"],
-            _sum: {
-                rewards: true,
-            },
-            where: {
-                ticker: "usdc",
-                role: {
-                    not: { in: ["platform", "order_creator"] },
+            })
+            roleIncomes = _roleIncomes.map((r) => ({
+                role: r.role as RewardAllocateRoles,
+                _sum: {
+                    rewards: r._sum.rewards,
                 },
-                order_id: {
-                    in: pool.statement.map((s) => s.related_order_id),
-                },
-            },
-        })
+            }))
+        }
 
         //total income expect platform
-        const totalIncomeWithoutPlatform = await this.prisma.user_rewards.aggregate({
-            _sum: {
-                rewards: true,
-            },
-            where: {
-                ticker: "usdc",
-                role: {
-                    not: { in: ["platform", "order_creator"] },
+        let totalIncomeWithoutPlatform: { _sum: { rewards: Decimal } } = { _sum: { rewards: new Decimal(0) } }
+        if (orderIds.length > 0) {
+            const _totalIncomeWithoutPlatform = await this.prisma.user_rewards.aggregate({
+                _sum: {
+                    rewards: true,
                 },
-                order_id: {
-                    in: pool.statement.map((s) => s.related_order_id),
+                where: {
+                    ticker: "usdc",
+                    role: {
+                        not: { in: ["platform", "order_creator"] },
+                    },
+                    order_id: {
+                        in: pool.statement.map((s) => s.related_order_id).filter((id) => id !== null),
+                    },
                 },
-            },
-        })
+            })
+            totalIncomeWithoutPlatform = {
+                _sum: {
+                    rewards: _totalIncomeWithoutPlatform._sum.rewards,
+                },
+            }
+        }
 
         //buyback amount
         const buybackAmount = await this.prisma.reward_pool_statement.aggregate({
@@ -420,7 +439,6 @@ export class RewardsPoolService {
                 type: reward_pool_type.buyback,
             },
         })
-
         //buyback amount in usdc
         const buybackAmountInUsdc = await this.prisma.$queryRaw<{ total_usdc: Decimal }[]>`
 SELECT SUM(coalesce(unit_price, 0) * coalesce(amount, 0)) as total_usdc
@@ -441,7 +459,9 @@ WHERE token = ${query.token}
 
         return {
             incomes: totalIncomeWithoutPlatform._sum.rewards?.toNumber() || 0,
-            incomes_total: pool.statement.reduce((acc, curr) => acc.plus(curr.usd_revenue), new Decimal(0)).toNumber(),
+            incomes_total: pool.statement
+                .reduce((acc, curr) => acc.plus(curr.usd_revenue || new Decimal(0)), new Decimal(0))
+                .toNumber(),
             orders: pool.statement.length,
             unit_price: pool.unit_price.toNumber(),
             price_change_24h: tokenInfo?.change24h.toNumber() || 0,
@@ -451,7 +471,7 @@ WHERE token = ${query.token}
             injected_amount: pool.injected_amount.toNumber(),
             rewarded_amount: pool.rewarded_amount.toNumber(),
             buyback_amount: buybackAmount._sum.amount?.toNumber() || 0,
-            buyback_amount_in_usdc: Number(new Decimal(buybackAmountInUsdc[0].total_usdc).toFixed(6)) || 0,
+            buyback_amount_in_usdc: Number(new Decimal(buybackAmountInUsdc?.[0]?.total_usdc || 0).toFixed(6)) || 0,
             roles_income: roleIncomes.map((r) => ({
                 role: r.role as RewardAllocateRoles,
                 income: r._sum.rewards.toNumber(),
