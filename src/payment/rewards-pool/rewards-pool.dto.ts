@@ -269,6 +269,24 @@ export class InjectTokensDto {
     append_amount: number
 }
 
+export class InjectTokensFromAnotherWalletDto {
+    @ApiProperty({ description: "Token address" })
+    @IsString()
+    @IsNotEmpty()
+    token: string
+
+    @ApiProperty({ description: "Amount of tokens to be appended to the pool" })
+    @IsNumber()
+    @IsPositive()
+    @Min(0)
+    append_amount: number
+
+    @ApiProperty({ description: "Wallet address of the user who will pay the tokens" })
+    @IsString()
+    @IsNotEmpty()
+    wallet_address: string
+}
+
 export class PoolsQueryDto extends PaginationDto {
     @ApiProperty({ description: "Filter by owner", required: false })
     owner?: string

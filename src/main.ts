@@ -55,13 +55,26 @@ async function bootstrap() {
             "Summary",
             "This API provides endpoints for managing IP libraries, including creation, retrieval, and validation of IP data.",
         )
-        .addBearerAuth({
-            type: "http",
-            bearerFormat: "JWT",
-            in: "header",
-            name: "Authorization",
-            description: "JWT Authorization",
-        })
+        .addBearerAuth(
+            {
+                type: "http",
+                bearerFormat: "JWT",
+                in: "header",
+                name: "Authorization",
+                description: "JWT Authorization",
+            },
+            "user",
+        )
+        .addBearerAuth(
+            {
+                type: "http",
+                bearerFormat: "JWT",
+                in: "header",
+                name: "Authorization",
+                description: "JWT Authorization",
+            },
+            "widget",
+        )
         .setOpenAPIVersion("3.1.1")
         .build()
 
@@ -144,14 +157,26 @@ To see how to process the event stream response, please refer to the [Event Stre
         .addServer("https://api.giggle.pro", "Production Environment")
         .addServer("https://app.ggltest.com", "Test Environment")
         .addServer("https://api-dev.ggltest.com", "Development Environment")
-        .addBearerAuth({
-            type: "http",
-            bearerFormat: "JWT",
-            in: "header",
-            name: "Authorization",
-            description: "JWT Authorization",
-        })
-
+        .addBearerAuth(
+            {
+                type: "http",
+                bearerFormat: "JWT",
+                in: "header",
+                name: "Authorization",
+                description: "JWT Authorization",
+            },
+            "user",
+        )
+        .addBearerAuth(
+            {
+                type: "http",
+                bearerFormat: "JWT",
+                in: "header",
+                name: "Authorization",
+                description: "JWT Authorization",
+            },
+            "widget",
+        )
         .build()
     const privateDocument = SwaggerModule.createDocument(app, config)
     const publicDocument = SwaggerModule.createDocument(app, publicConfig)
@@ -195,6 +220,10 @@ To see how to process the event stream response, please refer to the [Event Stre
         {
             name: "🧑‍💼 Account",
             tags: ["Profile", "Auth", "User Wallet", "Assets"],
+        },
+        {
+            name: "💰 Rewards Pool",
+            tags: ["Rewards Pool"],
         },
         {
             name: "💰 Payment",

@@ -866,6 +866,7 @@ model orders {
   supported_payment_method       Json?
   callback_url                   String?   @db.VarChar(1024)
   redirect_url                   String?   @db.VarChar(4096)
+  allow_free_credit              Boolean?  @default(true)
   credit_paid_amount             Int?
   paid_time                      DateTime? @db.DateTime(0)
   cancelled_time                 DateTime? @db.DateTime(0)

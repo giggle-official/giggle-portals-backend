@@ -1,6 +1,12 @@
 import { Inject, Injectable, Logger, forwardRef } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
-import { PushIpToChainResponseDto, RegisterTokenResponseDto, UntokenizeResponseDto } from "./ip-on-chain.dto"
+import {
+    LaunchStaticTokenResponseDto,
+    LaunchStaticTokeResDto,
+    PushIpToChainResponseDto,
+    RegisterTokenResponseDto,
+    UntokenizeResponseDto,
+} from "./ip-on-chain.dto"
 import { IpLibraryService } from "src/ip-library/ip-library.service"
 import { UserInfoDTO } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
@@ -9,6 +15,8 @@ import { HttpService } from "@nestjs/axios"
 import { lastValueFrom } from "rxjs"
 import { AxiosResponse } from "axios"
 import { CreateIpTokenGiggleResponseDto } from "../giggle/giggle.dto"
+import { ip_library } from "@prisma/client"
+import { LaunchIpStaticTokenAllocationDto } from "src/ip-library/ip-library.dto"
 @Injectable()
 export class IpOnChainService {
     private readonly ipOnChainEndpoint: string
@@ -29,10 +37,20 @@ export class IpOnChainService {
     ) {
         this.ipOnChainEndpoint = process.env.IP_ON_CHAIN_ENDPOINT
         this.ipOnChainToken = process.env.IP_ON_CHAIN_TOKEN
-        this.ipfsPrefix = "https://ipfs.io/ipfs/"
-        if (!this.ipOnChainEndpoint || !this.ipOnChainToken) {
+        this.ipfsPrefix = process.env.PINATA_GATEWAY
+        if (!this.ipOnChainEndpoint || !this.ipOnChainToken || !this.ipfsPrefix) {
             throw new Error("IP on chain endpoint or token is not set")
         }
+    }
+
+    async uploadJsonToIpfs(json: any): Promise<string> {
+        const pinata = new PinataSDK({
+            pinataJwt: process.env.PINATA_JWT,
+            pinataGateway: process.env.PINATA_GATEWAY,
+        })
+
+        const response = await pinata.upload.json(json)
+        return response.IpfsHash
     }
 
     async pushIpToChain(userInfo: UserInfoDTO, ip_id: number): Promise<PushIpToChainResponseDto> {
@@ -218,6 +236,50 @@ export class IpOnChainService {
         } catch (error) {
             this.logger.error("Error untokenizing:", error)
             return { isSucc: false, err: { type: "error", message: error.message } }
+        }
+    }
+
+    async launchStaticToken(
+        ip: ip_library,
+        metadata: any,
+        allocations: LaunchIpStaticTokenAllocationDto[],
+    ): Promise<LaunchStaticTokeResDto> {
+        try {
+            //upload metadata to ipfs
+            const metadataHash = await this.uploadJsonToIpfs(metadata)
+            if (!metadataHash) {
+                throw new Error("Failed to upload metadata to ipfs")
+            }
+            const launchStaticTokenRequestParams = {
+                name: ip.name,
+                symbol: ip.ticker,
+                uri: `${this.ipfsPrefix}/ipfs/${metadataHash}`,
+                receipts: allocations.map((allocation) => ({
+                    addr: allocation.address,
+                    amount: allocation.ratio.toString(),
+                })),
+                __authToken: this.ipOnChainToken,
+            }
+
+            const launchStaticTokenRequest = this.httpService.post(
+                this.ipOnChainEndpoint + "/CreateToken",
+                launchStaticTokenRequestParams,
+                { timeout: this.requestTimeout },
+            )
+            const launchStaticTokenResponse: AxiosResponse<LaunchStaticTokenResponseDto> =
+                await lastValueFrom(launchStaticTokenRequest)
+            if (!launchStaticTokenResponse.data.isSucc) {
+                throw new Error(
+                    "Failed to launch static token: " +
+                        JSON.stringify(launchStaticTokenResponse.data) +
+                        " request: " +
+                        JSON.stringify(launchStaticTokenRequestParams),
+                )
+            }
+            return { ...launchStaticTokenResponse.data.res, metadataHash: metadataHash }
+        } catch (error) {
+            this.logger.error("Error launching static token:", JSON.stringify(error))
+            throw new Error("Error launching static token: " + error.message)
         }
     }
 }

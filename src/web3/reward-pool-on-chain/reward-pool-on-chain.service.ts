@@ -112,7 +112,7 @@ export class RewardPoolOnChainService {
         }
     }
 
-    async injectToken(dto: InjectTokenDto, user: UserJwtExtractDto): Promise<TransactionDto> {
+    async injectToken(dto: InjectTokenDto): Promise<TransactionDto> {
         if (dto.amount <= 0) {
             throw new BadRequestException("Amount must be greater than 0")
         }
@@ -310,6 +310,7 @@ export class RewardPoolOnChainService {
                 data: {
                     token: dto.token_mint,
                     on_chain_status: reward_pool_on_chain_status.success,
+                    address: (newContent as any)?.addr,
                     buyback_address: buybackWallet,
                     on_chain_detail: {
                         tx: tx,
@@ -807,18 +808,12 @@ export class RewardPoolOnChainService {
             })
 
             try {
-                const injectResult = await this.injectToken(
-                    {
-                        token_mint: inject.reward_pools.token,
-                        amount: inject.amount.toNumber(),
-                        email: inject.reward_pools.user_info.email,
-                        user_wallet: inject.reward_pools.user_info.wallet_address,
-                    },
-                    {
-                        usernameShorted: inject.reward_pools.user_info.username_in_be,
-                        user_id: inject.reward_pools.user_info.username_in_be,
-                    },
-                )
+                const injectResult = await this.injectToken({
+                    token_mint: inject.reward_pools.token,
+                    amount: inject.amount.toNumber(),
+                    email: inject.reward_pools.user_info.email,
+                    user_wallet: inject.reward_pools.user_info.wallet_address,
+                })
 
                 await this.prisma.reward_pool_statement.update({
                     where: { id: inject.id },
@@ -1177,6 +1172,19 @@ export class RewardPoolOnChainService {
         for (const pool of offChainData) {
             const onChainData = await this.retrieve(pool.token)
             if (!onChainData) continue
+
+            //update pool address if pool address is null
+            if (!pool.address) {
+                await this.prisma.reward_pools.update({
+                    where: {
+                        token: pool.token,
+                    },
+                    data: {
+                        address: (onChainData as any)?.addr,
+                    },
+                })
+            }
+
             const onChainBalance = new Decimal(onChainData.totalAmount).div(10 ** 6)
             const diff = onChainBalance.minus(pool.current_balance)
             tableContent +=
@@ -1404,6 +1412,23 @@ export class RewardPoolOnChainService {
                     continue
                 }
 
+                //skip if token is not bound ip or static in ip-library
+                const ipInfo = await this.prisma.ip_library.findFirst({
+                    where: {
+                        token_mint: rewardsSnapshot.token,
+                    },
+                })
+
+                if (!ipInfo) {
+                    this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is not bound ip, skip`)
+                    continue
+                }
+
+                if ((ipInfo.current_token_info as any)?.is_static_token) {
+                    this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is static in ip-library, skip`)
+                    continue
+                }
+
                 const poolInfo = await this.prisma.reward_pools.findUnique({
                     where: {
                         token: rewardsSnapshot.token,
@@ -1574,6 +1599,23 @@ export class RewardPoolOnChainService {
                     this.logger.warn(
                         `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled, skip!`,
                     )
+                    continue
+                }
+
+                //skip if token is not bound ip or static in ip-library
+                const ipInfo = await this.prisma.ip_library.findFirst({
+                    where: {
+                        token_mint: reward_pool.token,
+                    },
+                })
+
+                if (!ipInfo) {
+                    this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is not bound ip, skip`)
+                    continue
+                }
+
+                if ((ipInfo.current_token_info as any)?.is_static_token) {
+                    this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is static in ip-library, skip`)
                     continue
                 }
 
@@ -1809,6 +1851,9 @@ export class RewardPoolOnChainService {
         await UtilitiesService.startTask(this.onChainTaskId)
         try {
             await Promise.all([
+                this.updatePoolAddress().catch((error) => {
+                    this.logger.error(`[Reward to chain task] Update pool address failed: ${JSON.stringify(error)}`)
+                }),
                 this.settleInjectToken().catch((error) => {
                     this.logger.error(`[Reward to chain task] Settle inject token failed: ${JSON.stringify(error)}`)
                 }),
@@ -1823,6 +1868,29 @@ export class RewardPoolOnChainService {
             this.logger.error(`Reward to chain task failed: ${JSON.stringify(error)}`)
         } finally {
             await UtilitiesService.stopTask(this.onChainTaskId)
+        }
+    }
+
+    //update pool address
+    async updatePoolAddress() {
+        const rewardPools = await this.prisma.reward_pools.findMany({
+            where: {
+                on_chain_status: reward_pool_on_chain_status.success,
+                address: null,
+            },
+        })
+
+        for (const rewardPool of rewardPools) {
+            try {
+                const newContent = await this.retrieve(rewardPool.token)
+                await this.prisma.reward_pools.update({
+                    where: { id: rewardPool.id },
+                    data: { address: (newContent as any)?.addr },
+                })
+            } catch (error) {
+                this.logger.error(`Update pool address failed: ${error}`)
+                continue
+            }
         }
     }
 

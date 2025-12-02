@@ -154,7 +154,8 @@ export class OrderService {
             appId = userProfile.widget_info?.app_id
             widgetTag = userProfile.widget_info?.widget_tag
 
-            if (widgetTag !== requester.developer_info.tag) {
+            //in product environment, we need check if widget tag is valid
+            if (widgetTag !== requester.developer_info.tag && process.env.ENV === "product") {
                 throw new BadRequestException("Widget tag is not valid in user jwt")
             }
         } else {
@@ -342,6 +343,7 @@ export class OrderService {
                 from_source_link: sourceLink,
                 is_credit_top_up: options.is_credit_top_up,
                 sales_agent: await this.getSalesAgent(userProfile.usernameShorted),
+                allow_free_credit: order.allow_free_credit === undefined ? true : order.allow_free_credit,
             },
         })
         return await this.mapOrderDetail(record)
@@ -457,6 +459,7 @@ export class OrderService {
                 orderRecord.order_id,
                 userInfo,
                 tx,
+                orderRecord.allow_free_credit,
             )
             await this.prisma.orders.update({
                 where: { id: orderRecord.id },
@@ -485,7 +488,7 @@ export class OrderService {
         return await this.mapOrderDetail(newOrder)
     }
 
-    async refundOrder(dto: RefundOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+    async refundOrder(dto: RefundOrderDto): Promise<OrderDetailDto> {
         const orderId = dto.order_id
         const orderRecord = await this.prisma.orders.findUnique({
             where: {
@@ -493,6 +496,7 @@ export class OrderService {
                 //owner: userInfo.usernameShorted,
             },
         })
+
         if (!orderRecord) {
             throw new BadRequestException("Order not found")
         }
@@ -521,16 +525,53 @@ export class OrderService {
 
         switch (orderRecord.paid_method) {
             case PaymentMethod.CREDIT:
-                return await this.refundCreditOrder(orderRecord, refundAmount, userInfo)
+                return await this._refundCreditOrder(orderRecord, refundAmount)
+            case PaymentMethod.WALLET:
+                return await this._refundWalletOrder(orderRecord)
             //todo: support more payment methods
             default:
                 throw new BadRequestException("Currently we only support refund with credit")
         }
     }
 
-    async refundCreditOrder(order: orders, refundAmount: number, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+    private async _refundWalletOrder(order: orders): Promise<OrderDetailDto> {
+        const walletPaidDetail = order.wallet_paid_detail as any
+        const paidSn = walletPaidDetail?.paid_detail?.sn
+        if (!paidSn) {
+            throw new BadRequestException("Order is not paid with wallet or paid callback is not found")
+        }
+        const walletPaidCallback = await this.giggleService.paymentCallback({
+            sn: paidSn,
+            status: ConfirmStatus.REFUNDED,
+        })
         const orderRefunded = await this.prisma.$transaction(async (tx) => {
-            await this.creditService.refundCredit(refundAmount, order.order_id, userInfo.usernameShorted, tx)
+            return await this.prisma.orders.update({
+                where: { order_id: order.order_id },
+                data: {
+                    current_status: OrderStatus.REFUNDED,
+                    refunded_amount: order.amount,
+                    refund_time: new Date(),
+                    refund_status: "success",
+                    refund_detail: [
+                        {
+                            amount: order.amount,
+                            order_amount_after_refund: order.amount,
+                            refunded_time: new Date(),
+                        },
+                    ],
+                    wallet_paid_detail: {
+                        ...(order.wallet_paid_detail as any),
+                        callback_detail: walletPaidCallback as any,
+                    },
+                },
+            })
+        })
+        return await this.mapOrderDetail(orderRefunded)
+    }
+
+    private async _refundCreditOrder(order: orders, refundAmount: number): Promise<OrderDetailDto> {
+        const orderRefunded = await this.prisma.$transaction(async (tx) => {
+            await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
             let refundedDetail = ((order.refund_detail as any) || []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
@@ -804,10 +845,10 @@ export class OrderService {
             user: userProfile.usernameShorted,
         })
 
-        const walletPaidCallback = await this.giggleService.paymentCallback({
-            sn: walletPaidDetail.sn,
-            status: ConfirmStatus.CONFIRMED,
-        })
+        //const walletPaidCallback = await this.giggleService.paymentCallback({
+        //    sn: walletPaidDetail.sn,
+        //    status: ConfirmStatus.CONFIRMED,
+        //})
 
         await this.prisma.orders.update({
             where: { id: orderRecord.id },
@@ -817,7 +858,7 @@ export class OrderService {
                 paid_time: new Date(),
                 wallet_paid_detail: {
                     paid_detail: walletPaidDetail as any,
-                    callback_detail: walletPaidCallback as any,
+                    //callback_detail: walletPaidCallback as any,
                 },
             },
         })
@@ -1862,6 +1903,27 @@ export class OrderService {
         if (rewardPool.current_balance.lt(allocatedTokenAmount)) {
             throw new BadRequestException("Reward pool balance is not enough")
         }
+
+        //if order is paid by wallet, we need confirm it first
+        if (orderRecord.paid_method === PaymentMethod.WALLET) {
+            const paidSn = (orderRecord.wallet_paid_detail as any)?.paid_detail?.sn
+            if (paidSn) {
+                const walletPaidCallback = await this.giggleService.paymentCallback({
+                    sn: paidSn,
+                    status: ConfirmStatus.CONFIRMED,
+                })
+                await this.prisma.orders.update({
+                    where: { order_id: orderRecord.order_id },
+                    data: {
+                        wallet_paid_detail: {
+                            ...(orderRecord.wallet_paid_detail as any),
+                            callback_detail: walletPaidCallback as any,
+                        },
+                    },
+                })
+            }
+        }
+
         //create rewards for the order
         await this.prisma.$transaction(async (tx) => {
             await tx.orders.update({

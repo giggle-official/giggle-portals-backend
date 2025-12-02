@@ -1576,7 +1576,7 @@
     },
     "/api/v1/order/refund": {
       "post": {
-        "description": "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
+        "description": "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit and wallet",
         "operationId": "OrderController_refundOrder",
         "parameters": [],
         "requestBody": {
@@ -1601,6 +1601,11 @@
             }
           }
         },
+        "security": [
+          {
+            "widget": []
+          }
+        ],
         "summary": "Refund an order",
         "tags": [
           "Order"
@@ -1905,6 +1910,39 @@
           }
         },
         "summary": "Inject tokens to a rewards pool",
+        "tags": [
+          "Rewards Pool"
+        ]
+      }
+    },
+    "/api/v1/rewards-pool/inject-tokens-from-another-wallet": {
+      "post": {
+        "description": "Inject tokens to a rewards pool from another wallet, only allow widget to call this endpoint",
+        "operationId": "RewardsPoolController_injectTokensFromAnotherWallet",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectTokensFromAnotherWalletDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Inject tokens to rewards pool from another wallet",
         "tags": [
           "Rewards Pool"
         ]
@@ -4302,6 +4340,44 @@
         ]
       }
     },
+    "/api/v1/ip-library/launch-ip-static-token": {
+      "post": {
+        "description": "Launch static token for an ip, the token will be allocated to the given addresses with the given amounts. and no bonding curve. only allow developer to launch static token.",
+        "operationId": "IpLibraryController_launchIpStaticToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchIpStaticTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIpTokenGiggleResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Launch static token for an ip",
+        "tags": [
+          "IP Library"
+        ]
+      }
+    },
     "/api/v1/ip-library/remove-ip": {
       "post": {
         "operationId": "IpLibraryController_removeIp",
@@ -5516,7 +5592,15 @@
   ],
   "components": {
     "securitySchemes": {
-      "bearer": {
+      "user": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "in": "header",
+        "name": "Authorization",
+        "description": "JWT Authorization"
+      },
+      "widget": {
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "type": "http",
@@ -6043,6 +6127,14 @@
           "poolAddress": {
             "type": "string",
             "description": "pool address of the ip token"
+          },
+          "tradeUsdcVolume": {
+            "type": "object",
+            "description": "trade usdc volume of the ip token"
+          },
+          "isStatic": {
+            "type": "boolean",
+            "description": "is static token of the ip token"
           }
         },
         "required": [
@@ -7462,6 +7554,11 @@
             "description": "Buyback after paid of the order, default is `false`,if release_rewards_after_paid set to `true`, the rewards will be released after buyback",
             "default": false
           },
+          "allow_free_credit": {
+            "type": "boolean",
+            "description": "Allow free credit of the order, default is `true`, if set to `false`, the order will not be allowed to use free credit",
+            "default": true
+          },
           "rewards_model": {
             "description": "The rewards model of the order, this only allow requester is developer",
             "allOf": [
@@ -8132,7 +8229,7 @@
           },
           "refund_amount": {
             "type": "number",
-            "description": "The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01)"
+            "description": "\nThe amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01).\nFor wallet paid orders, currently we only support refund with the full amount of the order.\n            "
           }
         },
         "required": [
@@ -8287,6 +8384,28 @@
         "required": [
           "token",
           "append_amount"
+        ]
+      },
+      "InjectTokensFromAnotherWalletDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token address"
+          },
+          "append_amount": {
+            "type": "number",
+            "description": "Amount of tokens to be appended to the pool"
+          },
+          "wallet_address": {
+            "type": "string",
+            "description": "Wallet address of the user who will pay the tokens"
+          }
+        },
+        "required": [
+          "token",
+          "append_amount",
+          "wallet_address"
         ]
       },
       "RequestAirdropDto": {
@@ -11580,6 +11699,43 @@
         },
         "required": [
           "event"
+        ]
+      },
+      "LaunchIpStaticTokenAllocationDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "address of the receiver"
+          },
+          "ratio": {
+            "type": "number",
+            "description": "ratio of the allocation"
+          }
+        },
+        "required": [
+          "address",
+          "ratio"
+        ]
+      },
+      "LaunchIpStaticTokenDto": {
+        "type": "object",
+        "properties": {
+          "ip_id": {
+            "type": "number",
+            "description": "id of the ip library"
+          },
+          "allocations": {
+            "description": "allocations of the ip library, sum of ratios must be 1000",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LaunchIpStaticTokenAllocationDto"
+            }
+          }
+        },
+        "required": [
+          "ip_id",
+          "allocations"
         ]
       },
       "RemoveIpDto": {

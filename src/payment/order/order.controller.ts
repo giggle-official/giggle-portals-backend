@@ -186,15 +186,16 @@ export class OrderController {
     @ApiOperation({
         summary: "Refund an order",
         description:
-            "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit",
+            "Refund an order, only support completed order(not rewards released) and paid time is not more than 10 days, currently we only support refund with credit and wallet",
         tags: ["Order"],
     })
+    @ApiBearerAuth("widget")
     @ApiBody({ type: RefundOrderDto })
     @ApiResponse({ type: OrderDetailDto })
     @HttpCode(HttpStatus.OK)
     @UseGuards(IsWidgetGuard)
-    async refundOrder(@Body() body: RefundOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
-        return await this.orderService.refundOrder(body, req.user as UserJwtExtractDto)
+    async refundOrder(@Body() body: RefundOrderDto): Promise<OrderDetailDto> {
+        return await this.orderService.refundOrder(body)
     }
 
     //payment asia

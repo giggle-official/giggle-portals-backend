@@ -2,6 +2,7 @@ import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
 import {
+    IsBoolean,
     IsEmail,
     IsEnum,
     IsInt,
@@ -207,6 +208,11 @@ export class OrderDto implements orders {
     redirect_url: string
 
     @ApiProperty({
+        description: "The allow free credit of the order",
+    })
+    allow_free_credit: boolean
+
+    @ApiProperty({
         description: "The paid time of the order",
     })
     paid_time: Date
@@ -339,6 +345,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "buyback_order_id",
     "buyback_fee_transferred",
     "refund_detail",
+    "allow_free_credit",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",
@@ -520,6 +527,16 @@ export class CreateOrderDto {
     buyback_after_paid?: boolean
 
     @ApiProperty({
+        description:
+            "Allow free credit of the order, default is `true`, if set to `false`, the order will not be allowed to use free credit",
+        required: false,
+        default: true,
+    })
+    @IsOptional()
+    @IsBoolean()
+    allow_free_credit?: boolean
+
+    @ApiProperty({
         description: "The rewards model of the order, this only allow requester is developer",
         type: () => DeveloperSpecifiedRewardSnapshotDto,
         required: false,
@@ -656,8 +673,10 @@ export class RefundOrderDto {
     order_id: string
 
     @ApiProperty({
-        description:
-            "The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01)",
+        description: `
+The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01).
+For wallet paid orders, currently we only support refund with the full amount of the order.
+            `,
         required: false,
     })
     @IsInt()
