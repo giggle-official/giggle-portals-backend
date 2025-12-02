@@ -1145,7 +1145,7 @@ export class GiggleService {
         this.logger.log(`end processUserWalletRecord24h, processed ${record} users`)
     }
 
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_30_MINUTES)
     async fetchNewestTokenInfo() {
         if (process.env.TASK_SLOT != "1") {
             return
