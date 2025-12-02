@@ -677,10 +677,10 @@ export class GiggleService {
     }
 
     async getUsdcBalance(user: UserJwtExtractDto): Promise<{ address: string; balance: number }> {
-        const walletDetail = await this.getUserWalletDetail(user, 1, 1, GiggleService.GIGGLE_LEGAL_USDC)
+        const walletDetail = await this.getWalletBalance(user.wallet_address, GiggleService.GIGGLE_LEGAL_USDC)
         return {
-            address: walletDetail.addr,
-            balance: Number(walletDetail.list?.[0]?.holding_num) || 0,
+            address: user.wallet_address,
+            balance: Number(walletDetail[0].amount) || 0,
         }
     }
 
