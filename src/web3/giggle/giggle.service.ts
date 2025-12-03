@@ -52,6 +52,8 @@ import { IpEvents, IpEventsDetail } from "src/ip-library/ip-library.dto"
 import { STATIC_TOKENS } from "src/common/static-tokens"
 import { RewardsPoolService } from "src/payment/rewards-pool/rewards-pool.service"
 import { Decimal } from "@prisma/client/runtime/library"
+import { CACHE_MANAGER } from "@nestjs/cache-manager"
+import { Cache } from "cache-manager"
 
 @Injectable()
 export class GiggleService {
@@ -68,6 +70,8 @@ export class GiggleService {
         private readonly utilitiesService: UtilitiesService,
         private readonly logService: LogsService,
         private readonly web3HttpService: HttpService,
+
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
 
         @Inject(forwardRef(() => RewardsPoolService))
         private readonly rewardsPoolService: RewardsPoolService,
@@ -561,6 +565,11 @@ export class GiggleService {
     }
 
     async getWalletBalance(walletAddress: string, mint?: string): Promise<{ mint: string; amount: string }[]> {
+        const cacheKey = `wallet_balance_${walletAddress}_${mint}`
+        const cachedData = await this.cacheManager.get(cacheKey)
+        if (cachedData) {
+            return cachedData as { mint: string; amount: string }[]
+        }
         const params: any = { address: walletAddress }
         if (mint) {
             params.mint = mint
@@ -575,7 +584,10 @@ export class GiggleService {
             this.logger.error("Failed to get wallet balance: " + JSON.stringify(response.data))
             throw new BadRequestException("Failed to get wallet balance: " + response.data.msg)
         }
-        return response.data.data
+        const data = response.data.data
+        this.logger.log(`set wallet balance to cache: ${cacheKey}`)
+        await this.cacheManager.set(cacheKey, data, 5000) //5 seconds
+        return data
     }
 
     async holder(params: HolderDto): Promise<any> {
@@ -599,6 +611,12 @@ export class GiggleService {
         pageSize: number = 10,
         mint?: string,
     ): Promise<WalletDetailDto> {
+        //find from cache
+        const cacheKey = `user_wallet_detail_${userInfo.usernameShorted}_${page}_${pageSize}_${mint}`
+        const cachedData = await this.cacheManager.get(cacheKey)
+        if (cachedData) {
+            return cachedData as WalletDetailDto
+        }
         const userEmail = await this.prismaService.users.findUnique({
             where: { username_in_be: userInfo.usernameShorted },
         })
@@ -673,6 +691,7 @@ export class GiggleService {
             page: parseInt(data?.page),
             page_size: parseInt(data?.pageSize),
         }
+        await this.cacheManager.set(cacheKey, res, 5000) //5 seconds
         return res
     }
 

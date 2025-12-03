@@ -18,6 +18,7 @@ import { NftController } from "./nft/nft.controller"
 import { NftService } from "./nft/nft.service"
 import { NftMintQueue } from "./nft/nft-mint.queue"
 import { PaymentModule } from "src/payment/payment.module"
+import { CacheModule } from "@nestjs/cache-manager"
 
 //enable ipfs upload queue only on task slot 1
 const queueProviders: Provider[] = []
@@ -27,6 +28,7 @@ if (process.env.TASK_SLOT == "1") {
 
 @Module({
     imports: [
+        CacheModule.register(),
         HttpModule,
         BullModule.registerQueue({
             name: "nft-mint-queue",
