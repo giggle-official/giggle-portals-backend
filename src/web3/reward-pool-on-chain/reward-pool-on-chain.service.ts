@@ -940,6 +940,9 @@ export class RewardPoolOnChainService {
                 on_chain_try_count: {
                     lte: this.maxOnChainTryCount,
                 },
+                usd_revenue: {
+                    gt: 0,
+                },
             },
             orderBy: {
                 id: "desc",
