@@ -940,9 +940,6 @@ export class RewardPoolOnChainService {
                 on_chain_try_count: {
                     lte: this.maxOnChainTryCount,
                 },
-                usd_revenue: {
-                    gt: 0,
-                },
             },
             orderBy: {
                 id: "desc",
@@ -970,6 +967,22 @@ export class RewardPoolOnChainService {
                 this.logger.warn(
                     `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
                 )
+                continue
+            }
+
+            //check if usd revenue is 0 and all rewards is 0, mark this order and continue
+            if (
+                statement.usd_revenue.equals(new Decimal(0)) &&
+                statement.user_rewards.every((reward) => reward.rewards.equals(new Decimal(0)))
+            ) {
+                this.logger.warn(
+                    `SETTLE ORDER REWARD WARNING: No usd revenue and no rewards for settle statement: ${statement.id}, pool: ${statement.token}`,
+                )
+                //append on_chain_try_count
+                await this.prisma.reward_pool_statement.update({
+                    where: { id: statement.id },
+                    data: { on_chain_try_count: this.maxOnChainTryCount + 1 },
+                })
                 continue
             }
 
