@@ -8780,6 +8780,28 @@
           "amount"
         ]
       },
+      "FreeCreditInvitedUserInfoDto": {
+        "type": "object",
+        "properties": {
+          "invited_user_id": {
+            "type": "string",
+            "description": "The invited user id of the statement"
+          },
+          "username": {
+            "type": "string",
+            "description": "The invited user email of the statement"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "The invited user avatar of the statement"
+          }
+        },
+        "required": [
+          "invited_user_id",
+          "username",
+          "avatar"
+        ]
+      },
       "CreditStatementDetailDto": {
         "type": "object",
         "properties": {
@@ -8828,6 +8850,14 @@
             "type": "string",
             "description": "The order id of the statement"
           },
+          "free_credit_invited_user_info": {
+            "description": "If the statement is a free credit issue, the invited user info of the statement, otherwise null",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FreeCreditInvitedUserInfoDto"
+              }
+            ]
+          },
           "widget_tag": {
             "type": "string",
             "description": "The widget tag of the order created by"
@@ -8847,6 +8877,7 @@
           "created_at",
           "updated_at",
           "order_id",
+          "free_credit_invited_user_info",
           "widget_tag",
           "ip_id"
         ]

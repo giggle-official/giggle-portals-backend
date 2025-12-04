@@ -67,6 +67,23 @@ export class GetStatementQueryDto extends PaginationDto {
     widget_tag: string
 }
 
+export class FreeCreditInvitedUserInfoDto {
+    @ApiProperty({
+        description: "The invited user id of the statement",
+    })
+    invited_user_id: string
+
+    @ApiProperty({
+        description: "The invited user email of the statement",
+    })
+    username: string
+
+    @ApiProperty({
+        description: "The invited user avatar of the statement",
+    })
+    avatar: string
+}
+
 export class CreditStatementDto implements credit_statements {
     @ApiProperty({
         description: "The id of the statement",
@@ -117,6 +134,12 @@ export class CreditStatementDto implements credit_statements {
         description: "The order id of the statement",
     })
     order_id: string
+
+    @ApiProperty({
+        description: "If the statement is a free credit issue, the invited user info of the statement, otherwise null",
+        type: () => FreeCreditInvitedUserInfoDto,
+    })
+    free_credit_invited_user_info: FreeCreditInvitedUserInfoDto
 }
 
 export class UserCreditBalanceDto {

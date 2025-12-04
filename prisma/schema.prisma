@@ -74,6 +74,7 @@ model users {
   sales_agent                    sales_agent?
   orders                         orders[]
   market_makers                  market_makers[]
+  freeCreditIssues               free_credit_issues[]
 }
 
 model user_request_log {
@@ -1171,6 +1172,7 @@ model credit_statements {
   created_at           DateTime?              @default(now()) @db.Timestamp(0)
   updated_at           DateTime?              @default(now()) @db.Timestamp(0)
   order                orders?                @relation(fields: [order_id], references: [order_id])
+  free_credit_issue    free_credit_issues?    @relation(fields: [free_credit_issue_id], references: [id])
 }
 
 enum nft_task_status {
@@ -1254,16 +1256,19 @@ model market_makers {
 }
 
 model free_credit_issues {
-  id          Int       @id @default(autoincrement())
-  user        String?   @db.VarChar(32)
-  widget_tag  String?   @db.VarChar(32)
-  app_id      String?   @db.VarChar(64)
-  description String?   @db.VarChar(1024)
-  amount      Int?
-  expire_date DateTime? @db.DateTime(0)
-  balance     Int?
-  created_at  DateTime? @default(now()) @db.Timestamp(0)
-  updated_at  DateTime? @default(now()) @db.Timestamp(0)
+  id                Int                 @id @default(autoincrement())
+  user              String?             @db.VarChar(32)
+  widget_tag        String?             @db.VarChar(32)
+  app_id            String?             @db.VarChar(64)
+  invited_user_id   String?             @default("") @db.VarChar(32)
+  description       String?             @db.VarChar(1024)
+  amount            Int?
+  expire_date       DateTime?           @db.DateTime(0)
+  balance           Int?
+  created_at        DateTime?           @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?           @default(now()) @db.Timestamp(0)
+  invited_user_info users?              @relation(fields: [invited_user_id], references: [username_in_be])
+  creditStatements  credit_statements[]
 }
 
 model view_ip_token_prices {

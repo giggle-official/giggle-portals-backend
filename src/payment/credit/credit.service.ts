@@ -188,6 +188,9 @@ export class CreditService {
                 app_id: order.app_id,
                 developer_info: { tag: order.widget_tag, usernameShorted: "" },
             },
+            {
+                invited_user_id: order.owner,
+            },
         )
     }
 
@@ -212,6 +215,17 @@ export class CreditService {
             take: Math.max(0, parseInt(query.page_size.toString()) || 10),
             include: {
                 order: true,
+                free_credit_issue: {
+                    include: {
+                        invited_user_info: {
+                            select: {
+                                username_in_be: true,
+                                email: true,
+                                avatar: true,
+                            },
+                        },
+                    },
+                },
             },
             orderBy: {
                 id: "desc",
@@ -230,6 +244,11 @@ export class CreditService {
                 ip_id: statement.order?.ip_id,
                 type: statement.type,
                 is_free_credit: statement.is_free_credit,
+                free_credit_invited_user_info: {
+                    invited_user_id: statement.free_credit_issue?.invited_user_info?.username_in_be || "",
+                    username: statement.free_credit_issue?.invited_user_info?.email || "",
+                    avatar: statement.free_credit_issue?.invited_user_info?.avatar || "",
+                },
                 free_credit_issue_id: statement.free_credit_issue_id,
                 amount: statement.amount,
                 balance: statement.balance,
@@ -406,7 +425,11 @@ export class CreditService {
         }
     }
 
-    async issueFreeCredit(body: IssueFreeCreditDto, userInfo: UserJwtExtractDto): Promise<UserCreditBalanceDto> {
+    async issueFreeCredit(
+        body: IssueFreeCreditDto,
+        userInfo: UserJwtExtractDto,
+        { invited_user_id }: { invited_user_id?: string } = {},
+    ): Promise<UserCreditBalanceDto> {
         const issuedFreeCredit = await this.prisma.users.findUnique({
             where: {
                 email: body.email,
@@ -433,6 +456,7 @@ export class CreditService {
                     widget_tag: userInfo?.developer_info?.tag,
                     app_id: userInfo?.app_id,
                     balance: body.amount,
+                    invited_user_id: invited_user_id || "",
                 },
             })
 
