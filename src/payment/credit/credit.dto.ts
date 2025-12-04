@@ -35,14 +35,23 @@ export class TopUpDto {
 }
 
 export class PayTopUpOrderDto extends TopUpDto {
+    @ApiProperty({
+        description: "The order id of the top up order, must be a valid uuid, required for duplicate",
+    })
     @IsUUID()
     @IsNotEmpty()
     order_id: string
 
+    @ApiProperty({
+        description: "The user jwt of the top up order",
+    })
     @IsJWT()
     @IsNotEmpty()
     user_jwt: string
 
+    @ApiProperty({
+        description: "The email of the user to issue credit",
+    })
     @IsEmail()
     @IsNotEmpty()
     email: string

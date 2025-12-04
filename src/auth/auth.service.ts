@@ -54,6 +54,10 @@ export class AuthService {
         return user
     }
 
+    async exchangeAccessToken(userInfo: UserJwtExtractDto): Promise<LoginResponseDTO> {
+        return await this.login(userInfo)
+    }
+
     async login(userInfo: UserJwtExtractDto): Promise<LoginResponseDTO> {
         // Check if the user is blocked
         const user = await this.prismaService.users.findUnique({

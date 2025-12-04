@@ -46,6 +46,13 @@ export class AuthController {
     }
 
     @ApiExcludeEndpoint()
+    @UseGuards(AuthGuard("jwt"))
+    @Post("/exchange-access-token")
+    async exchangeAccessToken(@Req() req: Request) {
+        return await this.authService.exchangeAccessToken(req.user as UserJwtExtractDto)
+    }
+
+    @ApiExcludeEndpoint()
     @Post("/emailConfirmation")
     @ApiBody({
         type: EmailConfirmationDto,

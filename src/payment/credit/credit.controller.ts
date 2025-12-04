@@ -74,11 +74,31 @@ export class CreditController {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
     }
 
-    //@Post("/issue-credit")
-    //@ApiExcludeEndpoint()
-    //@CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
-    //@UseGuards(IsWidgetGuard)
-    //async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
-    //    return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
-    //}
+    @Post("/issue-credit")
+    @ApiOperation({
+        summary: "Issue credit",
+        description: "Issue credit to a user, you must be use widget jwt to call this api",
+        tags: ["Credit"],
+    })
+    @ApiResponse({
+        type: UserCreditBalanceDto,
+    })
+    @ApiBody({
+        type: PayTopUpOrderDto,
+    })
+    @ApiResponse({
+        schema: {
+            type: "object",
+            properties: {
+                success: {
+                    type: "boolean",
+                },
+            },
+        },
+    })
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
+    @UseGuards(IsWidgetGuard)
+    async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
+        return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
+    }
 }

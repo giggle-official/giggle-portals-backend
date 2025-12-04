@@ -2460,6 +2460,39 @@
         ]
       }
     },
+    "/api/v1/credit/issue-credit": {
+      "post": {
+        "description": "Issue credit to a user, you must be use widget jwt to call this api",
+        "operationId": "CreditController_payTopUpOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayTopUpOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreditBalanceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Issue credit",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/sales-agent/incomes": {
       "get": {
         "operationId": "SalesAgentController_getSalesAgentIncomes",
@@ -8920,6 +8953,37 @@
         },
         "required": [
           "amount",
+          "email"
+        ]
+      },
+      "PayTopUpOrderDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount of the top up, every 1 credit is 0.01 USDC, minimum 100 credits and must be integer"
+          },
+          "callback_url": {
+            "type": "string",
+            "description": "The callback url when status changed of top up order"
+          },
+          "order_id": {
+            "type": "string",
+            "description": "The order id of the top up order, must be a valid uuid, required for duplicate"
+          },
+          "user_jwt": {
+            "type": "string",
+            "description": "The user jwt of the top up order"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email of the user to issue credit"
+          }
+        },
+        "required": [
+          "amount",
+          "order_id",
+          "user_jwt",
           "email"
         ]
       },
