@@ -29,6 +29,8 @@ import {
     ClaimRewardsQueryDto,
     ClaimStatus,
     ContactDTO,
+    InvitedUsersDto,
+    InvitedUsersQueryDto,
     InvitationsDetailDto,
     LoginCodeReqDto,
     UserTokenRewardsListDto,
@@ -453,6 +455,43 @@ export class UserService {
             throw new BadRequestException("user email not found")
         }
         return await this.giggleService.getWalletBalance(userInfo.wallet_address, mint)
+    }
+
+    //get invited users
+    async getInvitedUsers(userInfo: UserJwtExtractDto, query: InvitedUsersQueryDto): Promise<InvitedUsersDto> {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                username_in_be: userInfo.usernameShorted,
+            },
+        })
+        if (!user) {
+            throw new BadRequestException("user not found")
+        }
+
+        const where: Prisma.usersWhereInput = { invited_by: user.username_in_be }
+
+        const users = await this.prisma.users.findMany({
+            where: where,
+            skip: Math.max(0, parseInt(query.page) - 1) * Math.max(1, parseInt(query.page_size)),
+            take: Math.max(1, parseInt(query.page_size)),
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        const count = await this.prisma.users.count({
+            where: where,
+        })
+        return {
+            users: users.map((user) => ({
+                user_id: user.username_in_be,
+                email: user.email,
+                username: user.username,
+                avatar: user.avatar,
+                created_at: user.created_at,
+            })),
+            total: count,
+        }
     }
 
     //follow

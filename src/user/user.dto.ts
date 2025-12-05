@@ -274,3 +274,46 @@ export class GetInviteCodeDto {
     @IsString()
     code: string
 }
+
+export class InvitedUsersQueryDto extends PaginationDto {}
+
+export class InvitedUserDto {
+    @ApiProperty({
+        description: "The user id of the invited user",
+    })
+    user_id: string
+
+    @ApiProperty({
+        description: "The email of the invited user",
+    })
+    email: string
+
+    @ApiProperty({
+        description: "The username of the invited user",
+    })
+    username: string
+
+    @ApiProperty({
+        description: "The avatar of the invited user",
+    })
+    avatar: string
+
+    @ApiProperty({
+        description: "The created at of the invited user",
+    })
+    created_at: Date
+}
+
+export class InvitedUsersDto {
+    @ApiProperty({
+        description: "The invited users",
+        isArray: true,
+        type: () => InvitedUserDto,
+    })
+    users: InvitedUserDto[]
+
+    @ApiProperty({
+        description: "The total number of invited users",
+    })
+    total: number
+}

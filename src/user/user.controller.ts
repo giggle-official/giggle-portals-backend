@@ -52,6 +52,8 @@ import {
     InvitationsQueryDto,
     GetInviteCodeDto,
     UserWalletDetailOnchainQueryDto,
+    InvitedUsersQueryDto,
+    InvitedUsersDto,
 } from "./user.dto"
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
@@ -722,6 +724,21 @@ export class UserController {
     })
     async getInvitations(@Query() query: InvitationsQueryDto) {
         return await this.userService.getInvitations(query.code)
+    }
+
+    @Get("/invited-users")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    @ApiTags("Profile")
+    @ApiOperation({
+        summary: "Get invited users",
+        description: "Get invited users",
+    })
+    @ApiResponse({
+        type: InvitedUsersDto,
+    })
+    async getInvitedUsers(@Req() req: Request, @Query() query: InvitedUsersQueryDto) {
+        return await this.userService.getInvitedUsers(req.user as UserJwtExtractDto, query)
     }
 
     @Get("/invite-code")
