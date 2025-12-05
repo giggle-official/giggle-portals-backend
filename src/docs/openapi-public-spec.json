@@ -462,6 +462,49 @@
         ]
       }
     },
+    "/api/v1/user/invited-users": {
+      "get": {
+        "description": "Get invited users",
+        "operationId": "UserController_getInvitedUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "description": "page number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": true,
+            "in": "query",
+            "description": "page size",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitedUsersDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get invited users",
+        "tags": [
+          "User",
+          "Profile"
+        ]
+      }
+    },
     "/api/v1/user/invite-code": {
       "get": {
         "description": "Get invite code",
@@ -6325,6 +6368,59 @@
       "InvitationsDetailDto": {
         "type": "object",
         "properties": {}
+      },
+      "InvitedUserDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user id of the invited user"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email of the invited user"
+          },
+          "username": {
+            "type": "string",
+            "description": "The username of the invited user"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "The avatar of the invited user"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+            "description": "The created at of the invited user"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "username",
+          "avatar",
+          "created_at"
+        ]
+      },
+      "InvitedUsersDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "description": "The invited users",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvitedUserDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "The total number of invited users"
+          }
+        },
+        "required": [
+          "users",
+          "total"
+        ]
       },
       "GetInviteCodeDto": {
         "type": "object",
