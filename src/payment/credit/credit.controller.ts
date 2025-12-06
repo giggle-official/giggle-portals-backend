@@ -96,7 +96,7 @@ export class CreditController {
             },
         },
     })
-    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_TOKEN))
     @UseGuards(IsWidgetGuard)
     async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
         return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
