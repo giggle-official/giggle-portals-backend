@@ -878,6 +878,8 @@ model orders {
   refund_status                  String?   @db.VarChar(32)
   refund_error                   Json?
   refund_detail                  Json?
+  settled                        Boolean?  @default(false)
+  settled_time                   DateTime? @db.DateTime(0)
   created_at                     DateTime? @default(now()) @db.Timestamp(0)
   updated_at                     DateTime? @default(now()) @db.Timestamp(0)
 

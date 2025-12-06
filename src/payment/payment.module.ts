@@ -21,6 +21,7 @@ import { SalesAgentService } from "./sales-agent/sales-agent.service"
 import { Credit2cService } from "./credit-2c/credit-2c.service"
 import { Credit2cController } from "./credit-2c/credit-2c.controller"
 import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
+import { SettleService } from "./settle/settle.service"
 
 @Module({
     imports: [
@@ -53,7 +54,8 @@ import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-c
         SalesAgentService,
         Credit2cService,
         WidgetCaslAbilityFactory,
+        SettleService,
     ],
-    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService],
+    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService, SettleService],
 })
 export class PaymentModule {}
