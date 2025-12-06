@@ -39,6 +39,12 @@ export class SettleService {
     }
 
     async postOrderToSettle(statement_id: number): Promise<void> {
+        //we only need push order on production environment
+        if (process.env.ENV !== "product") {
+            this.logger.warn(`[Settle] Not in product environment, skip post order to settle`)
+            return
+        }
+
         //find order needs posts
         const statement = await this.prisma.reward_pool_statement.findUnique({
             where: {
