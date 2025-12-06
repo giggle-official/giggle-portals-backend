@@ -34,6 +34,7 @@ import { SalesAgentService } from "src/payment/sales-agent/sales-agent.service"
 import { OrderService } from "src/payment/order/order.service"
 import { STATIC_TOKENS } from "src/common/static-tokens"
 import { v4 as uuidv4 } from "uuid"
+import { SettleService } from "src/payment/settle/settle.service"
 
 @Injectable()
 export class RewardPoolOnChainService {
@@ -53,6 +54,9 @@ export class RewardPoolOnChainService {
 
         @Inject(forwardRef(() => GiggleService))
         private readonly giggleService: GiggleService,
+
+        @Inject(forwardRef(() => SettleService))
+        private readonly settleService: SettleService,
 
         private readonly salesAgentService: SalesAgentService,
         private readonly orderService: OrderService,
@@ -1143,6 +1147,11 @@ export class RewardPoolOnChainService {
                 //settle sales agent revenue
                 this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue`)
                 await this.salesAgentService.settleStatement(statement.id)
+
+                //push order to settle system
+                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, push order to settle system`)
+                await this.settleService.postOrderToSettle(statement.id)
+
                 this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue done`)
                 this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
                 //sleep 2 seconds

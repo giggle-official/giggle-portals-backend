@@ -296,6 +296,16 @@ export class OrderDto implements orders {
         description: "The refund detail of the order",
     })
     refund_detail: JsonValue
+
+    @ApiProperty({
+        description: "The settled of the order",
+    })
+    settled: boolean
+
+    @ApiProperty({
+        description: "The settled time of the order",
+    })
+    settled_time: Date
 }
 
 export class EstimatedRewardsDto {
@@ -346,6 +356,8 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "buyback_fee_transferred",
     "refund_detail",
     "allow_free_credit",
+    "settled",
+    "settled_time",
 ]) {
     @ApiProperty({
         description: "The rewards model snapshot of the order",

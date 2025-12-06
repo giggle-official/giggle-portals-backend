@@ -1723,9 +1723,9 @@ export class OrderService {
 
         for (const reward of modelSnapshot.revenue_ratio) {
             //platform rewards is already allocated
-            if (reward.role === RewardAllocateRoles.PLATFORM) {
-                continue
-            }
+            //if (reward.role === RewardAllocateRoles.PLATFORM) {
+            //    continue
+            //}
             const rewardUSDAmount = this._calculateUSDCRewards(reward, orderAmount.plus(platformRewards))
             const rewardType = reward.allocate_type as unknown as RewardAllocateType
 
@@ -2017,6 +2017,15 @@ export class OrderService {
                     address: user?.wallet_address || "",
                     expectedAllocateRole: RewardAllocateRoles.IPHOLDER,
                     actualAllocateRole: RewardAllocateRoles.IPHOLDER,
+                    note: "",
+                    remark: allocateRatio?.remark || "",
+                }
+            case RewardAllocateRoles.PLATFORM:
+                return {
+                    user: "",
+                    address: process.env.PLATFORM_WALLET || "",
+                    expectedAllocateRole: RewardAllocateRoles.PLATFORM,
+                    actualAllocateRole: RewardAllocateRoles.PLATFORM,
                     note: "",
                     remark: allocateRatio?.remark || "",
                 }
