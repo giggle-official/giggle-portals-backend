@@ -404,9 +404,7 @@ export class OrderService {
     }
 
     async createOrderAndPayWithWallet(dto: CreateOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
-        const order = await this.createOrder(dto, userInfo, {
-            related_to_reward_pool: false,
-        })
+        const order = await this.createOrder(dto, userInfo)
         //if requester is developer, we need extract user info from user_jwt
         if (userInfo.developer_info) {
             const user = await this.jwtService.verifyAsync(dto.user_jwt, {
@@ -414,7 +412,7 @@ export class OrderService {
             })
             userInfo = await this.userService.getProfile(user as UserJwtExtractDto)
         }
-        return this.payWithWallet(order, userInfo)
+        return await this.payWithWallet(order, userInfo)
     }
 
     async previewOrder(order: CreateOrderDto, requester: UserJwtExtractDto): Promise<PreviewOrderDto> {
