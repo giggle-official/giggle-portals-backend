@@ -744,7 +744,7 @@ export class CreditService {
             },
             orderBy: {
                 _sum: {
-                    amount: "desc",
+                    amount: "asc",
                 },
             },
             take: 10,
@@ -781,7 +781,7 @@ export class CreditService {
             },
             orderBy: {
                 _sum: {
-                    amount: "desc",
+                    amount: "asc",
                 },
             },
             take: 10,
@@ -936,19 +936,19 @@ export class CreditService {
         // Convert to array for template (only include categories with data)
         const freeIssueData = [
             {
-                issue_type: "Direct Issue",
+                issue_type: "直接发放",
                 daily_amount: consolidatedIssues.direct_issue.daily,
                 monthly_amount: consolidatedIssues.direct_issue.monthly,
                 total_amount: consolidatedIssues.direct_issue.total,
             },
             {
-                issue_type: "Invite Rewards",
+                issue_type: "邀请奖励",
                 daily_amount: consolidatedIssues.invite_rewards.daily,
                 monthly_amount: consolidatedIssues.invite_rewards.monthly,
                 total_amount: consolidatedIssues.invite_rewards.total,
             },
             {
-                issue_type: "Others",
+                issue_type: "其他",
                 daily_amount: consolidatedIssues.others.daily,
                 monthly_amount: consolidatedIssues.others.monthly,
                 total_amount: consolidatedIssues.others.total,
