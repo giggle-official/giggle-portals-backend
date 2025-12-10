@@ -848,7 +848,7 @@ export class OrderService {
         //    status: ConfirmStatus.CONFIRMED,
         //})
 
-        await this.prisma.orders.update({
+        const updatedOrder = await this.prisma.orders.update({
             where: { id: orderRecord.id },
             data: {
                 current_status: OrderStatus.COMPLETED,
@@ -861,14 +861,14 @@ export class OrderService {
             },
         })
 
-        await this.updateBindRewards(orderRecord) // we need update bind rewards price after paid
+        await this.updateBindRewards(updatedOrder) // we need update bind rewards price after paid
 
-        if (orderRecord.release_rewards_after_paid) {
-            await this.releaseRewards(orderRecord)
+        if (updatedOrder.release_rewards_after_paid) {
+            await this.releaseRewards(updatedOrder)
         }
 
-        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
-        return await this.mapOrderDetail(orderRecord)
+        await this.processCallback(updatedOrder.order_id, updatedOrder.callback_url)
+        return await this.mapOrderDetail(updatedOrder)
     }
 
     async payWithCredit2c(order: PayWithWalletRequestDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
@@ -892,7 +892,7 @@ export class OrderService {
 
         await this.credit2cService.payWithCredit2c(userInfo, orderRecord)
 
-        await this.prisma.orders.update({
+        const updatedOrder = await this.prisma.orders.update({
             where: { id: orderRecord.id },
             data: {
                 current_status: OrderStatus.COMPLETED,
@@ -901,14 +901,14 @@ export class OrderService {
             },
         })
 
-        await this.updateBindRewards(orderRecord) // we need update bind rewards price after paid
+        await this.updateBindRewards(updatedOrder) // we need update bind rewards price after paid
 
-        if (orderRecord.release_rewards_after_paid) {
-            await this.releaseRewards(orderRecord)
+        if (updatedOrder.release_rewards_after_paid) {
+            await this.releaseRewards(updatedOrder)
         }
 
-        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
-        return await this.mapOrderDetail(orderRecord)
+        await this.processCallback(updatedOrder.order_id, updatedOrder.callback_url)
+        return await this.mapOrderDetail(updatedOrder)
     }
 
     async payOrderWithStripe(
