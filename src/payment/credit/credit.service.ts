@@ -826,10 +826,10 @@ export class CreditService {
     async generateCreditStatictics() {
         this.logger.log("start generateCreditStatictics")
         if (process.env.TASK_SLOT != "1") return
-        //if (process.env.ENV !== "product") {
-        //    this.logger.log("Skipping credit statistics email generation in non-production environment")
-        //    return
-        //}
+        if (process.env.ENV !== "product") {
+            this.logger.log("Skipping credit statistics email generation in non-production environment")
+            return
+        }
 
         const widgetTagsEnv = process.env.CREDIT_REPORT_WIDGETS
         const sendEmailListEnv = process.env.CREDIT_REPORT_SENDTO
