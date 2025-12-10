@@ -2503,6 +2503,21 @@
         ]
       }
     },
+    "/api/v1/credit/credit-statictics": {
+      "get": {
+        "operationId": "CreditController_getCreditStatictics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get credit statictics",
+        "tags": [
+          "Credit"
+        ]
+      }
+    },
     "/api/v1/sales-agent/incomes": {
       "get": {
         "operationId": "SalesAgentController_getSalesAgentIncomes",
@@ -9008,6 +9023,16 @@
           "email": {
             "type": "string",
             "description": "Email to receive the free credit"
+          },
+          "issue_type": {
+            "type": "string",
+            "description": "The issue type of the free credit , default is **widget_direct_issue**",
+            "enum": [
+              "invite_rewards",
+              "widget_direct_issue",
+              "refund",
+              "other"
+            ]
           },
           "description": {
             "type": "string",

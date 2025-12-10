@@ -12,7 +12,7 @@ import {
     Min,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
-import { credit_statement_type, credit_statements } from "@prisma/client"
+import { credit_statement_type, credit_statements, free_credit_issue_type } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 
 export class TopUpDto {
@@ -170,6 +170,15 @@ export class IssueFreeCreditDto {
     @IsEmail()
     @IsNotEmpty()
     email: string
+
+    @ApiProperty({
+        description: `The issue type of the free credit , default is **${free_credit_issue_type.widget_direct_issue}**`,
+        enum: free_credit_issue_type,
+        required: false,
+    })
+    @IsEnum(free_credit_issue_type)
+    @IsOptional()
+    issue_type?: free_credit_issue_type
 
     @ApiProperty({
         description: "Free credit description",

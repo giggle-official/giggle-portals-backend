@@ -424,7 +424,7 @@ export class DeveloperService {
             },
             {
                 secret: widget.secret_key,
-                expiresIn: "10m",
+                expiresIn: process.env.ENV == "product" ? "10m" : "7d",
             },
         )
     }

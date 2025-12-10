@@ -22,6 +22,7 @@ import { Credit2cService } from "./credit-2c/credit-2c.service"
 import { Credit2cController } from "./credit-2c/credit-2c.controller"
 import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 import { SettleService } from "./settle/settle.service"
+import { NotificationModule } from "src/notification/notification.module"
 
 @Module({
     imports: [
@@ -33,6 +34,7 @@ import { SettleService } from "./settle/settle.service"
         forwardRef(() => Web3Module),
         forwardRef(() => OpenAppModule),
         JwtModule.register({}),
+        NotificationModule,
     ],
     controllers: [
         PaymentController,

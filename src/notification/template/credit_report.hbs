@@ -1,0 +1,126 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Credit Statistics Report</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 700px; margin: 0 auto; background-color: #fff; border: 1px solid #ddd;">
+            <tr>
+                <td style="padding: 30px;">
+                    <!-- Header -->
+                    <h1 style="margin: 0 0 5px 0; font-size: 22px; color: #333;">Credit Statistics Report</h1>
+                    <p style="margin: 0 0 25px 0; color: #666; font-size: 13px;">
+                        <strong>Widget:</strong> {{widgetTag}} &nbsp;|&nbsp; 
+                        <strong>Date:</strong> {{reportDate}}
+                    </p>
+
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+
+                    <!-- Top-Up Summary -->
+                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">Top-Up</h2>
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Today</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">This Month</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Total</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">{{dailyTopUp}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyTopUp}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalTopUp}}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Credit Consumption -->
+                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">Credit Consumption</h2>
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Type</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Today</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">This Month</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Total</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">Free Credit</td>
+                            <td style="border: 1px solid #ddd;">{{dailyFreeCreditConsume}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyFreeCreditConsume}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalFreeCreditConsume}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">Paid Credit</td>
+                            <td style="border: 1px solid #ddd;">{{dailyNoFreeCreditConsume}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyNoFreeCreditConsume}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalNoFreeCreditConsume}}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Free Credit Issues -->
+                    {{#if freeIssueData}}
+                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">Free Credit Issues</h2>
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Issue Type</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Today</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">This Month</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Total</td>
+                        </tr>
+                        {{#each freeIssueData}}
+                        <tr>
+                            <td style="border: 1px solid #ddd;">{{issue_type}}</td>
+                            <td style="border: 1px solid #ddd;">{{daily_amount}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthly_amount}}</td>
+                            <td style="border: 1px solid #ddd;">{{total_amount}}</td>
+                        </tr>
+                        {{/each}}
+                    </table>
+                    {{/if}}
+
+                    <!-- Top 10 Free Credit Consumers -->
+                    {{#if freeCreditTop10Users}}
+                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">Top 10 Free Credit Consumers</h2>
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">#</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">User</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Consumed</td>
+                        </tr>
+                        {{#each freeCreditTop10Users}}
+                        <tr>
+                            <td style="border: 1px solid #ddd;">{{rank}}</td>
+                            <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                            <td style="border: 1px solid #ddd;">{{amount}}</td>
+                        </tr>
+                        {{/each}}
+                    </table>
+                    {{/if}}
+
+                    <!-- Top 10 Paid Credit Consumers -->
+                    {{#if noFreeCreditTop10Users}}
+                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">Top 10 Paid Credit Consumers</h2>
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">#</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">User</td>
+                            <td style="border: 1px solid #ddd; font-weight: bold;">Consumed</td>
+                        </tr>
+                        {{#each noFreeCreditTop10Users}}
+                        <tr>
+                            <td style="border: 1px solid #ddd;">{{rank}}</td>
+                            <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                            <td style="border: 1px solid #ddd;">{{amount}}</td>
+                        </tr>
+                        {{/each}}
+                    </table>
+                    {{/if}}
+
+                    <!-- Footer -->
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                    <p style="color: #999; font-size: 12px; margin: 0;">
+                        Auto-generated by Giggle Credit System
+                    </p>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

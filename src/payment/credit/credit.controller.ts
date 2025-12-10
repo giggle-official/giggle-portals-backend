@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards, Get, Query } from "@nestjs/common"
+import { Body, Controller, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import {
     GetStatementQueryDto,
@@ -72,6 +72,17 @@ export class CreditController {
     @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
     async issueFreeCredit(@Body() body: IssueFreeCreditDto, @Req() req: Request) {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
+    }
+
+    @Get("/credit-statictics")
+    @ApiOperation({ summary: "Get credit statictics", tags: ["Credit"] })
+    @UseGuards(IsWidgetGuard)
+    async getCreditStatictics(@Req() req: Request) {
+        const widgetTag = (req.user as UserJwtExtractDto).developer_info?.tag
+        if (!widgetTag) {
+            throw new BadRequestException("Widget tag is required")
+        }
+        return this.creditService.getCreditStatictics(widgetTag)
     }
 
     //@Post("/issue-credit")

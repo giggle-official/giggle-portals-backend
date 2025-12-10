@@ -1257,19 +1257,28 @@ model market_makers {
   ip_token_delegation ip_token_delegation[]
 }
 
+enum free_credit_issue_type {
+  register_rewards
+  invite_rewards
+  widget_direct_issue
+  refund
+  other
+}
+
 model free_credit_issues {
-  id                Int                 @id @default(autoincrement())
-  user              String?             @db.VarChar(32)
-  widget_tag        String?             @db.VarChar(32)
-  app_id            String?             @db.VarChar(64)
-  invited_user_id   String?             @default("") @db.VarChar(32)
-  description       String?             @db.VarChar(1024)
+  id                Int                     @id @default(autoincrement())
+  user              String?                 @db.VarChar(32)
+  issue_type        free_credit_issue_type? @default(widget_direct_issue)
+  widget_tag        String?                 @db.VarChar(32)
+  app_id            String?                 @db.VarChar(64)
+  invited_user_id   String?                 @default("") @db.VarChar(32)
+  description       String?                 @db.VarChar(1024)
   amount            Int?
-  expire_date       DateTime?           @db.DateTime(0)
+  expire_date       DateTime?               @db.DateTime(0)
   balance           Int?
-  created_at        DateTime?           @default(now()) @db.Timestamp(0)
-  updated_at        DateTime?           @default(now()) @db.Timestamp(0)
-  invited_user_info users?              @relation(fields: [invited_user_id], references: [username_in_be])
+  created_at        DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at        DateTime?               @default(now()) @db.Timestamp(0)
+  invited_user_info users?                  @relation(fields: [invited_user_id], references: [username_in_be])
   creditStatements  credit_statements[]
 }
 

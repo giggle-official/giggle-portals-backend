@@ -12,10 +12,11 @@ import {
 import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
-import { credit_statement_type, orders, Prisma } from "@prisma/client"
+import { credit_statement_type, free_credit_issue_type, orders, Prisma } from "@prisma/client"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import * as crypto from "crypto"
 import { v4 as uuidv4 } from "uuid"
+import { NotificationService } from "src/notification/notification.service"
 
 @Injectable()
 export class CreditService {
@@ -30,6 +31,8 @@ export class CreditService {
 
         @Inject(forwardRef(() => OrderService))
         private readonly orderService: OrderService,
+
+        private readonly notificationService: NotificationService,
     ) {}
 
     async getUserCredits(userId: string): Promise<UserCreditBalanceDto> {
@@ -181,7 +184,7 @@ export class CreditService {
         }
 
         await this.issueFreeCredit(
-            { email: invitedUser.email, amount: 500 },
+            { email: invitedUser.email, amount: 500, issue_type: free_credit_issue_type.invite_rewards },
             {
                 user_id: order.owner,
                 usernameShorted: order.owner,
@@ -428,7 +431,7 @@ export class CreditService {
     async issueFreeCredit(
         body: IssueFreeCreditDto,
         userInfo: UserJwtExtractDto,
-        { invited_user_id }: { invited_user_id?: string } = {},
+        options: { invited_user_id?: string } = {},
     ): Promise<UserCreditBalanceDto> {
         const issuedFreeCredit = await this.prisma.users.findUnique({
             where: {
@@ -456,7 +459,8 @@ export class CreditService {
                     widget_tag: userInfo?.developer_info?.tag,
                     app_id: userInfo?.app_id,
                     balance: body.amount,
-                    invited_user_id: invited_user_id || "",
+                    invited_user_id: options.invited_user_id || "",
+                    issue_type: body.issue_type || free_credit_issue_type.widget_direct_issue,
                 },
             })
 
@@ -537,6 +541,465 @@ export class CreditService {
         await this.issueCredit(paidOrder)
 
         return { success: true }
+    }
+
+    async getCreditStatictics(widgetTag: string) {
+        //daily free issue with type
+        const dailyFreeIssue = await this.prisma.free_credit_issues.groupBy({
+            by: ["issue_type"],
+            where: {
+                widget_tag: widgetTag,
+                created_at: {
+                    gte: new Date(new Date().setDate(new Date().getDate() - 1)),
+                    lt: new Date(),
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+        // monthly issue with type
+        const monthlyFreeIssue = await this.prisma.free_credit_issues.groupBy({
+            by: ["issue_type"],
+            where: {
+                widget_tag: widgetTag,
+                created_at: {
+                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    lt: new Date(),
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+        // total issue with type
+        const totalFreeIssue = await this.prisma.free_credit_issues.groupBy({
+            by: ["issue_type"],
+            where: {
+                widget_tag: widgetTag,
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+
+        //daily top up
+        const dailyTopUp = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                type: credit_statement_type.top_up,
+                created_at: {
+                    gte: new Date(new Date().setDate(new Date().getDate() - 1)),
+                    lt: new Date(),
+                },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+
+        //monthly top up
+        const monthlyTopUp = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                type: credit_statement_type.top_up,
+                order: {
+                    widget_tag: widgetTag,
+                },
+                created_at: {
+                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    lt: new Date(),
+                },
+            },
+        })
+
+        //total top up
+        const totalTopUp = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                type: credit_statement_type.top_up,
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+
+        //daily free credit consume
+        const dailyFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: true,
+                created_at: {
+                    gte: new Date(new Date().setDate(new Date().getDate() - 1)),
+                    lt: new Date(),
+                },
+                order: {
+                    widget_tag: widgetTag,
+                },
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+            },
+        })
+
+        //monthly free credit consume
+        const monthlyFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: true,
+                created_at: {
+                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    lt: new Date(),
+                },
+                order: {
+                    widget_tag: widgetTag,
+                },
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+            },
+        })
+
+        //total free credit consume
+        const totalFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: true,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+
+        //daily no-free credit consume
+        const dailyNoFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: false,
+                created_at: {
+                    gte: new Date(new Date().setDate(new Date().getDate() - 1)),
+                    lt: new Date(),
+                },
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+
+        //monthly no-free credit consume
+        const monthlyNoFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: false,
+                created_at: {
+                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    lt: new Date(),
+                },
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+        //total no-free credit consume
+        const totalNoFreeCreditConsume = await this.prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: false,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+        })
+
+        //free credit consume top 10 users
+        const freeCreditConsumeTop10Users: any = await this.prisma.credit_statements.groupBy({
+            by: ["user"],
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: true,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+            orderBy: {
+                _sum: {
+                    amount: "desc",
+                },
+            },
+            take: 10,
+        })
+        //append user email info
+        const freeCreditConsumeTop10UsersEmails = await this.prisma.users.findMany({
+            where: {
+                username_in_be: { in: freeCreditConsumeTop10Users.map((user) => user.user) },
+            },
+            select: {
+                username_in_be: true,
+                email: true,
+            },
+        })
+
+        for (let i = 0; i < freeCreditConsumeTop10Users.length; i++) {
+            const user = freeCreditConsumeTop10Users[i]
+            const userEmail = freeCreditConsumeTop10UsersEmails.find((email) => email.username_in_be === user.user)
+            freeCreditConsumeTop10Users[i].user_email = userEmail.email || "unknown"
+        }
+
+        //no-free credit consume top 10 users
+        const noFreeCreditConsumeTop10Users: any = await this.prisma.credit_statements.groupBy({
+            by: ["user"],
+            _sum: {
+                amount: true,
+            },
+            where: {
+                is_free_credit: false,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: {
+                    widget_tag: widgetTag,
+                },
+            },
+            orderBy: {
+                _sum: {
+                    amount: "desc",
+                },
+            },
+            take: 10,
+        })
+
+        //append user email info
+        const noFreeCreditConsumeTop10UsersEmails = await this.prisma.users.findMany({
+            where: {
+                username_in_be: { in: noFreeCreditConsumeTop10Users.map((user) => user.user) },
+            },
+            select: {
+                username_in_be: true,
+                email: true,
+            },
+        })
+        for (let i = 0; i < noFreeCreditConsumeTop10Users.length; i++) {
+            const user = noFreeCreditConsumeTop10Users[i]
+            const userEmail = noFreeCreditConsumeTop10UsersEmails.find((email) => email.username_in_be === user.user)
+            noFreeCreditConsumeTop10Users[i].user_email = userEmail.email || "unknown"
+        }
+
+        return {
+            dailyFreeIssue,
+            monthlyFreeIssue,
+            totalFreeIssue,
+            dailyTopUp,
+            monthlyTopUp,
+            totalTopUp,
+            dailyFreeCreditConsume,
+            monthlyFreeCreditConsume,
+            totalFreeCreditConsume,
+            dailyNoFreeCreditConsume,
+            monthlyNoFreeCreditConsume,
+            totalNoFreeCreditConsume,
+            freeCreditConsumeTop10Users,
+            noFreeCreditConsumeTop10Users,
+        }
+    }
+
+    //@Cron(CronExpression.EVERY_DAY_AT_5PM)
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async generateCreditStatictics() {
+        this.logger.log("start generateCreditStatictics")
+        if (process.env.TASK_SLOT != "1") return
+        //if (process.env.ENV !== "product") {
+        //    this.logger.log("Skipping credit statistics email generation in non-production environment")
+        //    return
+        //}
+
+        const widgetTagsEnv = process.env.CREDIT_REPORT_WIDGETS
+        const sendEmailListEnv = process.env.CREDIT_REPORT_SENDTO
+
+        if (!widgetTagsEnv || widgetTagsEnv.trim() === "") {
+            this.logger.log("No widget tags to generate credit statistics")
+            return
+        }
+
+        if (!sendEmailListEnv || sendEmailListEnv.trim() === "") {
+            this.logger.log("No email list to send credit statistics")
+            return
+        }
+
+        const widgetTags = widgetTagsEnv
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0)
+        const sendEmailList = sendEmailListEnv
+            .split(",")
+            .map((email) => email.trim())
+            .filter((email) => email.length > 0)
+
+        if (widgetTags.length === 0) {
+            this.logger.log("No widget tags to generate credit statistics")
+            return
+        }
+
+        if (sendEmailList.length === 0) {
+            this.logger.log("No email list to send credit statistics")
+            return
+        }
+
+        for (const widgetTag of widgetTags) {
+            try {
+                const result = await this.getCreditStatictics(widgetTag)
+                const templateContext = this.formatCreditStatsForTemplate(widgetTag, result)
+
+                // Send emails to all recipients
+                const emailPromises = sendEmailList.map(async (email) => {
+                    try {
+                        await this.notificationService.sendNotification(
+                            `💳 Daily Credit Statistics Report - ${widgetTag} - ${templateContext.reportDate}`,
+                            email,
+                            "credit_report",
+                            templateContext,
+                            "mail.giggle.pro",
+                            "Giggle.Pro <app-noreply@giggle.pro>",
+                        )
+                        this.logger.log(`Credit report for ${widgetTag} sent successfully to ${email}`)
+                    } catch (error) {
+                        this.logger.error(`Failed to send credit report for ${widgetTag} to ${email}:`, error)
+                    }
+                })
+
+                await Promise.allSettled(emailPromises)
+                this.logger.log(
+                    `Credit statistics email for ${widgetTag} process completed. Sent to ${sendEmailList.length} recipients.`,
+                )
+            } catch (error) {
+                this.logger.error(`Failed to generate/send credit statistics for ${widgetTag}:`, error)
+            }
+        }
+    }
+
+    /**
+     * Formats credit statistics data for email template
+     */
+    private formatCreditStatsForTemplate(widgetTag: string, data: any) {
+        const currentDate = new Date()
+
+        // Consolidate issue types into 3 categories: Direct Issue, Invite Rewards, Others
+        const consolidatedIssues = {
+            direct_issue: { daily: 0, monthly: 0, total: 0 },
+            invite_rewards: { daily: 0, monthly: 0, total: 0 },
+            others: { daily: 0, monthly: 0, total: 0 },
+        }
+
+        // Helper function to categorize issue type
+        const categorizeIssueType = (type: string): "direct_issue" | "invite_rewards" | "others" => {
+            if (type === "widget_direct_issue") return "direct_issue"
+            if (type === "invite_rewards") return "invite_rewards"
+            return "others"
+        }
+
+        // Process daily free issues
+        for (const item of data.dailyFreeIssue || []) {
+            const category = categorizeIssueType(item.issue_type || "unknown")
+            consolidatedIssues[category].daily += Number(item._sum?.amount || 0)
+        }
+
+        // Process monthly free issues
+        for (const item of data.monthlyFreeIssue || []) {
+            const category = categorizeIssueType(item.issue_type || "unknown")
+            consolidatedIssues[category].monthly += Number(item._sum?.amount || 0)
+        }
+
+        // Process total free issues
+        for (const item of data.totalFreeIssue || []) {
+            const category = categorizeIssueType(item.issue_type || "unknown")
+            consolidatedIssues[category].total += Number(item._sum?.amount || 0)
+        }
+
+        // Convert to array for template (only include categories with data)
+        const freeIssueData = [
+            {
+                issue_type: "Direct Issue",
+                daily_amount: consolidatedIssues.direct_issue.daily,
+                monthly_amount: consolidatedIssues.direct_issue.monthly,
+                total_amount: consolidatedIssues.direct_issue.total,
+            },
+            {
+                issue_type: "Invite Rewards",
+                daily_amount: consolidatedIssues.invite_rewards.daily,
+                monthly_amount: consolidatedIssues.invite_rewards.monthly,
+                total_amount: consolidatedIssues.invite_rewards.total,
+            },
+            {
+                issue_type: "Others",
+                daily_amount: consolidatedIssues.others.daily,
+                monthly_amount: consolidatedIssues.others.monthly,
+                total_amount: consolidatedIssues.others.total,
+            },
+        ].filter((item) => item.daily_amount > 0 || item.monthly_amount > 0 || item.total_amount > 0)
+
+        // Format top 10 users data
+        const freeCreditTop10Users = (data.freeCreditConsumeTop10Users || []).map((user: any, index: number) => ({
+            rank: index + 1,
+            user_email: user.user_email || "unknown",
+            amount: Number(user._sum?.amount || 0),
+        }))
+
+        const noFreeCreditTop10Users = (data.noFreeCreditConsumeTop10Users || []).map((user: any, index: number) => ({
+            rank: index + 1,
+            user_email: user.user_email || "unknown",
+            amount: Number(user._sum?.amount || 0),
+        }))
+
+        return {
+            widgetTag,
+            reportDate: currentDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                timeZone: "UTC",
+            }),
+            period: `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`,
+
+            // Top-up data
+            dailyTopUp: Number(data.dailyTopUp?._sum?.amount || 0),
+            monthlyTopUp: Number(data.monthlyTopUp?._sum?.amount || 0),
+            totalTopUp: Number(data.totalTopUp?._sum?.amount || 0),
+
+            // Free credit consumption (negative = consumed, positive = refunded more than consumed)
+            dailyFreeCreditConsume: Number(data.dailyFreeCreditConsume?._sum?.amount || 0),
+            monthlyFreeCreditConsume: Number(data.monthlyFreeCreditConsume?._sum?.amount || 0),
+            totalFreeCreditConsume: Number(data.totalFreeCreditConsume?._sum?.amount || 0),
+
+            // Paid credit consumption (negative = consumed, positive = refunded more than consumed)
+            dailyNoFreeCreditConsume: Number(data.dailyNoFreeCreditConsume?._sum?.amount || 0),
+            monthlyNoFreeCreditConsume: Number(data.monthlyNoFreeCreditConsume?._sum?.amount || 0),
+            totalNoFreeCreditConsume: Number(data.totalNoFreeCreditConsume?._sum?.amount || 0),
+
+            // Free issue data by type
+            freeIssueData,
+
+            // Top 10 users
+            freeCreditTop10Users: freeCreditTop10Users.length > 0 ? freeCreditTop10Users : null,
+            noFreeCreditTop10Users: noFreeCreditTop10Users.length > 0 ? noFreeCreditTop10Users : null,
+        }
     }
 
     //expire free credit everyday
