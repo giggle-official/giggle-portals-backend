@@ -822,7 +822,7 @@ export class CreditService {
     }
 
     //@Cron(CronExpression.EVERY_DAY_AT_5PM)
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_DAY_AT_1AM)
     async generateCreditStatictics() {
         this.logger.log("start generateCreditStatictics")
         if (process.env.TASK_SLOT != "1") return
