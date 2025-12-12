@@ -2728,6 +2728,58 @@
         ]
       }
     },
+    "/api/v1/node-admin/post-user-to-settle": {
+      "post": {
+        "operationId": "SettleController_postUserToSettle",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSettleUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Post user to settle",
+        "tags": [
+          "Settle",
+          "Developer Utility"
+        ]
+      }
+    },
+    "/api/v1/node-admin/post-order-to-settle": {
+      "post": {
+        "operationId": "SettleController_postOrderToSettle",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSettleOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Post order to settle",
+        "tags": [
+          "Settle",
+          "Developer Utility"
+        ]
+      }
+    },
     "/api/v1/app/list": {
       "get": {
         "operationId": "OpenAppController_getAppList",
@@ -9123,6 +9175,28 @@
       "Credit2cPaymentCallbackDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreateSettleUserDto": {
+        "type": "object",
+        "properties": {
+          "user_email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_email"
+        ]
+      },
+      "CreateSettleOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id"
+        ]
       },
       "AppListDto": {
         "type": "object",

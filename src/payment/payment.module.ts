@@ -23,6 +23,7 @@ import { Credit2cController } from "./credit-2c/credit-2c.controller"
 import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 import { SettleService } from "./settle/settle.service"
 import { NotificationModule } from "src/notification/notification.module"
+import { SettleController } from "./settle/settle.controller"
 
 @Module({
     imports: [
@@ -43,6 +44,7 @@ import { NotificationModule } from "src/notification/notification.module"
         CreditController,
         SalesAgentController,
         Credit2cController,
+        SettleController,
     ],
     providers: [
         PaymentService,
@@ -57,6 +59,7 @@ import { NotificationModule } from "src/notification/notification.module"
         Credit2cService,
         WidgetCaslAbilityFactory,
         SettleService,
+        SettleController,
     ],
     exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService, SettleService],
 })
