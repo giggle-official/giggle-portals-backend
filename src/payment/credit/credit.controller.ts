@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards, Get, Query } from "@nestjs/common"
+import { Body, Controller, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import {
     GetStatementQueryDto,
@@ -80,6 +80,8 @@ export class CreditController {
         description: "Issue credit to a user, you must be use widget jwt to call this api",
         tags: ["Credit"],
     })
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_TOKEN))
+    @UseGuards(IsWidgetGuard)
     @ApiResponse({
         type: UserCreditBalanceDto,
     })
@@ -96,9 +98,26 @@ export class CreditController {
             },
         },
     })
-    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_TOKEN))
-    @UseGuards(IsWidgetGuard)
     async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
         return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
     }
+
+    @Get("/credit-statictics")
+    @ApiOperation({ summary: "Get credit statictics", tags: ["Credit"] })
+    @UseGuards(IsWidgetGuard)
+    async getCreditStatictics(@Req() req: Request) {
+        const widgetTag = (req.user as UserJwtExtractDto).developer_info?.tag
+        if (!widgetTag) {
+            throw new BadRequestException("Widget tag is required")
+        }
+        return this.creditService.getCreditStatictics(widgetTag)
+    }
+
+    //@Post("/issue-credit")
+    //@ApiExcludeEndpoint()
+    //@CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
+    //@UseGuards(IsWidgetGuard)
+    //async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
+    //    return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
+    //}
 }

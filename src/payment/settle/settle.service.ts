@@ -1,12 +1,13 @@
 import { HttpService } from "@nestjs/axios"
-import { HttpStatus, Injectable, Logger } from "@nestjs/common"
-import { CreateSettleOrderDto, ORDER_SETTLE_STATUS, SettleApiResponseDto, SettleOrderResponseDto } from "./settle.dto"
+import { BadRequestException, forwardRef, HttpStatus, Inject, Injectable, Logger } from "@nestjs/common"
+import { CreateSettleUserDto, SettleApiResponseDto, SettleOrderResponseDto, SettleUserResponseDto } from "./settle.dto"
 import { JwtService } from "@nestjs/jwt"
 import { AxiosResponse, isAxiosError } from "axios"
 import { PrismaService } from "src/common/prisma.service"
 import { lastValueFrom } from "rxjs"
 import { RewardAllocateRoles } from "../rewards-pool/rewards-pool.dto"
 import { Decimal } from "@prisma/client/runtime/library"
+import { UserService } from "src/user/user.service"
 
 @Injectable()
 export class SettleService {
@@ -20,6 +21,9 @@ export class SettleService {
         private readonly httpService: HttpService,
         private readonly jwtService: JwtService,
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => UserService))
+        private readonly userService: UserService,
     ) {
         if (!this.settleApiEndpoint || !this.settleApiKey || !this.settleApiSecret) {
             throw new Error("SETTLE_API_ENDPOINT, PRODUCT_ACCESS_KEY, PRODUCT_ACCESS_SECRET must be set")
@@ -36,6 +40,18 @@ export class SettleService {
                 expiresIn: "10m",
             },
         )}`
+    }
+
+    async PostOrderToSettleByOrderId(order_id: string): Promise<any> {
+        const statement = await this.prisma.reward_pool_statement.findFirst({
+            where: {
+                related_order_id: order_id,
+            },
+        })
+        if (!statement) {
+            throw new BadRequestException(`Statement not found for order ${order_id}`)
+        }
+        return await this.postOrderToSettle(statement.id)
     }
 
     async postOrderToSettle(statement_id: number): Promise<void> {
@@ -164,6 +180,62 @@ export class SettleService {
             } else {
                 this.logger.error(`Failed to post order ${statement.related_order_id} to settle: ${error.message}`)
             }
+        }
+    }
+
+    //post user to settle system
+    async postUserToSettle(email: string): Promise<any> {
+        //we only need push order on production environment
+        if (process.env.ENV !== "product") {
+            this.logger.warn(`[Settle] Not in product environment, skip post order to settle`)
+            return
+        }
+
+        const userProfile = await this.userService.getUserInfoByEmail(email)
+        if (!userProfile) {
+            throw new BadRequestException(`User ${email} not found`)
+        }
+
+        const profile = await this.userService.getProfile({
+            email: email,
+            usernameShorted: userProfile.usernameShorted,
+            user_id: userProfile.usernameShorted,
+        })
+
+        //push user to settle system
+        try {
+            const authHeader = await this.generateAuthHeader()
+
+            const requestParams: CreateSettleUserDto = {
+                user_email: email,
+                invite_code: profile.invite_code,
+                inviter_email: profile?.register_info?.invited_by?.email || null,
+            }
+            const response = await lastValueFrom<AxiosResponse<SettleApiResponseDto<SettleUserResponseDto>>>(
+                this.httpService.post(this.settleApiEndpoint + "/api/v1/user-invitations/create", requestParams, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: authHeader,
+                    },
+                }),
+            )
+            this.logger.log(`Settle user response: ${JSON.stringify(response?.data)}`)
+
+            if (
+                response.status !== HttpStatus.OK ||
+                response?.data?.code !== HttpStatus.OK ||
+                !response?.data?.data?.success
+            ) {
+                throw new Error(`Failed to post user ${email} to settle: ${response?.statusText}`)
+            }
+            return response.data.data
+        } catch (error) {
+            if (isAxiosError(error)) {
+                this.logger.error(`Failed to post user ${email} to settle: ${JSON.stringify(error.response.data)}`)
+            } else {
+                this.logger.error(`Failed to post user ${email} to settle: ${error.message}`)
+            }
+            throw new BadRequestException(`Failed to post user ${email} to settle: ${error.message}`)
         }
     }
 }

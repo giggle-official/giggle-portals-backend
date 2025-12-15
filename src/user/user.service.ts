@@ -45,6 +45,7 @@ import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
 import sharp from "sharp"
 import { CreditService } from "src/payment/credit/credit.service"
+import { SettleService } from "src/payment/settle/settle.service"
 
 @Injectable()
 export class UserService {
@@ -64,6 +65,9 @@ export class UserService {
 
         @Inject(forwardRef(() => CreditService))
         private readonly creditService: CreditService,
+
+        @Inject(forwardRef(() => SettleService))
+        private readonly settleService: SettleService,
     ) {}
 
     async getUserInfoByEmail(email: string, app_id?: string): Promise<UserInfoDTO> {
@@ -119,12 +123,19 @@ export class UserService {
             can_create_ip: !!userInfo.can_create_ip,
         }
 
-        await this.prisma.users.create({
+        const newUser = await this.prisma.users.create({
             data: data,
         })
 
         //bind giggle wallet
-        await this.giggleService.bindGiggleWallet(userInfo.email)
+        await this.giggleService.bindGiggleWallet(newUser.email)
+
+        //post to settle
+        try {
+            await this.settleService.postUserToSettle(newUser.email)
+        } catch (error) {
+            this.logger.error(`Failed to post user ${newUser.email} to settle: ${error.message}`)
+        }
         return userInfo
     }
 
@@ -383,6 +394,23 @@ export class UserService {
             },
         }
 
+        if (user.invited_by) {
+            const invitedUser = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: user.invited_by,
+                },
+            })
+            if (invitedUser) {
+                registerInfo.invited_by = {
+                    user_id: invitedUser.username_in_be || "",
+                    username: invitedUser.username || "",
+                    avatar: invitedUser.avatar || "",
+                    email: invitedUser.email || "",
+                }
+            }
+            return registerInfo
+        }
+
         if (!user.from_source_link) {
             return registerInfo
         }
@@ -404,21 +432,6 @@ export class UserService {
             registerInfo.from_widget_tag = sourceLinkDetail.redirect_to_widget
         }
 
-        if (user.invited_by) {
-            const invitedUser = await this.prisma.users.findUnique({
-                where: {
-                    username_in_be: user.invited_by,
-                },
-            })
-            if (invitedUser) {
-                registerInfo.invited_by = {
-                    user_id: invitedUser.username_in_be || "",
-                    username: invitedUser.username || "",
-                    avatar: invitedUser.avatar || "",
-                    email: invitedUser.email || "",
-                }
-            }
-        }
         return registerInfo
     }
 
