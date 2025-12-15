@@ -396,7 +396,11 @@ export class AssetsService {
         try {
             const { parseStream } = await import("music-metadata")
 
-            const metadata = await parseStream(stream, { mimeType: "audio/*" })
+            const metadata = await parseStream(
+                stream,
+                { mimeType: "audio/*", size: fileInfo.ContentLength || 0 },
+                { duration: true },
+            )
 
             if (!metadata.format) {
                 throw new Error("No audio format found")
