@@ -9080,6 +9080,7 @@
             "type": "string",
             "description": "The issue type of the free credit , default is **widget_direct_issue**",
             "enum": [
+              "register_rewards",
               "invite_rewards",
               "widget_direct_issue",
               "refund",

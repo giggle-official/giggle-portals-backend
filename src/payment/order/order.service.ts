@@ -72,6 +72,7 @@ interface CreateOrderOptions {
 @Injectable()
 export class OrderService {
     public readonly logger = new Logger(OrderService.name)
+    public static readonly stripeChannelName = process.env.STRIPE_PAYMENT_CHANNEL || "ipos"
 
     public static readonly defaultPaymentMethod = [
         //PaymentMethod.STRIPE,
@@ -315,9 +316,15 @@ export class OrderService {
             }
         }
 
-        if (order.amount < 100) {
-            paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
+        //allow stripe payment if widget tag is in ALLOW_STRIPE_PAYMENT_WIDGETS and order is top up credit
+        const allowStripePaymentWidgets = process.env.ALLOW_STRIPE_PAYMENT_WIDGETS?.split(",") || []
+        if (allowStripePaymentWidgets.includes(widgetTag) && options.is_credit_top_up) {
+            paymentMethod.push(PaymentMethod.STRIPE)
         }
+
+        //if (order.amount < 100) {
+        //    paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
+        //}
 
         const record = await this.prisma.orders.create({
             data: {
@@ -911,6 +918,41 @@ export class OrderService {
         return await this.mapOrderDetail(updatedOrder)
     }
 
+    async _getOrCreateStripeCustomer(email: string): Promise<string> {
+        const customer = await this.prisma.users.findFirst({
+            where: {
+                email: email,
+            },
+            select: {
+                stripe_customer_id: true,
+            },
+        })
+        let needCreateNew = customer.stripe_customer_id ? false : true
+        let stripeCustomerId = customer.stripe_customer_id
+        if (customer.stripe_customer_id) {
+            try {
+                const c = await this.stripe.customers.retrieve(customer.stripe_customer_id)
+            } catch (error) {
+                needCreateNew = true
+            }
+        }
+
+        if (needCreateNew) {
+            const customerCreated = await this.stripe.customers.create({
+                email: email,
+            })
+            await this.prisma.users.update({
+                where: {
+                    email: email,
+                },
+                data: { stripe_customer_id: customerCreated.id },
+            })
+            stripeCustomerId = customerCreated.id
+        }
+
+        return stripeCustomerId
+    }
+
     async payOrderWithStripe(
         order: PayWithStripeRequestDto,
         userInfo: UserJwtExtractDto,
@@ -926,26 +968,7 @@ export class OrderService {
             throw new BadRequestException(message)
         }
 
-        const customer = await this.prisma.users.findFirst({
-            where: {
-                username_in_be: userInfo.usernameShorted,
-            },
-            select: {
-                stripe_customer_id: true,
-            },
-        })
-        if (!customer.stripe_customer_id) {
-            const customerCreated = await this.stripe.customers.create({
-                email: userInfo.email,
-            })
-            await this.prisma.users.update({
-                where: {
-                    username_in_be: userInfo.usernameShorted,
-                },
-                data: { stripe_customer_id: customerCreated.id },
-            })
-            customer.stripe_customer_id = customerCreated.id
-        }
+        const stripeCustomerId = await this._getOrCreateStripeCustomer(userProfile.email)
 
         const returnUrl = `${process.env.FRONTEND_URL}/order?orderId=${orderRecord.order_id}&session_id={CHECKOUT_SESSION_ID}`
         const successUrl = returnUrl
@@ -954,11 +977,12 @@ export class OrderService {
             id: orderId,
             username: userInfo.usernameShorted,
             order_id: orderRecord.order_id,
+            channel: OrderService.stripeChannelName,
         }
 
         const stripeSessionParams: Stripe.Checkout.SessionCreateParams = {
             client_reference_id: orderId,
-            customer: customer.stripe_customer_id,
+            customer: stripeCustomerId,
             line_items: [
                 {
                     price_data: {
@@ -1165,6 +1189,14 @@ export class OrderService {
             where: { id: localRecordId },
         })
         const invoice = (localRecord.raw_data as any).data.object as Stripe.Invoice
+        //check channel
+        const metadata = invoice.metadata as any
+
+        if (metadata.channel !== OrderService.stripeChannelName) {
+            this.logger.warn(`Invoice ${invoice.id} is not from ${OrderService.stripeChannelName}`)
+            return
+        }
+
         const orderId = invoice.metadata.order_id
         const order = await this.prisma.orders.findUnique({
             where: { order_id: orderId },
