@@ -38,6 +38,7 @@ export enum OrderStatus {
 
 export enum PaymentMethod {
     STRIPE = "stripe",
+    PAYPAL = "paypal",
     WALLET = "wallet",
     WECHAT = "wechat",
     CREDIT = "credit",
@@ -140,6 +141,21 @@ export class OrderDto implements orders {
         description: "The stripe invoice detail of the order",
     })
     stripe_invoice_detail: JsonValue
+
+    @ApiProperty({
+        description: "the paypal order id of the order",
+    })
+    paypal_order_id: string
+
+    @ApiProperty({
+        description: "the paypal capture detail of the order",
+    })
+    paypal_capture_detail: JsonValue
+
+    @ApiProperty({
+        description: "the paypal order detail of the order",
+    })
+    paypal_order_detail: JsonValue
 
     @ApiProperty({
         description: "The wallet paid detail if order is paid with wallet",
@@ -341,6 +357,9 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "id",
     "stripe_invoice_detail",
     "stripe_invoice_id",
+    "paypal_order_detail",
+    "paypal_capture_detail",
+    "paypal_order_id",
     "sales_agent",
     "wallet_paid_detail",
     "costs_allocation",

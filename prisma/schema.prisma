@@ -187,6 +187,14 @@ model stripe_webhook_log {
   created_at DateTime? @default(now()) @db.DateTime(0)
 }
 
+model paypal_webhook_log {
+  id         Int       @id @default(autoincrement())
+  event_type String?   @db.VarChar(255)
+  raw_data   Json?
+  status     String?   @db.VarChar(32)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+}
+
 model assets {
   id                   Int                    @id @default(autoincrement())
   asset_id             String?                @unique @db.VarChar(32)
@@ -853,6 +861,9 @@ model orders {
   paid_method                    String?   @db.VarChar(32)
   stripe_invoice_id              String?   @db.VarChar(32)
   stripe_invoice_detail          Json?
+  paypal_order_id                String?   @db.VarChar(64)
+  paypal_order_detail            Json?
+  paypal_capture_detail          Json?
   payment_asia_callback          Json?
   wallet_paid_detail             Json?
   related_reward_id              Int?
