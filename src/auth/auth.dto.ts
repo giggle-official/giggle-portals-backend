@@ -76,5 +76,10 @@ export class GoogleLoginConfigDto {
     @ApiProperty()
     @IsString()
     @IsOptional()
+    callback_url?: string //the callback url of google login
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
     source_link_id?: string
 }

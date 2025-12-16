@@ -111,14 +111,24 @@ export class AuthService {
         return {}
     }
 
-    async exchangeCode(code: string, app_id: string, device_id: string, invite_code?: string, source_link_id?: string) {
+    async exchangeCode(
+        code: string,
+        app_id: string,
+        device_id: string,
+        invite_code?: string,
+        source_link_id?: string,
+        callback_url?: string,
+    ) {
         try {
+            let callbackUrl = callback_url || process.env.GOOGLE_CALLBACK_URL!
             this.logger.log(
                 "Google token exchange: code: " + code,
                 "app_id: " + app_id,
                 "device_id: " + device_id,
                 "invite_code: " + invite_code,
+                "callback_url: " + callbackUrl,
             )
+
             const tokenResponse = await lastValueFrom(
                 this.googleLoginhttpService.post(
                     "https://oauth2.googleapis.com/token",
@@ -127,7 +137,7 @@ export class AuthService {
                         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
                         code: code,
                         grant_type: "authorization_code",
-                        redirect_uri: process.env.GOOGLE_CALLBACK_URL!,
+                        redirect_uri: callbackUrl,
                     },
 
                     {
