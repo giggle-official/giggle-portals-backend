@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
 import { HttpService } from "@nestjs/axios"
 import { PrismaService } from "src/common/prisma.service"
 import { lastValueFrom } from "rxjs"
 import { OrderStatus, PaymentMethod } from "../order/order.dto"
 import { orders } from "@prisma/client"
+import { OrderService } from "../order/order.service"
 
 interface PayPalAccessToken {
     access_token: string
@@ -34,6 +35,9 @@ export class PaypalService {
     constructor(
         private readonly httpService: HttpService,
         private readonly prisma: PrismaService,
+
+        @Inject(forwardRef(() => OrderService))
+        private readonly orderService: OrderService,
     ) {
         // Use sandbox for non-production, live for production
         const isProduction = process.env.ENV === "product"
@@ -330,6 +334,14 @@ export class PaypalService {
                 },
             })
         }
+
+        //update bind rewards price
+        await this.orderService.updateBindRewards(order)
+
+        if (order.release_rewards_after_paid) {
+            await this.orderService.releaseRewards(order)
+        }
+        await this.orderService.processCallback(order.order_id, order.callback_url)
     }
 
     /**
@@ -379,4 +391,3 @@ export class PaypalService {
         }
     }
 }
-

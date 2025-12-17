@@ -1763,38 +1763,6 @@
         ]
       }
     },
-    "/api/v1/order/capturePayPalOrder": {
-      "post": {
-        "operationId": "OrderController_capturePayPalOrder",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CapturePayPalOrderDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OrderDetailDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Capture PayPal payment after user approval",
-        "tags": [
-          "Order"
-        ]
-      }
-    },
     "/api/v1/order/paypal/order-status": {
       "get": {
         "operationId": "OrderController_getPayPalOrderStatus",
@@ -8537,19 +8505,6 @@
         "required": [
           "paypal_order_id",
           "approval_url"
-        ]
-      },
-      "CapturePayPalOrderDto": {
-        "type": "object",
-        "properties": {
-          "paypal_order_id": {
-            "type": "string",
-            "description": "The PayPal order ID to capture",
-            "example": "5O190127TN364715T"
-          }
-        },
-        "required": [
-          "paypal_order_id"
         ]
       },
       "PayPalOrderStatusResponseDto": {

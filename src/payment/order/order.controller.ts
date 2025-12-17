@@ -284,25 +284,6 @@ export class OrderController {
         }
     }
 
-    @Post("/capturePayPalOrder")
-    @ApiOperation({ summary: "Capture PayPal payment after user approval", tags: ["Order"] })
-    @ApiBody({ type: CapturePayPalOrderDto })
-    @ApiResponse({ type: OrderDetailDto })
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    async capturePayPalOrder(@Body() body: CapturePayPalOrderDto): Promise<OrderDetailDto> {
-        const order = await this.paypalService.capturePayPalOrder(body.paypal_order_id)
-
-        // Update bind rewards and process callback
-        await this.orderService["updateBindRewards"](order)
-        if (order.release_rewards_after_paid) {
-            await this.orderService["releaseRewards"](order)
-        }
-        await this.orderService["processCallback"](order.order_id, order.callback_url)
-
-        return await this.orderService["mapOrderDetail"](order)
-    }
-
     @Get("/paypal/order-status")
     @ApiOperation({ summary: "Get PayPal order status", tags: ["Order"] })
     @ApiResponse({ type: PayPalOrderStatusResponseDto })
