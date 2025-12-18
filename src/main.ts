@@ -312,10 +312,10 @@ To see how to process the event stream response, please refer to the [Event Stre
     //const privateOutputPath = path.join(process.cwd(), "openapi-private-spec.json")
     //fs.writeFileSync(privateOutputPath, JSON.stringify(privateDocument, null, 2))
     //
-    if (process.env.ENV === "local") {
-        const publicOutputPath = path.join(process.cwd(), "src/docs/openapi-public-spec.json")
-        fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
-    }
+    //if (process.env.ENV === "local") {
+    //    const publicOutputPath = path.join(process.cwd(), "src/docs/openapi-public-spec.json")
+    //    fs.writeFileSync(publicOutputPath, JSON.stringify(publicDocument, null, 2))
+    //}
 
     await app.listen(process.env.RUN_PORT || 3000, "0.0.0.0")
 }
