@@ -32,7 +32,15 @@ import {
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
+    PaymentMethod,
 } from "./order.dto"
+import {
+    PayWithPayPalRequestDto,
+    PayWithPayPalResponseDto,
+    CapturePayPalOrderDto,
+    PayPalOrderStatusResponseDto,
+} from "../paypal/paypal.dto"
+import { PaypalService } from "../paypal/paypal.service"
 import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse } from "@nestjs/swagger"
 import { AuthGuard } from "@nestjs/passport"
 import { OrderService } from "./order.service"
@@ -49,6 +57,7 @@ export class OrderController {
     constructor(
         private readonly orderService: OrderService,
         private readonly paymentAsiaService: PaymentAsiaService,
+        private readonly paypalService: PaypalService,
     ) {}
 
     @Get("/list")
@@ -246,6 +255,63 @@ export class OrderController {
             throw new BadRequestException("Order id or statement id is required")
         }
         return await this.orderService.getRewardsDetail(query.order_id, query.statement_id)
+    }
+
+    // PayPal Payment Endpoints
+    @Post("/payWithPayPal")
+    @ApiOperation({ summary: "Pay an order with PayPal", tags: ["Order"] })
+    @ApiBody({ type: PayWithPayPalRequestDto })
+    @ApiResponse({ type: PayWithPayPalResponseDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payWithPayPal(@Body() body: PayWithPayPalRequestDto, @Req() req: Request): Promise<PayWithPayPalResponseDto> {
+        const userInfo = req.user as UserJwtExtractDto
+        const userProfile = await this.orderService["userService"].getProfile(userInfo)
+
+        const { allow, message, order } = await this.orderService.allowPayOrder(
+            body.order_id,
+            userProfile,
+            PaymentMethod.PAYPAL,
+        )
+        if (!allow) {
+            throw new BadRequestException(message)
+        }
+
+        const result = await this.paypalService.createPayPalOrder(order)
+        return {
+            paypal_order_id: result.orderId,
+            approval_url: result.approvalUrl,
+        }
+    }
+
+    @Get("/paypal/order-status")
+    @ApiOperation({ summary: "Get PayPal order status", tags: ["Order"] })
+    @ApiResponse({ type: PayPalOrderStatusResponseDto })
+    async getPayPalOrderStatus(@Query("paypal_order_id") paypalOrderId: string): Promise<PayPalOrderStatusResponseDto> {
+        if (!paypalOrderId) {
+            throw new BadRequestException("PayPal order ID is required")
+        }
+        const details = await this.paypalService.getPayPalOrderDetails(paypalOrderId)
+        return {
+            status: details.status,
+            order_id: details.purchase_units?.[0]?.custom_id || "",
+            paypal_order_id: paypalOrderId,
+        }
+    }
+
+    @Post("/paypal/webhook")
+    @ApiExcludeEndpoint()
+    @HttpCode(HttpStatus.OK)
+    async processPayPalWebhook(@Req() req: Request, @Body() body: any) {
+        const headers = {
+            "paypal-auth-algo": req.headers["paypal-auth-algo"] as string,
+            "paypal-cert-url": req.headers["paypal-cert-url"] as string,
+            "paypal-transmission-id": req.headers["paypal-transmission-id"] as string,
+            "paypal-transmission-sig": req.headers["paypal-transmission-sig"] as string,
+            "paypal-transmission-time": req.headers["paypal-transmission-time"] as string,
+        }
+        await this.paypalService.processWebhookEvent(body, headers)
+        return { received: true }
     }
 
     @ApiExcludeEndpoint()

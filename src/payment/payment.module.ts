@@ -23,6 +23,7 @@ import { Credit2cController } from "./credit-2c/credit-2c.controller"
 import { WidgetCaslAbilityFactory } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 import { SettleService } from "./settle/settle.service"
 import { NotificationModule } from "src/notification/notification.module"
+import { PaypalService } from "./paypal/paypal.service"
 import { SettleController } from "./settle/settle.controller"
 
 @Module({
@@ -60,7 +61,8 @@ import { SettleController } from "./settle/settle.controller"
         WidgetCaslAbilityFactory,
         SettleService,
         SettleController,
+        PaypalService,
     ],
-    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService, SettleService],
+    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService, SettleService, PaypalService],
 })
 export class PaymentModule {}
