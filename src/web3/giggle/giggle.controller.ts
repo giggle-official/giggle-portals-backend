@@ -34,12 +34,16 @@ import {
     HolderDto,
     SendTokenDto,
     SendTokenResponseDto,
+    SignAndSendTxDto,
     TradeDto,
     TradeResponseDto,
     UploadCoverImageResponseDto,
     UserMarketCapDto,
 } from "./giggle.dto"
 import { UserJwtExtractDto } from "src/user/user.controller"
+import { IsWidgetGuard } from "src/auth/is_widget.guard"
+import { CheckWidgetPolicies } from "src/guards/widget-policies.guard"
+import { WIDGET_PERMISSIONS_LIST } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
 
 @Controller("/api/v1/web3/giggle")
 export class GiggleController {
@@ -138,6 +142,19 @@ export class GiggleController {
     @ApiResponse({ type: SendTokenResponseDto, status: 200 })
     async send(@Req() req: Request, @Body() body: SendTokenDto) {
         return this.giggleService.sendToken(req.user as UserJwtExtractDto, body)
+    }
+
+    @Post("/signAndSendTx")
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(IsWidgetGuard)
+    @ApiBearerAuth()
+    @ApiExcludeEndpoint()
+    @ApiBody({ type: SignAndSendTxDto })
+    @ApiOperation({ summary: "Send Tokens" })
+    @ApiResponse({ type: SendTokenResponseDto, status: 200 })
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_SIGN_AND_SEND_TX))
+    async signAndSendTx(@Body() body: SignAndSendTxDto) {
+        return this.giggleService.signTx(body.tx, body.signers, body.email)
     }
 
     @Get("/get-stripe-pkey")

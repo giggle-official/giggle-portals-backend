@@ -599,3 +599,19 @@ export class HolderDto {
     @IsString()
     mint: string
 }
+
+export class SignAndSendTxDto {
+    @ApiProperty({
+        description: "base64 encoded transaction",
+    })
+    tx: string
+    @ApiProperty({
+        description: "signers of the transaction",
+    })
+    signers: string[]
+
+    @ApiProperty({
+        description: "email of the user",
+    })
+    email?: string
+}

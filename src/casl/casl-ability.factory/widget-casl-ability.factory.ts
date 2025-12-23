@@ -9,6 +9,7 @@ export enum WIDGET_PERMISSIONS_LIST {
     CAN_GET_PLATFORM_REVENUE = "can_get_platform_revenue",
     CAN_AIRDROP = "can_airdrop",
     CAN_ISSUE_FREE_CREDIT = "can_issue_free_credit",
+    CAN_SIGN_AND_SEND_TX = "can_sign_and_send_tx",
 }
 
 export type WidgetRequestPermissions = {
