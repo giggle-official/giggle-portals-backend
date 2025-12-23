@@ -150,11 +150,11 @@ export class GiggleController {
     @ApiBearerAuth()
     @ApiExcludeEndpoint()
     @ApiBody({ type: SignAndSendTxDto })
-    @ApiOperation({ summary: "Send Tokens" })
+    @ApiOperation({ summary: "Sign and send tx" })
     @ApiResponse({ type: SendTokenResponseDto, status: 200 })
     @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_SIGN_AND_SEND_TX))
     async signAndSendTx(@Body() body: SignAndSendTxDto) {
-        return this.giggleService.signTx(body.tx, body.signers, body.email)
+        return this.giggleService.signTxAndThrowError(body.tx, body.signers, body.email)
     }
 
     @Get("/get-stripe-pkey")

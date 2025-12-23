@@ -938,10 +938,31 @@ export class GiggleService {
         if (!response.data?.data?.sig) {
             this.logger.error("request sign tx signature: " + JSON.stringify(signatureParams))
             this.logger.error("response sign tx signature: " + JSON.stringify(response.data))
-            throw new BadRequestException("Failed to sign tx: " + response.data.msg)
         } else {
             this.logger.log("request sign tx signature: " + JSON.stringify(signatureParams))
             this.logger.log("response sign tx signature: " + JSON.stringify(response.data))
+        }
+        return response.data.data.sig
+    }
+
+    async signTxAndThrowError(tx: string, signers: string[], email?: string): Promise<string> {
+        let signatureParams: any = {
+            base64Tx: tx,
+            singers: signers,
+        }
+        if (email) {
+            signatureParams.email = email
+        }
+
+        signatureParams = this.generateSignature(signatureParams)
+
+        const response: AxiosResponse<GiggleApiResponseDto<any>> = await lastValueFrom(
+            this.web3HttpService.post(this.endpoint + "/cus/signAndSendTx", signatureParams, {
+                headers: { "Content-Type": "application/json" },
+            }),
+        )
+        if (!response.data?.data?.sig) {
+            throw new BadRequestException(`Failed to sign tx: ${JSON.stringify(response.data)}`)
         }
         return response.data.data.sig
     }
