@@ -938,6 +938,7 @@ export class GiggleService {
         if (!response.data?.data?.sig) {
             this.logger.error("request sign tx signature: " + JSON.stringify(signatureParams))
             this.logger.error("response sign tx signature: " + JSON.stringify(response.data))
+            throw new BadRequestException("Failed to sign tx: " + response.data.msg)
         } else {
             this.logger.log("request sign tx signature: " + JSON.stringify(signatureParams))
             this.logger.log("response sign tx signature: " + JSON.stringify(response.data))
