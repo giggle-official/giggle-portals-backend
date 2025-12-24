@@ -1233,14 +1233,16 @@ export class GiggleService {
         this.logger.log(`end processUserWalletRecord24h, processed ${record} users`)
     }
 
-    @Cron(CronExpression.EVERY_30_MINUTES)
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async fetchNewestTokenInfo() {
         if (process.env.TASK_SLOT != "1") {
             return
         }
 
         //update static tokens
-        const staticTokens = STATIC_TOKENS.filter((token) => token.env === process.env.ENV)
+        const staticTokens = STATIC_TOKENS.filter((token) => token.env === process.env.ENV).filter(
+            (token) => token.new_info.fetch_from_giggle === false,
+        )
         let staticIps = staticTokens.map((token) => token.ip_id)
         if (staticIps.length > 0) {
             for (const token of staticTokens) {

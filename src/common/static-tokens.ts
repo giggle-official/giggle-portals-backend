@@ -9,6 +9,7 @@ export interface StaticTokens {
     }
     new_info: {
         enable_buyback: boolean
+        fetch_from_giggle: boolean
         token_info: any
         current_token_info: any
     }
@@ -85,6 +86,7 @@ export const STATIC_TOKENS: StaticTokens[] = [
         },
         new_info: {
             enable_buyback: false,
+            fetch_from_giggle: false,
             token_info: {
                 version: "v3",
                 user_address: "CGvh7rub99xN5XNh4W5EC3njhPRUPYDB17majF44cXKu",
@@ -226,6 +228,7 @@ export const STATIC_TOKENS: StaticTokens[] = [
         },
         new_info: {
             enable_buyback: false,
+            fetch_from_giggle: false,
             token_info: {
                 version: "v3",
                 user_address: "CGvh7rub99xN5XNh4W5EC3njhPRUPYDB17majF44cXKu",
@@ -364,6 +367,7 @@ export const STATIC_TOKENS: StaticTokens[] = [
         },
         new_info: {
             enable_buyback: false,
+            fetch_from_giggle: true,
             token_info: {
                 version: "v3",
                 user_address: "CGvh7rub99xN5XNh4W5EC3njhPRUPYDB17majF44cXKu",

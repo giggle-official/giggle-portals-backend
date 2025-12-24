@@ -11,8 +11,6 @@ import { PrismaService } from "./common/prisma.service"
 import { LogsService } from "./user/logs/logs.service"
 import { useContainer } from "class-validator"
 import { apiReference } from "@scalar/nestjs-api-reference"
-import path from "path"
-import fs from "fs"
 
 declare module "express-session" {
     interface Session {
@@ -76,6 +74,9 @@ async function bootstrap() {
             "widget",
         )
         .setOpenAPIVersion("3.1.1")
+        .addServer("https://api.giggle.pro", "Production Environment")
+        .addServer("https://app.ggltest.com", "Test Environment")
+        .addServer("https://api-dev.ggltest.com", "Development Environment")
         .build()
 
     const publicConfig = new DocumentBuilder()
@@ -259,11 +260,11 @@ To see how to process the event stream response, please refer to the [Event Stre
     ]
 
     if (process.env.ENV === "local") {
-        publicDocument.servers.push({
+        privateDocument.servers.push({
             url: "https://app.local.giggle.pro",
             description: "Local Environment",
         })
-        publicDocument.servers.push({
+        privateDocument.servers.push({
             url: "https://app.ggltest.com",
             description: "Development Environment",
         })
