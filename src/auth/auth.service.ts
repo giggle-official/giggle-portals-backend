@@ -134,7 +134,6 @@ export class AuthService {
             )
 
             let widgetTag = ""
-
             if (app_id) {
                 const appBindWidgets = await this.prismaService.app_bind_widgets.findMany({
                     where: {
@@ -145,9 +144,6 @@ export class AuthService {
                         },
                     },
                 })
-                if (appBindWidgets.length === 0) {
-                    throw new BadRequestException("This app has not bind any widget")
-                }
                 widgetTag = appBindWidgets[0].widget_tag
             }
 
