@@ -13,6 +13,7 @@ import { CodeStrategy } from "./code.strategy"
 import { NotificationModule } from "src/notification/notification.module"
 import { HttpModule } from "@nestjs/axios"
 import { OpenAppModule } from "src/open-app/open-app.module"
+import { WidgetsModule } from "src/open-app/widgets/widgets.module"
 
 @Module({
     imports: [
@@ -25,6 +26,7 @@ import { OpenAppModule } from "src/open-app/open-app.module"
         }),
         HttpModule,
         OpenAppModule,
+        forwardRef(() => WidgetsModule),
     ],
     controllers: [AuthController],
     providers: [AuthService, PrismaService, GoogleStrategy, JwtStrategy, LocalStrategy, AppStrategy, CodeStrategy],

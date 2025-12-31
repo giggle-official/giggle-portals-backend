@@ -11,6 +11,7 @@ import axios, { AxiosResponse } from "axios"
 import https from "https"
 import crypto from "crypto"
 import { LinkService } from "src/open-app/link/link.service"
+import { WidgetsService } from "src/open-app/widgets/widgets.service"
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,9 @@ export class AuthService {
 
         @Inject(forwardRef(() => LinkService))
         private readonly linkService: LinkService,
+
+        @Inject(forwardRef(() => WidgetsService))
+        private widgetsService: WidgetsService,
     ) {
         if (process.env.HTTP_PROXY) {
             this.googleLoginhttpService = new HttpService(
@@ -128,6 +132,24 @@ export class AuthService {
                 "invite_code: " + invite_code,
                 "callback_url: " + callbackUrl,
             )
+
+            let widgetTag = ""
+
+            if (app_id) {
+                const appBindWidgets = await this.prismaService.app_bind_widgets.findMany({
+                    where: {
+                        app_id: app_id,
+                        enabled: true,
+                        widget_tag: {
+                            not: "login_from_external",
+                        },
+                    },
+                })
+                if (appBindWidgets.length === 0) {
+                    throw new BadRequestException("This app has not bind any widget")
+                }
+                widgetTag = appBindWidgets[0].widget_tag
+            }
 
             const tokenResponse = await lastValueFrom(
                 this.googleLoginhttpService.post(
@@ -238,6 +260,21 @@ export class AuthService {
                         can_create_ip: true,
                     },
                 })
+            }
+
+            if (widgetTag) {
+                return this.widgetsService.getAccessToken(
+                    { tag: widgetTag, app_id: app_id },
+                    {
+                        user_id: user.username_in_be,
+                        username: user.username,
+                        usernameShorted: user.username_in_be,
+                        email: user.email,
+                        avatar: user.avatar,
+                        device_id: device_id,
+                    },
+                    device_id,
+                )
             }
 
             this.logger.log(
