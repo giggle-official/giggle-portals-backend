@@ -674,62 +674,6 @@ export class CreditService {
         this.logger.log(`[processWidgetSubscriptionCredits] Completed`)
     }
 
-    /**
-     * Cron job: auto-cancel subscriptions at period end
-     * Finds subscriptions where period_end <= now AND cancel_at_period_end = true
-     * Removes subscription record and all unissued credits
-     */
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-    async processExpiredSubscriptions(): Promise<void> {
-        if (process.env.TASK_SLOT != "1") {
-            return
-        }
-        this.logger.log(`[processExpiredSubscriptions] Starting...`)
-
-        const now = new Date()
-        const expiredSubscriptions = await this.prisma.widget_subscriptions.findMany({
-            where: {
-                period_end: { lte: now },
-                cancel_at_period_end: true,
-            },
-        })
-
-        if (expiredSubscriptions.length === 0) {
-            this.logger.log(`[processExpiredSubscriptions] No expired subscriptions to cancel`)
-            return
-        }
-
-        for (const subscription of expiredSubscriptions) {
-            try {
-                await this.prisma.$transaction(async (tx) => {
-                    // Delete all unissued credits for this subscription
-                    await tx.widget_subscription_credit_issues.deleteMany({
-                        where: {
-                            subscription_id: subscription.subscription_id,
-                            is_issue: false,
-                        },
-                    })
-
-                    // Delete the subscription record
-                    await tx.widget_subscriptions.delete({
-                        where: { id: subscription.id },
-                    })
-                })
-                this.logger.log(
-                    `[processExpiredSubscriptions] Cancelled subscription ${subscription.subscription_id} for user ${subscription.user_id}`,
-                )
-            } catch (error) {
-                this.logger.error(
-                    `[processExpiredSubscriptions] Failed to cancel subscription ${subscription.subscription_id}: ${error.message}`,
-                )
-            }
-        }
-
-        this.logger.log(
-            `[processExpiredSubscriptions] Completed. Cancelled ${expiredSubscriptions.length} subscriptions`,
-        )
-    }
-
     async refundCredit(amount: number, order_id: string, user: string, tx: Prisma.TransactionClient): Promise<void> {
         //find statement
         const statements = await tx.credit_statements.findMany({

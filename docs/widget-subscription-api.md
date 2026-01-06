@@ -182,4 +182,3 @@ Use the `usernameShorted` value as the `user_id` in subscription APIs.
 
 1. **Expire**: Credits past their `expire_date` have remaining balance deducted from user
 2. **Issue**: Credits with `issue_date` <= today are issued and added to user balance
-3. **Auto-Cancel**: Subscriptions with `period_end` <= today AND `cancel_at_period_end` = true are automatically cancelled (subscription record and unissued credits are deleted)
