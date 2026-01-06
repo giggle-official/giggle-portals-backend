@@ -7,6 +7,7 @@ import {
     IssueFreeCreditDto,
     PayTopUpOrderDto,
     TopUpDto,
+    UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
 import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
@@ -253,6 +254,8 @@ export class CreditService {
                     avatar: statement.free_credit_issue?.invited_user_info?.avatar || "",
                 },
                 free_credit_issue_id: statement.free_credit_issue_id,
+                is_subscription_credit: statement.is_subscription_credit,
+                subscription_credit_issue_id: statement.subscription_credit_issue_id,
                 amount: statement.amount,
                 balance: statement.balance,
                 created_at: statement.created_at,
@@ -284,12 +287,12 @@ export class CreditService {
         let needCreditConsumed = amount
         let freeCreditConsumed = 0
 
+        const now = new Date()
         const freeCredits = await tx.free_credit_issues.findMany({
             where: {
                 user: userInfo.usernameShorted,
-                balance: {
-                    gt: 0,
-                },
+                balance: { gt: 0 },
+                expire_date: { gte: now },
             },
             orderBy: {
                 expire_date: "asc",
@@ -337,7 +340,60 @@ export class CreditService {
             }
         }
 
-        //we need consume credit if free credit is not enough
+        const widgetSubscriptionCredits = await tx.widget_subscription_credit_issues.findMany({
+            where: {
+                user_id: userInfo.usernameShorted,
+                current_balance: { gt: 0 },
+                is_issue: true,
+                expire_date: { gte: now },
+            },
+            orderBy: {
+                expire_date: "asc",
+            },
+        })
+
+        if (widgetSubscriptionCredits.length > 0) {
+            //start consume subscription credit
+            for (const subscriptionCredit of widgetSubscriptionCredits) {
+                const consumeAmount = Math.min(subscriptionCredit.current_balance, needCreditConsumed)
+
+                needCreditConsumed -= consumeAmount
+
+                //update user table
+                const userBalanceUpdated = await tx.users.update({
+                    where: { username_in_be: userInfo.usernameShorted },
+                    data: { current_credit_balance: { decrement: consumeAmount } },
+                })
+                //update subscription credit table
+                await tx.widget_subscription_credit_issues.update({
+                    where: { id: subscriptionCredit.id },
+                    data: { current_balance: subscriptionCredit.current_balance - consumeAmount },
+                })
+
+                //create statement
+                await tx.credit_statements.create({
+                    data: {
+                        user: userInfo.usernameShorted,
+                        type: credit_statement_type.consume,
+                        amount: consumeAmount * -1,
+                        balance: userBalanceUpdated.current_credit_balance,
+                        is_subscription_credit: true,
+                        subscription_credit_issue_id: subscriptionCredit.id,
+                        order_id: order_id,
+                    },
+                })
+
+                if (needCreditConsumed === 0) {
+                    break
+                }
+                if (needCreditConsumed < 0) {
+                    //error and this should not happen
+                    throw new BadRequestException("balance calculated error")
+                }
+            }
+        }
+
+        //we need consume credit if free credit and subscription credit is not enough
         if (needCreditConsumed > 0) {
             const userBalanceUpdated = await tx.users.update({
                 where: { username_in_be: userInfo.usernameShorted },
@@ -365,6 +421,315 @@ export class CreditService {
         }
     }
 
+    async updateWidgetSubscriptions(
+        body: UpdateWidgetSubscriptionsDto,
+        developerInfo: UserJwtExtractDto,
+    ): Promise<{ success: boolean }> {
+        const { user_id, subscription_detail, subscription_credits } = body
+        const user = await this.prisma.users.findUnique({
+            where: { username_in_be: user_id },
+        })
+        if (!user) {
+            throw new BadRequestException("User not found")
+        }
+
+        let type = "create"
+        let subscriptionId = uuidv4() as string
+
+        const isExists = await this.prisma.widget_subscriptions.findFirst({
+            where: {
+                user_id: user_id,
+                widget_tag: developerInfo.developer_info.tag,
+            },
+        })
+
+        if (isExists) {
+            type = "update"
+            subscriptionId = isExists.subscription_id
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            if (type === "update") {
+                await tx.widget_subscriptions.update({
+                    where: { id: isExists.id },
+                    data: {
+                        product_name: subscription_detail.product_name,
+
+                        period_start: subscription_detail.period_start,
+                        period_end: subscription_detail.period_end,
+                        cancel_at_period_end: subscription_detail.cancel_at_period_end,
+                        subscription_metadata: subscription_detail.subscription_metadata,
+                    },
+                })
+            } else {
+                const createdSubscription = await tx.widget_subscriptions.create({
+                    data: {
+                        product_name: subscription_detail.product_name,
+                        user_id: user_id,
+                        widget_tag: developerInfo.developer_info.tag,
+                        subscription_id: subscriptionId,
+
+                        period_start: subscription_detail.period_start,
+                        period_end: subscription_detail.period_end,
+                        cancel_at_period_end: subscription_detail.cancel_at_period_end,
+                        subscription_metadata: subscription_detail.subscription_metadata,
+                    },
+                })
+                subscriptionId = createdSubscription.subscription_id
+            }
+            if (subscription_credits.length > 0) {
+                const createData = subscription_credits.map((subscription_credit) => {
+                    if (subscription_credit.issue_date > subscription_credit.expire_date) {
+                        throw new BadRequestException("Issue date cannot be greater than expire date")
+                    }
+                    return {
+                        user_id: user_id,
+                        is_issue: false,
+                        widget_tag: developerInfo.developer_info.tag,
+                        subscription_id: subscriptionId,
+                        issue_credits: subscription_credit.amount,
+                        current_balance: subscription_credit.amount,
+                        issue_date: subscription_credit.issue_date,
+                        expire_date: subscription_credit.expire_date,
+                    }
+                })
+                await tx.widget_subscription_credit_issues.createMany({
+                    data: createData,
+                })
+            }
+        })
+
+        // Issue credits immediately for this subscription (if issue_date <= now)
+        await this.issueWidgetSubscriptionCredit(subscriptionId)
+
+        return { success: true }
+    }
+
+    /**
+     * Cancel a user's widget subscription
+     * - Deletes the subscription record
+     * - Removes all unissued credits (is_issue: false)
+     * - Leaves issued credits as-is (they'll expire naturally)
+     */
+    async cancelWidgetSubscription(user_id: string, developerInfo: UserJwtExtractDto): Promise<{ success: boolean }> {
+        const widgetTag = developerInfo.developer_info.tag
+
+        const subscription = await this.prisma.widget_subscriptions.findFirst({
+            where: {
+                user_id: user_id,
+                widget_tag: widgetTag,
+            },
+        })
+
+        if (!subscription) {
+            throw new BadRequestException("Subscription not found")
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            // Delete all unissued credits for this subscription
+            await tx.widget_subscription_credit_issues.deleteMany({
+                where: {
+                    subscription_id: subscription.subscription_id,
+                    is_issue: false,
+                },
+            })
+
+            // Delete the subscription record
+            await tx.widget_subscriptions.delete({
+                where: { id: subscription.id },
+            })
+        })
+
+        this.logger.log(
+            `[cancelWidgetSubscription] Cancelled subscription ${subscription.subscription_id} for user ${user_id}`,
+        )
+
+        return { success: true }
+    }
+
+    /**
+     * Expire subscription credits
+     * @param subscriptionId - Optional: only expire credits for this subscription
+     */
+    async expireWidgetSubscriptionCredit(subscriptionId?: string): Promise<void> {
+        const now = new Date()
+        const where: any = {
+            expire_date: { lt: now },
+            is_issue: true,
+            current_balance: { gt: 0 },
+        }
+        if (subscriptionId) {
+            where.subscription_id = subscriptionId
+        }
+
+        const creditsToExpire = await this.prisma.widget_subscription_credit_issues.findMany({ where })
+
+        if (creditsToExpire.length === 0) {
+            this.logger.log(`[expireWidgetSubscriptionCredit] No subscription credit to expire`)
+            return
+        }
+
+        for (const expiredCredit of creditsToExpire) {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    await tx.widget_subscription_credit_issues.update({
+                        where: { id: expiredCredit.id },
+                        data: { current_balance: 0 },
+                    })
+                    const userBalanceUpdated = await tx.users.update({
+                        where: { username_in_be: expiredCredit.user_id },
+                        data: { current_credit_balance: { decrement: expiredCredit.current_balance } },
+                    })
+                    await tx.credit_statements.create({
+                        data: {
+                            user: expiredCredit.user_id,
+                            type: credit_statement_type.expire_subscription_credit,
+                            amount: expiredCredit.current_balance * -1,
+                            balance: userBalanceUpdated.current_credit_balance,
+                            subscription_credit_issue_id: expiredCredit.id,
+                            order_id: expiredCredit.subscription_id,
+                            is_subscription_credit: true,
+                        },
+                    })
+                })
+                this.logger.log(`[expireWidgetSubscriptionCredit] Expired credit ${expiredCredit.id}`)
+            } catch (error) {
+                this.logger.error(
+                    `[expireWidgetSubscriptionCredit] Failed to expire credit ${expiredCredit.id}: ${error.message}`,
+                )
+            }
+        }
+    }
+
+    /**
+     * Issue subscription credits
+     * @param subscriptionId - Optional: only issue credits for this subscription
+     */
+    async issueWidgetSubscriptionCredit(subscriptionId?: string): Promise<void> {
+        const now = new Date()
+        const where: any = {
+            issue_date: { lte: now },
+            current_balance: { gt: 0 },
+            is_issue: false,
+        }
+        if (subscriptionId) {
+            where.subscription_id = subscriptionId
+        }
+
+        const creditsToIssue = await this.prisma.widget_subscription_credit_issues.findMany({ where })
+
+        if (creditsToIssue.length === 0) {
+            this.logger.log(`[issueWidgetSubscriptionCredit] No subscription credit to issue`)
+            return
+        }
+
+        for (const issueCredit of creditsToIssue) {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    const userBalanceUpdated = await tx.users.update({
+                        where: { username_in_be: issueCredit.user_id },
+                        data: { current_credit_balance: { increment: issueCredit.current_balance } },
+                    })
+                    await tx.credit_statements.create({
+                        data: {
+                            user: issueCredit.user_id,
+                            type: credit_statement_type.issue_subscription_credit,
+                            amount: issueCredit.current_balance,
+                            balance: userBalanceUpdated.current_credit_balance,
+                            subscription_credit_issue_id: issueCredit.id,
+                            is_subscription_credit: true,
+                            order_id: issueCredit.subscription_id,
+                        },
+                    })
+                    await tx.widget_subscription_credit_issues.update({
+                        where: { id: issueCredit.id },
+                        data: { is_issue: true },
+                    })
+                })
+                this.logger.log(`[issueWidgetSubscriptionCredit] Issued credit ${issueCredit.id}`)
+            } catch (error) {
+                this.logger.error(
+                    `[issueWidgetSubscriptionCredit] Failed to issue credit ${issueCredit.id}: ${error.message}`,
+                )
+            }
+        }
+    }
+
+    /**
+     * Cron job: process all subscription credits (expire first, then issue)
+     */
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    async processWidgetSubscriptionCredits(): Promise<void> {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+        this.logger.log(`[processWidgetSubscriptionCredits] Starting...`)
+
+        // Step 1: Expire old credits first
+        await this.expireWidgetSubscriptionCredit()
+
+        // Step 2: Issue new credits
+        await this.issueWidgetSubscriptionCredit()
+
+        this.logger.log(`[processWidgetSubscriptionCredits] Completed`)
+    }
+
+    /**
+     * Cron job: auto-cancel subscriptions at period end
+     * Finds subscriptions where period_end <= now AND cancel_at_period_end = true
+     * Removes subscription record and all unissued credits
+     */
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    async processExpiredSubscriptions(): Promise<void> {
+        if (process.env.TASK_SLOT != "1") {
+            return
+        }
+        this.logger.log(`[processExpiredSubscriptions] Starting...`)
+
+        const now = new Date()
+        const expiredSubscriptions = await this.prisma.widget_subscriptions.findMany({
+            where: {
+                period_end: { lte: now },
+                cancel_at_period_end: true,
+            },
+        })
+
+        if (expiredSubscriptions.length === 0) {
+            this.logger.log(`[processExpiredSubscriptions] No expired subscriptions to cancel`)
+            return
+        }
+
+        for (const subscription of expiredSubscriptions) {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    // Delete all unissued credits for this subscription
+                    await tx.widget_subscription_credit_issues.deleteMany({
+                        where: {
+                            subscription_id: subscription.subscription_id,
+                            is_issue: false,
+                        },
+                    })
+
+                    // Delete the subscription record
+                    await tx.widget_subscriptions.delete({
+                        where: { id: subscription.id },
+                    })
+                })
+                this.logger.log(
+                    `[processExpiredSubscriptions] Cancelled subscription ${subscription.subscription_id} for user ${subscription.user_id}`,
+                )
+            } catch (error) {
+                this.logger.error(
+                    `[processExpiredSubscriptions] Failed to cancel subscription ${subscription.subscription_id}: ${error.message}`,
+                )
+            }
+        }
+
+        this.logger.log(
+            `[processExpiredSubscriptions] Completed. Cancelled ${expiredSubscriptions.length} subscriptions`,
+        )
+    }
+
     async refundCredit(amount: number, order_id: string, user: string, tx: Prisma.TransactionClient): Promise<void> {
         //find statement
         const statements = await tx.credit_statements.findMany({
@@ -380,8 +745,6 @@ export class CreditService {
         //we need refund free credit first
         for (const statement of statements) {
             const _refundAmount = Math.min(statement.amount * -1, needRefundAmount)
-            needRefundAmount -= _refundAmount
-            refundedAmount += _refundAmount
 
             if (statement.is_free_credit) {
                 //if free credit is expired, we need not refund this statement
@@ -389,7 +752,7 @@ export class CreditService {
                     where: { id: statement.free_credit_issue_id },
                 })
                 if (freeCredit && freeCredit.expire_date && freeCredit.expire_date < new Date()) {
-                    this.logger.warn(`Free credit is expired, we need not refund this statement: ${statement.id}`)
+                    this.logger.warn(`Free credit is expired, we cannot refund this statement: ${statement.id}`)
                     continue
                 }
                 //update free credit table
@@ -398,6 +761,29 @@ export class CreditService {
                     data: { balance: { increment: _refundAmount } },
                 })
             }
+
+            //refund subscription credit
+            if (statement.is_subscription_credit) {
+                const subscriptionCredit = await tx.widget_subscription_credit_issues.findUnique({
+                    where: { id: statement.subscription_credit_issue_id },
+                })
+                if (
+                    subscriptionCredit &&
+                    subscriptionCredit.expire_date &&
+                    subscriptionCredit.expire_date < new Date()
+                ) {
+                    this.logger.warn(`Subscription credit is expired, we cannot refund this statement: ${statement.id}`)
+                    continue
+                }
+                //update subscription credit table
+                await tx.widget_subscription_credit_issues.update({
+                    where: { id: statement.subscription_credit_issue_id },
+                    data: { current_balance: { increment: _refundAmount } },
+                })
+            }
+
+            needRefundAmount -= _refundAmount
+            refundedAmount += _refundAmount
 
             //update user table
             const userBalanceUpdated = await tx.users.update({
@@ -415,6 +801,8 @@ export class CreditService {
                     order_id: order_id,
                     is_free_credit: statement.is_free_credit,
                     free_credit_issue_id: statement.free_credit_issue_id,
+                    is_subscription_credit: statement.is_subscription_credit,
+                    subscription_credit_issue_id: statement.subscription_credit_issue_id,
                 },
             })
 

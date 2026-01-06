@@ -188,10 +188,25 @@ export class UserService {
             if (!widgetSession) {
                 throw new UnauthorizedException("invalid widget session")
             }
+            const subscriptionInfo = await this.prisma.widget_subscriptions.findFirst({
+                where: {
+                    user_id: userInfo.usernameShorted,
+                    widget_tag: widgetSession.widget_tag,
+                },
+            })
             result.widget_info = {
                 widget_tag: widgetSession.widget_tag,
                 app_id: widgetSession.app_id,
                 user_subscribed: widgetSession.user_subscribed_widget,
+                subscription_info: subscriptionInfo
+                    ? {
+                          product_name: subscriptionInfo.product_name,
+                          period_start: subscriptionInfo.period_start,
+                          period_end: subscriptionInfo.period_end,
+                          cancel_at_period_end: subscriptionInfo.cancel_at_period_end,
+                          subscription_metadata: subscriptionInfo.subscription_metadata as Record<string, any>,
+                      }
+                    : null,
             }
             //result.permissions = widgetSession.permission as any
         } else if (userInfo?.app_id) {
@@ -212,14 +227,29 @@ export class UserService {
                         widget_tag: appBindWidget.widget_tag,
                     },
                 })
+
+                const subscriptionInfo = await this.prisma.widget_subscriptions.findFirst({
+                    where: {
+                        user_id: userInfo.usernameShorted,
+                        widget_tag: appBindWidget.widget_tag,
+                    },
+                })
                 result.widget_info = {
                     widget_tag: appBindWidget?.widget_tag,
                     app_id: appBindWidget?.app_id,
                     user_subscribed: !!userSubscribed,
+                    subscription_info: subscriptionInfo
+                        ? {
+                              product_name: subscriptionInfo?.product_name,
+                              period_start: subscriptionInfo?.period_start,
+                              period_end: subscriptionInfo?.period_end,
+                              cancel_at_period_end: subscriptionInfo?.cancel_at_period_end,
+                              subscription_metadata: subscriptionInfo?.subscription_metadata as Record<string, any>,
+                          }
+                        : null,
                 }
             }
         }
-
         return result
     }
 

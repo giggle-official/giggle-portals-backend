@@ -1,19 +1,26 @@
 import {
+    IsArray,
+    IsBoolean,
+    IsDateString,
     IsEmail,
     IsEnum,
     IsInt,
     IsJWT,
     IsNotEmpty,
     IsNumber,
+    IsObject,
     IsOptional,
+    IsPositive,
     IsString,
     IsUUID,
     Max,
     Min,
+    ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
 import { credit_statement_type, credit_statements, free_credit_issue_type } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
+import { Type } from "class-transformer"
 
 export class TopUpDto {
     @ApiProperty({
@@ -120,6 +127,16 @@ export class CreditStatementDto implements credit_statements {
     free_credit_issue_id: number
 
     @ApiProperty({
+        description: "The is subscription credit of the statement",
+    })
+    is_subscription_credit: boolean
+
+    @ApiProperty({
+        description: "The subscription credit issue id of the statement",
+    })
+    subscription_credit_issue_id: number
+
+    @ApiProperty({
         description: "The amount of the statement",
     })
     amount: number
@@ -224,4 +241,99 @@ export class GetStatementsResponseDto {
         isArray: true,
     })
     statements: CreditStatementDetailDto[]
+}
+
+export class SubscriptionCreditDto {
+    @ApiProperty({
+        description: "The subscription id of the subscription credit",
+    })
+    @IsNotEmpty()
+    @IsNumber()
+    @IsInt()
+    @IsPositive()
+    amount: number
+
+    @ApiProperty({
+        description: "The issue date of the subscription credit",
+    })
+    @IsDateString()
+    @IsNotEmpty()
+    issue_date: Date
+
+    @ApiProperty({
+        description: "The expire date of the subscription credit",
+    })
+    @IsDateString()
+    @IsNotEmpty()
+    expire_date: Date
+}
+
+export class SubscriptionDetailDto {
+    @ApiProperty({
+        description: "The subscription product name of the subscription credit",
+    })
+    @IsString()
+    @IsNotEmpty()
+    product_name: string
+
+    @ApiProperty({
+        description: "The subscription period start date of the subscription credit",
+    })
+    @IsDateString()
+    @IsNotEmpty()
+    period_start: Date
+
+    @ApiProperty({
+        description: "The subscription period end date of the subscription credit",
+    })
+    @IsDateString()
+    @IsNotEmpty()
+    period_end: Date
+
+    @ApiProperty({
+        description: "The subscription cancel at period end of the subscription credit",
+    })
+    @IsBoolean()
+    @IsNotEmpty()
+    cancel_at_period_end: boolean
+
+    @ApiProperty({
+        description: "The subscription metadata of the subscription credit",
+    })
+    @IsObject()
+    @IsNotEmpty()
+    subscription_metadata: Record<string, any>
+}
+
+export class UpdateWidgetSubscriptionsDto {
+    @ApiProperty({
+        description: "The user id of the subscription credit",
+    })
+    @IsString()
+    @IsNotEmpty()
+    user_id: string
+
+    @ApiProperty({
+        description: "The subscription detail of the subscription credit",
+    })
+    @ValidateNested()
+    @Type(() => SubscriptionDetailDto)
+    subscription_detail: SubscriptionDetailDto
+
+    @ApiProperty({
+        description: "The subscription credit of the subscription credit",
+    })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SubscriptionCreditDto)
+    subscription_credits: SubscriptionCreditDto[]
+}
+
+export class CancelWidgetSubscriptionDto {
+    @ApiProperty({
+        description: "The user id to cancel subscription for",
+    })
+    @IsString()
+    @IsNotEmpty()
+    user_id: string
 }

@@ -1,11 +1,13 @@
 import { Body, Controller, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import {
+    CancelWidgetSubscriptionDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
     PayTopUpOrderDto,
     TopUpDto,
+    UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
 } from "./credit.dto"
 import { Request } from "express"
@@ -113,11 +115,35 @@ export class CreditController {
         return this.creditService.getCreditStatictics(widgetTag)
     }
 
-    //@Post("/issue-credit")
-    //@ApiExcludeEndpoint()
-    //@CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
-    //@UseGuards(IsWidgetGuard)
-    //async payTopUpOrder(@Body() body: PayTopUpOrderDto, @Req() request: Request) {
-    //    return this.creditService.payTopUpOrder(body, request.user as UserJwtExtractDto)
-    //}
+    @Post("/update-widget-subscriptions")
+    @ApiOperation({
+        summary: "Issue subscription credit",
+        description: "Issue subscription credit to a user, you must be use widget jwt to call this api",
+        tags: ["Credit"],
+    })
+    @UseGuards(IsWidgetGuard)
+    @ApiResponse({
+        type: UserCreditBalanceDto,
+    })
+    @ApiBody({
+        type: UpdateWidgetSubscriptionsDto,
+    })
+    async updateWidgetSubscriptions(@Body() body: UpdateWidgetSubscriptionsDto, @Req() req: Request) {
+        return this.creditService.updateWidgetSubscriptions(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/cancel-widget-subscription")
+    @ApiOperation({
+        summary: "Cancel widget subscription",
+        description:
+            "Cancel a user's widget subscription. Removes the subscription and all unissued credits. Issued credits will expire naturally.",
+        tags: ["Credit"],
+    })
+    @UseGuards(IsWidgetGuard)
+    @ApiBody({
+        type: CancelWidgetSubscriptionDto,
+    })
+    async cancelWidgetSubscription(@Body() body: CancelWidgetSubscriptionDto, @Req() req: Request) {
+        return this.creditService.cancelWidgetSubscription(body.user_id, req.user as UserJwtExtractDto)
+    }
 }

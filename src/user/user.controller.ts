@@ -58,6 +58,7 @@ import {
 import { ApiKeysService } from "./api-keys/api-keys.service"
 import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
+import { SubscriptionDetailDto } from "src/payment/credit/credit.dto"
 
 export class nouceDto {
     @ApiProperty()
@@ -201,6 +202,7 @@ export class UserInfoDTO extends LoginDTO {
         user_subscribed: boolean
         widget_tag: string
         app_id: string
+        subscription_info?: SubscriptionDetailDto
     }
 
     @ApiProperty({
