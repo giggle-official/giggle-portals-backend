@@ -322,6 +322,9 @@ export class OrderService {
             paymentMethod.push(PaymentMethod.STRIPE)
         }
 
+        //filter duplicate payment methods
+        paymentMethod = paymentMethod.filter((method, index, self) => self.indexOf(method) === index)
+
         //if (order.amount < 100) {
         //    paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
         //}
