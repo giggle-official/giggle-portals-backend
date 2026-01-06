@@ -322,12 +322,6 @@ export class OrderService {
             paymentMethod.push(PaymentMethod.STRIPE)
         }
 
-        //allow paypal payment if widget tag is in ALLOW_PAYPAL_PAYMENT_WIDGETS
-        const allowPaypalPaymentWidgets = process.env.ALLOW_PAYPAL_PAYMENT_WIDGETS?.split(",") || []
-        if (allowPaypalPaymentWidgets.includes(widgetTag)) {
-            paymentMethod.push(PaymentMethod.PAYPAL)
-        }
-
         //if (order.amount < 100) {
         //    paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
         //}
