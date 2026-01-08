@@ -208,9 +208,10 @@ export class CreditService {
         }
 
         if (query.widget_tag) {
-            where.order = {
-                widget_tag: query.widget_tag,
-            }
+            where.OR = [
+                { order: { widget_tag: query.widget_tag } },
+                { subscription_credit_issue: { widget_tag: query.widget_tag } },
+            ]
         }
 
         const statements = await this.prisma.credit_statements.findMany({

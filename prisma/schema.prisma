@@ -1176,20 +1176,21 @@ model reward_pool_buybacks {
 }
 
 model credit_statements {
-  id                           Int                    @id @default(autoincrement())
-  user                         String?                @db.VarChar(32)
+  id                           Int                                @id @default(autoincrement())
+  user                         String?                            @db.VarChar(32)
   type                         credit_statement_type?
-  is_free_credit               Boolean?               @default(false)
+  is_free_credit               Boolean?                           @default(false)
   free_credit_issue_id         Int?
-  is_subscription_credit       Boolean?               @default(false)
+  is_subscription_credit       Boolean?                           @default(false)
   subscription_credit_issue_id Int?
   amount                       Int?
   balance                      Int?
-  order_id                     String?                @db.VarChar(64)
-  created_at                   DateTime?              @default(now()) @db.Timestamp(0)
-  updated_at                   DateTime?              @default(now()) @db.Timestamp(0)
-  order                        orders?                @relation(fields: [order_id], references: [order_id])
-  free_credit_issue            free_credit_issues?    @relation(fields: [free_credit_issue_id], references: [id])
+  order_id                     String?                            @db.VarChar(64)
+  created_at                   DateTime?                          @default(now()) @db.Timestamp(0)
+  updated_at                   DateTime?                          @default(now()) @db.Timestamp(0)
+  order                        orders?                            @relation(fields: [order_id], references: [order_id])
+  free_credit_issue            free_credit_issues?                @relation(fields: [free_credit_issue_id], references: [id])
+  subscription_credit_issue    widget_subscription_credit_issues? @relation(fields: [subscription_credit_issue_id], references: [id])
 }
 
 enum nft_task_status {
@@ -1312,17 +1313,18 @@ model widget_subscriptions {
 }
 
 model widget_subscription_credit_issues {
-  id              Int       @id @default(autoincrement())
-  widget_tag      String?   @db.VarChar(255)
-  user_id         String?   @db.VarChar(64)
-  subscription_id String    @db.VarChar(64)
-  issue_credits   Int?
-  current_balance Int?
-  is_issue        Boolean?  @default(false)
-  issue_date      DateTime? @db.DateTime(0)
-  expire_date     DateTime? @db.DateTime(0)
-  created_at      DateTime? @default(now()) @db.Timestamp(0)
-  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+  id               Int                 @id @default(autoincrement())
+  widget_tag       String?             @db.VarChar(255)
+  user_id          String?             @db.VarChar(64)
+  subscription_id  String              @db.VarChar(64)
+  issue_credits    Int?
+  current_balance  Int?
+  is_issue         Boolean?            @default(false)
+  issue_date       DateTime?           @db.DateTime(0)
+  expire_date      DateTime?           @db.DateTime(0)
+  created_at       DateTime?           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?           @default(now()) @db.Timestamp(0)
+  creditStatements credit_statements[]
 }
 
 model view_ip_token_prices {
