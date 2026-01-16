@@ -278,14 +278,14 @@ export class AssetsService {
                 },
             })
             //put asset to ipfs queue
-            await this.ipfsUploadQueue.add(
-                "uploadAssetToIpfs",
-                { asset_id: created.asset_id },
-                {
-                    jobId: created.asset_id,
-                    attempts: 3,
-                },
-            )
+            //await this.ipfsUploadQueue.add(
+            //    "uploadAssetToIpfs",
+            //    { asset_id: created.asset_id },
+            //    {
+            //        jobId: created.asset_id,
+            //        attempts: 3,
+            //    },
+            //)
             return await this.getAsset(userInfo, created.asset_id)
         } catch (error) {
             this.logger.error("Error uploading asset:", error)
