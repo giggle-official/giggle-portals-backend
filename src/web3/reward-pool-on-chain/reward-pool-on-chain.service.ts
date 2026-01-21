@@ -1145,12 +1145,12 @@ export class RewardPoolOnChainService {
                     data: { chain_transaction: transaction as any },
                 })
                 //settle sales agent revenue
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue`)
-                await this.salesAgentService.settleStatement(statement.id)
+                //this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue`)
+                //await this.salesAgentService.settleStatement(statement.id)
 
                 //push order to settle system
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, push order to settle system`)
-                await this.settleService.postOrderToSettle(statement.id)
+                //this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, push order to settle system`)
+                //await this.settleService.postOrderToSettle(statement.id)
 
                 this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue done`)
                 this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)

@@ -21,6 +21,7 @@ import { PaginationDto } from "src/common/common.dto"
 import { credit_statement_type, credit_statements, free_credit_issue_type } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { Type } from "class-transformer"
+import { PaymentMethod } from "../order/order.dto"
 
 export class TopUpDto {
     @ApiProperty({
@@ -62,6 +63,15 @@ export class PayTopUpOrderDto extends TopUpDto {
     @IsEmail()
     @IsNotEmpty()
     email: string
+
+    @ApiProperty({
+        description: "The payment method of the top up order",
+        enum: PaymentMethod,
+        required: false,
+    })
+    @IsEnum(PaymentMethod)
+    @IsOptional()
+    payment_method?: PaymentMethod
 }
 
 export class GetStatementQueryDto extends PaginationDto {
@@ -319,6 +329,16 @@ export class UpdateWidgetSubscriptionsDto {
     @ValidateNested()
     @Type(() => SubscriptionDetailDto)
     subscription_detail: SubscriptionDetailDto
+
+    @ApiProperty({
+        description:
+            "The paid amount in cents (100 = $1.00). If provided, an order will be created and settled for this subscription payment.",
+        required: false,
+    })
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    paid_amount?: number
 
     @ApiProperty({
         description: "The subscription credit of the subscription credit",

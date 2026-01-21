@@ -18,6 +18,7 @@ import { Cron, CronExpression } from "@nestjs/schedule"
 import * as crypto from "crypto"
 import { v4 as uuidv4 } from "uuid"
 import { NotificationService } from "src/notification/notification.service"
+import { SettleService } from "src/payment/settle/settle.service"
 
 @Injectable()
 export class CreditService {
@@ -34,7 +35,10 @@ export class CreditService {
         private readonly orderService: OrderService,
 
         private readonly notificationService: NotificationService,
-    ) {}
+
+        @Inject(forwardRef(() => SettleService))
+        private readonly settleService: SettleService,
+    ) { }
 
     async getUserCredits(userId: string): Promise<UserCreditBalanceDto> {
         const user = await this.prisma.users.findFirst({
@@ -426,7 +430,7 @@ export class CreditService {
         body: UpdateWidgetSubscriptionsDto,
         developerInfo: UserJwtExtractDto,
     ): Promise<{ success: boolean }> {
-        const { user_id, subscription_detail, subscription_credits } = body
+        const { user_id, subscription_detail, subscription_credits, paid_amount } = body
         const user = await this.prisma.users.findUnique({
             where: { username_in_be: user_id },
         })
@@ -503,7 +507,82 @@ export class CreditService {
         // Issue credits immediately for this subscription (if issue_date <= now)
         await this.issueWidgetSubscriptionCredit(subscriptionId)
 
+        // If paid_amount is provided, create an order and settle it
+        if (paid_amount && paid_amount > 0) {
+            await this.createSubscriptionOrderAndSettle(user, paid_amount, subscriptionId, developerInfo)
+        }
+
         return { success: true }
+    }
+
+    /**
+     * Create a subscription order and settle it
+     */
+    private async createSubscriptionOrderAndSettle(
+        user: { username_in_be: string; email: string },
+        paidAmount: number,
+        subscriptionId: string,
+        developerInfo: UserJwtExtractDto,
+    ): Promise<void> {
+        const orderId = uuidv4()
+        const widgetTag = developerInfo.developer_info.tag
+
+        // Get app info for the widget through app_bind_widgets
+        const appBindWidget = await this.prisma.app_bind_widgets.findFirst({
+            where: {
+                widget_tag: widgetTag,
+                enabled: true,
+            },
+        })
+        if (!appBindWidget) {
+            this.logger.error(`[createSubscriptionOrderAndSettle] App bind widget not found for widget: ${widgetTag}`)
+            return
+        }
+
+        const appBindIp = await this.prisma.app_bind_ips.findFirst({
+            where: { app_id: appBindWidget.app_id },
+        })
+        if (!appBindIp) {
+            this.logger.error(
+                `[createSubscriptionOrderAndSettle] App bind ip not found for app: ${appBindWidget.app_id}`,
+            )
+            return
+        }
+
+        // Create the order directly in the database
+        const order = await this.prisma.orders.create({
+            data: {
+                order_id: orderId,
+                owner: user.username_in_be,
+                ip_id: appBindIp.ip_id,
+                widget_tag: widgetTag,
+                app_id: appBindWidget.app_id,
+                amount: paidAmount,
+                item: `Subscription: ${subscriptionId}`,
+                description: `Subscription payment for ${subscriptionId}`,
+                current_status: OrderStatus.REWARDS_RELEASED,
+                paid_method: PaymentMethod.STRIPE, //only stripe payment is supported for subscription order
+                paid_time: new Date(),
+                supported_payment_method: [PaymentMethod.STRIPE], //only stripe payment is supported for subscription order
+                release_rewards_after_paid: false,
+                is_credit_top_up: true,
+                sales_agent: await this.orderService.getSalesAgent(user.username_in_be),
+            },
+        })
+
+        this.logger.log(
+            `[createSubscriptionOrderAndSettle] Created subscription order ${orderId} for user ${user.username_in_be}, amount: ${paidAmount}`,
+        )
+
+        // Post order to settle system
+        try {
+            await this.settleService.postSubscriptionOrderToSettle(order.order_id)
+        } catch (error) {
+            this.logger.error(`[createSubscriptionOrderAndSettle] Failed to settle order ${orderId}: ${error.message}`)
+        }
+
+        //process rewards
+        this.processRewards(order)
     }
 
     /**
@@ -866,12 +945,15 @@ export class CreditService {
             where: { order_id: order.order_id },
             data: {
                 current_status: OrderStatus.COMPLETED,
-                paid_method: PaymentMethod.CUSTOMIZED,
+                paid_method: body.payment_method || PaymentMethod.CUSTOMIZED,
                 paid_time: new Date(),
             },
         })
 
         await this.issueCredit(paidOrder)
+
+        //settle order
+        await this.settleService.postSubscriptionOrderToSettle(order.order_id)
 
         return { success: true }
     }

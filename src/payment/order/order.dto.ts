@@ -41,6 +41,8 @@ export enum PaymentMethod {
     PAYPAL = "paypal",
     WALLET = "wallet",
     WECHAT = "wechat",
+    ALIPAY_GLOBAL = "alipay_global",
+    GIGGLE_CHINA = "giggle_china",
     CREDIT = "credit",
     CREDIT2C = "2c-credit",
     CUSTOMIZED = "customized",
@@ -429,7 +431,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     refund_detail: OrderRefundedDetailDto[]
 }
 
-export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) {}
+export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) { }
 
 export class ItemDto {
     @ApiProperty({

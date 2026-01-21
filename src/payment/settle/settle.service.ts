@@ -8,6 +8,7 @@ import { lastValueFrom } from "rxjs"
 import { RewardAllocateRoles } from "../rewards-pool/rewards-pool.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { UserService } from "src/user/user.service"
+import { OrderStatus } from "../order/order.dto"
 
 @Injectable()
 export class SettleService {
@@ -51,7 +52,7 @@ export class SettleService {
         if (!statement) {
             throw new BadRequestException(`Statement not found for order ${order_id}`)
         }
-        return await this.postOrderToSettle(statement.id)
+        return await this.postSubscriptionOrderToSettle(order_id)
     }
 
     async postOrderToSettle(statement_id: number): Promise<void> {
@@ -180,6 +181,120 @@ export class SettleService {
             } else {
                 this.logger.error(`Failed to post order ${statement.related_order_id} to settle: ${error.message}`)
             }
+        }
+    }
+
+    /**
+     * Post subscription order to settle system
+     * This is used for subscription payments that don't go through the normal rewards release flow
+     */
+    async postSubscriptionOrderToSettle(order_id: string): Promise<void> {
+        //we only need push order on production environment
+        // if (process.env.ENV !== "product") {
+        //     this.logger.warn(`[Settle] Not in product environment, skip post subscription order to settle`)
+        //     return
+        // }
+
+        if (!order_id) {
+            throw new BadRequestException(`Order id is required`)
+        }
+
+        const order = await this.prisma.orders.findUnique({
+            where: {
+                order_id: order_id,
+            },
+            include: {
+                user_info: true,
+            },
+        })
+
+        if (!order) {
+            this.logger.warn(`[Settle] Invalid order provided`)
+            return
+        }
+
+
+        if (order.widget_tag !== this.needSettleWidget) {
+            this.logger.warn(`[Settle] Order ${order.order_id} not supported widget: ${this.needSettleWidget}`)
+            return
+        }
+
+        //for credit-top up order, we needd check current status is completed or rewards released
+        if (order.is_credit_top_up) {
+            if (order.current_status !== OrderStatus.COMPLETED && order.current_status !== OrderStatus.REWARDS_RELEASED) {
+                this.logger.warn(`[Settle] Credit top up order ${order.order_id} not completed or released rewards`)
+                return
+            }
+        } else {
+            if (order.current_status !== OrderStatus.REWARDS_RELEASED) {
+                this.logger.warn(`[Settle] Order ${order.order_id} not released rewards`)
+                return
+            }
+        }
+
+        // Calculate platform revenue (10% of the order amount)
+        const platformRevenue = order.amount / 100 // amount is in cents, convert to dollars
+
+        //find invited_by email
+        let creatorInvitedUserEmail = ""
+        if (order.user_info?.invited_by) {
+            const invitedByEmail = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: order.user_info.invited_by,
+                },
+                select: {
+                    email: true,
+                },
+            })
+            creatorInvitedUserEmail = invitedByEmail?.email
+        }
+
+        try {
+            const authHeader = await this.generateAuthHeader()
+            const requestParams = {
+                order_id: order.order_id,
+                creator: order.user_info.email,
+                creator_invited_user: creatorInvitedUserEmail,
+                revenue: platformRevenue,
+                created_at: order.paid_time || new Date(),
+            }
+            const response = await lastValueFrom<AxiosResponse<SettleApiResponseDto<SettleOrderResponseDto>>>(
+                this.httpService.post(this.settleApiEndpoint + "/api/v1/product-orders/create", requestParams, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: authHeader,
+                    },
+                }),
+            )
+            this.logger.log(`Settle subscription order response: ${JSON.stringify(response?.data)}`)
+
+            if (
+                response.status !== HttpStatus.OK ||
+                response?.data?.code !== HttpStatus.OK
+            ) {
+                throw new Error(`Failed to post subscription order ${order.order_id} to settle: ${response?.statusText}`)
+            }
+
+            await this.prisma.orders.update({
+                where: {
+                    order_id: order.order_id,
+                },
+                data: {
+                    settled: true,
+                    settled_time: new Date(),
+                },
+            })
+
+            this.logger.log(`[Settle] Subscription order ${order.order_id} settled successfully`)
+        } catch (error) {
+            if (isAxiosError(error)) {
+                this.logger.error(
+                    `Failed to post subscription order ${order.order_id} to settle: ${JSON.stringify(error.response?.data)}`,
+                )
+            } else {
+                this.logger.error(`Failed to post subscription order ${order.order_id} to settle: ${error.message}`)
+            }
+            throw error
         }
     }
 
