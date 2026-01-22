@@ -12,7 +12,6 @@ import {
     RegisterAssetDto,
     DeleteAssetDto,
     AssetDetailDto,
-    UploadAssetToIpfsDto,
 } from "./assets.dto"
 import { Request } from "express"
 import { AuthGuard } from "@nestjs/passport"
@@ -21,7 +20,7 @@ import { AuthGuard } from "@nestjs/passport"
 @ApiBearerAuth()
 @Controller("/api/v1/assets")
 export class AssetsController {
-    constructor(private readonly assetsService: AssetsService) {}
+    constructor(private readonly assetsService: AssetsService) { }
 
     @Get("/")
     @HttpCode(HttpStatus.OK)

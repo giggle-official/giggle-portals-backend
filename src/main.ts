@@ -255,6 +255,7 @@ To see how to process the event stream response, please refer to the [Event Stre
                 "Sales Agent",
                 "Market Maker Management",
                 "Credit2c Management",
+                "Cookie",
             ],
         },
     ]
