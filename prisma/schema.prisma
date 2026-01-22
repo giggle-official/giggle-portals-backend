@@ -1363,3 +1363,15 @@ model view_ip_incomes {
   date    DateTime?   @db.Date
   ip_info ip_library? @relation(fields: [ip_id], references: [id])
 }
+
+model site_cookies {
+  id             Int       @id @default(autoincrement())
+  site_name      String    @unique @db.VarChar(32)
+  site_url       String    @db.VarChar(255)
+  cookies        String    @db.LongText
+  last_refresh   DateTime? @db.DateTime(0)
+  refresh_status String?   @db.VarChar(32)
+  error_message  String?   @db.Text
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+}

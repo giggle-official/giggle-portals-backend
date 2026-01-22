@@ -17,6 +17,7 @@ import { OpenAppModule } from "./open-app/open-app.module"
 import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
+import { CookieModule } from "./cookie/cookie.module"
 import { BullModule } from "@nestjs/bullmq"
 import { Cluster } from "ioredis"
 
@@ -49,6 +50,7 @@ const redisConnection = {
         DashboardModule,
         DocsModule,
         StatsModule,
+        CookieModule,
         //queue
         BullModule.forRoot({
             connection:
