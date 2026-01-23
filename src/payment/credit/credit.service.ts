@@ -40,8 +40,10 @@ export class CreditService {
         private readonly settleService: SettleService,
     ) { }
 
-    async getUserCredits(userId: string): Promise<UserCreditBalanceDto> {
-        const user = await this.prisma.users.findFirst({
+    async getUserCredits(userId: string, tx?: Prisma.TransactionClient): Promise<UserCreditBalanceDto> {
+        const prisma = tx || this.prisma
+
+        const user = await prisma.users.findFirst({
             where: {
                 username_in_be: userId,
             },
@@ -55,7 +57,7 @@ export class CreditService {
         }
 
         //calculate free credit
-        const freeCredit = await this.prisma.free_credit_issues.findMany({
+        const freeCredit = await prisma.free_credit_issues.findMany({
             where: {
                 user: userId,
                 balance: {
@@ -277,7 +279,10 @@ export class CreditService {
         tx: Prisma.TransactionClient,
         allow_free_credit: boolean = true,
     ): Promise<{ free_credit_consumed: number; total_credit_consumed: number }> {
-        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userInfo.usernameShorted)
+        // Lock user row to prevent concurrent credit consumption race condition
+        await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${userInfo.usernameShorted} FOR UPDATE`
+
+        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userInfo.usernameShorted, tx)
 
         if (!allow_free_credit && total_credit_balance - free_credit_balance < amount) {
             throw new BadRequestException(
