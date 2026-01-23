@@ -8,12 +8,14 @@ jest.mock("../../common/prisma.service")
 jest.mock("../../user/user.service")
 jest.mock("../order/order.service")
 jest.mock("../../notification/notification.service")
+jest.mock("../settle/settle.service")
 
 import { CreditService } from "./credit.service"
 import { PrismaService } from "../../common/prisma.service"
 import { UserService } from "../../user/user.service"
 import { OrderService } from "../order/order.service"
 import { NotificationService } from "../../notification/notification.service"
+import { SettleService } from "../settle/settle.service"
 
 describe("CreditService - Subscription Credit", () => {
     let service: CreditService
@@ -122,6 +124,10 @@ describe("CreditService - Subscription Credit", () => {
             sendEmailTemplate: jest.fn(),
         }
 
+        const mockSettleService = {
+            settleOrder: jest.fn(),
+        }
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 CreditService,
@@ -129,6 +135,7 @@ describe("CreditService - Subscription Credit", () => {
                 { provide: UserService, useValue: mockUserService },
                 { provide: OrderService, useValue: mockOrderService },
                 { provide: NotificationService, useValue: mockNotificationService },
+                { provide: SettleService, useValue: mockSettleService },
             ],
         }).compile()
 
@@ -160,9 +167,9 @@ describe("CreditService - Subscription Credit", () => {
                 ],
             }
 
-            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([]) // No credits to issue (future date)
+                ; (prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
+                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([]) // No credits to issue (future date)
             mockTx.widget_subscriptions.create.mockResolvedValue({
                 id: 1,
                 subscription_id: "new_sub_id",
@@ -195,7 +202,7 @@ describe("CreditService - Subscription Credit", () => {
                 ],
             }
 
-            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue(null)
+                ; (prisma.users.findUnique as jest.Mock).mockResolvedValue(null)
 
             await expect(service.updateWidgetSubscriptions(body, mockDeveloperInfo as any)).rejects.toThrow(
                 BadRequestException,
@@ -221,8 +228,8 @@ describe("CreditService - Subscription Credit", () => {
                 ],
             }
 
-            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
+                ; (prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
             mockTx.widget_subscriptions.create.mockResolvedValue({
                 id: 1,
                 subscription_id: "new_sub_id",
@@ -259,9 +266,9 @@ describe("CreditService - Subscription Credit", () => {
                 widget_tag: "test_widget",
             }
 
-            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(existingSubscription)
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([]) // No credits to issue (future date)
+                ; (prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(existingSubscription)
+                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([]) // No credits to issue (future date)
             mockTx.widget_subscriptions.update.mockResolvedValue(existingSubscription)
             mockTx.widget_subscription_credit_issues.createMany.mockResolvedValue({ count: 1 })
 
@@ -290,24 +297,24 @@ describe("CreditService - Subscription Credit", () => {
                 ],
             }
 
-            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
+                ; (prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
             mockTx.widget_subscriptions.create.mockResolvedValue({
                 id: 1,
                 subscription_id: "new_sub_id",
             })
             mockTx.widget_subscription_credit_issues.createMany.mockResolvedValue({ count: 1 })
 
-            // Mock for issueWidgetSubscriptionCredit call
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([
-                {
-                    id: 1,
-                    user_id: "test_user_123",
-                    current_balance: 500,
-                    is_issue: false,
-                    subscription_id: "new_sub_id",
-                },
-            ])
+                // Mock for issueWidgetSubscriptionCredit call
+                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([
+                    {
+                        id: 1,
+                        user_id: "test_user_123",
+                        current_balance: 500,
+                        is_issue: false,
+                        subscription_id: "new_sub_id",
+                    },
+                ])
             mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 1500 })
             mockTx.credit_statements.create.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
@@ -331,7 +338,7 @@ describe("CreditService - Subscription Credit", () => {
                 subscription_id: "sub_123",
             }
 
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([expiredCredit])
+                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([expiredCredit])
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
             mockTx.credit_statements.create.mockResolvedValue({})
@@ -349,7 +356,7 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("should expire all credits when no subscription_id provided", async () => {
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
 
             await service.expireWidgetSubscriptionCredit()
 
@@ -374,7 +381,7 @@ describe("CreditService - Subscription Credit", () => {
                 subscription_id: "sub_123",
             }
 
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([pendingCredit])
+                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([pendingCredit])
             mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 1500 })
             mockTx.credit_statements.create.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
@@ -392,7 +399,7 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("should issue all credits when no subscription_id provided", async () => {
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
 
             await service.issueWidgetSubscriptionCredit()
 
@@ -408,7 +415,7 @@ describe("CreditService - Subscription Credit", () => {
 
     describe("processWidgetSubscriptionCredits (cron job)", () => {
         it("should call expireWidgetSubscriptionCredit then issueWidgetSubscriptionCredit", async () => {
-            ;(prisma.widget_subscription_credit_issues.findMany as jest.Mock)
+            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock)
                 .mockResolvedValueOnce([]) // For expire
                 .mockResolvedValueOnce([]) // For issue
 
@@ -427,7 +434,7 @@ describe("CreditService - Subscription Credit", () => {
                 widget_tag: "test_widget",
             }
 
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(subscription)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(subscription)
             mockTx.widget_subscription_credit_issues.deleteMany.mockResolvedValue({ count: 2 })
             mockTx.widget_subscriptions.delete.mockResolvedValue(subscription)
 
@@ -446,7 +453,7 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("should throw error if subscription not found", async () => {
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
+            ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(null)
 
             await expect(
                 service.cancelWidgetSubscription("non_existent_user", mockDeveloperInfo as any),
@@ -461,7 +468,7 @@ describe("CreditService - Subscription Credit", () => {
                 widget_tag: "test_widget",
             }
 
-            ;(prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(subscription)
+                ; (prisma.widget_subscriptions.findFirst as jest.Mock).mockResolvedValue(subscription)
             mockTx.widget_subscription_credit_issues.deleteMany.mockResolvedValue({ count: 0 })
             mockTx.widget_subscriptions.delete.mockResolvedValue(subscription)
 
@@ -477,13 +484,66 @@ describe("CreditService - Subscription Credit", () => {
         })
     })
 
+    describe("consumeCredit - row locking for concurrent requests", () => {
+        it("should execute FOR UPDATE lock before checking balance", async () => {
+            const userInfo = { usernameShorted: "test_user_123" } as any
+
+            // Add $queryRaw mock to transaction
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+
+            // Mock getUserCredits via tx (after lock)
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+            }
+            mockTx.free_credit_issues.findMany.mockResolvedValue([])
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
+            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.credit_statements.create.mockResolvedValue({})
+
+            await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
+
+            // Verify FOR UPDATE lock was called
+            expect(mockTx.$queryRaw).toHaveBeenCalled()
+            const queryCall = mockTx.$queryRaw.mock.calls[0]
+            // Check that the query contains FOR UPDATE
+            expect(queryCall[0].some((str: string) => str.includes("FOR UPDATE"))).toBe(true)
+        })
+
+        it("should use transaction client for getUserCredits after lock", async () => {
+            const userInfo = { usernameShorted: "test_user_123" } as any
+
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+            }
+            mockTx.free_credit_issues.findMany.mockResolvedValue([])
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
+            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.credit_statements.create.mockResolvedValue({})
+
+            await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
+
+            // Verify getUserCredits uses the transaction client (tx.users.findFirst)
+            expect(mockTx.users.findFirst).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+            })
+        })
+    })
+
     describe("consumeCredit - with subscription credits", () => {
         it("should consume subscription credits after free credits are exhausted", async () => {
             const userInfo = { usernameShorted: "test_user_123" } as any
 
-            // Mock getUserCredits
-            ;(prisma.users.findFirst as jest.Mock).mockResolvedValue({ current_credit_balance: 1000 })
-            ;(prisma.free_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+            // Add $queryRaw mock for FOR UPDATE lock
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+
+            // Mock getUserCredits via tx
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+            }
 
             // No free credits
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
@@ -508,10 +568,14 @@ describe("CreditService - Subscription Credit", () => {
         it("should consume free credits first, then subscription credits", async () => {
             const userInfo = { usernameShorted: "test_user_123" } as any
 
-            ;(prisma.users.findFirst as jest.Mock).mockResolvedValue({ current_credit_balance: 1000 })
-            ;(prisma.free_credit_issues.findMany as jest.Mock).mockResolvedValue([
-                { id: 1, balance: 100, expire_date: new Date("2025-12-31") },
-            ])
+            // Add $queryRaw mock for FOR UPDATE lock
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+
+            // Mock getUserCredits via tx
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+            }
 
             // Free credits (100)
             mockTx.free_credit_issues.findMany.mockResolvedValue([
@@ -538,8 +602,14 @@ describe("CreditService - Subscription Credit", () => {
         it("should only consume issued subscription credits (is_issue: true)", async () => {
             const userInfo = { usernameShorted: "test_user_123" } as any
 
-            ;(prisma.users.findFirst as jest.Mock).mockResolvedValue({ current_credit_balance: 500 })
-            ;(prisma.free_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+            // Add $queryRaw mock for FOR UPDATE lock
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+
+            // Mock getUserCredits via tx
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 500 }),
+            }
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
 
             // Query should only return is_issue: true
