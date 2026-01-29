@@ -495,7 +495,7 @@ export class OrderService {
             },
         })
 
-        return await this.mapOrderDetail(order)
+        return await this.mapOrderDetail(updatedOrder)
     }
 
     async processDeveloperSpecifiedRewardSnapshot(
