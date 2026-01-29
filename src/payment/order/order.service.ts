@@ -731,7 +731,7 @@ export class OrderService {
             }
 
             await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
-            let refundedDetail = ((order.refund_detail as any) || []) as OrderRefundedDetailDto[]
+            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) || []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
                 amount: refundAmount,
@@ -748,7 +748,7 @@ export class OrderService {
                     current_status: OrderStatus.PARTIAL_REFUNDED,
                     refund_time: new Date(),
                     refund_status: "success",
-                    refund_detail: { refundedDetail } as any,
+                    refund_detail: refundedDetail as any,
                 },
             })
             if (updated.refunded_amount > order.amount) {
