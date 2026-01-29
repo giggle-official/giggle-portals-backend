@@ -107,7 +107,7 @@ export class OrderService {
 
         @Inject(forwardRef(() => Credit2cService))
         private readonly credit2cService: Credit2cService,
-    ) {}
+    ) { }
 
     async createOrder(
         order: CreateOrderDto,
@@ -533,7 +533,7 @@ export class OrderService {
 
         switch (orderRecord.paid_method) {
             case PaymentMethod.CREDIT:
-                return await this._refundCreditOrder(orderRecord, refundAmount)
+                return await this._refundCreditOrder(orderRecord.order_id, refundAmount)
             case PaymentMethod.WALLET:
                 return await this._refundWalletOrder(orderRecord)
             //todo: support more payment methods
@@ -577,8 +577,20 @@ export class OrderService {
         return await this.mapOrderDetail(orderRefunded)
     }
 
-    private async _refundCreditOrder(order: orders, refundAmount: number): Promise<OrderDetailDto> {
+    private async _refundCreditOrder(orderId: string, refundAmount: number): Promise<OrderDetailDto> {
         const orderRefunded = await this.prisma.$transaction(async (tx) => {
+            // Lock order row to prevent concurrent refund race condition
+            await tx.$queryRaw`SELECT id FROM orders WHERE order_id = ${orderId} FOR UPDATE`
+
+            const order = await tx.orders.findUnique({
+                where: {
+                    order_id: orderId,
+                },
+            })
+            if (!order) {
+                throw new BadRequestException("Order not found")
+            }
+
             await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
             let refundedDetail = ((order.refund_detail as any) || []) as OrderRefundedDetailDto[]
 
@@ -597,7 +609,7 @@ export class OrderService {
                     current_status: OrderStatus.PARTIAL_REFUNDED,
                     refund_time: new Date(),
                     refund_status: "success",
-                    refund_detail: refundedDetail as any,
+                    refund_detail: { refundedDetail } as any,
                 },
             })
             if (updated.refunded_amount > order.amount) {
@@ -2297,5 +2309,5 @@ where r.ticker != 'usdc'
     }
 
     //update user_rewards_withdraw
-    async updateUserRewardsWithdraw() {}
+    async updateUserRewardsWithdraw() { }
 }
