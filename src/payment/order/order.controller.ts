@@ -33,6 +33,7 @@ import {
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
     PaymentMethod,
+    UpdateRewardsDto,
 } from "./order.dto"
 import {
     PayWithPayPalRequestDto,
@@ -58,7 +59,7 @@ export class OrderController {
         private readonly orderService: OrderService,
         private readonly paymentAsiaService: PaymentAsiaService,
         private readonly paypalService: PaypalService,
-    ) {}
+    ) { }
 
     @Get("/list")
     @ApiOperation({
@@ -205,6 +206,16 @@ export class OrderController {
     @UseGuards(IsWidgetGuard)
     async refundOrder(@Body() body: RefundOrderDto): Promise<OrderDetailDto> {
         return await this.orderService.refundOrder(body)
+    }
+
+    @Post("update-rewards")
+    @ApiOperation({ summary: "Update rewards for an order", tags: ["Order"] })
+    @ApiBody({ type: UpdateRewardsDto })
+    @ApiResponse({ type: OrderRewardsDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(IsWidgetGuard)
+    async updateRewards(@Body() body: UpdateRewardsDto): Promise<OrderDetailDto> {
+        return await this.orderService.updateRewards(body)
     }
 
     //payment asia
