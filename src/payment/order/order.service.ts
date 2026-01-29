@@ -32,6 +32,7 @@ import {
     ReleaseRewardsDto,
     ResendCallbackRequestDto,
     UnbindRewardPoolDto,
+    UpdateRewardsDto,
 } from "./order.dto"
 import { PrismaService } from "src/common/prisma.service"
 import { CreateOrderDto } from "./order.dto"
@@ -357,6 +358,144 @@ export class OrderService {
             },
         })
         return await this.mapOrderDetail(record)
+    }
+
+    async updateRewards(dto: UpdateRewardsDto): Promise<OrderDetailDto> {
+        const order = await this.prisma.orders.findUnique({
+            where: {
+                order_id: dto.order_id,
+            },
+        })
+        if (!order) {
+            throw new BadRequestException("Order not found")
+        }
+        if (order.current_status === OrderStatus.REWARDS_RELEASED) {
+            throw new BadRequestException("Order rewards already released")
+        }
+
+        if (order.current_status === OrderStatus.REFUNDED) {
+            throw new BadRequestException("Order is refunded")
+        }
+
+        if (order.current_status === OrderStatus.CANCELLED) {
+            throw new BadRequestException("Order is cancelled")
+        }
+
+        if (!order.widget_tag) {
+            throw new BadRequestException("Widget tag is required to update rewards")
+        }
+
+
+        //if relate reward pool is true, we need relate the reward pool to the order
+        let relatedRewardId = order.related_reward_id
+        let rewardsModelSnapshot = order.rewards_model_snapshot as unknown as RewardSnapshotDto
+
+        if (dto.reward_token) {
+            const pool = await this.rewardsPoolService.getPools({
+                token: dto.reward_token,
+                page: "1",
+                page_size: "1",
+            })
+            if (!pool || pool.pools.length === 0) {
+                throw new BadRequestException("Rewards token not found")
+            }
+
+            const tokenIp = await this.prisma.ip_library.findFirst({
+                where: {
+                    token_mint: dto.reward_token,
+                },
+            })
+
+            if (!tokenIp) {
+                throw new BadRequestException("Can not find ip info for this rewards token")
+            }
+
+            const IpRelations = await this.prisma.ip_library_child.findFirst({
+                where: {
+                    ip_id: tokenIp.id,
+                },
+            })
+
+            if (tokenIp.id !== order.ip_id && IpRelations?.parent_ip !== order.ip_id) {
+                throw new ForbiddenException("This ip is not allowed to be use in current app")
+            }
+
+            relatedRewardId = pool.pools[0].id
+
+            rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                order.widget_tag,
+                dto.rewards_model,
+                pool.pools[0],
+            )
+        } else {
+            const rewardPool = await this.rewardsPoolService.getPools({
+                app_id: order.app_id,
+                page: "1",
+                page_size: "1",
+            })
+            if (rewardPool && rewardPool.pools.length > 0 && dto.rewards_model) {
+                relatedRewardId = rewardPool?.pools?.[0]?.id
+                rewardsModelSnapshot = await this.processDeveloperSpecifiedRewardSnapshot(
+                    order.widget_tag,
+                    dto.rewards_model,
+                    rewardPool?.pools?.[0],
+                )
+            }
+        }
+
+
+        //process costs allocation
+        let costsAllocation = order.costs_allocation as unknown as OrderCostsAllocationDto[]
+        if (dto.costs_allocation) {
+            costsAllocation = dto.costs_allocation
+            let costSum = new Decimal(0)
+            for (const cost of costsAllocation) {
+                costSum = costSum.plus(new Decimal(cost.amount))
+            }
+
+            const orderAmount = new Decimal(order.amount)
+            if (costSum.gt(orderAmount.minus(orderAmount.mul(new Decimal(10)).div(100)))) {
+                //ensure platform has enough usdc revenue
+                throw new BadRequestException(
+                    "The total cost of the order is greater than or equal to the 90% of the amount of the order, please check the costs allocation",
+                )
+            }
+        }
+
+
+
+        //process ip-holder revenue re-allocation
+        let ipHolderRevenueReallocation = order.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
+        if (dto.ip_holder_revenue_reallocation) {
+            ipHolderRevenueReallocation = dto.ip_holder_revenue_reallocation
+            let ipHolderRevenueReallocationPercent = new Decimal(0)
+            for (const reallocation of ipHolderRevenueReallocation) {
+                ipHolderRevenueReallocationPercent = ipHolderRevenueReallocationPercent.plus(
+                    new Decimal(reallocation.percent),
+                )
+            }
+
+            if (ipHolderRevenueReallocationPercent.gt(100)) {
+                throw new BadRequestException(
+                    "The total percent of the ip holder revenue re-allocation is greater than 100%",
+                )
+            }
+        }
+
+        //update
+        const updatedOrder = await this.prisma.orders.update({
+            where: {
+                order_id: dto.order_id,
+            },
+            data: {
+                related_reward_id: relatedRewardId,
+                rewards_model_snapshot: rewardsModelSnapshot as any,
+                costs_allocation: costsAllocation as any,
+                ip_holder_revenue_reallocation: ipHolderRevenueReallocation as any,
+            },
+        })
+
+        return await this.mapOrderDetail(order)
     }
 
     async processDeveloperSpecifiedRewardSnapshot(

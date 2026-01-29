@@ -1,4 +1,4 @@
-import { ApiProperty, OmitType } from "@nestjs/swagger"
+import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
 import {
@@ -657,6 +657,14 @@ The order revenue will be distributed to the user 123 and 456, all of them will 
     @Type(() => IpHolderRevenueReallocationDto)
     ip_holder_revenue_reallocation?: IpHolderRevenueReallocationDto[]
 }
+
+export class UpdateRewardsDto extends PickType(CreateOrderDto, ["order_id", "reward_token", "rewards_model", "costs_allocation", "ip_holder_revenue_reallocation"]) {
+    @ApiProperty({
+        description: "The order id to update rewards",
+    })
+    order_id: string
+}
+
 
 export class OrderListDto {
     @ApiProperty({

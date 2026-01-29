@@ -45,7 +45,7 @@ export class CookieService {
     /**
      * Cron job to refresh all site cookies every hour
      */
-    @Cron(CronExpression.EVERY_HOUR)
+    //@Cron(CronExpression.EVERY_HOUR)
     async refreshAllCookies(): Promise<void> {
         if (process.env.TASK_SLOT != "1") {
             return
