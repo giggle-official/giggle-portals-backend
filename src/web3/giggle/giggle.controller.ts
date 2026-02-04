@@ -47,7 +47,7 @@ import { WIDGET_PERMISSIONS_LIST } from "src/casl/casl-ability.factory/widget-ca
 
 @Controller("/api/v1/web3/giggle")
 export class GiggleController {
-    constructor(private readonly giggleService: GiggleService) {}
+    constructor(private readonly giggleService: GiggleService) { }
 
     @Post("/cover-image/upload")
     @ApiExcludeEndpoint()
@@ -133,10 +133,10 @@ export class GiggleController {
     }
 
     @Post("/send")
+    @ApiTags("User Wallet")
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
-    @ApiExcludeEndpoint()
     @ApiBody({ type: SendTokenDto })
     @ApiOperation({ summary: "Send Tokens" })
     @ApiResponse({ type: SendTokenResponseDto, status: 200 })
@@ -174,8 +174,8 @@ export class GiggleController {
     }
 
     @Get("/usdc-balance")
+    @ApiTags("User Wallet")
     @HttpCode(HttpStatus.OK)
-    @ApiExcludeEndpoint()
     @UseGuards(AuthGuard("jwt"))
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get USDC balance" })
