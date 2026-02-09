@@ -979,13 +979,13 @@ export class CreditService {
                 amount: true,
             },
         })
-        // monthly issue with type
+        // monthly issue with type (current month)
         const monthlyFreeIssue = await this.prisma.free_credit_issues.groupBy({
             by: ["issue_type"],
             where: {
                 widget_tag: widgetTag,
                 created_at: {
-                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
                     lt: new Date(),
                 },
             },
@@ -1021,7 +1021,7 @@ export class CreditService {
             },
         })
 
-        //monthly top up
+        //monthly top up (current month)
         const monthlyTopUp = await this.prisma.credit_statements.aggregate({
             _sum: {
                 amount: true,
@@ -1032,7 +1032,7 @@ export class CreditService {
                     widget_tag: widgetTag,
                 },
                 created_at: {
-                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
                     lt: new Date(),
                 },
             },
@@ -1069,7 +1069,7 @@ export class CreditService {
             },
         })
 
-        //monthly free credit consume
+        //monthly free credit consume (current month)
         const monthlyFreeCreditConsume = await this.prisma.credit_statements.aggregate({
             _sum: {
                 amount: true,
@@ -1077,7 +1077,7 @@ export class CreditService {
             where: {
                 is_free_credit: true,
                 created_at: {
-                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
                     lt: new Date(),
                 },
                 order: {
@@ -1119,7 +1119,7 @@ export class CreditService {
             },
         })
 
-        //monthly no-free credit consume
+        //monthly no-free credit consume (current month)
         const monthlyNoFreeCreditConsume = await this.prisma.credit_statements.aggregate({
             _sum: {
                 amount: true,
@@ -1127,7 +1127,7 @@ export class CreditService {
             where: {
                 is_free_credit: false,
                 created_at: {
-                    gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                    gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
                     lt: new Date(),
                 },
                 type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
@@ -1224,6 +1224,288 @@ export class CreditService {
             noFreeCreditConsumeTop10Users[i].user_email = userEmail.email || "unknown"
         }
 
+        // Append all-time asset stats (video duration, image count) for free credit top 10 users
+        if (freeCreditConsumeTop10Users.length > 0) {
+            const freeTop10UserAssetStats: any[] = await this.prisma.$queryRaw`
+                SELECT user,
+                    COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
+                    COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
+                FROM assets
+                WHERE widget_tag = ${widgetTag}
+                AND name LIKE 'task\\_%'
+                AND type IN ('video', 'image')
+                AND user IN (${Prisma.join(freeCreditConsumeTop10Users.map((u) => u.user))})
+                GROUP BY user
+            `
+            for (const user of freeCreditConsumeTop10Users) {
+                const stats = freeTop10UserAssetStats.find((s) => s.user === user.user)
+                user.video_duration = Number(stats?.video_duration ?? 0)
+                user.image_count = Number(stats?.image_count ?? 0)
+            }
+        }
+
+        // Append all-time asset stats for paid credit top 10 users
+        if (noFreeCreditConsumeTop10Users.length > 0) {
+            const paidTop10UserAssetStats: any[] = await this.prisma.$queryRaw`
+                SELECT user,
+                    COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
+                    COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
+                FROM assets
+                WHERE widget_tag = ${widgetTag}
+                AND name LIKE 'task\\_%'
+                AND type IN ('video', 'image')
+                AND user IN (${Prisma.join(noFreeCreditConsumeTop10Users.map((u) => u.user))})
+                GROUP BY user
+            `
+            for (const user of noFreeCreditConsumeTop10Users) {
+                const stats = paidTop10UserAssetStats.find((s) => s.user === user.user)
+                user.video_duration = Number(stats?.video_duration ?? 0)
+                user.image_count = Number(stats?.image_count ?? 0)
+            }
+        }
+
+        // ===== Additional statistics =====
+        const now = new Date()
+        const dailyStart = new Date(now)
+        dailyStart.setDate(dailyStart.getDate() - 1)
+        const monthlyStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const consumeTypes = Prisma.join(["consume"])
+
+        // ===== Daily Top 10 users =====
+        // Daily free credit consume top 10
+        const dailyFreeCreditConsumeTop10Users: any = await this.prisma.credit_statements.groupBy({
+            by: ["user"],
+            _sum: { amount: true },
+            where: {
+                is_free_credit: true,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: { widget_tag: widgetTag },
+                created_at: { gte: dailyStart, lt: now },
+            },
+            orderBy: { _sum: { amount: "asc" } },
+            take: 10,
+        })
+        if (dailyFreeCreditConsumeTop10Users.length > 0) {
+            const dailyFreeTop10Emails = await this.prisma.users.findMany({
+                where: { username_in_be: { in: dailyFreeCreditConsumeTop10Users.map((u) => u.user) } },
+                select: { username_in_be: true, email: true },
+            })
+            const dailyFreeTop10AssetStats: any[] = await this.prisma.$queryRaw`
+                SELECT user,
+                    COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
+                    COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
+                FROM assets
+                WHERE widget_tag = ${widgetTag}
+                AND name LIKE 'task\\_%'
+                AND type IN ('video', 'image')
+                AND user IN (${Prisma.join(dailyFreeCreditConsumeTop10Users.map((u) => u.user))})
+                AND created_at >= ${dailyStart}
+                AND created_at < ${now}
+                GROUP BY user
+            `
+            for (const user of dailyFreeCreditConsumeTop10Users) {
+                const emailInfo = dailyFreeTop10Emails.find((e) => e.username_in_be === user.user)
+                user.user_email = emailInfo?.email || "unknown"
+                const stats = dailyFreeTop10AssetStats.find((s) => s.user === user.user)
+                user.video_duration = Number(stats?.video_duration ?? 0)
+                user.image_count = Number(stats?.image_count ?? 0)
+            }
+        }
+
+        // Daily paid credit consume top 10
+        const dailyNoFreeCreditConsumeTop10Users: any = await this.prisma.credit_statements.groupBy({
+            by: ["user"],
+            _sum: { amount: true },
+            where: {
+                is_free_credit: false,
+                type: { in: [credit_statement_type.consume, credit_statement_type.refund] },
+                order: { widget_tag: widgetTag },
+                created_at: { gte: dailyStart, lt: now },
+            },
+            orderBy: { _sum: { amount: "asc" } },
+            take: 10,
+        })
+        if (dailyNoFreeCreditConsumeTop10Users.length > 0) {
+            const dailyPaidTop10Emails = await this.prisma.users.findMany({
+                where: { username_in_be: { in: dailyNoFreeCreditConsumeTop10Users.map((u) => u.user) } },
+                select: { username_in_be: true, email: true },
+            })
+            const dailyPaidTop10AssetStats: any[] = await this.prisma.$queryRaw`
+                SELECT user,
+                    COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
+                    COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
+                FROM assets
+                WHERE widget_tag = ${widgetTag}
+                AND name LIKE 'task\\_%'
+                AND type IN ('video', 'image')
+                AND user IN (${Prisma.join(dailyNoFreeCreditConsumeTop10Users.map((u) => u.user))})
+                AND created_at >= ${dailyStart}
+                AND created_at < ${now}
+                GROUP BY user
+            `
+            for (const user of dailyNoFreeCreditConsumeTop10Users) {
+                const emailInfo = dailyPaidTop10Emails.find((e) => e.username_in_be === user.user)
+                user.user_email = emailInfo?.email || "unknown"
+                const stats = dailyPaidTop10AssetStats.find((s) => s.user === user.user)
+                user.video_duration = Number(stats?.video_duration ?? 0)
+                user.image_count = Number(stats?.image_count ?? 0)
+            }
+        }
+
+        // 免费积分消耗人数 (free credit consume user count)
+        const dailyFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = true
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+            AND cs.created_at >= ${dailyStart}
+            AND cs.created_at < ${now}
+        `
+        const monthlyFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = true
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+            AND cs.created_at >= ${monthlyStart}
+            AND cs.created_at < ${now}
+        `
+        const totalFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = true
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+        `
+
+        // 付费积分消耗人数 (paid credit consume user count)
+        const dailyNoFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = false
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+            AND cs.created_at >= ${dailyStart}
+            AND cs.created_at < ${now}
+        `
+        const monthlyNoFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = false
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+            AND cs.created_at >= ${monthlyStart}
+            AND cs.created_at < ${now}
+        `
+        const totalNoFreeCreditConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT cs.user) as count
+            FROM credit_statements cs
+            INNER JOIN orders o ON cs.order_id = o.order_id
+            WHERE cs.is_free_credit = false
+            AND cs.type IN (${consumeTypes})
+            AND o.widget_tag = ${widgetTag}
+        `
+
+        // 首次消耗人数 (first-time consume user count - users whose first consume falls in the period)
+        const dailyFirstTimeConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*) as count FROM (
+                SELECT cs.user
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN (${consumeTypes})
+                AND o.widget_tag = ${widgetTag}
+                GROUP BY cs.user
+                HAVING MIN(cs.created_at) >= ${dailyStart}
+                AND MIN(cs.created_at) < ${now}
+            ) sub
+        `
+        const monthlyFirstTimeConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*) as count FROM (
+                SELECT cs.user
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN (${consumeTypes})
+                AND o.widget_tag = ${widgetTag}
+                GROUP BY cs.user
+                HAVING MIN(cs.created_at) >= ${monthlyStart}
+                AND MIN(cs.created_at) < ${now}
+            ) sub
+        `
+        const totalFirstTimeConsumeUserCount = await this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*) as count FROM (
+                SELECT cs.user
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN (${consumeTypes})
+                AND o.widget_tag = ${widgetTag}
+                GROUP BY cs.user
+            ) sub
+        `
+
+        // 生成视频分钟数 (video generation duration in seconds, converted to minutes in formatter)
+        const dailyVideoDuration = await this.prisma.$queryRaw<[{ total_duration: string | null }]>`
+            SELECT COALESCE(SUM(CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2))), 0) as total_duration
+            FROM assets
+            WHERE widget_tag = ${widgetTag}
+            AND name LIKE 'task\\_%'
+            AND type = 'video'
+            AND created_at >= ${dailyStart}
+            AND created_at < ${now}
+        `
+        const monthlyVideoDuration = await this.prisma.$queryRaw<[{ total_duration: string | null }]>`
+            SELECT COALESCE(SUM(CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2))), 0) as total_duration
+            FROM assets
+            WHERE widget_tag = ${widgetTag}
+            AND name LIKE 'task\\_%'
+            AND type = 'video'
+            AND created_at >= ${monthlyStart}
+            AND created_at < ${now}
+        `
+        const totalVideoDuration = await this.prisma.$queryRaw<[{ total_duration: string | null }]>`
+            SELECT COALESCE(SUM(CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2))), 0) as total_duration
+            FROM assets
+            WHERE widget_tag = ${widgetTag}
+            AND name LIKE 'task\\_%'
+            AND type = 'video'
+        `
+
+        // 生成图片数 (image generation count)
+        const dailyImageCount = await this.prisma.assets.count({
+            where: {
+                widget_tag: widgetTag,
+                name: { startsWith: "task_" },
+                type: "image",
+                created_at: {
+                    gte: dailyStart,
+                    lt: now,
+                },
+            },
+        })
+        const monthlyImageCount = await this.prisma.assets.count({
+            where: {
+                widget_tag: widgetTag,
+                name: { startsWith: "task_" },
+                type: "image",
+                created_at: {
+                    gte: monthlyStart,
+                    lt: now,
+                },
+            },
+        })
+        const totalImageCount = await this.prisma.assets.count({
+            where: {
+                widget_tag: widgetTag,
+                name: { startsWith: "task_" },
+                type: "image",
+            },
+        })
+
         return {
             dailyFreeIssue,
             monthlyFreeIssue,
@@ -1239,11 +1521,29 @@ export class CreditService {
             totalNoFreeCreditConsume,
             freeCreditConsumeTop10Users,
             noFreeCreditConsumeTop10Users,
+            dailyFreeCreditConsumeTop10Users,
+            dailyNoFreeCreditConsumeTop10Users,
+            // New data items
+            dailyFreeCreditConsumeUserCount: Number(dailyFreeCreditConsumeUserCount[0]?.count ?? 0),
+            monthlyFreeCreditConsumeUserCount: Number(monthlyFreeCreditConsumeUserCount[0]?.count ?? 0),
+            totalFreeCreditConsumeUserCount: Number(totalFreeCreditConsumeUserCount[0]?.count ?? 0),
+            dailyNoFreeCreditConsumeUserCount: Number(dailyNoFreeCreditConsumeUserCount[0]?.count ?? 0),
+            monthlyNoFreeCreditConsumeUserCount: Number(monthlyNoFreeCreditConsumeUserCount[0]?.count ?? 0),
+            totalNoFreeCreditConsumeUserCount: Number(totalNoFreeCreditConsumeUserCount[0]?.count ?? 0),
+            dailyFirstTimeConsumeUserCount: Number(dailyFirstTimeConsumeUserCount[0]?.count ?? 0),
+            monthlyFirstTimeConsumeUserCount: Number(monthlyFirstTimeConsumeUserCount[0]?.count ?? 0),
+            totalFirstTimeConsumeUserCount: Number(totalFirstTimeConsumeUserCount[0]?.count ?? 0),
+            dailyVideoDuration: Number(dailyVideoDuration[0]?.total_duration ?? 0),
+            monthlyVideoDuration: Number(monthlyVideoDuration[0]?.total_duration ?? 0),
+            totalVideoDuration: Number(totalVideoDuration[0]?.total_duration ?? 0),
+            dailyImageCount,
+            monthlyImageCount,
+            totalImageCount,
         }
     }
 
-    //@Cron(CronExpression.EVERY_DAY_AT_5PM)
-    @Cron(CronExpression.EVERY_DAY_AT_1AM)
+    @Cron(CronExpression.EVERY_10_MINUTES)
+    //@Cron(CronExpression.EVERY_DAY_AT_1AM)
     async generateCreditStatictics() {
         this.logger.log("start generateCreditStatictics")
         if (process.env.TASK_SLOT != "1") return
@@ -1376,18 +1676,20 @@ export class CreditService {
             },
         ].filter((item) => item.daily_amount > 0 || item.monthly_amount > 0 || item.total_amount > 0)
 
-        // Format top 10 users data
-        const freeCreditTop10Users = (data.freeCreditConsumeTop10Users || []).map((user: any, index: number) => ({
-            rank: index + 1,
-            user_email: user.user_email || "unknown",
-            amount: Number(user._sum?.amount || 0),
-        }))
+        // Format top 10 users data (with video duration in minutes and image count)
+        const formatTop10Users = (users: any[]) =>
+            users.map((user: any, index: number) => ({
+                rank: index + 1,
+                user_email: user.user_email || "unknown",
+                amount: Number(user._sum?.amount || 0),
+                video_duration_minutes: Math.round((Number(user.video_duration ?? 0) / 60) * 10) / 10,
+                image_count: Number(user.image_count ?? 0),
+            }))
 
-        const noFreeCreditTop10Users = (data.noFreeCreditConsumeTop10Users || []).map((user: any, index: number) => ({
-            rank: index + 1,
-            user_email: user.user_email || "unknown",
-            amount: Number(user._sum?.amount || 0),
-        }))
+        const freeCreditTop10Users = formatTop10Users(data.freeCreditConsumeTop10Users || [])
+        const noFreeCreditTop10Users = formatTop10Users(data.noFreeCreditConsumeTop10Users || [])
+        const dailyFreeCreditTop10Users = formatTop10Users(data.dailyFreeCreditConsumeTop10Users || [])
+        const dailyNoFreeCreditTop10Users = formatTop10Users(data.dailyNoFreeCreditConsumeTop10Users || [])
 
         return {
             widgetTag,
@@ -1417,9 +1719,38 @@ export class CreditService {
             // Free issue data by type
             freeIssueData,
 
-            // Top 10 users
+            // Top 10 users (all-time)
             freeCreditTop10Users: freeCreditTop10Users.length > 0 ? freeCreditTop10Users : null,
             noFreeCreditTop10Users: noFreeCreditTop10Users.length > 0 ? noFreeCreditTop10Users : null,
+
+            // Top 10 users (daily)
+            dailyFreeCreditTop10Users: dailyFreeCreditTop10Users.length > 0 ? dailyFreeCreditTop10Users : null,
+            dailyNoFreeCreditTop10Users: dailyNoFreeCreditTop10Users.length > 0 ? dailyNoFreeCreditTop10Users : null,
+
+            // 免费积分消耗人数
+            dailyFreeCreditConsumeUserCount: data.dailyFreeCreditConsumeUserCount,
+            monthlyFreeCreditConsumeUserCount: data.monthlyFreeCreditConsumeUserCount,
+            totalFreeCreditConsumeUserCount: data.totalFreeCreditConsumeUserCount,
+
+            // 付费积分消耗人数
+            dailyNoFreeCreditConsumeUserCount: data.dailyNoFreeCreditConsumeUserCount,
+            monthlyNoFreeCreditConsumeUserCount: data.monthlyNoFreeCreditConsumeUserCount,
+            totalNoFreeCreditConsumeUserCount: data.totalNoFreeCreditConsumeUserCount,
+
+            // 首次消耗人数
+            dailyFirstTimeConsumeUserCount: data.dailyFirstTimeConsumeUserCount,
+            monthlyFirstTimeConsumeUserCount: data.monthlyFirstTimeConsumeUserCount,
+            totalFirstTimeConsumeUserCount: data.totalFirstTimeConsumeUserCount,
+
+            // 生成视频分钟数 (convert seconds to minutes, round to 1 decimal)
+            dailyVideoDurationMinutes: Math.round((data.dailyVideoDuration / 60) * 10) / 10,
+            monthlyVideoDurationMinutes: Math.round((data.monthlyVideoDuration / 60) * 10) / 10,
+            totalVideoDurationMinutes: Math.round((data.totalVideoDuration / 60) * 10) / 10,
+
+            // 生成图片数
+            dailyImageCount: data.dailyImageCount,
+            monthlyImageCount: data.monthlyImageCount,
+            totalImageCount: data.totalImageCount,
         }
     }
 

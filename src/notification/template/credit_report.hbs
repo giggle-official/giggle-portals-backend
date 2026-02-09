@@ -4,22 +4,37 @@
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <title>积分统计报告</title>
     </head>
-    <body style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 20px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 700px; margin: 0 auto; background-color: #fff; border: 1px solid #ddd;">
+    <body
+        style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 20px;"
+    >
+        <table
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width: 700px; margin: 0 auto; background-color: #fff; border: 1px solid #ddd;"
+        >
             <tr>
                 <td style="padding: 30px;">
                     <!-- Header -->
                     <h1 style="margin: 0 0 5px 0; font-size: 22px; color: #333;">积分统计报告</h1>
                     <p style="margin: 0 0 25px 0; color: #666; font-size: 13px;">
-                        <strong>应用:</strong> {{widgetTag}} &nbsp;|&nbsp; 
-                        <strong>日期:</strong> {{reportDate}}
+                        <strong>应用:</strong>
+                        {{widgetTag}}
+                        &nbsp;|&nbsp;
+                        <strong>日期:</strong>
+                        {{reportDate}}
                     </p>
 
                     <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
 
                     <!-- Top-Up Summary -->
                     <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">充值统计</h2>
-                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                    <table
+                        width="100%"
+                        cellpadding="8"
+                        cellspacing="0"
+                        style="border-collapse: collapse; margin-bottom: 25px;"
+                    >
                         <tr style="background-color: #f9f9f9;">
                             <td style="border: 1px solid #ddd; font-weight: bold;">今日</td>
                             <td style="border: 1px solid #ddd; font-weight: bold;">本月</td>
@@ -34,7 +49,12 @@
 
                     <!-- Credit Consumption -->
                     <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">积分消耗</h2>
-                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
+                    <table
+                        width="100%"
+                        cellpadding="8"
+                        cellspacing="0"
+                        style="border-collapse: collapse; margin-bottom: 25px;"
+                    >
                         <tr style="background-color: #f9f9f9;">
                             <td style="border: 1px solid #ddd; font-weight: bold;">类型</td>
                             <td style="border: 1px solid #ddd; font-weight: bold;">今日</td>
@@ -53,65 +73,174 @@
                             <td style="border: 1px solid #ddd;">{{monthlyNoFreeCreditConsume}}</td>
                             <td style="border: 1px solid #ddd;">{{totalNoFreeCreditConsume}}</td>
                         </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">免费积分消耗人数</td>
+                            <td style="border: 1px solid #ddd;">{{dailyFreeCreditConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyFreeCreditConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalFreeCreditConsumeUserCount}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">付费积分消耗人数</td>
+                            <td style="border: 1px solid #ddd;">{{dailyNoFreeCreditConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyNoFreeCreditConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalNoFreeCreditConsumeUserCount}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">首次消耗人数</td>
+                            <td style="border: 1px solid #ddd;">{{dailyFirstTimeConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyFirstTimeConsumeUserCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalFirstTimeConsumeUserCount}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">生成视频(分钟)</td>
+                            <td style="border: 1px solid #ddd;">{{dailyVideoDurationMinutes}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyVideoDurationMinutes}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalVideoDurationMinutes}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd;">生成图片(张)</td>
+                            <td style="border: 1px solid #ddd;">{{dailyImageCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{monthlyImageCount}}</td>
+                            <td style="border: 1px solid #ddd;">{{totalImageCount}}</td>
+                        </tr>
                     </table>
 
                     <!-- Free Credit Issues -->
                     {{#if freeIssueData}}
-                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">免费积分发放</h2>
-                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
-                        <tr style="background-color: #f9f9f9;">
-                            <td style="border: 1px solid #ddd; font-weight: bold;">发放类型</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">今日</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">本月</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">累计</td>
-                        </tr>
-                        {{#each freeIssueData}}
-                        <tr>
-                            <td style="border: 1px solid #ddd;">{{issue_type}}</td>
-                            <td style="border: 1px solid #ddd;">{{daily_amount}}</td>
-                            <td style="border: 1px solid #ddd;">{{monthly_amount}}</td>
-                            <td style="border: 1px solid #ddd;">{{total_amount}}</td>
-                        </tr>
-                        {{/each}}
-                    </table>
+                        <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">免费积分发放</h2>
+                        <table
+                            width="100%"
+                            cellpadding="8"
+                            cellspacing="0"
+                            style="border-collapse: collapse; margin-bottom: 25px;"
+                        >
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="border: 1px solid #ddd; font-weight: bold;">发放类型</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">今日</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">本月</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">累计</td>
+                            </tr>
+                            {{#each freeIssueData}}
+                                <tr>
+                                    <td style="border: 1px solid #ddd;">{{issue_type}}</td>
+                                    <td style="border: 1px solid #ddd;">{{daily_amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{monthly_amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{total_amount}}</td>
+                                </tr>
+                            {{/each}}
+                        </table>
                     {{/if}}
 
-                    <!-- Top 10 Free Credit Consumers -->
+                    <!-- Daily Top 10 Free Credit Consumers -->
+                    {{#if dailyFreeCreditTop10Users}}
+                        <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">免费积分消耗 Top 10（今日）</h2>
+                        <table
+                            width="100%"
+                            cellpadding="8"
+                            cellspacing="0"
+                            style="border-collapse: collapse; margin-bottom: 25px;"
+                        >
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">视频时长(分钟)</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">图片数量</td>
+                            </tr>
+                            {{#each dailyFreeCreditTop10Users}}
+                                <tr>
+                                    <td style="border: 1px solid #ddd;">{{rank}}</td>
+                                    <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                                    <td style="border: 1px solid #ddd;">{{amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{video_duration_minutes}}</td>
+                                    <td style="border: 1px solid #ddd;">{{image_count}}</td>
+                                </tr>
+                            {{/each}}
+                        </table>
+                    {{/if}}
+
+                    <!-- Daily Top 10 Paid Credit Consumers -->
+                    {{#if dailyNoFreeCreditTop10Users}}
+                        <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">付费积分消耗 Top 10（今日）</h2>
+                        <table
+                            width="100%"
+                            cellpadding="8"
+                            cellspacing="0"
+                            style="border-collapse: collapse; margin-bottom: 25px;"
+                        >
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">视频时长(分钟)</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">图片数量</td>
+                            </tr>
+                            {{#each dailyNoFreeCreditTop10Users}}
+                                <tr>
+                                    <td style="border: 1px solid #ddd;">{{rank}}</td>
+                                    <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                                    <td style="border: 1px solid #ddd;">{{amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{video_duration_minutes}}</td>
+                                    <td style="border: 1px solid #ddd;">{{image_count}}</td>
+                                </tr>
+                            {{/each}}
+                        </table>
+                    {{/if}}
+
+                    <!-- Top 10 Free Credit Consumers (All-time) -->
                     {{#if freeCreditTop10Users}}
-                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">免费积分消耗 Top 10</h2>
-                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
-                        <tr style="background-color: #f9f9f9;">
-                            <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
-                        </tr>
-                        {{#each freeCreditTop10Users}}
-                        <tr>
-                            <td style="border: 1px solid #ddd;">{{rank}}</td>
-                            <td style="border: 1px solid #ddd;">{{user_email}}</td>
-                            <td style="border: 1px solid #ddd;">{{amount}}</td>
-                        </tr>
-                        {{/each}}
-                    </table>
+                        <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">免费积分消耗 Top 10（累计）</h2>
+                        <table
+                            width="100%"
+                            cellpadding="8"
+                            cellspacing="0"
+                            style="border-collapse: collapse; margin-bottom: 25px;"
+                        >
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">视频时长(分钟)</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">图片数量</td>
+                            </tr>
+                            {{#each freeCreditTop10Users}}
+                                <tr>
+                                    <td style="border: 1px solid #ddd;">{{rank}}</td>
+                                    <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                                    <td style="border: 1px solid #ddd;">{{amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{video_duration_minutes}}</td>
+                                    <td style="border: 1px solid #ddd;">{{image_count}}</td>
+                                </tr>
+                            {{/each}}
+                        </table>
                     {{/if}}
 
-                    <!-- Top 10 Paid Credit Consumers -->
+                    <!-- Top 10 Paid Credit Consumers (All-time) -->
                     {{#if noFreeCreditTop10Users}}
-                    <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">付费积分消耗 Top 10</h2>
-                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; margin-bottom: 25px;">
-                        <tr style="background-color: #f9f9f9;">
-                            <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
-                            <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
-                        </tr>
-                        {{#each noFreeCreditTop10Users}}
-                        <tr>
-                            <td style="border: 1px solid #ddd;">{{rank}}</td>
-                            <td style="border: 1px solid #ddd;">{{user_email}}</td>
-                            <td style="border: 1px solid #ddd;">{{amount}}</td>
-                        </tr>
-                        {{/each}}
-                    </table>
+                        <h2 style="font-size: 16px; margin: 0 0 15px 0; color: #333;">付费积分消耗 Top 10（累计）</h2>
+                        <table
+                            width="100%"
+                            cellpadding="8"
+                            cellspacing="0"
+                            style="border-collapse: collapse; margin-bottom: 25px;"
+                        >
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="border: 1px solid #ddd; font-weight: bold; width: 50px;">排名</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">用户</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">消耗量</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">视频时长(分钟)</td>
+                                <td style="border: 1px solid #ddd; font-weight: bold;">图片数量</td>
+                            </tr>
+                            {{#each noFreeCreditTop10Users}}
+                                <tr>
+                                    <td style="border: 1px solid #ddd;">{{rank}}</td>
+                                    <td style="border: 1px solid #ddd;">{{user_email}}</td>
+                                    <td style="border: 1px solid #ddd;">{{amount}}</td>
+                                    <td style="border: 1px solid #ddd;">{{video_duration_minutes}}</td>
+                                    <td style="border: 1px solid #ddd;">{{image_count}}</td>
+                                </tr>
+                            {{/each}}
+                        </table>
                     {{/if}}
 
                     <!-- Footer -->
