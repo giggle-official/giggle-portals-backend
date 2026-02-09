@@ -1729,13 +1729,14 @@ export class CreditService {
         ].filter((item) => item.daily_amount > 0 || item.monthly_amount > 0 || item.total_amount > 0)
 
         // Format top 10 users data (with consumption breakdown, video duration, image count)
+        // Consume amounts are stored as negative, multiply by -1 to display as positive
         const formatTop10Users = (users: any[]) =>
             users.map((user: any, index: number) => ({
                 rank: index + 1,
                 user_email: user.user_email || "unknown",
-                total_amount: Number(user.total_amount ?? 0),
-                free_amount: Number(user.free_amount ?? 0),
-                paid_amount: Number(user.paid_amount ?? 0),
+                total_amount: Number(user.total_amount ?? 0) * -1,
+                free_amount: Number(user.free_amount ?? 0) * -1,
+                paid_amount: Number(user.paid_amount ?? 0) * -1,
                 video_duration_minutes: Math.round((Number(user.video_duration ?? 0) / 60) * 10) / 10,
                 image_count: Number(user.image_count ?? 0),
             }))
@@ -1761,14 +1762,14 @@ export class CreditService {
             totalTopUp: Number(data.totalTopUp?._sum?.amount || 0),
 
             // Free credit consumption (negative = consumed, positive = refunded more than consumed)
-            dailyFreeCreditConsume: Number(data.dailyFreeCreditConsume?._sum?.amount || 0),
-            monthlyFreeCreditConsume: Number(data.monthlyFreeCreditConsume?._sum?.amount || 0),
-            totalFreeCreditConsume: Number(data.totalFreeCreditConsume?._sum?.amount || 0),
+            dailyFreeCreditConsume: Number(data.dailyFreeCreditConsume?._sum?.amount || 0) * -1,
+            monthlyFreeCreditConsume: Number(data.monthlyFreeCreditConsume?._sum?.amount || 0) * -1,
+            totalFreeCreditConsume: Number(data.totalFreeCreditConsume?._sum?.amount || 0) * -1,
 
             // Paid credit consumption (negative = consumed, positive = refunded more than consumed)
-            dailyNoFreeCreditConsume: Number(data.dailyNoFreeCreditConsume?._sum?.amount || 0),
-            monthlyNoFreeCreditConsume: Number(data.monthlyNoFreeCreditConsume?._sum?.amount || 0),
-            totalNoFreeCreditConsume: Number(data.totalNoFreeCreditConsume?._sum?.amount || 0),
+            dailyNoFreeCreditConsume: Number(data.dailyNoFreeCreditConsume?._sum?.amount || 0) * -1,
+            monthlyNoFreeCreditConsume: Number(data.monthlyNoFreeCreditConsume?._sum?.amount || 0) * -1,
+            totalNoFreeCreditConsume: Number(data.totalNoFreeCreditConsume?._sum?.amount || 0) * -1,
 
             // Free issue data by type
             freeIssueData,
