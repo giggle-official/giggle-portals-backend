@@ -75,6 +75,7 @@ export class PayTopUpOrderDto extends TopUpDto {
 
     @ApiProperty({
         description: "The metadata of the top up order",
+        required: false,
     })
     @IsObject()
     @IsOptional()
