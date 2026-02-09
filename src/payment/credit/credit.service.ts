@@ -1224,43 +1224,69 @@ export class CreditService {
             noFreeCreditConsumeTop10Users[i].user_email = userEmail.email || "unknown"
         }
 
-        // Append all-time asset stats (video duration, image count) for free credit top 10 users
+        // Append all-time asset stats + consumption breakdown for free credit top 10 users
         if (freeCreditConsumeTop10Users.length > 0) {
-            const freeTop10UserAssetStats: any[] = await this.prisma.$queryRaw`
+            const freeTop10UserIds = Prisma.join(freeCreditConsumeTop10Users.map((u) => u.user))
+            const freeTop10AssetStats: any[] = await this.prisma.$queryRaw`
                 SELECT user,
                     COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
                     COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
                 FROM assets
-                WHERE widget_tag = ${widgetTag}
-                AND name LIKE 'task\\_%'
-                AND type IN ('video', 'image')
-                AND user IN (${Prisma.join(freeCreditConsumeTop10Users.map((u) => u.user))})
+                WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
+                AND user IN (${freeTop10UserIds})
                 GROUP BY user
             `
+            const freeTop10ConsumeBreakdown: any[] = await this.prisma.$queryRaw`
+                SELECT cs.user,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = true THEN cs.amount ELSE 0 END), 0) as free_amount,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = false THEN cs.amount ELSE 0 END), 0) as paid_amount
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN ('consume', 'refund') AND o.widget_tag = ${widgetTag}
+                AND cs.user IN (${freeTop10UserIds})
+                GROUP BY cs.user
+            `
             for (const user of freeCreditConsumeTop10Users) {
-                const stats = freeTop10UserAssetStats.find((s) => s.user === user.user)
+                const stats = freeTop10AssetStats.find((s) => s.user === user.user)
                 user.video_duration = Number(stats?.video_duration ?? 0)
                 user.image_count = Number(stats?.image_count ?? 0)
+                const bd = freeTop10ConsumeBreakdown.find((b) => b.user === user.user)
+                user.free_amount = Number(bd?.free_amount ?? 0)
+                user.paid_amount = Number(bd?.paid_amount ?? 0)
+                user.total_amount = user.free_amount + user.paid_amount
             }
         }
 
-        // Append all-time asset stats for paid credit top 10 users
+        // Append all-time asset stats + consumption breakdown for paid credit top 10 users
         if (noFreeCreditConsumeTop10Users.length > 0) {
-            const paidTop10UserAssetStats: any[] = await this.prisma.$queryRaw`
+            const paidTop10UserIds = Prisma.join(noFreeCreditConsumeTop10Users.map((u) => u.user))
+            const paidTop10AssetStats: any[] = await this.prisma.$queryRaw`
                 SELECT user,
                     COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
                     COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
                 FROM assets
-                WHERE widget_tag = ${widgetTag}
-                AND name LIKE 'task\\_%'
-                AND type IN ('video', 'image')
-                AND user IN (${Prisma.join(noFreeCreditConsumeTop10Users.map((u) => u.user))})
+                WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
+                AND user IN (${paidTop10UserIds})
                 GROUP BY user
             `
+            const paidTop10ConsumeBreakdown: any[] = await this.prisma.$queryRaw`
+                SELECT cs.user,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = true THEN cs.amount ELSE 0 END), 0) as free_amount,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = false THEN cs.amount ELSE 0 END), 0) as paid_amount
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN ('consume', 'refund') AND o.widget_tag = ${widgetTag}
+                AND cs.user IN (${paidTop10UserIds})
+                GROUP BY cs.user
+            `
             for (const user of noFreeCreditConsumeTop10Users) {
-                const stats = paidTop10UserAssetStats.find((s) => s.user === user.user)
+                const stats = paidTop10AssetStats.find((s) => s.user === user.user)
                 user.video_duration = Number(stats?.video_duration ?? 0)
                 user.image_count = Number(stats?.image_count ?? 0)
+                const bd = paidTop10ConsumeBreakdown.find((b) => b.user === user.user)
+                user.free_amount = Number(bd?.free_amount ?? 0)
+                user.paid_amount = Number(bd?.paid_amount ?? 0)
+                user.total_amount = user.free_amount + user.paid_amount
             }
         }
 
@@ -1286,6 +1312,7 @@ export class CreditService {
             take: 10,
         })
         if (dailyFreeCreditConsumeTop10Users.length > 0) {
+            const dailyFreeTop10UserIds = Prisma.join(dailyFreeCreditConsumeTop10Users.map((u) => u.user))
             const dailyFreeTop10Emails = await this.prisma.users.findMany({
                 where: { username_in_be: { in: dailyFreeCreditConsumeTop10Users.map((u) => u.user) } },
                 select: { username_in_be: true, email: true },
@@ -1295,13 +1322,21 @@ export class CreditService {
                     COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
                     COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
                 FROM assets
-                WHERE widget_tag = ${widgetTag}
-                AND name LIKE 'task\\_%'
-                AND type IN ('video', 'image')
-                AND user IN (${Prisma.join(dailyFreeCreditConsumeTop10Users.map((u) => u.user))})
-                AND created_at >= ${dailyStart}
-                AND created_at < ${now}
+                WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
+                AND user IN (${dailyFreeTop10UserIds})
+                AND created_at >= ${dailyStart} AND created_at < ${now}
                 GROUP BY user
+            `
+            const dailyFreeTop10ConsumeBreakdown: any[] = await this.prisma.$queryRaw`
+                SELECT cs.user,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = true THEN cs.amount ELSE 0 END), 0) as free_amount,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = false THEN cs.amount ELSE 0 END), 0) as paid_amount
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN ('consume', 'refund') AND o.widget_tag = ${widgetTag}
+                AND cs.user IN (${dailyFreeTop10UserIds})
+                AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now}
+                GROUP BY cs.user
             `
             for (const user of dailyFreeCreditConsumeTop10Users) {
                 const emailInfo = dailyFreeTop10Emails.find((e) => e.username_in_be === user.user)
@@ -1309,6 +1344,10 @@ export class CreditService {
                 const stats = dailyFreeTop10AssetStats.find((s) => s.user === user.user)
                 user.video_duration = Number(stats?.video_duration ?? 0)
                 user.image_count = Number(stats?.image_count ?? 0)
+                const bd = dailyFreeTop10ConsumeBreakdown.find((b) => b.user === user.user)
+                user.free_amount = Number(bd?.free_amount ?? 0)
+                user.paid_amount = Number(bd?.paid_amount ?? 0)
+                user.total_amount = user.free_amount + user.paid_amount
             }
         }
 
@@ -1326,6 +1365,7 @@ export class CreditService {
             take: 10,
         })
         if (dailyNoFreeCreditConsumeTop10Users.length > 0) {
+            const dailyPaidTop10UserIds = Prisma.join(dailyNoFreeCreditConsumeTop10Users.map((u) => u.user))
             const dailyPaidTop10Emails = await this.prisma.users.findMany({
                 where: { username_in_be: { in: dailyNoFreeCreditConsumeTop10Users.map((u) => u.user) } },
                 select: { username_in_be: true, email: true },
@@ -1335,13 +1375,21 @@ export class CreditService {
                     COALESCE(SUM(CASE WHEN type = 'video' THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) ELSE 0 END), 0) as video_duration,
                     COALESCE(SUM(CASE WHEN type = 'image' THEN 1 ELSE 0 END), 0) as image_count
                 FROM assets
-                WHERE widget_tag = ${widgetTag}
-                AND name LIKE 'task\\_%'
-                AND type IN ('video', 'image')
-                AND user IN (${Prisma.join(dailyNoFreeCreditConsumeTop10Users.map((u) => u.user))})
-                AND created_at >= ${dailyStart}
-                AND created_at < ${now}
+                WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
+                AND user IN (${dailyPaidTop10UserIds})
+                AND created_at >= ${dailyStart} AND created_at < ${now}
                 GROUP BY user
+            `
+            const dailyPaidTop10ConsumeBreakdown: any[] = await this.prisma.$queryRaw`
+                SELECT cs.user,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = true THEN cs.amount ELSE 0 END), 0) as free_amount,
+                    COALESCE(SUM(CASE WHEN cs.is_free_credit = false THEN cs.amount ELSE 0 END), 0) as paid_amount
+                FROM credit_statements cs
+                INNER JOIN orders o ON cs.order_id = o.order_id
+                WHERE cs.type IN ('consume', 'refund') AND o.widget_tag = ${widgetTag}
+                AND cs.user IN (${dailyPaidTop10UserIds})
+                AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now}
+                GROUP BY cs.user
             `
             for (const user of dailyNoFreeCreditConsumeTop10Users) {
                 const emailInfo = dailyPaidTop10Emails.find((e) => e.username_in_be === user.user)
@@ -1349,6 +1397,10 @@ export class CreditService {
                 const stats = dailyPaidTop10AssetStats.find((s) => s.user === user.user)
                 user.video_duration = Number(stats?.video_duration ?? 0)
                 user.image_count = Number(stats?.image_count ?? 0)
+                const bd = dailyPaidTop10ConsumeBreakdown.find((b) => b.user === user.user)
+                user.free_amount = Number(bd?.free_amount ?? 0)
+                user.paid_amount = Number(bd?.paid_amount ?? 0)
+                user.total_amount = user.free_amount + user.paid_amount
             }
         }
 
@@ -1676,12 +1728,14 @@ export class CreditService {
             },
         ].filter((item) => item.daily_amount > 0 || item.monthly_amount > 0 || item.total_amount > 0)
 
-        // Format top 10 users data (with video duration in minutes and image count)
+        // Format top 10 users data (with consumption breakdown, video duration, image count)
         const formatTop10Users = (users: any[]) =>
             users.map((user: any, index: number) => ({
                 rank: index + 1,
                 user_email: user.user_email || "unknown",
-                amount: Number(user._sum?.amount || 0),
+                total_amount: Number(user.total_amount ?? 0),
+                free_amount: Number(user.free_amount ?? 0),
+                paid_amount: Number(user.paid_amount ?? 0),
                 video_duration_minutes: Math.round((Number(user.video_duration ?? 0) / 60) * 10) / 10,
                 image_count: Number(user.image_count ?? 0),
             }))
