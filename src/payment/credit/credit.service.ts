@@ -938,6 +938,7 @@ export class CreditService {
                 release_rewards_after_paid: false,
                 user_jwt: body.user_jwt,
                 allowed_payment_methods: [PaymentMethod.CUSTOMIZED],
+                metadata: body.metadata || {},
             },
             developer,
             {

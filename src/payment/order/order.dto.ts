@@ -7,6 +7,7 @@ import {
     IsEnum,
     IsInt,
     IsNotEmpty,
+    IsObject,
     IsOptional,
     IsString,
     IsUUID,
@@ -77,6 +78,13 @@ export class OrderDto implements orders {
         required: false,
     })
     description: string
+
+    @ApiProperty({
+        description: "The metadata of the order",
+        required: false,
+    })
+    metadata: JsonValue
+
     @ApiProperty({
         description: "The amount of the order",
     })
@@ -656,6 +664,14 @@ The order revenue will be distributed to the user 123 and 456, all of them will 
     @ValidateNested({ each: true })
     @Type(() => IpHolderRevenueReallocationDto)
     ip_holder_revenue_reallocation?: IpHolderRevenueReallocationDto[]
+
+    @ApiProperty({
+        description: "The metadata of the order",
+        required: false,
+    })
+    @IsOptional()
+    @IsObject()
+    metadata?: Record<string, any>
 }
 
 export class UpdateRewardsDto extends PickType(CreateOrderDto, ["order_id", "reward_token", "rewards_model", "costs_allocation", "ip_holder_revenue_reallocation"]) {

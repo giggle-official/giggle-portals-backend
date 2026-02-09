@@ -72,6 +72,13 @@ export class PayTopUpOrderDto extends TopUpDto {
     @IsEnum(PaymentMethod)
     @IsOptional()
     payment_method?: PaymentMethod
+
+    @ApiProperty({
+        description: "The metadata of the top up order",
+    })
+    @IsObject()
+    @IsOptional()
+    metadata?: Record<string, any>
 }
 
 export class GetStatementQueryDto extends PaginationDto {
