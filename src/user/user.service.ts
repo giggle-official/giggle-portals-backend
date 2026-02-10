@@ -68,7 +68,7 @@ export class UserService {
 
         @Inject(forwardRef(() => SettleService))
         private readonly settleService: SettleService,
-    ) {}
+    ) { }
 
     async getUserInfoByEmail(email: string, app_id?: string): Promise<UserInfoDTO> {
         const record = await this.prisma.users.findFirst({
@@ -148,6 +148,13 @@ export class UserService {
             throw new UnauthorizedException("user not exists")
         }
 
+        //check if the email domain is disabled
+        const emailDomain = _userInfoFromDb.email?.split("@")[1]
+        const disabledDomain = process.env.DISABLED_EMAIL_DOMAINS?.split(",") || []
+        if (emailDomain && disabledDomain.includes(emailDomain)) {
+            throw new UnauthorizedException("account has been disabled")
+        }
+
         const salsAgent = await this.prisma.sales_agent.findFirst({
             where: {
                 user: userInfo.usernameShorted,
@@ -200,12 +207,12 @@ export class UserService {
                 user_subscribed: widgetSession.user_subscribed_widget,
                 subscription_info: subscriptionInfo
                     ? {
-                          product_name: subscriptionInfo.product_name,
-                          period_start: subscriptionInfo.period_start,
-                          period_end: subscriptionInfo.period_end,
-                          cancel_at_period_end: subscriptionInfo.cancel_at_period_end,
-                          subscription_metadata: subscriptionInfo.subscription_metadata as Record<string, any>,
-                      }
+                        product_name: subscriptionInfo.product_name,
+                        period_start: subscriptionInfo.period_start,
+                        period_end: subscriptionInfo.period_end,
+                        cancel_at_period_end: subscriptionInfo.cancel_at_period_end,
+                        subscription_metadata: subscriptionInfo.subscription_metadata as Record<string, any>,
+                    }
                     : null,
             }
             //result.permissions = widgetSession.permission as any
@@ -240,12 +247,12 @@ export class UserService {
                     user_subscribed: !!userSubscribed,
                     subscription_info: subscriptionInfo
                         ? {
-                              product_name: subscriptionInfo?.product_name,
-                              period_start: subscriptionInfo?.period_start,
-                              period_end: subscriptionInfo?.period_end,
-                              cancel_at_period_end: subscriptionInfo?.cancel_at_period_end,
-                              subscription_metadata: subscriptionInfo?.subscription_metadata as Record<string, any>,
-                          }
+                            product_name: subscriptionInfo?.product_name,
+                            period_start: subscriptionInfo?.period_start,
+                            period_end: subscriptionInfo?.period_end,
+                            cancel_at_period_end: subscriptionInfo?.cancel_at_period_end,
+                            subscription_metadata: subscriptionInfo?.subscription_metadata as Record<string, any>,
+                        }
                         : null,
                 }
             }
@@ -1040,6 +1047,12 @@ Message: ${contactInfo.message}
     async sendLoginCode(userInfo: LoginCodeReqDto, appId?: string, deviceId?: string) {
         if (!userInfo.email || !isEmail(userInfo.email)) {
             throw new BadRequestException("email is invalid")
+        }
+
+        const emailDomain = userInfo.email.split("@")[1]
+        const disabledDomain = process.env.DISABLED_EMAIL_DOMAINS?.split(",") || []
+        if (disabledDomain.includes(emailDomain)) {
+            throw new BadRequestException("This email domain is unavailable")
         }
 
         let user = await this.getUserInfoByEmail(userInfo.email)

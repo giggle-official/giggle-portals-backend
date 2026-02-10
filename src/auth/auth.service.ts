@@ -74,6 +74,13 @@ export class AuthService {
             throw new UnauthorizedException("User not exists")
         }
 
+        //check if the email domain is disabled
+        const emailDomain = user.email?.split("@")[1]
+        const disabledDomain = process.env.DISABLED_EMAIL_DOMAINS?.split(",") || []
+        if (emailDomain && disabledDomain.includes(emailDomain)) {
+            throw new UnauthorizedException("your account is not available")
+        }
+
         const access_token = this.jwtService.sign(userInfo)
         return { access_token: access_token }
     }

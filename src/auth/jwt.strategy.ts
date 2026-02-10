@@ -81,6 +81,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
                 return null
             }
 
+            const emailDomain = userInfo.email?.split("@")[1]
+            const disabledDomain = process.env.DISABLED_EMAIL_DOMAINS?.split(",") || []
+            if (emailDomain && disabledDomain.includes(emailDomain)) {
+                return null
+            }
+
             return {
                 user_id: userInfo.username_in_be,
                 username: userInfo.username,
