@@ -198,6 +198,9 @@ export class UserInfoDTO extends LoginDTO {
     free_credit_balance?: number
 
     @ApiProperty()
+    recharged_credits?: number
+
+    @ApiProperty()
     widget_info?: {
         user_subscribed: boolean
         widget_tag: string
@@ -211,7 +214,7 @@ export class UserInfoDTO extends LoginDTO {
     register_info?: RegisterInfoDTO
 }
 
-export class EmailLoginDto extends PickType(UserInfoDTO, ["email", "password"]) {}
+export class EmailLoginDto extends PickType(UserInfoDTO, ["email", "password"]) { }
 export class EmailUserCreateDto extends EmailLoginDto {
     @ApiProperty()
     @IsString()
@@ -381,17 +384,17 @@ export class CreateRepositoryInfoDto extends PickType(RepositoryInfoDto, ["name"
     password: string
 }
 
-export class UpdateRepositoryInfoDto extends IntersectionType(CreateRepositoryInfoDto, RepositoryInfoDto) {}
-export class DeleteRepositoryInfoDto extends PickType(RepositoryInfoDto, ["id"]) {}
-export class ResetPasswordDto extends PickType(UserInfoDTO, ["email"]) {}
+export class UpdateRepositoryInfoDto extends IntersectionType(CreateRepositoryInfoDto, RepositoryInfoDto) { }
+export class DeleteRepositoryInfoDto extends PickType(RepositoryInfoDto, ["id"]) { }
+export class ResetPasswordDto extends PickType(UserInfoDTO, ["email"]) { }
 export class UpdateProfileReqDto extends PickType(CreateRepositoryInfoDto, ["username"]) {
     @ApiProperty()
     @IsOptional()
     @IsString()
     description?: string
 }
-export class BindEmailReqDto extends ResetPasswordDto {}
-export class CheckResetPasswordTokenDto extends EmailConfirmationDto {}
+export class BindEmailReqDto extends ResetPasswordDto { }
+export class CheckResetPasswordTokenDto extends EmailConfirmationDto { }
 export class SubmitResetPasswordDto extends EmailConfirmationDto {
     @ApiProperty()
     @IsString()
@@ -408,7 +411,7 @@ export class UserController {
     constructor(
         private readonly userService: UserService,
         private readonly apiKeysService: ApiKeysService,
-    ) {}
+    ) { }
     @Get("/profile")
     @ApiTags("Profile")
     @UseGuards(AuthGuard("jwt"))

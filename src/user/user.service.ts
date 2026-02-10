@@ -184,6 +184,7 @@ export class UserService {
             free_credit_balance: balanceInfo.free_credit_balance,
             wallet_address: _userInfoFromDb.wallet_address,
             is_sale_agent: !!salsAgent,
+            recharged_credits: await this.creditService.getUserRechargedCredits(userInfo.usernameShorted),
             invite_code: (await this.getInviteCode(userInfo)).code,
         }
 

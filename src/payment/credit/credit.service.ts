@@ -72,6 +72,24 @@ export class CreditService {
         }
     }
 
+    async getUserRechargedCredits(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
+        const prisma = tx || this.prisma
+
+        const user = await prisma.credit_statements.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                user: userId,
+                type: {
+                    in: [credit_statement_type.top_up, credit_statement_type.issue_subscription_credit],
+                },
+            },
+        })
+
+        return user._sum?.amount || 0
+    }
+
     async topUp(body: TopUpDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
         const user = await this.userService.getProfile(userInfo)
         if (!user) {
