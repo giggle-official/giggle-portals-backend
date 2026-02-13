@@ -55,8 +55,6 @@ import {
     InvitedUsersQueryDto,
     InvitedUsersDto,
 } from "./user.dto"
-import { ApiKeysService } from "./api-keys/api-keys.service"
-import { DisableApiKeyDTO } from "./api-keys/api-keys.dto"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
 import { SubscriptionDetailDto } from "src/payment/credit/credit.dto"
 
@@ -408,10 +406,7 @@ export class SubmitResetPasswordDto extends EmailConfirmationDto {
 
 @Controller({ path: "api/v1/user" })
 export class UserController {
-    constructor(
-        private readonly userService: UserService,
-        private readonly apiKeysService: ApiKeysService,
-    ) { }
+    constructor(private readonly userService: UserService) {}
     @Get("/profile")
     @ApiTags("Profile")
     @UseGuards(AuthGuard("jwt"))
@@ -620,31 +615,6 @@ export class UserController {
     @ApiExcludeEndpoint()
     async requestContact(@Body() contactInfo: ContactDTO) {
         return this.userService.requestContactUs(contactInfo)
-    }
-
-    //api-keys
-    @Get("api-keys")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @ApiExcludeEndpoint()
-    async getApiKeys(@Req() req: Request) {
-        return this.apiKeysService.list(req.user as UserJwtExtractDto)
-    }
-
-    @Post("api-keys/disable")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @ApiExcludeEndpoint()
-    async disableApiKey(@Req() req: Request, @Body() apiKey: DisableApiKeyDTO) {
-        return await this.apiKeysService.disable(req.user as UserJwtExtractDto, apiKey.id)
-    }
-
-    @Post("api-keys/generate")
-    @HttpCode(HttpStatus.OK)
-    @UseGuards(AuthGuard("jwt"))
-    @ApiExcludeEndpoint()
-    async generateApiKey(@Req() req: Request) {
-        return await this.apiKeysService.generate(req.user as UserJwtExtractDto)
     }
 
     @ApiOperation({

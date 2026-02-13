@@ -5,7 +5,7 @@ import { UtilitiesService } from "src/common/utilities.service"
 
 @Injectable()
 export class ApiKeysService {
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(private readonly prismaService: PrismaService) { }
     async list(user: UserJwtExtractDto) {
         const records = await this.prismaService.user_api_keys.findMany({
             where: { user: user.usernameShorted, discarded: false },
@@ -33,8 +33,12 @@ export class ApiKeysService {
         if (userInfo.user_api_keys.length >= 10) {
             throw new BadRequestException("User has reached the maximum number of API keys")
         }
+
+        if (!user.app_id) {
+            throw new BadRequestException("App id is required when generating API key")
+        }
         await this.prismaService.user_api_keys.create({
-            data: { user: userInfo.username_in_be, api_key: UtilitiesService.generateRandomApiKey() },
+            data: { user: userInfo.username_in_be, app_id: user.app_id, api_key: UtilitiesService.generateRandomApiKey() },
         })
         return this.list(user)
     }

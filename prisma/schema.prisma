@@ -484,7 +484,8 @@ model asset_related_ips {
 model user_api_keys {
   id         Int       @id @default(autoincrement())
   user       String    @db.VarChar(32)
-  api_key    String    @db.VarChar(255)
+  api_key    String    @unique(map: "api_key") @db.VarChar(255)
+  app_id     String?   @db.VarChar(32)
   discarded  Boolean   @default(false)
   created_at DateTime? @default(now()) @db.Timestamp(0)
   updated_at DateTime? @default(now()) @db.Timestamp(0)

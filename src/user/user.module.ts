@@ -1,5 +1,6 @@
 import { Module, forwardRef } from "@nestjs/common"
 import { UserController } from "./user.controller"
+import { ApiKeysController } from "./api-keys/api-keys.controller"
 import { UserService } from "./user.service"
 import { PrismaService } from "src/common/prisma.service"
 import { AuthModule } from "src/auth/auth.module"
@@ -21,7 +22,7 @@ import { PaymentModule } from "src/payment/payment.module"
         forwardRef(() => OpenAppModule),
         forwardRef(() => PaymentModule),
     ],
-    controllers: [UserController],
+    controllers: [UserController, ApiKeysController],
     providers: [UserService, PrismaService, PaymentService, LogsService, ApiKeysService, UtilitiesService],
     exports: [UserService, LogsService],
 })
