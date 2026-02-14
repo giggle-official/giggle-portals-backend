@@ -30,7 +30,8 @@ export class ApiKeysService {
         if (!userInfo) {
             throw new NotFoundException("User not found")
         }
-        if (userInfo.user_api_keys.length >= 10) {
+
+        if (userInfo.user_api_keys.length >= 100) {
             throw new BadRequestException("User has reached the maximum number of API keys")
         }
 
