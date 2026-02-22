@@ -66,6 +66,16 @@ export class Credit2cService {
         url.searchParams.set("close_window_after_payment", "true")
         url.searchParams.set("amount", amount.toString())
         url.searchParams.set("order_id", order_id)
+
+        if (order_id) {
+            const orderRecord = await this.prisma.orders.findUnique({
+                where: { order_id: order_id },
+            })
+            if (orderRecord && !orderRecord.is_credit_top_up) {
+                url.searchParams.set("description", orderRecord.description || "")
+                url.searchParams.set("item", orderRecord.item || "")
+            }
+        }
         return { url: url.toString() }
     }
 
