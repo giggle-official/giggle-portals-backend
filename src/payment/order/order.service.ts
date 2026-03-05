@@ -609,7 +609,7 @@ export class OrderService {
                 tx,
                 orderRecord.allow_free_credit,
             )
-            await this.prisma.orders.update({
+            await tx.orders.update({
                 where: { id: orderRecord.id },
                 data: {
                     current_status: OrderStatus.COMPLETED,
@@ -693,7 +693,7 @@ export class OrderService {
             status: ConfirmStatus.REFUNDED,
         })
         const orderRefunded = await this.prisma.$transaction(async (tx) => {
-            return await this.prisma.orders.update({
+            return await tx.orders.update({
                 where: { order_id: order.order_id },
                 data: {
                     current_status: OrderStatus.REFUNDED,
