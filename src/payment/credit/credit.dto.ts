@@ -99,6 +99,24 @@ export class GetStatementQueryDto extends PaginationDto {
     @IsString()
     @IsOptional()
     widget_tag: string
+
+    @ApiProperty({
+        description: "filter statements from this date (YYYY-MM-DD)",
+        required: false,
+        example: "2026-03-01",
+    })
+    @IsOptional()
+    @IsString()
+    start_time?: string
+
+    @ApiProperty({
+        description: "filter statements until this date (YYYY-MM-DD)",
+        required: false,
+        example: "2026-03-31",
+    })
+    @IsOptional()
+    @IsString()
+    end_time?: string
 }
 
 export class FreeCreditInvitedUserInfoDto {

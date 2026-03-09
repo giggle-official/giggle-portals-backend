@@ -238,6 +238,13 @@ export class CreditService {
             ]
         }
 
+        if (query.start_time || query.end_time) {
+            where.created_at = {
+                ...(query.start_time && { gte: new Date(`${query.start_time}T00:00:00.000Z`) }),
+                ...(query.end_time && { lte: new Date(`${query.end_time}T23:59:59.999Z`) }),
+            }
+        }
+
         const statements = await this.prisma.credit_statements.findMany({
             where,
             skip: Math.max(0, parseInt(query.page.toString()) - 1) * Math.max(0, parseInt(query.page_size.toString())),
