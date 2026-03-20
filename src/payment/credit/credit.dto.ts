@@ -25,12 +25,12 @@ import { PaymentMethod } from "../order/order.dto"
 
 export class TopUpDto {
     @ApiProperty({
-        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 100 credits and must be integer",
+        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 10 credits and must be integer",
     })
     @IsNotEmpty()
     @IsNumber()
     @IsInt()
-    @Min(100)
+    @Min(10)
     amount: number
 
     @ApiProperty({
