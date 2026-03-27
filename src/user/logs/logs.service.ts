@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from "@nestjs/common"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { PrismaService } from "src/common/prisma.service"
 import { UserInfoDTO } from "../user.controller"
 import { Decimal } from "@prisma/client/runtime/library"
@@ -17,7 +18,7 @@ type SanitizeOptions = {
 
 @Injectable()
 export class LogsService {
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(private readonly prismaService: PrismaService) { }
     private readonly logger = new Logger(LogsService.name)
 
     async create(userInfo: UserInfoDTO, body: CreateLogDto) {
@@ -75,5 +76,24 @@ export class LogsService {
 
         // Return primitive values as-is
         return data
+    }
+
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    async cleanupOldLogs() {
+        const tenDaysAgo = new Date()
+        tenDaysAgo.setDate(tenDaysAgo.getDate() - 10)
+
+        try {
+            const result = await this.prismaService.user_logs.deleteMany({
+                where: {
+                    created_at: {
+                        lt: tenDaysAgo,
+                    },
+                },
+            })
+            this.logger.log(`Cleaned up ${result.count} old log entries`)
+        } catch (error) {
+            this.logger.error(`Failed to clean up old logs: ${error}`)
+        }
     }
 }
