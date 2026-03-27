@@ -46,6 +46,7 @@ import * as fs from "fs"
 import sharp from "sharp"
 import { CreditService } from "src/payment/credit/credit.service"
 import { SettleService } from "src/payment/settle/settle.service"
+import { Cron, CronExpression } from "@nestjs/schedule"
 
 @Injectable()
 export class UserService {
@@ -1269,6 +1270,25 @@ Message: ${contactInfo.message}
             minNumbers: 1,
             minSymbols: 0,
         })
+    }
+
+    @Cron(CronExpression.EVERY_DAY_AT_1AM)
+    async cleanupExpiredWidgetSessions() {
+        const twentyFourHoursAgo = new Date()
+        twentyFourHoursAgo.setDate(twentyFourHoursAgo.getDate() - 1)
+
+        try {
+            const result = await this.prisma.widget_sessions.deleteMany({
+                where: {
+                    expired_at: {
+                        lt: twentyFourHoursAgo,
+                    },
+                },
+            })
+            this.logger.log(`Cleaned up ${result.count} expired widget sessions`)
+        } catch (error) {
+            this.logger.error(`Failed to clean up expired widget sessions: ${error}`)
+        }
     }
 
     //@Cron(CronExpression.EVERY_10_MINUTES)

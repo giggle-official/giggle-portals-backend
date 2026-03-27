@@ -774,6 +774,7 @@ export class WidgetsService {
                 app_id: appId,
                 permission: widgetInfo.request_permissions,
                 user_subscribed_widget: userSubscribedWidget ? true : false,
+                expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
             },
         })
         if (!widgetSession) {
