@@ -23,7 +23,7 @@ import { SettleService } from "src/payment/settle/settle.service"
 @Injectable()
 export class CreditService {
     private readonly logger = new Logger(CreditService.name)
-    private readonly freeCreditExpireDays = 180
+    private readonly freeCreditExpireDays = 730 //2 years
 
     constructor(
         private prisma: PrismaService,
