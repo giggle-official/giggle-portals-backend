@@ -122,6 +122,11 @@ export class AssetDetailDto extends OmitType(AssetsDto, ["id", "exported_by", "e
     download_url: string
 
     @ApiProperty({
+        description: "shortened version of download_url, for sharing",
+    })
+    download_url_shorter: string
+
+    @ApiProperty({
         description: "thumbnail url of the asset",
     })
     thumbnail_url: string

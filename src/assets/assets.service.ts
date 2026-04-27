@@ -144,6 +144,7 @@ export class AssetsService {
 
         const signedUrl = await this.utilitiesService.createS3SignedUrl(asset.path)
         const downloadUrl = await this.utilitiesService.createS3SignedUrl(asset.path, true)
+        const downloadUrlShorter = await this.utilitiesService.shortenUrl(downloadUrl)
         const publicUrl = asset.path.startsWith("public/") ? signedUrl : ""
 
         return {
@@ -166,6 +167,7 @@ export class AssetsService {
             optimized_urls: optimizedUrls,
             signed_url: signedUrl,
             download_url: downloadUrl,
+            download_url_shorter: downloadUrlShorter,
             thumbnail_url: await this.utilitiesService.createS3SignedUrl(asset.thumbnail),
         }
     }

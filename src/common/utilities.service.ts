@@ -116,6 +116,29 @@ export class UtilitiesService {
         }
     }
 
+    public async shortenUrl(url: string): Promise<string> {
+        try {
+            const endpoint = process.env.SHORTLINK_API_ENDPOINT
+            const apiKey = process.env.SHORTLINK_API_KEY
+            if (!endpoint || !apiKey || !url) return url
+
+            const response = await fetch(`${endpoint}/links`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": apiKey,
+                },
+                body: JSON.stringify({ target: url }),
+            })
+            if (!response.ok) return url
+            const data = (await response.json()) as { link?: string }
+            return data?.link || url
+        } catch (error) {
+            this.logger.error("Error shortening URL:", error)
+            return url
+        }
+    }
+
     public async getS3Info(isPublic: boolean): Promise<S3InfoDto> {
         return {
             s3_bucket: process.env.S3_BUCKET_NAME,
