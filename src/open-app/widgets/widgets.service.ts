@@ -745,16 +745,30 @@ export class WidgetsService {
             appId = ""
         }
 
-        //expire prior active sessions for this (user, widget, app)
-        await this.prisma.widget_sessions.updateMany({
+        //find exists widget session
+        const existsWidgetSession = await this.prisma.widget_sessions.findFirst({
             where: {
                 user: user.usernameShorted,
                 widget_tag: body.tag,
                 app_id: appId,
-                expired_at: { gt: new Date() },
+                expired_at: {
+                    gt: new Date(),
+                },
             },
-            data: { expired_at: new Date() },
         })
+
+        if (existsWidgetSession) {
+            //update to new expired time
+            await this.prisma.widget_sessions.update({
+                where: { id: existsWidgetSession.id },
+                data: {
+                    expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+                },
+            })
+            return {
+                access_token: existsWidgetSession.jwt_string,
+            }
+        }
 
         //create a widget session
         const widgetSessionId = uuidv4()
