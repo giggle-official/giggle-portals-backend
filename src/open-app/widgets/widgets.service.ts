@@ -43,7 +43,7 @@ export class WidgetsService {
 
         @Inject(forwardRef(() => JwtService))
         private readonly jwtService: JwtService,
-    ) {}
+    ) { }
 
     async createWidget(body: CreateWidgetDto, user: UserJwtExtractDto) {
         const userInfo = await this.prisma.users.findUnique({
@@ -745,23 +745,16 @@ export class WidgetsService {
             appId = ""
         }
 
-        //find exists widget session
-        const existsWidgetSession = await this.prisma.widget_sessions.findFirst({
+        //expire prior active sessions for this (user, widget, app)
+        await this.prisma.widget_sessions.updateMany({
             where: {
                 user: user.usernameShorted,
                 widget_tag: body.tag,
                 app_id: appId,
-                expired_at: {
-                    gt: new Date(),
-                },
+                expired_at: { gt: new Date() },
             },
+            data: { expired_at: new Date() },
         })
-
-        if (existsWidgetSession) {
-            return {
-                access_token: existsWidgetSession.jwt_string,
-            }
-        }
 
         //create a widget session
         const widgetSessionId = uuidv4()
