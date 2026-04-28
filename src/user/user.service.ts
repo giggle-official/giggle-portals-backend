@@ -194,7 +194,7 @@ export class UserService {
             const widgetSession = await this.prisma.widget_sessions.findUnique({
                 where: { session_id: userInfo.widget_session_id },
             })
-            if (!widgetSession) {
+            if (!widgetSession || !widgetSession.expired_at || widgetSession.expired_at < new Date()) {
                 throw new UnauthorizedException("invalid widget session")
             }
             const subscriptionInfo = await this.prisma.widget_subscriptions.findFirst({
