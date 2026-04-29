@@ -760,11 +760,15 @@ export class WidgetsService {
         if (existsWidgetSession) {
             //sign a new jwt and extend the session expiry
             const newExpiredAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
-            const userInfo = await this.userService.getProfile(user)
+            const userInfo = await this.prisma.users.findUnique({
+                where: {
+                    username_in_be: user.usernameShorted,
+                },
+            })
             const userInfoForSign: UserJwtExtractDto = {
-                user_id: userInfo.usernameShorted,
+                user_id: userInfo.username_in_be,
                 username: userInfo.username,
-                usernameShorted: userInfo.usernameShorted,
+                usernameShorted: userInfo.username_in_be,
                 email: userInfo.email,
                 avatar: userInfo.avatar,
                 widget_session_id: existsWidgetSession.session_id,
