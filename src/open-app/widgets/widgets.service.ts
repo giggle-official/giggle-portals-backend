@@ -758,15 +758,29 @@ export class WidgetsService {
         })
 
         if (existsWidgetSession) {
-            //update to new expired time
+            //sign a new jwt and extend the session expiry
+            const newExpiredAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
+            const userInfo = await this.userService.getProfile(user)
+            const userInfoForSign: UserJwtExtractDto = {
+                user_id: userInfo.usernameShorted,
+                username: userInfo.username,
+                usernameShorted: userInfo.usernameShorted,
+                email: userInfo.email,
+                avatar: userInfo.avatar,
+                widget_session_id: existsWidgetSession.session_id,
+                device_id: deviceId,
+            }
+            const newJwt = this.jwtService.sign(userInfoForSign, { expiresIn: "7d" })
+
             await this.prisma.widget_sessions.update({
                 where: { id: existsWidgetSession.id },
                 data: {
-                    expired_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+                    jwt_string: newJwt,
+                    expired_at: newExpiredAt,
                 },
             })
             return {
-                access_token: existsWidgetSession.jwt_string,
+                access_token: newJwt,
             }
         }
 
