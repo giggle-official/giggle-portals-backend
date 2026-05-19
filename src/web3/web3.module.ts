@@ -19,6 +19,7 @@ import { NftService } from "./nft/nft.service"
 import { NftMintQueue } from "./nft/nft-mint.queue"
 import { PaymentModule } from "src/payment/payment.module"
 import { CacheModule } from "@nestjs/cache-manager"
+import { ClawfarmController } from "./clawfarm/clawfarm.controller"
 
 //enable ipfs upload queue only on task slot 1
 const queueProviders: Provider[] = []
@@ -49,7 +50,7 @@ if (process.env.TASK_SLOT == "1") {
         LaunchAgentService,
         NftService,
     ],
-    controllers: [GiggleController, PriceController, LaunchAgentController, NftController],
+    controllers: [GiggleController, PriceController, LaunchAgentController, NftController, ClawfarmController],
     exports: [GiggleService, IpOnChainService, PriceService, LaunchAgentService, RewardPoolOnChainService],
 })
 export class Web3Module {}
