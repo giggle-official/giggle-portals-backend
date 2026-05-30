@@ -402,7 +402,7 @@ export class CreditService {
                 //update subscription credit table
                 await tx.widget_subscription_credit_issues.update({
                     where: { id: subscriptionCredit.id },
-                    data: { current_balance: subscriptionCredit.current_balance - consumeAmount },
+                    data: { current_balance: { decrement: consumeAmount } },
                 })
 
                 //create statement
