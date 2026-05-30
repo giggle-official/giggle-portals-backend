@@ -228,7 +228,20 @@ export class CreditService {
         }
 
         if (query.type) {
-            where.type = query.type
+            // `query.type` accepts a single enum value or a comma-separated
+            // list (e.g. "top_up,consume"). Parse, drop unknown tokens, and
+            // map to a single equality or an `in` filter as appropriate.
+            const validTypes = Object.values(credit_statement_type) as string[]
+            const tokens = query.type
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t.length > 0 && validTypes.includes(t))
+            const uniqueTypes = Array.from(new Set(tokens)) as credit_statement_type[]
+            if (uniqueTypes.length === 1) {
+                where.type = uniqueTypes[0]
+            } else if (uniqueTypes.length > 1) {
+                where.type = { in: uniqueTypes }
+            }
         }
 
         if (query.widget_tag) {

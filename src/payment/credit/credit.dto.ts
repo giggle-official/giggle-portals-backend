@@ -84,13 +84,15 @@ export class PayTopUpOrderDto extends TopUpDto {
 
 export class GetStatementQueryDto extends PaginationDto {
     @ApiProperty({
-        description: "filter by type",
+        description:
+            "Filter by statement type. Accepts a single enum value (e.g. `top_up`) or a comma-separated list of valid enum values (e.g. `top_up,consume,refund`). Unknown tokens are dropped server-side; an all-invalid string is treated as no filter.",
         enum: credit_statement_type,
         required: false,
+        example: "consume,refund",
     })
-    @IsEnum(credit_statement_type)
+    @IsString()
     @IsOptional()
-    type: credit_statement_type
+    type: string
 
     @ApiProperty({
         description: "filter by widget tag of the order created by",
