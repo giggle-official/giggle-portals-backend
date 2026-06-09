@@ -305,6 +305,9 @@ export class CreditService {
                 balance: statement.balance,
                 created_at: statement.created_at,
                 updated_at: statement.updated_at,
+                // Expose the free-credit issuer's note so refund / bonus
+                // statements can carry a human-readable reason to the user.
+                description: statement.free_credit_issue?.description ?? null,
             })),
             count: total,
         }

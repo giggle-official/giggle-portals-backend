@@ -204,6 +204,13 @@ export class CreditStatementDto implements credit_statements {
         type: () => FreeCreditInvitedUserInfoDto,
     })
     free_credit_invited_user_info: FreeCreditInvitedUserInfoDto
+
+    @ApiProperty({
+        description: "Human-readable note attached to a free credit issue (e.g. refund reason). Null for non-free-credit statements or when the issuer didn't supply one.",
+        required: false,
+        nullable: true,
+    })
+    description: string | null
 }
 
 export class UserCreditBalanceDto {
