@@ -76,6 +76,24 @@ export class NotificationService {
         })
     }
 
+    // Sends a plain-text email with a single file attachment (e.g. a CSV report)
+    async sendTextNotificationWithAttachment(
+        subject: string,
+        to: string,
+        text: string,
+        attachment: { data: Buffer; filename: string; contentType: string },
+        domain: string = this.DEFAULT_DOMAIN,
+        from: string = this.DEFAULT_FROM,
+    ) {
+        return this.mailgunService.createEmail(domain, {
+            from: from,
+            to: to,
+            subject: subject,
+            text: text,
+            attachment: [attachment],
+        })
+    }
+
     private readHTMLFile(path: string): Promise<string> {
         return new Promise((resolve, reject) => {
             fs.readFile(path, { encoding: "utf-8" }, (err, html) => {
