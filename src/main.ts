@@ -63,16 +63,6 @@ async function bootstrap() {
             },
             "user",
         )
-        .addBearerAuth(
-            {
-                type: "http",
-                bearerFormat: "JWT",
-                in: "header",
-                name: "Authorization",
-                description: "JWT Authorization",
-            },
-            "widget",
-        )
         .setOpenAPIVersion("3.1.1")
         .addServer("https://api.giggle.pro", "Production Environment")
         .addServer("https://app.ggltest.com", "Test Environment")
@@ -167,16 +157,6 @@ To see how to process the event stream response, please refer to the [Event Stre
                 description: "JWT Authorization",
             },
             "user",
-        )
-        .addBearerAuth(
-            {
-                type: "http",
-                bearerFormat: "JWT",
-                in: "header",
-                name: "Authorization",
-                description: "JWT Authorization",
-            },
-            "widget",
         )
         .build()
     const privateDocument = SwaggerModule.createDocument(app, config)
