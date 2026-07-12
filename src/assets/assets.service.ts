@@ -358,8 +358,9 @@ export class AssetsService {
                 optimizedResult: optimizedResult,
             }
         } catch (error) {
-            this.logger.error("Error processing uploaded video:", error)
-            throw new InternalServerErrorException("Failed to process uploaded video")
+            this.logger.error(`Error processing uploaded video (key=${objectKey}):`, error)
+            const reason = (error as Error)?.message || String(error)
+            throw new InternalServerErrorException(`Failed to process uploaded video: ${reason}`)
         }
     }
 
@@ -386,8 +387,9 @@ export class AssetsService {
                 audioInfo: audioInfo,
             }
         } catch (error) {
-            this.logger.error("Error processing uploaded video:", error)
-            throw new InternalServerErrorException("Failed to process uploaded video")
+            this.logger.error(`Error processing uploaded audio (key=${objectKey}):`, error)
+            const reason = (error as Error)?.message || String(error)
+            throw new InternalServerErrorException(`Failed to process uploaded audio: ${reason}`)
         }
     }
 
