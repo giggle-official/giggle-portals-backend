@@ -291,6 +291,7 @@ export class CreditService {
                 order_id: statement.order_id,
                 widget_tag: statement.order?.widget_tag,
                 ip_id: statement.order?.ip_id,
+                order_item: statement.order?.item ?? null,
                 type: statement.type,
                 is_free_credit: statement.is_free_credit,
                 free_credit_invited_user_info: {

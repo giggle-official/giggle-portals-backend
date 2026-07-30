@@ -272,6 +272,15 @@ export class CreditStatementDetailDto extends OmitType(CreditStatementDto, ["use
     })
     @IsNumber()
     ip_id: number
+
+    @ApiProperty({
+        description: "The item of the order that produced this statement (application-supplied source label)",
+        required: false,
+        nullable: true,
+    })
+    @IsString()
+    @IsOptional()
+    order_item?: string | null
 }
 
 export class GetStatementsResponseDto {
