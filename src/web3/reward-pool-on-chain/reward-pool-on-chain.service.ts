@@ -96,22 +96,22 @@ export class RewardPoolOnChainService {
                 this.rewardOnChainHttpService.post(this.rpcUrl + retrieveFunc, requestParams),
             )
             if (!response.data?.isSucc || !response.data?.res?.content) {
-                this.logger.warn(
-                    `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.warn(
+                // `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 return null
             }
 
             try {
                 return JSON.parse(response.data.res.content) as RetrieveResponseDto
             } catch (error) {
-                this.logger.warn(
-                    `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.warn(
+                // `Retrieve pool info failed: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 return null
             }
         } catch (error) {
-            this.logger.error(`Retrieve pool info failed: ${error}`)
+            // this.logger.error(`Retrieve pool info failed: ${error}`)
             return null
         }
     }
@@ -139,9 +139,9 @@ export class RewardPoolOnChainService {
             balance = new Decimal(walletBalance[0].amount)
         }
         if (balance.lt(dto.amount)) {
-            this.logger.error(
-                `INJECT TOKEN ERROR: Insufficient balance for inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
-            )
+            // this.logger.error(
+            // `INJECT TOKEN ERROR: Insufficient balance for inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
+            // )
             throw new BadRequestException(
                 `Insufficient balance when inject token to rewards, current balance: ${balance}, need: ${dto.amount}`,
             )
@@ -160,9 +160,9 @@ export class RewardPoolOnChainService {
             this.rewardOnChainHttpService.post(this.rpcUrl + injectFunc, requestParams),
         )
         if (!response.data?.isSucc || !response.data?.res?.tx) {
-            this.logger.error(
-                `INJECT TOKEN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `INJECT TOKEN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Inject token failed")
         }
 
@@ -170,9 +170,9 @@ export class RewardPoolOnChainService {
         const signers = [this.settleWallet]
         const signature = await this.giggleService.signTx(response.data.res.tx, signers, dto.email)
         if (!signature) {
-            this.logger.error(
-                `INJECT TOKEN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `INJECT TOKEN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Sign tx failed")
         }
 
@@ -220,9 +220,9 @@ export class RewardPoolOnChainService {
         )
 
         if (!response.data?.isSucc || !response.data?.res?.tx) {
-            this.logger.error(
-                `ALLOCATE REVENUE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `ALLOCATE REVENUE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Allocate revenue failed")
         }
 
@@ -230,9 +230,9 @@ export class RewardPoolOnChainService {
         const signers = [this.settleWallet]
         const signature = await this.giggleService.signTx(response.data.res.tx, signers, rewardPool.user_info.email)
         if (!signature) {
-            this.logger.error(
-                `ALLOCATE REVENUE ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `ALLOCATE REVENUE ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Sign tx failed")
         }
 
@@ -287,9 +287,9 @@ export class RewardPoolOnChainService {
             )
 
             if (!response.data?.isSucc || !response.data?.res?.tx) {
-                this.logger.error(
-                    `CREATE POOL ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.error(
+                // `CREATE POOL ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 throw new BadRequestException("Create pool failed")
             }
 
@@ -298,9 +298,9 @@ export class RewardPoolOnChainService {
             const signature = await this.giggleService.signTx(tx, signers, dto.email)
 
             if (!signature) {
-                this.logger.error(
-                    `CREATE POOL ERROR: Sign tx failed: ${tx}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.error(
+                // `CREATE POOL ERROR: Sign tx failed: ${tx}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 throw new BadRequestException("Sign tx failed")
             }
 
@@ -324,7 +324,7 @@ export class RewardPoolOnChainService {
                 },
             })
         } catch (error) {
-            this.logger.error(`CREATE POOL ERROR: ${error}`)
+            // this.logger.error(`CREATE POOL ERROR: ${error}`)
             await this.prisma.reward_pools.update({
                 where: {
                     token: dto.token_mint,
@@ -349,14 +349,14 @@ export class RewardPoolOnChainService {
                 this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
             )
             if (!response.data?.isSucc || !response.data?.res?.addr) {
-                this.logger.error(
-                    `RETRIEVE BUYBACK WALLET ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.error(
+                // `RETRIEVE BUYBACK WALLET ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 return null
             }
             return response.data.res.addr
         } catch (error) {
-            this.logger.error(`RETRIEVE BUYBACK WALLET ERROR: ${error}`)
+            // this.logger.error(`RETRIEVE BUYBACK WALLET ERROR: ${error}`)
             return null
         }
     }
@@ -372,22 +372,22 @@ export class RewardPoolOnChainService {
             user: user_wallet,
             __authToken: this.authToken,
         }
-        this.logger.log(`RETRIEVE USER TOKEN BALANCE: ${JSON.stringify(requestParams)}`)
+        // this.logger.log(`RETRIEVE USER TOKEN BALANCE: ${JSON.stringify(requestParams)}`)
         const response: AxiosResponse<RpcResponseDto<{ content: string }>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
         if (!response.data?.isSucc || !response.data?.res?.content) {
-            this.logger.error(
-                `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             return null
         }
         try {
             return JSON.parse(response.data.res.content) as RetrieveUserTokenBalanceResponseDto
         } catch (error) {
-            this.logger.error(
-                `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `RETRIEVE USER TOKEN BALANCE ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             return null
         }
     }
@@ -459,24 +459,24 @@ export class RewardPoolOnChainService {
             __authToken: this.authToken,
         }
 
-        this.logger.log(`AIRDROP STATEMENT TO CHAIN: ${JSON.stringify(requestParams)}`)
+        // this.logger.log(`AIRDROP STATEMENT TO CHAIN: ${JSON.stringify(requestParams)}`)
         const response: AxiosResponse<RpcResponseDto<AirdropResponseDto>> = await lastValueFrom(
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
 
         if (!response.data?.isSucc || !response.data?.res?.tx) {
-            this.logger.error(
-                `AIRDROP STATEMENT TO CHAIN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `AIRDROP STATEMENT TO CHAIN ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Airdrop statement to chain failed")
         }
         //sign tx
         const signers = [this.settleWallet]
         const signature = await this.giggleService.signTx(response.data.res.tx, signers, creator_email)
         if (!signature) {
-            this.logger.error(
-                `AIRDROP STATEMENT TO CHAIN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `AIRDROP STATEMENT TO CHAIN ERROR: Sign tx failed: ${response.data.res.tx}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             throw new BadRequestException("Sign tx failed")
         }
 
@@ -500,14 +500,14 @@ export class RewardPoolOnChainService {
                 this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
             )
             if (!response.data?.isSucc || response.data?.res?.rate === undefined) {
-                this.logger.error(
-                    `GET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-                )
+                // this.logger.error(
+                // `GET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+                // )
                 return 0
             }
             return Number(response.data.res.rate) / 100
         } catch (error) {
-            this.logger.error(`GET BUYBACK BURN RATIO ERROR: ${error}`)
+            // this.logger.error(`GET BUYBACK BURN RATIO ERROR: ${error}`)
             return null
         }
     }
@@ -524,9 +524,9 @@ export class RewardPoolOnChainService {
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
         if (!response.data?.isSucc) {
-            this.logger.error(
-                `SET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `SET BUYBACK BURN RATIO ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             return false
         }
         return true
@@ -544,9 +544,9 @@ export class RewardPoolOnChainService {
             this.rewardOnChainHttpService.post(this.rpcUrl + func, requestParams),
         )
         if (!response.data?.isSucc) {
-            this.logger.error(
-                `START BUYBACK ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
-            )
+            // this.logger.error(
+            // `START BUYBACK ERROR: ${JSON.stringify(response.data)}, request params: ${JSON.stringify(requestParams)}`,
+            // )
             return null
         }
         return response.data.res.orderId
@@ -570,7 +570,7 @@ export class RewardPoolOnChainService {
             }
             return response.data.res
         } catch (error) {
-            this.logger.error(JSON.stringify(error))
+            // this.logger.error(JSON.stringify(error))
             return null
         }
     }
@@ -598,7 +598,7 @@ export class RewardPoolOnChainService {
         })
 
         if (!rewardPools) {
-            this.logger.log("No reward pool need push to chain")
+            // this.logger.log("No reward pool need push to chain")
             return
         }
 
@@ -630,9 +630,9 @@ export class RewardPoolOnChainService {
             }
 
             if (!walletAddress) {
-                this.logger.error(
-                    `CREATE POOL ERROR: No wallet address for settle statement: ${rewardPools.id}, pool: ${rewardPools.token}`,
-                )
+                // this.logger.error(
+                // `CREATE POOL ERROR: No wallet address for settle statement: ${rewardPools.id}, pool: ${rewardPools.token}`,
+                // )
                 return
             }
 
@@ -642,9 +642,9 @@ export class RewardPoolOnChainService {
                 user_wallet: walletAddress,
                 email: rewardPools.user_info.email,
             })
-            this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
+            // this.logger.log(`CREATE POOL: ${rewardPools.token} done`)
         } catch (error) {
-            this.logger.error(`CREATE POOL ERROR: ${error}`)
+            // this.logger.error(`CREATE POOL ERROR: ${error}`)
         }
     }
 
@@ -674,7 +674,7 @@ export class RewardPoolOnChainService {
         })
 
         if (!withdrawToken) {
-            this.logger.log("No withdraw token need process")
+            // this.logger.log("No withdraw token need process")
             return
         }
 
@@ -686,9 +686,9 @@ export class RewardPoolOnChainService {
 
         //update status to faild if exceed max on chain try count
         if (updatedWithdrawToken.on_chain_try_count > this.maxOnChainTryCount) {
-            this.logger.error(
-                `withdrawn request: ${updatedWithdrawToken.id} exceeds max on chain try count, set it to failed`,
-            )
+            // this.logger.error(
+            // `withdrawn request: ${updatedWithdrawToken.id} exceeds max on chain try count, set it to failed`,
+            // )
             await this.prisma.user_rewards_withdraw.update({
                 where: { id: withdrawToken.id },
                 data: { status: "failed" },
@@ -702,24 +702,24 @@ export class RewardPoolOnChainService {
         )
 
         if (!userBalance) {
-            this.logger.error(
-                `PROCESS WITHDRAW TOKEN ERROR: No user balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
-            )
+            // this.logger.error(
+            // `PROCESS WITHDRAW TOKEN ERROR: No user balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
+            // )
             return
         }
 
         const userBalanceAmount = new Decimal(userBalance.availableAmount).div(10 ** 6)
         if (userBalanceAmount.lt(withdrawToken.withdrawn)) {
-            this.logger.error(
-                `PROCESS WITHDRAW TOKEN ERROR: Insufficient token balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
-            )
+            // this.logger.error(
+            // `PROCESS WITHDRAW TOKEN ERROR: Insufficient token balance for withdraw token: ${withdrawToken.token} $${withdrawToken.token}`,
+            // )
             return
         }
 
         //start withdraw
-        this.logger.log(
-            `PROCESS WITHDRAW TOKEN: ${withdrawToken.id}, need tokens: ${withdrawToken.withdrawn.toNumber()}, token balance: ${userBalanceAmount.toNumber()}`,
-        )
+        // this.logger.log(
+        // `PROCESS WITHDRAW TOKEN: ${withdrawToken.id}, need tokens: ${withdrawToken.withdrawn.toNumber()}, token balance: ${userBalanceAmount.toNumber()}`,
+        // )
 
         try {
             const reqParam = {
@@ -733,7 +733,7 @@ export class RewardPoolOnChainService {
                 data: { chain_transaction: transaction as any, status: "completed" },
             })
         } catch (error) {
-            this.logger.error(`PROCESS WITHDRAW TOKEN ERROR: ${error}`)
+            // this.logger.error(`PROCESS WITHDRAW TOKEN ERROR: ${error}`)
             await this.prisma.user_rewards_withdraw.update({
                 where: { id: withdrawToken.id },
                 data: {
@@ -777,7 +777,7 @@ export class RewardPoolOnChainService {
         })
 
         if (injectToken.length === 0) {
-            this.logger.log("No inject token need process")
+            // this.logger.log("No inject token need process")
             return
         }
 
@@ -788,22 +788,22 @@ export class RewardPoolOnChainService {
                 inject.reward_pools.token,
             )
             if (userBalance.length === 0) {
-                this.logger.warn(
-                    `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
-                )
+                // this.logger.warn(
+                // `PROCESS INJECT TOKEN WARNING: No token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
+                // )
                 continue
             }
             const userBalanceAmount = new Decimal(userBalance[0].amount)
             if (userBalanceAmount.lt(inject.amount)) {
-                this.logger.warn(
-                    `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
-                )
+                // this.logger.warn(
+                // `PROCESS INJECT TOKEN WARNING: Insufficient token balance for inject token: ${inject.token} $${inject.reward_pools.ticker}, wallet: ${inject.reward_pools.user_info.wallet_address}`,
+                // )
                 continue
             }
 
-            this.logger.log(
-                `PROCESS INJECT TOKEN: ${inject.token} $${inject.reward_pools.ticker}, need tokens: ${inject.amount}`,
-            )
+            // this.logger.log(
+            // `PROCESS INJECT TOKEN: ${inject.token} $${inject.reward_pools.ticker}, need tokens: ${inject.amount}`,
+            // )
 
             //append on_chain_try_count
             await this.prisma.reward_pool_statement.update({
@@ -826,7 +826,7 @@ export class RewardPoolOnChainService {
                 //sleep 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000))
             } catch (error) {
-                this.logger.error(`PROCESS INJECT TOKEN ERROR: ${error}`)
+                // this.logger.error(`PROCESS INJECT TOKEN ERROR: ${error}`)
                 continue
             }
         }
@@ -863,7 +863,7 @@ export class RewardPoolOnChainService {
         })
 
         if (airdropStatement.length === 0) {
-            this.logger.log("SETTLE AIRDROP: No airdrop statement need settle")
+            // this.logger.log("SETTLE AIRDROP: No airdrop statement need settle")
             return
         }
 
@@ -875,7 +875,7 @@ export class RewardPoolOnChainService {
             })
 
             if (statement.user_rewards.length === 0) {
-                this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${statement.id}`)
+                // this.logger.error(`SETTLE AIRDROP ERROR: No user reward for airdrop statement: ${statement.id}`)
                 continue
             }
 
@@ -885,25 +885,25 @@ export class RewardPoolOnChainService {
             //check reward pool token balance
             const tokenBalance = await this.retrieve(statement.token)
             if (!tokenBalance) {
-                this.logger.error(
-                    `SETTLE AIRDROP ERROR: No token balance for settle airdrop statement: ${statement.id}, wallet: ${this.settleWallet}`,
-                )
+                // this.logger.error(
+                // `SETTLE AIRDROP ERROR: No token balance for settle airdrop statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                // )
                 continue
             }
 
             const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount)
             if (tokenBalanceAmount.lt(userReward)) {
-                this.logger.error(
-                    `SETTLE AIRDROP ERROR: Insufficient token balance when settle airdrop statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${userReward.toNumber()}`,
-                )
+                // this.logger.error(
+                // `SETTLE AIRDROP ERROR: Insufficient token balance when settle airdrop statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toNumber()}, need tokens: ${userReward.toNumber()}`,
+                // )
                 continue
             }
 
             try {
                 //start settle
-                this.logger.log(
-                    `SETTLE AIRDROP: ${statement.id}, need tokens: ${userReward.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
-                )
+                // this.logger.log(
+                // `SETTLE AIRDROP: ${statement.id}, need tokens: ${userReward.toNumber()}, token balance: ${tokenBalanceAmount.toNumber()}`,
+                // )
                 const reqParam = {
                     user_wallet: statement.user_rewards[0].user_info.wallet_address,
                     owner_wallet: statement.reward_pools.user_info.wallet_address,
@@ -919,11 +919,11 @@ export class RewardPoolOnChainService {
                     where: { id: statement.id },
                     data: { chain_transaction: transaction as any },
                 })
-                this.logger.log(`SETTLE AIRDROP: ${statement.id} done`)
+                // this.logger.log(`SETTLE AIRDROP: ${statement.id} done`)
                 //sleep 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000))
             } catch (error) {
-                this.logger.error(`SETTLE AIRDROP ERROR: ${error}`)
+                // this.logger.error(`SETTLE AIRDROP ERROR: ${error}`)
                 continue
             }
         }
@@ -959,18 +959,18 @@ export class RewardPoolOnChainService {
             },
         })
 
-        this.logger.log(`SETTLE ORDER REWARD: ${statementOrders.length} statements need settle`)
+        // this.logger.log(`SETTLE ORDER REWARD: ${statementOrders.length} statements need settle`)
 
         if (statementOrders.length === 0) {
-            this.logger.log("No statement need settle")
+            // this.logger.log("No statement need settle")
             return
         }
 
         for (const statement of statementOrders) {
             if (!statement.reward_pools.buyback_address) {
-                this.logger.warn(
-                    `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
-                )
+                // this.logger.warn(
+                // `SETTLE ORDER REWARD ERROR: No buyback address for settle statement: ${statement.id}, pool: ${statement.token}`,
+                // )
                 continue
             }
 
@@ -979,9 +979,9 @@ export class RewardPoolOnChainService {
                 statement.usd_revenue.equals(new Decimal(0)) &&
                 statement.user_rewards.every((reward) => reward.rewards.equals(new Decimal(0)))
             ) {
-                this.logger.warn(
-                    `SETTLE ORDER REWARD WARNING: No usd revenue and no rewards for settle statement: ${statement.id}, pool: ${statement.token}`,
-                )
+                // this.logger.warn(
+                // `SETTLE ORDER REWARD WARNING: No usd revenue and no rewards for settle statement: ${statement.id}, pool: ${statement.token}`,
+                // )
                 //append on_chain_try_count
                 await this.prisma.reward_pool_statement.update({
                     where: { id: statement.id },
@@ -996,60 +996,60 @@ export class RewardPoolOnChainService {
                 process.env.GIGGLE_LEGAL_USDC,
             )
 
-            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usdc balance: ${usdcBalance.length}`)
+            // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usdc balance: ${usdcBalance.length}`)
 
             if (usdcBalance.length === 0) {
-                this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
-                )
+                // this.logger.error(
+                // `SETTLE ORDER REWARD ERROR: No usdc balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                // )
                 continue
             }
             const usdcBalanceAmount = new Decimal(usdcBalance[0].amount)
 
-            this.logger.debug(
-                `SETTLE ORDER REWARD: ${statement.id}, usdc balance amount: ${usdcBalanceAmount.toString()}`,
-            )
-            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usd revenue: ${statement.usd_revenue.toString()}`)
+            // this.logger.debug(
+            // `SETTLE ORDER REWARD: ${statement.id}, usdc balance amount: ${usdcBalanceAmount.toString()}`,
+            // )
+            // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, usd revenue: ${statement.usd_revenue.toString()}`)
 
             if (usdcBalanceAmount.lt(statement.usd_revenue.toNumber())) {
-                this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toString()} < ${statement.usd_revenue.toString()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
-                )
+                // this.logger.error(
+                // `SETTLE ORDER REWARD ERROR: Insufficient usdc balance: ${usdcBalanceAmount.toString()} < ${statement.usd_revenue.toString()} for settle statement: ${statement.id}, wallet: ${this.settleWallet}`,
+                // )
                 continue
             }
 
-            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token: ${statement.token}`)
+            // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token: ${statement.token}`)
 
             //check reward pool token balance
             const tokenBalance = await this.retrieve(statement.token)
 
-            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance: ${JSON.stringify(tokenBalance)}`)
+            // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance: ${JSON.stringify(tokenBalance)}`)
             if (!tokenBalance) {
-                this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}, balance: ${tokenBalance.totalAmount}`,
-                )
+                // this.logger.error(
+                // `SETTLE ORDER REWARD ERROR: No token balance for settle statement: ${statement.id}, wallet: ${this.settleWallet}, balance: ${tokenBalance.totalAmount}`,
+                // )
                 continue
             }
 
-            this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalance.totalAmount}`)
+            // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalance.totalAmount}`)
             const tokenBalanceAmount = new Decimal(tokenBalance.totalAmount).div(10 ** 6)
 
-            this.logger.debug(
-                `SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalanceAmount.toString()}`,
-            )
-            this.logger.debug(
-                `SETTLE ORDER REWARD: ${statement.id}, statement amount: ${statement.amount.mul(-1).toString()}`,
-            )
+            // this.logger.debug(
+            // `SETTLE ORDER REWARD: ${statement.id}, token balance amount: ${tokenBalanceAmount.toString()}`,
+            // )
+            // this.logger.debug(
+            // `SETTLE ORDER REWARD: ${statement.id}, statement amount: ${statement.amount.mul(-1).toString()}`,
+            // )
             if (tokenBalanceAmount.lt(statement.amount.mul(-1).toNumber())) {
-                this.logger.error(
-                    `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toString()}, need tokens: ${statement.amount.mul(-1).toString()}`,
-                )
+                // this.logger.error(
+                // `SETTLE ORDER REWARD ERROR: Insufficient token balance when settle statement: ${statement.id}, pool: ${statement.token}, token balance: ${tokenBalanceAmount.toString()}, need tokens: ${statement.amount.mul(-1).toString()}`,
+                // )
                 continue
             }
 
-            this.logger.debug(
-                `SETTLE ORDER REWARD: ${statement.id}, user rewards: ${JSON.stringify(statement.user_rewards)}`,
-            )
+            // this.logger.debug(
+            // `SETTLE ORDER REWARD: ${statement.id}, user rewards: ${JSON.stringify(statement.user_rewards)}`,
+            // )
 
             const arr = []
             let amountIn = new Decimal(0)
@@ -1057,14 +1057,14 @@ export class RewardPoolOnChainService {
             for (let index = 0; index < statement.user_rewards.length; index++) {
                 const userReward = statement.user_rewards[index]
 
-                this.logger.debug(
-                    `SETTLE ORDER REWARD: ${statement.id}, reward#${index}: ${JSON.stringify(userReward)}`,
-                )
+                // this.logger.debug(
+                // `SETTLE ORDER REWARD: ${statement.id}, reward#${index}: ${JSON.stringify(userReward)}`,
+                // )
                 //continue if userReward.rewards is 0
                 if (userReward.rewards.equals(new Decimal(0))) {
-                    this.logger.warn(
-                        `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, reward: ${JSON.stringify(userReward)}`,
-                    )
+                    // this.logger.warn(
+                    // `SETTLE ORDER REWARD WARNING: User reward is 0 for settle statement: ${statement.id}, reward: ${JSON.stringify(userReward)}`,
+                    // )
                     continue
                 }
 
@@ -1080,7 +1080,7 @@ export class RewardPoolOnChainService {
                 } else if (userReward.wallet_address) {
                     walletAddress = userReward.wallet_address
                 } else {
-                    this.logger.warn(`User reward has no user info or user: ${JSON.stringify(userReward)}`)
+                    // this.logger.warn(`User reward has no user info or user: ${JSON.stringify(userReward)}`)
                     continue
                 }
 
@@ -1090,23 +1090,23 @@ export class RewardPoolOnChainService {
                     token: userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : 1,
                 })
 
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, user reward: ${JSON.stringify(userReward)}`)
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, wallet address: ${walletAddress}`)
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, share: ${userReward.rewards}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, user reward: ${JSON.stringify(userReward)}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, wallet address: ${walletAddress}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, share: ${userReward.rewards}`)
                 amountIn = amountIn.plus(userReward.token === process.env.GIGGLE_LEGAL_USDC ? userReward.rewards : 0)
                 needTokens = needTokens.plus(
                     userReward.token === process.env.GIGGLE_LEGAL_USDC ? 0 : userReward.rewards,
                 )
 
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}`)
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}`)
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, arr: ${JSON.stringify(arr)}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, arr: ${JSON.stringify(arr)}`)
             }
 
             if (arr.length === 0) {
-                this.logger.warn(
-                    `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
-                )
+                // this.logger.warn(
+                // `SETTLE ORDER REWARD ERROR: No user reward to settle statement: ${JSON.stringify(statement)}`,
+                // )
                 continue
             }
 
@@ -1116,13 +1116,13 @@ export class RewardPoolOnChainService {
                 data: { on_chain_try_count: statement.on_chain_try_count + 1 },
             })
 
-            this.logger.log(
-                `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toString()}`,
-            )
+            // this.logger.log(
+            // `SETTLE ORDER REWARD: ${statement.id}, amountIn: ${amountIn.toString()}, settle wallet: ${this.settleWallet},  settle wallet usdc balance: ${usdcBalanceAmount.toString()}`,
+            // )
 
-            this.logger.log(
-                `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}, token balance: ${tokenBalanceAmount.toString()}`,
-            )
+            // this.logger.log(
+            // `SETTLE ORDER REWARD: ${statement.id}, need tokens: ${needTokens.toString()}, token balance: ${tokenBalanceAmount.toString()}`,
+            // )
 
             try {
                 const allocateParams: AllocateRevenueDto = {
@@ -1132,12 +1132,12 @@ export class RewardPoolOnChainService {
                     revenue_allocate_details: arr,
                 }
 
-                this.logger.debug(
-                    `SETTLE ORDER REWARD: ${statement.id}, allocate params: ${JSON.stringify(allocateParams)}`,
-                )
+                // this.logger.debug(
+                // `SETTLE ORDER REWARD: ${statement.id}, allocate params: ${JSON.stringify(allocateParams)}`,
+                // )
 
                 const transaction = await this.allocateRevenue(allocateParams)
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, transaction: ${JSON.stringify(transaction)}`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, transaction: ${JSON.stringify(transaction)}`)
                 await this.prisma.reward_pool_statement.update({
                     where: {
                         id: statement.id,
@@ -1152,12 +1152,12 @@ export class RewardPoolOnChainService {
                 //this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, push order to settle system`)
                 //await this.settleService.postOrderToSettle(statement.id)
 
-                this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue done`)
-                this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
+                // this.logger.debug(`SETTLE ORDER REWARD: ${statement.id}, settle sales agent revenue done`)
+                // this.logger.log(`SETTLE ORDER REWARD: ${statement.id} done`)
                 //sleep 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000))
             } catch (error) {
-                this.logger.error(`SETTLE ORDER REWARD ERROR: ${error}`)
+                // this.logger.error(`SETTLE ORDER REWARD ERROR: ${error}`)
                 continue
             }
         }
@@ -1170,7 +1170,7 @@ export class RewardPoolOnChainService {
         if (process.env.ENV != "product") return
         const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyHook) {
-            this.logger.error("No notify hook for statement")
+            // this.logger.error("No notify hook for statement")
             return
         }
 
@@ -1225,7 +1225,7 @@ export class RewardPoolOnChainService {
         }
         tableContent = "#### Reward Pool Balance Diff of " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
-        this.logger.log("SETTLE WITH CHAIN: Notify done")
+        // this.logger.log("SETTLE WITH CHAIN: Notify done")
     }
 
     //settle with chain
@@ -1236,7 +1236,7 @@ export class RewardPoolOnChainService {
         if (process.env.ENV != "product") return
         const notifyHook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyHook) {
-            this.logger.error("No notify hook for statement")
+            // this.logger.error("No notify hook for statement")
             return
         }
 
@@ -1273,7 +1273,7 @@ export class RewardPoolOnChainService {
                 },
             })
             if (!user_info || !user_info.wallet_address) {
-                this.logger.warn(`User: ${data.user} not found or has no wallet address.`)
+                // this.logger.warn(`User: ${data.user} not found or has no wallet address.`)
                 continue
             }
             const onChainData = await this.retrieveUserTokenBalance(data.token, user_info.wallet_address)
@@ -1311,7 +1311,7 @@ export class RewardPoolOnChainService {
         }
         tableContent = "#### User's rewards summary " + new Date().toLocaleString() + "\n\n" + tableContent
         await lastValueFrom(this.rewardOnChainHttpService.post(notifyHook, { text: tableContent }))
-        this.logger.log("SETTLE WITH CHAIN: Notify done")
+        // this.logger.log("SETTLE WITH CHAIN: Notify done")
     }
 
     //get buyback record
@@ -1338,12 +1338,12 @@ export class RewardPoolOnChainService {
         for (const reward_pool of rewards_pools) {
             try {
                 if (new Decimal(reward_pool._sum.usd_revenue || 0).lt(10)) {
-                    this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
+                    // this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
                     continue
                 }
                 const buybackRecord = await this.getBuybackRecord(reward_pool.token, reward_pool._max.buyback_id || 0)
                 if (buybackRecord.length === 0) {
-                    this.logger.log(`No buyback record found: ${reward_pool.token}`)
+                    // this.logger.log(`No buyback record found: ${reward_pool.token}`)
                     continue
                 }
                 //get current balance of pool
@@ -1382,7 +1382,7 @@ export class RewardPoolOnChainService {
                     })
                 }
             } catch (error) {
-                this.logger.error(`Get buyback record failed: ${error}`)
+                // this.logger.error(`Get buyback record failed: ${error}`)
                 continue
             }
         }
@@ -1409,7 +1409,7 @@ export class RewardPoolOnChainService {
             },
         })
         if (!adminUser) {
-            this.logger.error(`[CreateBuyBackOrders]Admin user not found`)
+            // this.logger.error(`[CreateBuyBackOrders]Admin user not found`)
             return
         }
 
@@ -1431,9 +1431,9 @@ export class RewardPoolOnChainService {
                     (staticToken) => rewardsSnapshot.token === staticToken.token && staticToken.env === process.env.ENV,
                 )
                 if (staticToken && !staticToken.new_info.enable_buyback) {
-                    this.logger.log(
-                        `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled for ip: ${order.ip_id}`,
-                    )
+                    // this.logger.log(
+                    // `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled for ip: ${order.ip_id}`,
+                    // )
                     continue
                 }
 
@@ -1445,12 +1445,12 @@ export class RewardPoolOnChainService {
                 })
 
                 if (!ipInfo) {
-                    this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is not bound ip, skip`)
+                    // this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is not bound ip, skip`)
                     continue
                 }
 
                 if ((ipInfo.current_token_info as any)?.is_static_token) {
-                    this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is static in ip-library, skip`)
+                    // this.logger.log(`[CreateBuyBackOrders]Token:${rewardsSnapshot.token} is static in ip-library, skip`)
                     continue
                 }
 
@@ -1461,7 +1461,7 @@ export class RewardPoolOnChainService {
                 })
 
                 if (!poolInfo) {
-                    this.logger.error(`[CreateBuyBackOrders]Reward pool not found: ${rewardsSnapshot.token}`)
+                    // this.logger.error(`[CreateBuyBackOrders]Reward pool not found: ${rewardsSnapshot.token}`)
                     continue
                 }
 
@@ -1478,7 +1478,7 @@ export class RewardPoolOnChainService {
                     .filter((item: RewardAllocateRatio) => item.role === RewardAllocateRoles.BUYBACK)
                     .reduce((acc: number, curr: RewardAllocateRatio) => acc + curr.ratio, 0)
                 if (needBuybackRatio > 90 || needBuybackRatio < 0) {
-                    this.logger.error(`[CreateBuyBackOrders]ratio is not valid: ${JSON.stringify(rewardsSnapshot)}`)
+                    // this.logger.error(`[CreateBuyBackOrders]ratio is not valid: ${JSON.stringify(rewardsSnapshot)}`)
                     continue
                 }
 
@@ -1506,7 +1506,7 @@ export class RewardPoolOnChainService {
                     })
                 }
             } catch (error) {
-                this.logger.error(`Mapping buyback amount failed: ${error}`)
+                // this.logger.error(`Mapping buyback amount failed: ${error}`)
                 continue
             }
         }
@@ -1516,9 +1516,9 @@ export class RewardPoolOnChainService {
             buybackMapping.forEach(async (value, token) => {
                 try {
                     if (value.buybackAmount.lt(MINIUM_ORDER_BUYBACK_AMOUNT)) {
-                        this.logger.warn(
-                            `[CreateBuyBackOrders]Buyback amount of token ${token} is less than ${MINIUM_ORDER_BUYBACK_AMOUNT}: ${JSON.stringify(value)}`,
-                        )
+                        // this.logger.warn(
+                        // `[CreateBuyBackOrders]Buyback amount of token ${token} is less than ${MINIUM_ORDER_BUYBACK_AMOUNT}: ${JSON.stringify(value)}`,
+                        // )
                         return
                     }
 
@@ -1529,9 +1529,9 @@ export class RewardPoolOnChainService {
                             (acc, item) => acc.plus(item.transferAmount),
                             new Decimal(0),
                         )
-                        this.logger.log(
-                            `[CreateBuyBackOrders]Transfer buyback fee of token ${token}, amount: ${transferAmount.toNumber()} to buyback wallet: ${value.buybackWallet}`,
-                        )
+                        // this.logger.log(
+                        // `[CreateBuyBackOrders]Transfer buyback fee of token ${token}, amount: ${transferAmount.toNumber()} to buyback wallet: ${value.buybackWallet}`,
+                        // )
                         const result = await this.giggleService.sendToken(
                             {
                                 email: adminUser.email,
@@ -1546,7 +1546,7 @@ export class RewardPoolOnChainService {
                             this.settleWallet,
                         )
                         if (!result.sig) {
-                            this.logger.error(`[CreateBuyBackOrders]Transfer failed: ${JSON.stringify(result)}`)
+                            // this.logger.error(`[CreateBuyBackOrders]Transfer failed: ${JSON.stringify(result)}`)
                             return
                         }
 
@@ -1563,7 +1563,7 @@ export class RewardPoolOnChainService {
                     //create buyback order
                     const orderId = await this.startBuyback(token, value.buybackAmount.toNumber())
                     if (!orderId) {
-                        this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${token}`)
+                        // this.logger.error(`[CreateBuyBackOrders]Start buyback failed: ${token}`)
                         return
                     }
                     await this.prisma.$transaction(async (tx) => {
@@ -1588,9 +1588,9 @@ export class RewardPoolOnChainService {
                             },
                         })
                     })
-                    this.logger.log(`[CreateBuyBackOrders]Create buyback order: ${orderId}`)
+                    // this.logger.log(`[CreateBuyBackOrders]Create buyback order: ${orderId}`)
                 } catch {
-                    this.logger.error(`[CreateBuyBackOrders]Create buyback order failed: ${token}`)
+                    // this.logger.error(`[CreateBuyBackOrders]Create buyback order failed: ${token}`)
                     return
                 }
             })
@@ -1621,9 +1621,9 @@ export class RewardPoolOnChainService {
                         token.new_info.current_token_info.mint === reward_pool.token && token.env === process.env.ENV,
                 )
                 if (staticToken && !staticToken.new_info.enable_buyback) {
-                    this.logger.warn(
-                        `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled, skip!`,
-                    )
+                    // this.logger.warn(
+                    // `[CreateBuyBackOrders]Token:${staticToken.token} is static and buyback disabled, skip!`,
+                    // )
                     continue
                 }
 
@@ -1635,17 +1635,17 @@ export class RewardPoolOnChainService {
                 })
 
                 if (!ipInfo) {
-                    this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is not bound ip, skip`)
+                    // this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is not bound ip, skip`)
                     continue
                 }
 
                 if ((ipInfo.current_token_info as any)?.is_static_token) {
-                    this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is static in ip-library, skip`)
+                    // this.logger.log(`[SettleWithChain]Token:${reward_pool.token} is static in ip-library, skip`)
                     continue
                 }
 
                 if (new Decimal(reward_pool._sum.usd_revenue || 0).lt(10)) {
-                    this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
+                    // this.logger.log(`Buyback record is less than 10 usd, skip: ${reward_pool.token}`)
                     continue
                 }
 
@@ -1666,16 +1666,16 @@ export class RewardPoolOnChainService {
                 const buybackUsdcAmount = (Number(buybackBalance?.[0]?.amount) || 0) - orderBuybackAmount
 
                 if (buybackUsdcAmount < 10) {
-                    this.logger.log(
-                        `Buyback balance is less than 10 usdc, wallet balance: ${buybackBalance?.[0]?.amount}, pending order buyback amount: ${orderBuybackAmount}, buyback usdc amount: ${buybackUsdcAmount}, skip: ${reward_pool.token}`,
-                    )
+                    // this.logger.log(
+                    // `Buyback balance is less than 10 usdc, wallet balance: ${buybackBalance?.[0]?.amount}, pending order buyback amount: ${orderBuybackAmount}, buyback usdc amount: ${buybackUsdcAmount}, skip: ${reward_pool.token}`,
+                    // )
                     continue
                 }
 
                 //create buyback order
                 const orderId = await this.startBuyback(reward_pool.token, buybackUsdcAmount)
                 if (!orderId) {
-                    this.logger.error(`Start buyback failed: ${reward_pool.token}`)
+                    // this.logger.error(`Start buyback failed: ${reward_pool.token}`)
                     continue
                 }
                 //update buyback order id
@@ -1690,7 +1690,7 @@ export class RewardPoolOnChainService {
                     },
                 })
             } catch (error) {
-                this.logger.error(`Get buyback record failed: ${error}`)
+                // this.logger.error(`Get buyback record failed: ${error}`)
                 continue
             }
         }
@@ -1701,7 +1701,7 @@ export class RewardPoolOnChainService {
     async checkBuybackResult() {
         if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
         if (await UtilitiesService.checkTaskRunning(this.onChainTaskId, TASK_IDS.CHECK_BUYBACK_RESULT)) {
-            this.logger.log("check buyback result task is running, skip")
+            // this.logger.log("check buyback result task is running, skip")
             return
         }
         //check jobid is running
@@ -1725,7 +1725,7 @@ export class RewardPoolOnChainService {
             if (parseInt(buyback.status) >= 4) continue
             const result = await this.getBuybackResult(buyback.order_id)
             if (!result) {
-                this.logger.warn(`Get buyback result failed: ${buyback.order_id}`)
+                // this.logger.warn(`Get buyback result failed: ${buyback.order_id}`)
                 continue
             }
             try {
@@ -1762,7 +1762,7 @@ export class RewardPoolOnChainService {
                     })
 
                     if (signatureExists) {
-                        this.logger.error(`Signature already exists of buyback record: ${record.sig}, skip`)
+                        // this.logger.error(`Signature already exists of buyback record: ${record.sig}, skip`)
                         continue
                     }
                     await this.prisma.$transaction(async (tx) => {
@@ -1819,7 +1819,7 @@ export class RewardPoolOnChainService {
                     }
                 }
             } catch (error) {
-                this.logger.error(`Check buyback result failed: ${error}`)
+                // this.logger.error(`Check buyback result failed: ${error}`)
                 continue
             }
         }
@@ -1835,7 +1835,7 @@ export class RewardPoolOnChainService {
         }
         const notifyWebhook = process.env.STATEMENT_NOTIFY_ADDRESS
         if (!notifyWebhook) {
-            this.logger.error("STATEMENT_NOTIFY_ADDRESS is not set")
+            // this.logger.error("STATEMENT_NOTIFY_ADDRESS is not set")
             return
         }
         const result = await this.prisma.$queryRaw<
@@ -1856,9 +1856,9 @@ export class RewardPoolOnChainService {
         `
         if (result && result.length > 0) {
             for (const item of result) {
-                this.logger.error(
-                    `Reward pool balance error: ${item.token}, in statement: ${item.balance.toString()}, in pool summary: ${item.current_balance.toString()}`,
-                )
+                // this.logger.error(
+                // `Reward pool balance error: ${item.token}, in statement: ${item.balance.toString()}, in pool summary: ${item.current_balance.toString()}`,
+                // )
             }
         }
     }
@@ -1869,7 +1869,7 @@ export class RewardPoolOnChainService {
         if (process.env.TASK_SLOT != "1" || process.env.SC_UPDATING == "true") return
 
         if (await UtilitiesService.checkTaskRunning(this.onChainTaskId, this.onChainTaskTimeout)) {
-            this.logger.log("Reward to chain task is running, skip")
+            // this.logger.log("Reward to chain task is running, skip")
             return
         }
 
@@ -1877,20 +1877,20 @@ export class RewardPoolOnChainService {
         try {
             await Promise.all([
                 this.updatePoolAddress().catch((error) => {
-                    this.logger.error(`[Reward to chain task] Update pool address failed: ${JSON.stringify(error)}`)
+                    // this.logger.error(`[Reward to chain task] Update pool address failed: ${JSON.stringify(error)}`)
                 }),
                 this.settleInjectToken().catch((error) => {
-                    this.logger.error(`[Reward to chain task] Settle inject token failed: ${JSON.stringify(error)}`)
+                    // this.logger.error(`[Reward to chain task] Settle inject token failed: ${JSON.stringify(error)}`)
                 }),
                 this.settleStatement().catch((error) => {
-                    this.logger.error(`[Reward to chain task] Settle statement failed: ${JSON.stringify(error)}`)
+                    // this.logger.error(`[Reward to chain task] Settle statement failed: ${JSON.stringify(error)}`)
                 }),
                 this.settleAirDropStatement().catch((error) => {
-                    this.logger.error(`[Reward to chain task] Settle airdrop failed: ${JSON.stringify(error)}`)
+                    // this.logger.error(`[Reward to chain task] Settle airdrop failed: ${JSON.stringify(error)}`)
                 }),
             ])
         } catch (error) {
-            this.logger.error(`Reward to chain task failed: ${JSON.stringify(error)}`)
+            // this.logger.error(`Reward to chain task failed: ${JSON.stringify(error)}`)
         } finally {
             await UtilitiesService.stopTask(this.onChainTaskId)
         }
@@ -1913,7 +1913,7 @@ export class RewardPoolOnChainService {
                     data: { address: (newContent as any)?.addr },
                 })
             } catch (error) {
-                this.logger.error(`Update pool address failed: ${error}`)
+                // this.logger.error(`Update pool address failed: ${error}`)
                 continue
             }
         }
@@ -1926,7 +1926,7 @@ export class RewardPoolOnChainService {
         const taskId = TASK_IDS.UPDATE_BUYBACK_WALLET
 
         if (await UtilitiesService.checkTaskRunning(taskId, this.onChainTaskTimeout)) {
-            this.logger.log("Update buyback wallet task is running, skip")
+            // this.logger.log("Update buyback wallet task is running, skip")
             return
         }
         await UtilitiesService.startTask(taskId)
@@ -1943,16 +1943,16 @@ export class RewardPoolOnChainService {
 
         //check if there is any reward pool
         if (rewardPools.length === 0) {
-            this.logger.log("No reward pool to update buyback wallet")
+            // this.logger.log("No reward pool to update buyback wallet")
             return
         }
 
-        this.logger.log(`Update buyback wallet start: ${rewardPools.length} reward pools`)
+        // this.logger.log(`Update buyback wallet start: ${rewardPools.length} reward pools`)
         for (const rewardPool of rewardPools) {
             try {
                 const buybackWallet = await this.retrieveBuybackWallet(rewardPool.token)
                 if (!buybackWallet) {
-                    this.logger.error(`Buyback wallet not found: ${rewardPool.token}`)
+                    // this.logger.error(`Buyback wallet not found: ${rewardPool.token}`)
                     return
                 }
                 await this.prisma.reward_pools.update({
@@ -1964,9 +1964,9 @@ export class RewardPoolOnChainService {
                     },
                 })
                 await new Promise((resolve) => setTimeout(resolve, 10000))
-                this.logger.log(`Update buyback wallet done: ${rewardPool.token}`)
+                // this.logger.log(`Update buyback wallet done: ${rewardPool.token}`)
             } catch (error) {
-                this.logger.error(`Update buyback wallet failed: ${error}`)
+                // this.logger.error(`Update buyback wallet failed: ${error}`)
                 continue
             }
         }
