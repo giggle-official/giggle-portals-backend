@@ -216,6 +216,10 @@ export class AssetsService {
     }
 
     async registerAsset(userInfo: UserJwtExtractDto, body: RegisterAssetDto): Promise<AssetDetailDto> {
+        const startedAt = Date.now()
+        this.logger.error(
+            `REGISTER ASSET: start, user: ${userInfo.usernameShorted}, name: ${body.name}, object key: ${body.object_key}`,
+        )
         try {
             //check path is exists
             const existingAsset = await this.prismaService.assets.findFirst({
@@ -223,6 +227,9 @@ export class AssetsService {
             })
 
             if (existingAsset) {
+                this.logger.error(
+                    `REGISTER ASSET: object key already registered, object key: ${body.object_key}, asset: ${existingAsset.asset_id}`,
+                )
                 throw new Error("this object key already registered")
             }
 
@@ -253,6 +260,9 @@ export class AssetsService {
 
             let fileType = fileInfo?.ContentType.split("/")[0] || "unknown"
             const assetId = Math.random().toString(36).substring(2, 15)
+            this.logger.error(
+                `REGISTER ASSET: head object done, asset: ${assetId}, type: ${fileType}, content type: ${fileInfo?.ContentType}, size: ${fileInfo?.ContentLength}, public: ${isPublic}`,
+            )
 
             let assetInfo: NewVideoProcessResult | NewImageProcessResult | NewAudioProcessResult | null = null
             if (fileType === "video") {
@@ -288,9 +298,16 @@ export class AssetsService {
             //        attempts: 3,
             //    },
             //)
-            return await this.getAsset(userInfo, created.asset_id)
+            this.logger.error(`REGISTER ASSET: created, asset: ${created.asset_id}, id: ${created.id}`)
+            const detail = await this.getAsset(userInfo, created.asset_id)
+            this.logger.error(
+                `REGISTER ASSET: done, asset: ${created.asset_id}, download url shorter: ${detail.download_url_shorter}, cost: ${Date.now() - startedAt}ms`,
+            )
+            return detail
         } catch (error) {
-            this.logger.error("Error uploading asset:", error)
+            this.logger.error(
+                `REGISTER ASSET ERROR: user: ${userInfo.usernameShorted}, object key: ${body.object_key}, cost: ${Date.now() - startedAt}ms, error: ${error}`,
+            )
             throw new InternalServerErrorException("Failed to upload asset: " + error.message)
         }
     }

@@ -120,8 +120,14 @@ export class UtilitiesService {
         try {
             const endpoint = process.env.SHORTLINK_API_ENDPOINT
             const apiKey = process.env.SHORTLINK_API_KEY
-            if (!endpoint || !apiKey || !url) return url
+            if (!endpoint || !apiKey || !url) {
+                this.logger.error(
+                    `SHORTEN URL: skipped, endpoint set: ${!!endpoint}, api key set: ${!!apiKey}, url set: ${!!url}`,
+                )
+                return url
+            }
 
+            const startedAt = Date.now()
             const response = await fetch(`${endpoint}/links`, {
                 method: "POST",
                 headers: {
@@ -130,11 +136,24 @@ export class UtilitiesService {
                 },
                 body: JSON.stringify({ target: url }),
             })
-            if (!response.ok) return url
+            if (!response.ok) {
+                const body = await response.text().catch(() => "")
+                this.logger.error(
+                    `SHORTEN URL FAILED: endpoint: ${endpoint}/links, status: ${response.status}, cost: ${Date.now() - startedAt}ms, response: ${body.slice(0, 500)}`,
+                )
+                return url
+            }
             const data = (await response.json()) as { link?: string }
-            return data?.link || url
+            if (!data?.link) {
+                this.logger.error(
+                    `SHORTEN URL FAILED: endpoint: ${endpoint}/links, no link in response: ${JSON.stringify(data)?.slice(0, 500)}`,
+                )
+                return url
+            }
+            this.logger.error(`SHORTEN URL: done, link: ${data.link}, cost: ${Date.now() - startedAt}ms`)
+            return data.link
         } catch (error) {
-            this.logger.error("Error shortening URL:", error)
+            this.logger.error(`SHORTEN URL ERROR: ${error}`)
             return url
         }
     }
