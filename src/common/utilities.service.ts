@@ -150,7 +150,6 @@ export class UtilitiesService {
                 )
                 return url
             }
-            this.logger.error(`SHORTEN URL: done, link: ${data.link}, cost: ${Date.now() - startedAt}ms`)
             return data.link
         } catch (error) {
             this.logger.error(`SHORTEN URL ERROR: ${error}`)
