@@ -25,6 +25,12 @@ export class CodeStrategy extends PassportStrategy(Strategy, "code") {
         if (!userInfo) {
             throw new ForbiddenException("User not found")
         }
+        // is_blocked is how an account deletion is recorded — a deleted account
+        // must not be able to sign back in. getAccessToken further down this
+        // path does not check the flag, so it has to be enforced here.
+        if (userInfo.is_blocked) {
+            throw new ForbiddenException("Account has been deleted")
+        }
         if (!userInfo.login_code) {
             throw new ForbiddenException("User has not requested login code")
         }

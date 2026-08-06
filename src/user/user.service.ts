@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ForbiddenException,
     forwardRef,
     Inject,
     Injectable,
@@ -1055,6 +1056,19 @@ Message: ${contactInfo.message}
         const disabledDomain = process.env.DISABLED_EMAIL_DOMAINS?.split(",") || []
         if (disabledDomain.includes(emailDomain)) {
             throw new BadRequestException("This email domain is unavailable")
+        }
+
+        // is_blocked is how an account deletion is recorded. A deleted account
+        // must not even be issued a code — no email should go out and no
+        // login_code should be written. Checked against the row directly
+        // because the UserInfoDTO below does not carry the flag. A brand new
+        // account is never blocked, so this only applies to an existing user.
+        const existing = await this.prisma.users.findFirst({
+            where: { email: userInfo.email },
+            select: { is_blocked: true },
+        })
+        if (existing?.is_blocked) {
+            throw new ForbiddenException("Account has been deleted")
         }
 
         let user = await this.getUserInfoByEmail(userInfo.email)

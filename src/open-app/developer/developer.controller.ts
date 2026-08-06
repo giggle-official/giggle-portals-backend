@@ -21,7 +21,7 @@ import { IsWidgetGuard } from "src/auth/is_widget.guard"
 import { UsersService } from "./users.service"
 import * as nationCodes from "./nation-codes.json"
 import { LoginResponseDto } from "../auth/auto.dto"
-import { GetUserTokenDto } from "./users.dto"
+import { DeleteUserDto, DeleteUserResponseDto, GetUserTokenDto } from "./users.dto"
 import { LoginCodeResponseDto } from "src/user/user.dto"
 import { LoginResponseDTO, LoginWithCodeReqDto } from "src/auth/auth.dto"
 import { AuthGuard } from "@nestjs/passport"
@@ -128,6 +128,22 @@ export class DeveloperController {
     @UseGuards(IsWidgetGuard)
     async getUserToken(@Req() req: Request, @Body() body: GetUserTokenDto) {
         return this.usersService.getToken(req.user as UserJwtExtractDto, body)
+    }
+
+    //delete a user
+    @Post("/delete-user")
+    @ApiBearerAuth("jwt")
+    @ApiTags("Developer Utility")
+    @ApiOperation({
+        summary: "delete a user account",
+        description:
+            "Permanently deletes the account: no sign-in path will issue a token for it again. The identity row, its credits and its order history are retained internally — IPOS is shared by several products and those records are referenced elsewhere — but the account is unusable and the credits unreachable.",
+    })
+    @ApiResponse({ type: DeleteUserResponseDto })
+    @ApiBody({ type: DeleteUserDto })
+    @UseGuards(IsWidgetGuard)
+    async deleteUser(@Req() req: Request, @Body() body: DeleteUserDto) {
+        return this.usersService.deleteUser(req.user as UserJwtExtractDto, body)
     }
 
     //send login code

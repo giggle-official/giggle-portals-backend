@@ -5,7 +5,7 @@ import { UtilitiesService } from "src/common/utilities.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { UserService } from "src/user/user.service"
 import { WidgetsService } from "../widgets/widgets.service"
-import { GetUserTokenDto } from "./users.dto"
+import { DeleteUserDto, DeleteUserResponseDto, GetUserTokenDto } from "./users.dto"
 import { users } from "@prisma/client"
 import { GetUserInfoQueryDto } from "./developer.dto"
 
@@ -86,6 +86,14 @@ export class UsersService {
             throw new BadRequestException("user_id or email is required")
         }
 
+        // is_blocked is how an account deletion is recorded — a deleted account
+        // must not be able to sign back in. This is the Google / developer-token
+        // path; the email-code path is guarded in CodeStrategy. getAccessToken
+        // below does not check the flag, so it has to be enforced here.
+        if (user.is_blocked) {
+            throw new ForbiddenException("Account has been deleted")
+        }
+
         const widgetTag = reqDeveloper?.developer_info?.tag
         if (!widgetTag) {
             throw new NotFoundException("Widget not found")
@@ -123,5 +131,54 @@ export class UsersService {
             },
             reqDeveloper.device_id,
         )
+    }
+
+    /**
+     * Delete a user account, in response to an in-app deletion request.
+     *
+     * Deletion is recorded by setting is_blocked: every sign-in path refuses a
+     * deleted account, so it can never be used again. The identity row itself
+     * is kept because IPOS is shared by several products and that row is the
+     * parent of order, credit, and asset records that must survive.
+     *
+     * Credits are deliberately left untouched. The balance stays attached to
+     * the dead identity and is unreachable, since no sign-in path will issue a
+     * token for it.
+     */
+    async deleteUser(reqDeveloper: UserJwtExtractDto, body: DeleteUserDto): Promise<DeleteUserResponseDto> {
+        if (body?.user_id && body?.email) {
+            throw new BadRequestException("email and user_id are mutually exclusive")
+        }
+
+        let user: users | null = null
+        if (body?.user_id) {
+            user = await this.prisma.users.findUnique({
+                where: { username_in_be: body.user_id },
+            })
+        } else if (body?.email) {
+            if (!isEmail(body.email)) {
+                throw new BadRequestException("Email is not valid")
+            }
+            user = await this.prisma.users.findUnique({
+                where: { email: body.email },
+            })
+        } else {
+            throw new BadRequestException("user_id or email is required")
+        }
+
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        if (user.is_blocked) {
+            return { user_id: user.username_in_be, deleted: false }
+        }
+
+        await this.prisma.users.update({
+            where: { username_in_be: user.username_in_be },
+            data: { is_blocked: true },
+        })
+
+        return { user_id: user.username_in_be, deleted: true }
     }
 }
