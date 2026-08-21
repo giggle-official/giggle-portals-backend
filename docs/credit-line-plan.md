@@ -383,7 +383,7 @@ CAN_GRANT_CREDIT_LINE = "can_grant_credit_line",
 > 开额度接口里**必须**从请求体的 `email` 解析目标用户（与 `issueFreeCredit` 一致），照着 `req.user` 写会变成 widget 给自己的作者账号开额度——而且因为作者通常也是这个 widget 的合法用户，这个 bug 不会报错，只会静默地开错人。
 - **支付时** —— 除了账户匹配，再用 `WidgetCaslAbilityFactory.createForWidget(order.widget_tag)` 校验权限位仍在，作为权限回收的即时开关。
 
-widget 开出的额度受 `CREDIT_LINE_WIDGET_GRANT_MAX`（新增环境变量）封顶，**默认 1000000**。仓库里没有被跟踪的 `.env.example`，所以新变量记在 `README.md` 的环境变量说明里。默认值给得宽，是因为前期用授信的都是大 B 端合作客户，而且权限位本身就是手工维护的白名单——这个上限是用来兜住误操作的，不是主要管控手段。本期没有管理端接口，需要突破它只能改 env 或直接改库。
+widget 开出的额度受 `CREDIT_LINE_WIDGET_GRANT_MAX`（新增环境变量）封顶，**默认 1000000，不配也能跑**。默认值给得宽，是因为前期用授信的都是大 B 端合作客户，而且权限位本身就是手工维护的白名单——这个上限是用来兜住误操作的，不是主要管控手段。本期没有管理端接口，需要突破它只能改 env 或直接改库。
 
 ⚠️ **它封的是「单个 widget 给单个用户」的额度，不是 widget 的总敞口。** 一个 widget 完全可以给一万个用户各开一个顶格额度，代码里没有任何一处会拦。今天约束总量的只有「谁拿到 `CAN_GRANT_CREDIT_LINE`」。要加总敞口上限的话，开额度时需要多一条按 `widget_tag` 的 `SUM(credit_limit)` 校验，而 `user_credit_lines` 的唯一键是 `(user, widget_tag)`、`widget_tag` 打头用不上它，得再加索引——**要动 DDL，另行决定**。在那之前先靠[§7](#7-报表与供应商结算口径)里那个「未偿还授信合计」指标把敞口看见。
 
@@ -536,7 +536,7 @@ widget 侧接口按 `(email 对应的用户, 自己的 developer_info.tag)` 取�
 10. **还款接口** —— `POST /api/v1/credit-line/repay`，两种鉴权入口，见[§4](#4-还款)。`issueCredit` **不动**。
 11. **接口与 DTO** —— [§8](#8-接口) 的新增项。`getProfile`、`/credit/balance`、`/credit/issue-credit` 都不动，管理端接口本期不做。
 12. **报表** —— [§7](#7-报表与供应商结算口径)：现有查询不动，只在 `getCreditStatictics` 里加还款聚合查询和未偿还指标，在 `formatCreditStatsForTemplate` 里加展示。
-13. **环境变量** —— `CREDIT_LINE_WIDGET_GRANT_MAX` 记进 `README.md`（仓库没有被跟踪的 `.env.example`）。有默认值 1000000，不配也能跑。
+13. **环境变量** —— `CREDIT_LINE_WIDGET_GRANT_MAX`，默认 1000000，不配也能跑，说明见[§6](#6-widget-权限)。
 
 ## 12. 测试
 

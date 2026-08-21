@@ -26,12 +26,6 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Environment variables
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `CREDIT_LINE_WIDGET_GRANT_MAX` | no, defaults to `1000000` | Ceiling on the credit limit a single widget may grant one user through `POST /api/v1/credit-line/grant`. It caps one (user, widget) line, not a widget's total exposure — a widget may hold many lines at the cap, and what bounds the total today is who holds `can_grant_credit_line`. Raising one user above the cap is a manual `user_credit_lines` change. |
-
 ## Installation
 
 ```bash
