@@ -1,6 +1,6 @@
 # 授信积分（Credit Line）实施方案
 
-状态：**设计已确认。#2（消费顺序）已实现待测，授信本体未开始。**
+状态：**#2 #3 #4 #5 已合并，剩 #6（结算报表）和 #7（支付通道）。上线 DDL 见[§14](#14-上线-ddl-清单)，尚未在生产执行。**
 最后更新：2026-08-21
 
 授信积分让用户可以先消费后付款，类似信用卡。授信额度由 widget 授予、**只能在该 widget 内使用和还款**；还款是一个**显式的原子接口**，不随充值自动发生，门禁由 widget 来做。授信支付是一条**独立的支付通道**，与积分支付互斥，一个订单要么走授信、要么走积分，不存在混合支付。
@@ -597,6 +597,96 @@ widget 侧接口按 `(email 对应的用户, 自己的 developer_info.tag)` 取�
 
 **约束 2：利息必须是独立的流水类型，不能混进 `repay`。**
 利息也是欠款、也会被还款冲抵。[§7](#7-报表与供应商结算口径)是按 `credit_line_statements` 里 `type = 'repay'` 的合计来确认付费消耗的；如果还利息的那部分也记成 `repay`，**平台收的利息会被当成消耗结算给供应商**。将来加利息时，计息记 `interest`、还利息记 `repay_interest`，报表只认 `repay`。今天没有利息，这条不改变任何行为，成本为零。
+
+## 14. 上线 DDL 清单
+
+生产的 DDL 攒到全部功能完成后**一次性执行**，所以这里是唯一的汇总清单。本地已全部执行并验证过。
+
+按顺序执行，两组之间没有依赖：
+
+```sql
+-- 来自 #3。两张新表不指定 charset，继承库默认，
+-- 这样 widget_tag 与 orders.widget_tag 同 collation，§7 的报表 join 不会有隐式转换。
+CREATE TABLE user_credit_lines (
+  id           INT          NOT NULL AUTO_INCREMENT,
+  `user`       VARCHAR(32)  NOT NULL,
+  widget_tag   VARCHAR(32)  NOT NULL,
+  credit_limit INT          NOT NULL DEFAULT 0,
+  used         INT          NOT NULL DEFAULT 0,
+  status       ENUM('active','frozen') NOT NULL DEFAULT 'active',
+  note         VARCHAR(1024) NULL,
+  operator     VARCHAR(32)  NULL,
+  created_at   TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP(0) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY user_widget (`user`, widget_tag)
+);
+
+CREATE TABLE credit_line_statements (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  `user`     VARCHAR(32)  NOT NULL,
+  widget_tag VARCHAR(32)  NOT NULL,
+  type       ENUM('consume','repay','refund') NOT NULL,
+  amount     INT          NOT NULL,
+  used_after INT          NOT NULL,
+  order_id   VARCHAR(64)  NULL,
+  request_id VARCHAR(64)  NULL,
+  created_at TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user_widget (`user`, widget_tag),
+  KEY idx_widget_created (widget_tag, created_at)
+);
+
+-- 来自 #3。枚举值必须追加在末尾：末尾追加是元数据变更，
+-- 插在中间会重建整张 credit_statements。跑之前可以先带
+-- , ALGORITHM=INPLACE, LOCK=NONE 试一次，能过就说明不重建也不锁写。
+ALTER TABLE credit_statements
+  MODIFY COLUMN type ENUM(
+    'issue_free_credit','expire_free_credit',
+    'issue_subscription_credit','expire_subscription_credit',
+    'top_up','consume','refund','repay_credit_line'
+  ) NULL;
+
+-- 来自 #4。与线上现有定义的差异只有 COALESCE 那一行。
+-- 用 COALESCE 而不是直接 a.paid_method <> 'credit-line'：后者在 NULL 时结果是 NULL，
+-- 会把所有没有支付方式的历史订单一起排除掉，那是个静默的收入缩水。
+CREATE OR REPLACE VIEW view_ip_incomes AS
+WITH t1 AS (
+  SELECT (sum(a.amount) / 100) AS amount,
+         b.ip_id AS ip_id,
+         cast(a.paid_time AS date) AS date
+  FROM orders a
+  LEFT JOIN app_bind_ips b ON a.app_id = b.app_id
+  WHERE a.current_status IN ('rewards_released','completed')
+    AND COALESCE(a.paid_method, '') <> 'credit-line'
+    AND a.app_id IS NOT NULL
+    AND b.ip_id IS NOT NULL
+  GROUP BY b.ip_id, date
+)
+SELECT md5(concat(t1.ip_id, t1.date)) AS id, t1.amount AS amount, t1.ip_id AS ip_id, t1.date AS date
+FROM t1;
+```
+
+校验：
+
+```sql
+SELECT 'tables' AS item, count(*) AS val FROM information_schema.tables
+ WHERE table_schema = DATABASE() AND table_name IN ('user_credit_lines','credit_line_statements')
+UNION ALL
+SELECT 'enum_ok', column_type LIKE '%repay\_credit\_line%' FROM information_schema.columns
+ WHERE table_schema = DATABASE() AND table_name = 'credit_statements' AND column_name = 'type'
+UNION ALL
+SELECT 'view_ok', view_definition LIKE '%credit-line%' FROM information_schema.views
+ WHERE table_schema = DATABASE() AND table_name = 'view_ip_incomes';
+```
+
+三行都应为 `2 / 1 / 1`。
+
+回滚：`DROP` 两张新表、枚举列表去掉最后一个值、视图用不带 `COALESCE` 那行的旧定义 `CREATE OR REPLACE` 回去。只要没有行用到 `repay_credit_line` 就无损。
+
+**除此之外没有别的 DDL。** `PaymentMethod.CREDIT_LINE` 是普通 TS 枚举，`CREDIT_LINE_WIDGET_GRANT_MAX` 有默认值可以不配。
+
+---
 
 ## 不在本期范围
 

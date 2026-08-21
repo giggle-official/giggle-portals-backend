@@ -30,6 +30,51 @@ export class GrantCreditLineDto {
     note?: string
 }
 
+export class RepayCreditLineDto {
+    @ApiProperty({
+        description:
+            "The widget whose credit line to repay. Required when calling with a user JWT; ignored when " +
+            "calling with a widget JWT, which always repays its own credit line.",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    widget_tag?: string
+
+    @ApiProperty({
+        description:
+            "The user repaying. Required when calling with a widget JWT, ignored otherwise — a widget may " +
+            "repay on a user's behalf.",
+        required: false,
+    })
+    @IsEmail()
+    @IsOptional()
+    email?: string
+
+    @ApiProperty({
+        description:
+            "How much to repay. Omit to repay as much as the debt and the usable balance allow. " +
+            "The amount is always capped by both.",
+        required: false,
+    })
+    @IsNumber()
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    amount?: number
+
+    @ApiProperty({
+        description:
+            "Idempotency key. Omit and one is generated server-side, in which case retrying really does repay " +
+            "twice. Supply one and a repeat is rejected rather than charged again. Deduplicated per user and " +
+            "widget, so it need not be globally unique.",
+        required: false,
+    })
+    @IsString()
+    @IsOptional()
+    request_id?: string
+}
+
 export class CreditLineDto {
     @ApiProperty({
         description: "The widget that granted this credit line",
@@ -65,6 +110,28 @@ export class WidgetCreditLineDto extends CreditLineDto {
         description:
             "The user's balance that is usable for repayment, i.e. their total balance minus free credit. " +
             "Returned so that a single call is enough to decide whether to make the user repay first.",
+    })
+    credit_balance: number
+}
+
+export class RepayCreditLineResponseDto {
+    @ApiProperty({
+        description: "How much was actually repaid, which is 0 when there was nothing owed or nothing to pay with",
+    })
+    repaid: number
+
+    @ApiProperty({
+        description: "The debt remaining on this credit line",
+    })
+    credit_line_used: number
+
+    @ApiProperty({
+        description: "What can still be spent on this credit line",
+    })
+    credit_line_available: number
+
+    @ApiProperty({
+        description: "The user's real spendable balance after the repayment",
     })
     credit_balance: number
 }
