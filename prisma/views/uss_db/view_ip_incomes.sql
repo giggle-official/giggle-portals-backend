@@ -13,6 +13,7 @@ WITH `t1` AS (
       (
         `a`.`current_status` IN ('rewards_released', 'completed')
       )
+      AND (COALESCE(`a`.`paid_method`, '') <> 'credit-line')
       AND (`a`.`app_id` IS NOT NULL)
       AND (`b`.`ip_id` IS NOT NULL)
     )

@@ -47,6 +47,15 @@ export enum PaymentMethod {
     CREDIT = "credit",
     CREDIT2C = "2c-credit",
     CUSTOMIZED = "customized",
+    /**
+     * Paid from a widget-granted credit line: the user has borrowed, not paid.
+     * Deliberately absent from `OrderService.defaultPaymentMethod`, so an order
+     * cannot declare it and no client can select it; the only writer will be the
+     * dedicated credit line payment endpoint. Everything that reads an order as
+     * real income has to exclude it — see `releaseRewards`, `view_ip_incomes`
+     * and `createBuyBackOrders`.
+     */
+    CREDIT_LINE = "credit-line",
 }
 
 export class OrderRefundedDetailDto {
