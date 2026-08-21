@@ -454,6 +454,29 @@ export class CreditService {
     }
 
     /**
+     * Spends `amount` of real credit to pay off a credit line, the credit-account
+     * leg of a repayment.
+     *
+     * Free credit is skipped: a gift must not be spent servicing a debt.
+     * Subscription credit is not, because it is paid credit in our terms.
+     *
+     * It walks the same buckets as consumption rather than just decrementing the
+     * total, because subscription credit is held per issue row — decrementing only
+     * `current_credit_balance` would leave the two out of step and progressively
+     * distort the derived paid balance.
+     *
+     * The caller owns the transaction, holds the user row lock, and has already
+     * clamped `amount` to what is both owed and affordable.
+     */
+    async spendForCreditLineRepayment(tx: Prisma.TransactionClient, user: string, amount: number): Promise<void> {
+        await this.spendBalanceBuckets(tx, user, amount, {
+            allowFreeCredit: false,
+            statementType: credit_statement_type.repay_credit_line,
+            orderId: null,
+        })
+    }
+
+    /**
      * Spends `amount` out of the user's real balance, walking the buckets in the
      * order subscription -> paid -> free.
      *

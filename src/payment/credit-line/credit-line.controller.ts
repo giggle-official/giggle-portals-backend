@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from "@nestjs/common"
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Req, UseGuards } from "@nestjs/common"
 import { AuthGuard } from "@nestjs/passport"
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { Request } from "express"
@@ -12,6 +12,8 @@ import {
     GetCreditLineStatementQueryDto,
     GetCreditLineStatementsResponseDto,
     GrantCreditLineDto,
+    RepayCreditLineDto,
+    RepayCreditLineResponseDto,
     WidgetCreditLineDto,
 } from "./credit-line.dto"
 import { CreditLineService } from "./credit-line.service"
@@ -42,6 +44,26 @@ export class CreditLineController {
     @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE))
     async grantCreditLine(@Body() body: GrantCreditLineDto, @Req() req: Request): Promise<CreditLineDto> {
         return this.creditLineService.grantCreditLine(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/repay")
+    @ApiOperation({
+        summary: "Repay a credit line",
+        description:
+            "Pays off a credit line with real credit, in one atomic call. The amount is capped by both the " +
+            "debt and the balance usable for repayment (everything except free credit), so it is safe to ask " +
+            "for more than is owed; omit `amount` to repay as much as possible. Repaying nothing is a success, " +
+            "not an error. Callable with a user jwt, or with a widget jwt holding `can_grant_credit_line` to " +
+            "repay on a user's behalf, in which case `email` is required. Nothing about this happens " +
+            "automatically on top up — see the description of the credit line design for why.",
+        tags: ["Credit Line"],
+    })
+    @ApiBody({ type: RepayCreditLineDto })
+    @ApiResponse({ type: RepayCreditLineResponseDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async repayCreditLine(@Body() body: RepayCreditLineDto, @Req() req: Request): Promise<RepayCreditLineResponseDto> {
+        return this.creditLineService.repayCreditLine(body, req.user as UserJwtExtractDto)
     }
 
     @Get("/list")
