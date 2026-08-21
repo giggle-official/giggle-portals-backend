@@ -595,7 +595,7 @@ export class OrderService {
             allow,
             message,
             order: orderRecord,
-        } = await this.allowPayOrder(orderId, userProfile, PaymentMethod.WALLET)
+        } = await this.allowPayOrder(orderId, userProfile, PaymentMethod.CREDIT)
         if (!allow) {
             throw new BadRequestException(message)
         }
