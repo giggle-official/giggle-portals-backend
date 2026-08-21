@@ -1637,6 +1637,12 @@ export class OrderService {
             this.logger.error(`Order ${order_id} not found`)
             throw new NotFoundException("Order not found")
         }
+        // `releaseRewards` refuses these too; repeated here so the widget-facing
+        // endpoint answers with a reason instead of an empty array.
+        if (orderRecord.paid_method === PaymentMethod.CREDIT_LINE) {
+            this.logger.warn(`Order ${order_id} was paid with a credit line, no rewards are released`)
+            throw new BadRequestException("Order was paid with a credit line and has no rewards")
+        }
         if (
             orderRecord.current_status !== OrderStatus.COMPLETED &&
             orderRecord.current_status !== OrderStatus.PARTIAL_REFUNDED
@@ -1676,6 +1682,16 @@ export class OrderService {
         })
         if (!orderRecord) {
             this.logger.error(`Order ${order_id} not found`)
+            return []
+        }
+
+        // A credit line order is borrowed, not paid: COMPLETED is the end of it and
+        // nothing downstream may fire. The check lives here rather than at the call
+        // sites because there are nine of them, one of which is a widget-callable
+        // endpoint — skipping the call on the credit line payment path would leave
+        // the reward release one request away.
+        if (orderRecord.paid_method === PaymentMethod.CREDIT_LINE) {
+            this.logger.warn(`Order ${order_id} was paid with a credit line, no rewards are released`)
             return []
         }
 

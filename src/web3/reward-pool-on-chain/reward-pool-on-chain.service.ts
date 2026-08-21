@@ -26,7 +26,7 @@ import { UserJwtExtractDto } from "src/user/user.controller"
 import { Prisma, reward_pool_on_chain_status, reward_pool_type } from "@prisma/client"
 import { CronExpression } from "@nestjs/schedule"
 import { Cron } from "@nestjs/schedule"
-import { OrderStatus } from "src/payment/order/order.dto"
+import { OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
 import { Decimal } from "@prisma/client/runtime/library"
 import { RewardAllocateRatio, RewardAllocateRoles, RewardSnapshotDto } from "src/payment/rewards-pool/rewards-pool.dto"
 import { TASK_IDS, UtilitiesService } from "src/common/utilities.service"
@@ -1401,6 +1401,16 @@ export class RewardPoolOnChainService {
                 buyback_order_id: null,
                 current_status: OrderStatus.COMPLETED,
                 rewards_model_snapshot: { not: Prisma.AnyNull },
+                // Belt and braces. Credit line orders are refused `buyback_after_paid`
+                // at creation, so this filter should already exclude them — but this
+                // cron moves real money on chain, and buying back against credit a
+                // user has not repaid would spend the platform's own funds.
+                //
+                // Spelled out as an OR because Prisma's `not` does not match NULL:
+                // written as `paid_method: { not: CREDIT_LINE }` this would also drop
+                // every order whose paid_method was never set, quietly narrowing a
+                // filter that is only supposed to widen.
+                OR: [{ paid_method: null }, { paid_method: { not: PaymentMethod.CREDIT_LINE } }],
             },
         })
         const adminUser = await this.prisma.users.findFirst({

@@ -1125,6 +1125,16 @@ export class CreditService {
             throw new BadRequestException("Widget does not have permission to issue token")
         }
 
+        // This is the one place a caller gets to choose what `paid_method` an order
+        // is stamped with, so it is also the one door through which "credit-line"
+        // could be applied to an order that never went through the credit line.
+        // Such an order would silently drop out of IP income and buyback, and a
+        // credit line top-up is meaningless anyway: it would turn debt straight
+        // into spendable balance.
+        if (body.payment_method === PaymentMethod.CREDIT_LINE) {
+            throw new BadRequestException("Top up orders cannot be paid with a credit line")
+        }
+
         const userEmail = body.email
         let userProfile: UserJwtExtractDto = await this.userService.getUserInfoByEmail(userEmail)
         //we need create user if user not exists
