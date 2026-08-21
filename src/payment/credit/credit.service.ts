@@ -423,14 +423,75 @@ export class CreditService {
             throw new BadRequestException("Insufficient credit balance")
         }
 
+        const { free_credit_consumed } = await this.spendBalanceBuckets(tx, userInfo.usernameShorted, amount, {
+            allowFreeCredit: allow_free_credit,
+            statementType: credit_statement_type.consume,
+            orderId: order_id,
+        })
+
+        return {
+            free_credit_consumed,
+            total_credit_consumed: amount,
+        }
+    }
+
+    /**
+     * Spends `amount` out of the user's real balance, walking the buckets in the
+     * order subscription -> paid -> free.
+     *
+     * The supplier settlement report splits consumption into free
+     * (is_free_credit = 1) and paid (is_free_credit = 0); free credit is the only
+     * bucket that shrinks the paid figure, so it burns last. Subscription and paid
+     * land in the same bucket, so their relative order does not move the settlement
+     * number, and subscription goes first because it is the one that may expire.
+     *
+     * Callers are responsible for locking the user row and for checking that the
+     * balance covers `amount` before calling.
+     */
+    private async spendBalanceBuckets(
+        tx: Prisma.TransactionClient,
+        user: string,
+        amount: number,
+        options: {
+            allowFreeCredit: boolean
+            statementType: credit_statement_type
+            orderId: string | null
+        },
+    ): Promise<{ free_credit_consumed: number }> {
+        const { allowFreeCredit, statementType, orderId } = options
+
         let needCreditConsumed = amount
         let freeCreditConsumed = 0
 
         const now = new Date()
-        const freeCredits = await tx.free_credit_issues.findMany({
+
+        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(user, tx)
+
+        // The paid balance is not stored anywhere; it is whatever is left of
+        // current_credit_balance once the free and subscription buckets are taken out.
+        // Both subtrahends deliberately ignore expire_date: credits that expired but
+        // have not been swept yet are still counted in current_credit_balance, so
+        // filtering them here would overstate the paid balance and let the paid bucket
+        // consume more than the user actually paid for.
+        const subscriptionOnBooks =
+            (
+                await tx.widget_subscription_credit_issues.aggregate({
+                    _sum: { current_balance: true },
+                    where: {
+                        user_id: user,
+                        current_balance: { gt: 0 },
+                        is_issue: true,
+                    },
+                })
+            )._sum.current_balance || 0
+
+        const paidCreditBalance = Math.max(0, total_credit_balance - free_credit_balance - subscriptionOnBooks)
+
+        const widgetSubscriptionCredits = await tx.widget_subscription_credit_issues.findMany({
             where: {
-                user: userInfo.usernameShorted,
-                balance: { gt: 0 },
+                user_id: user,
+                current_balance: { gt: 0 },
+                is_issue: true,
                 expire_date: { gte: now },
             },
             orderBy: {
@@ -438,16 +499,83 @@ export class CreditService {
             },
         })
 
-        if (freeCredits.length > 0 && allow_free_credit) {
+        for (const subscriptionCredit of widgetSubscriptionCredits) {
+            if (needCreditConsumed <= 0) {
+                break
+            }
+            const consumeAmount = Math.min(subscriptionCredit.current_balance, needCreditConsumed)
+            needCreditConsumed -= consumeAmount
+
+            //update user table
+            const userBalanceUpdated = await tx.users.update({
+                where: { username_in_be: user },
+                data: { current_credit_balance: { decrement: consumeAmount } },
+            })
+            //update subscription credit table
+            await tx.widget_subscription_credit_issues.update({
+                where: { id: subscriptionCredit.id },
+                data: { current_balance: { decrement: consumeAmount } },
+            })
+
+            //create statement
+            await tx.credit_statements.create({
+                data: {
+                    user: user,
+                    type: statementType,
+                    amount: consumeAmount * -1,
+                    balance: userBalanceUpdated.current_credit_balance,
+                    is_subscription_credit: true,
+                    subscription_credit_issue_id: subscriptionCredit.id,
+                    order_id: orderId,
+                },
+            })
+        }
+
+        //consume paid credit before free credit
+        if (needCreditConsumed > 0 && paidCreditBalance > 0) {
+            const consumeAmount = Math.min(paidCreditBalance, needCreditConsumed)
+            needCreditConsumed -= consumeAmount
+
+            const userBalanceUpdated = await tx.users.update({
+                where: { username_in_be: user },
+                data: { current_credit_balance: { decrement: consumeAmount } },
+            })
+
+            await tx.credit_statements.create({
+                data: {
+                    user: user,
+                    type: statementType,
+                    amount: consumeAmount * -1,
+                    balance: userBalanceUpdated.current_credit_balance,
+                    order_id: orderId,
+                },
+            })
+        }
+
+        if (needCreditConsumed > 0 && allowFreeCredit) {
+            const freeCredits = await tx.free_credit_issues.findMany({
+                where: {
+                    user: user,
+                    balance: { gt: 0 },
+                    expire_date: { gte: now },
+                },
+                orderBy: {
+                    expire_date: "asc",
+                },
+            })
+
             //start consume free credit
             for (const freeCredit of freeCredits) {
+                if (needCreditConsumed <= 0) {
+                    break
+                }
                 const consumeAmount = Math.min(freeCredit.balance, needCreditConsumed)
                 freeCreditConsumed += consumeAmount
                 needCreditConsumed -= consumeAmount
 
                 //update user table
                 const userBalanceUpdated = await tx.users.update({
-                    where: { username_in_be: userInfo.usernameShorted },
+                    where: { username_in_be: user },
                     data: { current_credit_balance: { decrement: consumeAmount } },
                 })
                 //update free credit table
@@ -459,83 +587,25 @@ export class CreditService {
                 //create statement
                 await tx.credit_statements.create({
                     data: {
-                        user: userInfo.usernameShorted,
-                        type: credit_statement_type.consume,
+                        user: user,
+                        type: statementType,
                         amount: consumeAmount * -1,
                         balance: userBalanceUpdated.current_credit_balance,
                         is_free_credit: true,
-                        order_id: order_id,
+                        order_id: orderId,
                         free_credit_issue_id: freeCredit.id,
                     },
                 })
-
-                if (needCreditConsumed === 0) {
-                    break
-                }
-                if (needCreditConsumed < 0) {
-                    //error and this should not happen
-                    throw new BadRequestException("balance calculated error")
-                }
             }
         }
 
-        const widgetSubscriptionCredits = await tx.widget_subscription_credit_issues.findMany({
-            where: {
-                user_id: userInfo.usernameShorted,
-                current_balance: { gt: 0 },
-                is_issue: true,
-                expire_date: { gte: now },
-            },
-            orderBy: {
-                expire_date: "asc",
-            },
-        })
-
-        if (widgetSubscriptionCredits.length > 0) {
-            //start consume subscription credit
-            for (const subscriptionCredit of widgetSubscriptionCredits) {
-                const consumeAmount = Math.min(subscriptionCredit.current_balance, needCreditConsumed)
-
-                needCreditConsumed -= consumeAmount
-
-                //update user table
-                const userBalanceUpdated = await tx.users.update({
-                    where: { username_in_be: userInfo.usernameShorted },
-                    data: { current_credit_balance: { decrement: consumeAmount } },
-                })
-                //update subscription credit table
-                await tx.widget_subscription_credit_issues.update({
-                    where: { id: subscriptionCredit.id },
-                    data: { current_balance: { decrement: consumeAmount } },
-                })
-
-                //create statement
-                await tx.credit_statements.create({
-                    data: {
-                        user: userInfo.usernameShorted,
-                        type: credit_statement_type.consume,
-                        amount: consumeAmount * -1,
-                        balance: userBalanceUpdated.current_credit_balance,
-                        is_subscription_credit: true,
-                        subscription_credit_issue_id: subscriptionCredit.id,
-                        order_id: order_id,
-                    },
-                })
-
-                if (needCreditConsumed === 0) {
-                    break
-                }
-                if (needCreditConsumed < 0) {
-                    //error and this should not happen
-                    throw new BadRequestException("balance calculated error")
-                }
-            }
-        }
-
-        //we need consume credit if free credit and subscription credit is not enough
+        // Anything still outstanding is taken off the balance untagged, which is what the
+        // previous implementation did implicitly for every non-free, non-subscription unit.
+        // Getting here means the buckets did not add up to current_credit_balance; expired
+        // credits awaiting the sweep job are the expected cause.
         if (needCreditConsumed > 0) {
             const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: userInfo.usernameShorted },
+                where: { username_in_be: user },
                 data: {
                     current_credit_balance: {
                         decrement: needCreditConsumed,
@@ -545,19 +615,16 @@ export class CreditService {
 
             await tx.credit_statements.create({
                 data: {
-                    user: userInfo.usernameShorted,
-                    type: credit_statement_type.consume,
+                    user: user,
+                    type: statementType,
                     amount: needCreditConsumed * -1,
                     balance: userBalanceUpdated.current_credit_balance,
-                    order_id: order_id,
+                    order_id: orderId,
                 },
             })
         }
 
-        return {
-            free_credit_consumed: freeCreditConsumed,
-            total_credit_consumed: amount,
-        }
+        return { free_credit_consumed: freeCreditConsumed }
     }
 
     async updateWidgetSubscriptions(
@@ -889,11 +956,14 @@ export class CreditService {
     }
 
     async refundCredit(amount: number, order_id: string, user: string, tx: Prisma.TransactionClient): Promise<void> {
-        //find statement
+        //find statement, newest first so the refund unwinds consumption in reverse order
         const statements = await tx.credit_statements.findMany({
             where: {
                 order_id: order_id,
                 type: credit_statement_type.consume,
+            },
+            orderBy: {
+                id: "desc",
             },
         })
 
