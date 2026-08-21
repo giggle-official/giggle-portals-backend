@@ -13,8 +13,11 @@ import {
     GetCreditLineStatementQueryDto,
     GetCreditLineStatementsResponseDto,
     GrantCreditLineDto,
+    RepayCreditLineDto,
+    RepayCreditLineResponseDto,
     WidgetCreditLineDto,
 } from "./credit-line.dto"
+import { v4 as uuidv4 } from "uuid"
 
 /**
  * Default ceiling on the limit a widget may grant one user. Generous because the
@@ -184,21 +187,7 @@ export class CreditLineService {
             throw new BadRequestException("No credit line granted by this widget")
         }
 
-        // Deduped on the (user, widget_tag, request_id) triple rather than on
-        // request_id alone: the key comes from the caller and may well be an
-        // order number or a counter, which collides across users. The line row is
-        // locked, so this check-then-insert cannot race.
-        const duplicated = await tx.credit_line_statements.findFirst({
-            where: {
-                user,
-                widget_tag: widgetTag,
-                type: credit_line_statement_type.repay,
-                request_id: requestId,
-            },
-        })
-        if (duplicated) {
-            throw new BadRequestException("Duplicate repayment request id")
-        }
+        await this.assertRepaymentNotReplayed(tx, user, widgetTag, requestId)
 
         return this.applyToLine(tx, line, {
             // Negative, like consumption: a repayment spends real credit. The
@@ -210,6 +199,38 @@ export class CreditLineService {
             amount: amount * -1,
             requestId,
         })
+    }
+
+    /**
+     * Rejects a repayment whose idempotency key has already been used.
+     *
+     * Deduped on the (user, widget_tag, request_id) triple rather than on
+     * request_id alone: the key comes from the caller and may well be an order
+     * number or a counter, which collides across users; deduping on the column
+     * alone would hand user B a baffling "duplicate" error. The line row is
+     * locked by the time this runs, so the check-then-insert cannot race.
+     *
+     * Public because the repayment flow has to run it before it decides there is
+     * nothing to repay — otherwise a replay of a repayment that already cleared
+     * the debt would report success instead of telling the caller it is a replay.
+     */
+    async assertRepaymentNotReplayed(
+        tx: Prisma.TransactionClient,
+        user: string,
+        widgetTag: string,
+        requestId: string,
+    ): Promise<void> {
+        const duplicated = await tx.credit_line_statements.findFirst({
+            where: {
+                user,
+                widget_tag: widgetTag,
+                type: credit_line_statement_type.repay,
+                request_id: requestId,
+            },
+        })
+        if (duplicated) {
+            throw new BadRequestException("Duplicate repayment request id")
+        }
     }
 
     /**
@@ -322,6 +343,107 @@ export class CreditLineService {
         )
 
         return this.toDto(line, widgetTag)
+    }
+
+    /**
+     * Pays off part or all of a credit line with real credit.
+     *
+     * Explicit and atomic, never triggered by a top-up. The balance is global
+     * while credit lines are per-widget, so an automatic offset on top-up would be
+     * dodged by topping up through a widget that grants no credit line: the money
+     * lands in the global balance and the debt does not move. The widget is the
+     * gatekeeper instead — it can see "has balance, owes me" and make the user
+     * come through here.
+     *
+     * Both accounts move, which is what makes this the one action that writes to
+     * both ledgers: the credit balance genuinely drops, so it must show up on the
+     * credit statement, and the debt drops, so it must show up on the credit line
+     * statement. The credit leg writes one row per bucket it crosses; the credit
+     * line leg writes exactly one, because `used` moved once.
+     */
+    async repayCreditLine(body: RepayCreditLineDto, userInfo: UserJwtExtractDto): Promise<RepayCreditLineResponseDto> {
+        const { user, widgetTag } = await this.resolveRepaymentTarget(body, userInfo)
+        const requestId = body.request_id || uuidv4()
+
+        return this.prisma.$transaction(async (tx) => {
+            // Users row first, then the credit line row. Every path that touches
+            // both takes them in this order.
+            await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${user} FOR UPDATE`
+            const line = await this.lockLine(tx, user, widgetTag)
+            if (!line) {
+                throw new BadRequestException("No credit line granted by this widget")
+            }
+
+            // Before the nothing-to-repay shortcut below, so that replaying a
+            // repayment that already cleared the debt is reported as a replay
+            // rather than as a successful no-op.
+            await this.assertRepaymentNotReplayed(tx, user, widgetTag, requestId)
+
+            const repayableBalance = await this.creditService.getRepayableBalance(user, tx)
+            const owed = Math.max(0, line.used)
+            const repaid = Math.min(body.amount ?? Number.MAX_SAFE_INTEGER, owed, repayableBalance)
+
+            // Nothing owed, or nothing to pay with. Not an error: a widget that
+            // forces every user through this endpoint should not have to special
+            // case the ones who owe nothing.
+            if (repaid <= 0) {
+                return this.repaymentResult(line, repayableBalance, 0)
+            }
+
+            await this.creditService.spendForCreditLineRepayment(tx, user, repaid)
+            const updated = await this.repay(tx, user, widgetTag, repaid, requestId)
+
+            return this.repaymentResult(updated, repayableBalance - repaid, repaid)
+        })
+    }
+
+    private repaymentResult(
+        line: user_credit_lines,
+        creditBalance: number,
+        repaid: number,
+    ): RepayCreditLineResponseDto {
+        return {
+            repaid,
+            credit_line_used: line.used,
+            credit_line_available: this.available(line),
+            credit_balance: creditBalance,
+        }
+    }
+
+    /**
+     * Who is repaying whose credit line.
+     *
+     * A widget token repays its own line for the user named by email — it may act
+     * on the user's behalf because it granted the line and the spending happened
+     * in its own product. A user token repays the line of the widget they name.
+     * Either way `widget_tag` from a widget caller comes from the token, never the
+     * body, so a widget cannot reach another widget's line.
+     */
+    private async resolveRepaymentTarget(
+        body: RepayCreditLineDto,
+        userInfo: UserJwtExtractDto,
+    ): Promise<{ user: string; widgetTag: string }> {
+        const callerWidgetTag = userInfo.developer_info?.tag
+        if (!callerWidgetTag) {
+            if (!body.widget_tag) {
+                throw new BadRequestException("widget_tag is required")
+            }
+            return { user: userInfo.usernameShorted, widgetTag: body.widget_tag }
+        }
+
+        const abilities = await this.widgetCaslAbilityFactory.createForWidget(callerWidgetTag)
+        if (!abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE)) {
+            throw new ForbiddenException("This widget is not allowed to grant credit lines")
+        }
+        if (!body.email) {
+            throw new BadRequestException("email is required when repaying with a widget token")
+        }
+
+        const target = await this.prisma.users.findUnique({ where: { email: body.email } })
+        if (!target?.username_in_be) {
+            throw new BadRequestException("User not found")
+        }
+        return { user: target.username_in_be, widgetTag: callerWidgetTag }
     }
 
     /** User-facing: every credit line granted to the caller, one per widget. */

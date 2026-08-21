@@ -63,6 +63,7 @@ import {
 import { Decimal } from "@prisma/client/runtime/library"
 import { JwtService } from "@nestjs/jwt"
 import { CreditService } from "../credit/credit.service"
+import { CreditLineService } from "../credit-line/credit-line.service"
 import { Credit2cService } from "../credit-2c/credit-2c.service"
 
 interface CreateOrderOptions {
@@ -108,6 +109,9 @@ export class OrderService {
 
         @Inject(forwardRef(() => Credit2cService))
         private readonly credit2cService: Credit2cService,
+
+        @Inject(forwardRef(() => CreditLineService))
+        private readonly creditLineService: CreditLineService,
     ) { }
 
     async createOrder(
@@ -674,6 +678,8 @@ export class OrderService {
         switch (orderRecord.paid_method) {
             case PaymentMethod.CREDIT:
                 return await this._refundCreditOrder(orderRecord.order_id, refundAmount)
+            case PaymentMethod.CREDIT_LINE:
+                return await this._refundCreditLineOrder(orderRecord.order_id, refundAmount)
             case PaymentMethod.WALLET:
                 return await this._refundWalletOrder(orderRecord)
             //todo: support more payment methods
@@ -733,6 +739,76 @@ export class OrderService {
 
             await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
             let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) || []) as OrderRefundedDetailDto[]
+
+            refundedDetail.push({
+                amount: refundAmount,
+                order_amount_after_refund: order.amount - (order.refunded_amount || 0) - refundAmount,
+                refunded_time: new Date(),
+            })
+
+            let updated = await tx.orders.update({
+                where: { order_id: order.order_id },
+                data: {
+                    refunded_amount: {
+                        increment: refundAmount,
+                    },
+                    current_status: OrderStatus.PARTIAL_REFUNDED,
+                    refund_time: new Date(),
+                    refund_status: "success",
+                    refund_detail: refundedDetail as any,
+                },
+            })
+            if (updated.refunded_amount > order.amount) {
+                throw new BadRequestException("Refund amount is greater than order amount")
+            } else if (updated.refunded_amount === order.amount) {
+                updated = await tx.orders.update({
+                    where: { order_id: order.order_id },
+                    data: {
+                        current_status: OrderStatus.REFUNDED,
+                    },
+                })
+            }
+            return updated
+        })
+        return await this.mapOrderDetail(orderRefunded)
+    }
+
+    /**
+     * Refunds a credit line order back onto the credit line it was paid from.
+     *
+     * Mirrors `_refundCreditOrder` — same locking, same progression through
+     * PARTIAL_REFUNDED to REFUNDED, same support for repeated partial refunds —
+     * and differs only in where the money goes. The real balance is untouched,
+     * because the user never spent real credit on this order, so nothing is
+     * written to `credit_statements` either.
+     *
+     * The debt is allowed to go negative. Refunding after the debt was already
+     * repaid leaves an overpayment on the line, which is the credit-card
+     * behaviour and keeps the cash-basis revenue recognition self-balancing:
+     * the money really was received, and the overpayment gets spent again without
+     * producing a second repayment to recognise.
+     */
+    private async _refundCreditLineOrder(orderId: string, refundAmount: number): Promise<OrderDetailDto> {
+        const orderRefunded = await this.prisma.$transaction(async (tx) => {
+            // Lock order row to prevent concurrent refund race condition
+            await tx.$queryRaw`SELECT id FROM orders WHERE order_id = ${orderId} FOR UPDATE`
+
+            const order = await tx.orders.findUnique({
+                where: {
+                    order_id: orderId,
+                },
+            })
+            if (!order) {
+                throw new BadRequestException("Order not found")
+            }
+            if (!order.widget_tag) {
+                throw new BadRequestException("Credit line order has no widget tag")
+            }
+
+            await this.creditLineService.refund(tx, order.owner, order.widget_tag, refundAmount, order.order_id)
+
+            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) ||
+                []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
                 amount: refundAmount,
