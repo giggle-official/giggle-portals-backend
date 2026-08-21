@@ -64,6 +64,7 @@ describe("CreditService - Subscription Credit", () => {
                 createMany: jest.fn(),
                 findUnique: jest.fn(),
                 deleteMany: jest.fn(),
+                aggregate: jest.fn().mockResolvedValue({ _sum: { current_balance: 0 } }),
             },
             widget_subscriptions: {
                 findFirst: jest.fn(),
@@ -561,11 +562,11 @@ describe("CreditService - Subscription Credit", () => {
             expect(result.total_credit_consumed).toBe(300)
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: 200 }, // 500 - 300
+                data: { current_balance: { decrement: 300 } },
             })
         })
 
-        it("should consume free credits first, then subscription credits", async () => {
+        it("should consume subscription credits before free credits", async () => {
             const userInfo = { usernameShorted: "test_user_123" } as any
 
             // Add $queryRaw mock for FOR UPDATE lock
@@ -586,17 +587,62 @@ describe("CreditService - Subscription Credit", () => {
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
                 { ...mockSubscriptionCredit, current_balance: 500 },
             ])
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
+                _sum: { current_balance: 500 },
+            })
 
             mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
             mockTx.free_credit_issues.update.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
 
-            // Consume 300 total: 100 from free + 200 from subscription
+            // Consume 300: subscription covers all of it, free credit is untouched
             const result = await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
 
             expect(result.total_credit_consumed).toBe(300)
-            expect(result.free_credit_consumed).toBe(100)
+            expect(result.free_credit_consumed).toBe(0)
+            expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
+        })
+
+        it("should consume in subscription -> paid -> free order", async () => {
+            const userInfo = { usernameShorted: "test_user_123" } as any
+
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+
+            // Total 400 = 100 subscription + 200 paid + 100 free
+            mockTx.users = {
+                ...mockTx.users,
+                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 400 }),
+            }
+
+            mockTx.free_credit_issues.findMany.mockResolvedValue([
+                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
+            ])
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
+                { ...mockSubscriptionCredit, current_balance: 100 },
+            ])
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
+                _sum: { current_balance: 100 },
+            })
+
+            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 50 })
+            mockTx.free_credit_issues.update.mockResolvedValue({})
+            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
+            mockTx.credit_statements.create.mockResolvedValue({})
+
+            // Consume 350: 100 subscription + 200 paid + 50 free
+            const result = await service.consumeCredit(350, "order_123", userInfo, mockTx as any, true)
+
+            expect(result.total_credit_consumed).toBe(350)
+            expect(result.free_credit_consumed).toBe(50)
+
+            const statements = mockTx.credit_statements.create.mock.calls.map((call: any[]) => call[0].data)
+            expect(statements).toHaveLength(3)
+            expect(statements[0]).toMatchObject({ amount: -100, is_subscription_credit: true })
+            expect(statements[1]).toMatchObject({ amount: -200 })
+            expect(statements[1].is_free_credit).toBeUndefined()
+            expect(statements[1].is_subscription_credit).toBeUndefined()
+            expect(statements[2]).toMatchObject({ amount: -50, is_free_credit: true })
         })
 
         it("should only consume issued subscription credits (is_issue: true)", async () => {
