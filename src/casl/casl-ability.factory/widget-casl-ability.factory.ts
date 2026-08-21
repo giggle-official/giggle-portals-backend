@@ -10,6 +10,7 @@ export enum WIDGET_PERMISSIONS_LIST {
     CAN_AIRDROP = "can_airdrop",
     CAN_ISSUE_FREE_CREDIT = "can_issue_free_credit",
     CAN_SIGN_AND_SEND_TX = "can_sign_and_send_tx",
+    CAN_GRANT_CREDIT_LINE = "can_grant_credit_line",
 }
 
 export type WidgetRequestPermissions = {

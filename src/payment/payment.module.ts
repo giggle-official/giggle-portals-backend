@@ -16,6 +16,8 @@ import { RewardsPoolService } from "./rewards-pool/rewards-pool.service"
 import { JwtModule } from "@nestjs/jwt"
 import { PaymentAsiaService } from "./payment-asia/payment-asia.service"
 import { CreditController } from "./credit/credit.controller"
+import { CreditLineController } from "./credit-line/credit-line.controller"
+import { CreditLineService } from "./credit-line/credit-line.service"
 import { SalesAgentController } from "./sales-agent/sales-agent.controller"
 import { SalesAgentService } from "./sales-agent/sales-agent.service"
 import { Credit2cService } from "./credit-2c/credit-2c.service"
@@ -43,6 +45,7 @@ import { SettleController } from "./settle/settle.controller"
         OrderController,
         RewardsPoolController,
         CreditController,
+        CreditLineController,
         SalesAgentController,
         Credit2cController,
         SettleController,
@@ -52,6 +55,7 @@ import { SettleController } from "./settle/settle.controller"
         PrismaService,
         ConfigService,
         CreditService,
+        CreditLineService,
         OrderService,
         RewardsPoolService,
         PaymentAsiaService,
@@ -63,6 +67,14 @@ import { SettleController } from "./settle/settle.controller"
         SettleController,
         PaypalService,
     ],
-    exports: [OrderService, RewardsPoolService, SalesAgentService, CreditService, SettleService, PaypalService],
+    exports: [
+        OrderService,
+        RewardsPoolService,
+        SalesAgentService,
+        CreditService,
+        CreditLineService,
+        SettleService,
+        PaypalService,
+    ],
 })
 export class PaymentModule {}

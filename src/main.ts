@@ -181,7 +181,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "Payment",
-            tags: ["Order", "Credit"],
+            tags: ["Order", "Credit", "Credit Line"],
         },
         {
             name: "Web3",
@@ -208,7 +208,7 @@ To see how to process the event stream response, please refer to the [Event Stre
         },
         {
             name: "💰 Payment",
-            tags: ["Order", "Credit"],
+            tags: ["Order", "Credit", "Credit Line"],
         },
         {
             name: "🌐 Web3",
