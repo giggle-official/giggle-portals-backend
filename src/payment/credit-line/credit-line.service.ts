@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Injectable, Logger } from "@nestjs/common"
 import { credit_line_statement_type, credit_line_status, Prisma, user_credit_lines } from "@prisma/client"
 import {
     WIDGET_PERMISSIONS_LIST,
@@ -17,6 +17,14 @@ import {
 } from "./credit-line.dto"
 
 /**
+ * Default ceiling on the limit a widget may grant one user. Generous because the
+ * early users of credit lines are large B2B partners, and because the permission
+ * bit is already a hand-maintained whitelist; the cap is here to bound a mistake,
+ * not to be the primary control.
+ */
+const DEFAULT_WIDGET_GRANT_MAX = 1_000_000
+
+/**
  * The credit line account: a per-(user, widget) debt balance that is completely
  * separate from the credit account (`users.current_credit_balance`), the way a
  * credit card account is separate from the debit account it is repaid from.
@@ -33,6 +41,8 @@ import {
  */
 @Injectable()
 export class CreditLineService {
+    private readonly logger = new Logger(CreditLineService.name)
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly creditService: CreditService,
@@ -294,9 +304,6 @@ export class CreditLineService {
         const widgetTag = this.requireWidgetTag(userInfo)
 
         const max = this.widgetGrantMax()
-        if (max === null) {
-            throw new BadRequestException("Credit line granting is not configured on this deployment")
-        }
         if (body.credit_limit > max) {
             throw new BadRequestException(`Credit limit exceeds the maximum a widget may grant (${max})`)
         }
@@ -438,19 +445,27 @@ export class CreditLineService {
     }
 
     /**
-     * The ceiling on what a widget may grant, or null when the deployment has not
-     * configured one. Unconfigured fails closed on purpose: without a cap, any
-     * widget holding the permission bit could grant itself an unlimited line and
-     * spend the platform's money.
+     * The ceiling on the limit a widget may set for one user, defaulting to
+     * DEFAULT_WIDGET_GRANT_MAX.
+     *
+     * This caps a single (user, widget) line, not a widget's total exposure: a
+     * widget can hold many lines at the cap. What bounds the total today is who
+     * holds CAN_GRANT_CREDIT_LINE, which is granted by hand.
      */
-    private widgetGrantMax(): number | null {
+    private widgetGrantMax(): number {
         const raw = process.env.CREDIT_LINE_WIDGET_GRANT_MAX
         if (!raw) {
-            return null
+            return DEFAULT_WIDGET_GRANT_MAX
         }
         const parsed = Number(raw)
         if (!Number.isInteger(parsed) || parsed < 0) {
-            return null
+            // Falling back silently would hide a typo in a money setting behind a
+            // limit nobody chose.
+            this.logger.warn(
+                `CREDIT_LINE_WIDGET_GRANT_MAX is not a non-negative integer ("${raw}"), ` +
+                    `falling back to ${DEFAULT_WIDGET_GRANT_MAX}`,
+            )
+            return DEFAULT_WIDGET_GRANT_MAX
         }
         return parsed
     }
