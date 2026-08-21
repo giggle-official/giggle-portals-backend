@@ -159,6 +159,24 @@ export class CreditService {
         }
     }
 
+    /**
+     * The part of the balance that may be used to repay a credit line: everything
+     * except free credit, i.e. subscription + paid.
+     *
+     * Free credit is a gift and must not be spent servicing a debt. Subscription
+     * credit may, because it is paid credit in our terms — the settlement report
+     * already counts subscription consumption in the paid bucket.
+     *
+     * The free subtrahend is the on-the-books sum with no expiry filter, matching
+     * `getUserCredits`: credit that has expired but has not been swept yet is
+     * still inside `current_credit_balance`, so filtering it out here would
+     * overstate what the user can actually repay with.
+     */
+    async getRepayableBalance(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
+        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userId, tx)
+        return Math.max(0, total_credit_balance - free_credit_balance)
+    }
+
     async getUserRechargedCredits(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
         const prisma = tx || this.prisma
 

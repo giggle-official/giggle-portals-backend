@@ -29,7 +29,7 @@ widget A 授予的额度，只能支付 widget A 的订单，也只能由针对 
 - 开发者侧困惑——同一个用户「有余额」和「欠着授信没还」同时成立，看不出为什么
 - 用户侧可利用——固定在没有授信权限的 widget 充值，就能永远不还款，授信变成白拿
 
-所以还款必须是显式发起的一次原子调用：`POST /api/v1/credit/repay-credit-line`，从可还余额里扣、冲减该 widget 的 `used`，一个事务里完成。
+所以还款必须是显式发起的一次原子调用：`POST /api/v1/credit-line/repay`，从可还余额里扣、冲减该 widget 的 `used`，一个事务里完成。
 
 **门禁由 widget 来做**：widget 查到「这个用户有余额、且欠着我的授信」时，可以强制他先走还款接口再继续使用。平台只保证接口是原子的、金额是对的，不替 widget 决定什么时候催。
 
@@ -275,7 +275,7 @@ orderRecord.is_credit_top_up === true     -> 拒绝
 ### 接口
 
 ```
-POST /api/v1/credit/repay-credit-line
+POST /api/v1/credit-line/repay
 ```
 
 两种调用方，与 `/pay-with-credit` 的既有写法保持一致：
@@ -425,14 +425,18 @@ widget 开出的额度受 `CREDIT_LINE_WIDGET_GRANT_MAX`（新增环境变量）
 
 ## 8. 接口
 
+授信的接口挂在**独立的 `/api/v1/credit-line/` 前缀**下，不与 `/api/v1/credit/` 混用，文档里也单独一个 `Credit Line` 标签（`main.ts` 的 `x-tagGroups` 里归在 Payment 组，private 和 public 两份都要加）。理由和 [D11](#1-已确认的决策) 一样：授信和积分是两个账户，URL 和文档分类混在一起，正好会造成这套设计想避免的那种混淆。前缀里已经有 `credit-line`，路径末段就不再重复它（`/grant` 而不是 `/grant-credit-line`）。
+
+授信**支付**是例外，它属于订单域，跟 `/pay-with-credit` 并列放在 `/api/v1/order/` 下。
+
 | 接口 | 鉴权 | 改动 |
 | --- | --- | --- |
 | `POST /api/v1/order/pay-with-credit-line` | 用户 JWT | 新增 —— 授信支付，与 `/pay-with-credit` 对称 |
-| `GET /api/v1/credit/credit-lines` | 用户 JWT | 新增 —— 返回该用户名下各 widget 的额度／欠款／可用／状态列表 |
-| `POST /api/v1/credit/grant-credit-line` | widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— `{ email, credit_limit, note }`，`widget_tag` 取自 JWT；设置**绝对额度**（幂等，比增量安全），超过 `CREDIT_LINE_WIDGET_GRANT_MAX` 拒绝 |
-| `GET /api/v1/credit/widget-credit-line` | widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— `?email=`，返回**该 widget 下**这个用户的额度／欠款／可用／状态，外加 `credit_balance`（该用户可用于还款的付费余额），一次调用就够 widget 做门禁判断 |
-| `POST /api/v1/credit/repay-credit-line` | 用户 JWT 或 widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— 原子还款，见[§4](#4-还款) |
-| `GET /api/v1/credit/credit-line-statement` | 用户 JWT，或 widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— 授信账户自己的账单，读 `credit_line_statements`。用户 JWT 调用时用 `?widget_tag=` 指定，**widget JWT 调用时必须带 `?email=` 指定目标用户**（`req.user` 是 widget 作者，见[§6](#6-widget-权限)），widget 侧一律用自己的 tag |
+| `GET /api/v1/credit-line/list` | 用户 JWT | 新增 —— 返回该用户名下各 widget 的额度／欠款／可用／状态列表 |
+| `POST /api/v1/credit-line/grant` | widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— `{ email, credit_limit, note }`，`widget_tag` 取自 JWT；设置**绝对额度**（幂等，比增量安全），超过 `CREDIT_LINE_WIDGET_GRANT_MAX` 拒绝 |
+| `GET /api/v1/credit-line/widget` | widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— `?email=`，返回**该 widget 下**这个用户的额度／欠款／可用／状态，外加 `credit_balance`（该用户可用于还款的付费余额），一次调用就够 widget 做门禁判断 |
+| `POST /api/v1/credit-line/repay` | 用户 JWT 或 widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— 原子还款，见[§4](#4-还款) |
+| `GET /api/v1/credit-line/statement` | 用户 JWT，或 widget JWT + `CAN_GRANT_CREDIT_LINE` | 新增 —— 授信账户自己的账单，读 `credit_line_statements`。用户 JWT 调用时用 `?widget_tag=` 指定，**widget JWT 调用时必须带 `?email=` 指定目标用户**（`req.user` 是 widget 作者，见[§6](#6-widget-权限)），widget 侧一律用自己的 tag |
 | `GET /api/v1/credit/statement` | 用户 JWT | 只增加一个 `repay_credit_line` 类型（还款的支出腿）。**不出现任何授信消费记录**（[D11](#1-已确认的决策)） |
 
 `POST /api/v1/credit/issue-credit` **不动**——充值不再触发任何抵消，它的响应也就没有抵消金额可返回。
@@ -441,7 +445,7 @@ widget 开出的额度受 `CREDIT_LINE_WIDGET_GRANT_MAX`（新增环境变量）
 
 **`GET /api/v1/credit/balance` 和 `GET /api/v1/user/profile` 都不动。** 授信是 widget 维度的，而这两个接口是全局的；把一个 widget 维度的额度挂上去，语义要靠「当前是哪个会话」来隐式决定，调用方很容易读错。widget 需要额度就走上面那个专用接口，解耦更干净。
 
-凡是返回额度字段的接口（`/credit/credit-lines` 的每个列表项、`/credit/widget-credit-line`、`/credit/repay-credit-line` 的返回体），口径统一：
+凡是返回额度字段的接口（`/credit-line/list` 的每个列表项、`/credit-line/widget`、`/credit-line/repay` 的返回体），口径统一：
 
 ```
 credit_line_limit     = line?.credit_limit ?? 0
@@ -527,7 +531,7 @@ widget 侧接口按 `(email 对应的用户, 自己的 developer_info.tag)` 取�
 7. **`releaseRewards`** —— 在方法内部、与现有前置校验并列的位置加上 `paid_method === CREDIT_LINE` 直接返回（[D8](#1-已确认的决策)）。一处覆盖全部 9 个触发点。
 8. **`view_ip_incomes` 视图 + `createBuyBackOrders`** —— [§7](#其他会读订单金额的统计) 的两处排除。视图要同时改 `prisma/views/uss_db/view_ip_incomes.sql` 和线上视图。
 9. **`refundOrder`** —— `switch (paid_method)` 里加 `case CREDIT_LINE`，落到新的 `_refundCreditLineOrder`，镜像 `_refundCreditOrder` 的订单行锁与状态流转；前置校验（状态、10 天窗口、部分退款额度）复用现有的，见[§5](#5-退款)。
-10. **还款接口** —— `POST /api/v1/credit/repay-credit-line`，两种鉴权入口，见[§4](#4-还款)。`issueCredit` **不动**。
+10. **还款接口** —— `POST /api/v1/credit-line/repay`，两种鉴权入口，见[§4](#4-还款)。`issueCredit` **不动**。
 11. **接口与 DTO** —— [§8](#8-接口) 的新增项。`getProfile`、`/credit/balance`、`/credit/issue-credit` 都不动，管理端接口本期不做。
 12. **报表** —— [§7](#7-报表与供应商结算口径)：现有查询不动，只在 `getCreditStatictics` 里加还款聚合查询和未偿还指标，在 `formatCreditStatsForTemplate` 里加展示。
 13. **环境变量** —— `CREDIT_LINE_WIDGET_GRANT_MAX` 记进 `README.md` 并同步到部署密钥库（仓库没有被跟踪的 `.env.example`）。
@@ -565,7 +569,7 @@ widget 侧接口按 `(email 对应的用户, 自己的 developer_info.tag)` 取�
 - 绑奖励池／带回购／充值类订单一律拒绝授信支付
 - 授信订单不出现在 `view_ip_incomes` 里，也不被 `createBuyBackOrders` 捞起
 - **`/credit/statement` 里不出现任何授信消费或授信退款记录**；还款则必须出现（`repay_credit_line`），金额与积分余额的减少一致
-- 授信消费和退款都出现在 `/credit/credit-line-statement` 里
+- 授信消费和退款都出现在 `/credit-line/statement` 里
 - 每一笔 `used` 变动都有对应的 `credit_line_statements` 行，且 `used` 等于末笔的 `used_after`
 - 日报付费口径只把还款计一次，没有双计
 - 开额度接口用请求体的 `email` 定位用户，不会误开到 widget 作者头上

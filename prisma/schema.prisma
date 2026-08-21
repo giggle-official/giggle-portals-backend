@@ -1164,6 +1164,68 @@ enum credit_statement_type {
   top_up
   consume
   refund
+  // Only ever used for the credit-side leg of a credit line repayment. Credit
+  // line spending and refunds do not touch credit_statements at all; the credit
+  // line keeps its own ledger. New values must be appended at the end of this
+  // list, otherwise MySQL rebuilds the whole credit_statements table.
+  repay_credit_line
+}
+
+enum credit_line_status {
+  active
+  frozen
+}
+
+enum credit_line_statement_type {
+  consume
+  repay
+  refund
+}
+
+/// A user's credit line with one widget. Credit lines are isolated per
+/// (user, widget): a limit granted by one widget is only spendable on that
+/// widget's orders and only reduced by repayments aimed at it.
+model user_credit_lines {
+  id           Int                @id @default(autoincrement())
+  user         String             @db.VarChar(32)
+  widget_tag   String             @db.VarChar(32)
+  credit_limit Int                @default(0)
+  /// Outstanding debt. May go negative when a refund lands after the debt was
+  /// already repaid, which is the credit-card notion of an overpayment.
+  used         Int                @default(0)
+  status       credit_line_status @default(active)
+  note         String?            @db.VarChar(1024)
+  /// Who last changed the limit: the widget tag for widget-granted limits.
+  operator     String?            @db.VarChar(32)
+  created_at   DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?          @updatedAt @db.Timestamp(0)
+
+  @@unique([user, widget_tag], map: "user_widget")
+}
+
+/// The credit line's own ledger, kept separate from credit_statements the way a
+/// credit card statement is separate from a bank statement. Every change to
+/// user_credit_lines.used writes exactly one row here.
+model credit_line_statements {
+  id         Int                        @id @default(autoincrement())
+  user       String                     @db.VarChar(32)
+  widget_tag String                     @db.VarChar(32)
+  type       credit_line_statement_type
+  /// Signed by direction of money for the user: negative for spending
+  /// (consume, repay), positive for money coming back (refund). The type, not
+  /// the sign, decides which way `used` moves.
+  amount     Int
+  /// Snapshot of `used` after this row, so a statement can show the running
+  /// debt without recomputing it.
+  used_after Int
+  /// consume / refund: the order. repay: null.
+  order_id   String?                    @db.VarChar(64)
+  /// repay only: caller-supplied idempotency key, deduped per (user, widget).
+  request_id String?                    @db.VarChar(64)
+  created_at DateTime?                  @default(now()) @db.Timestamp(0)
+
+  @@index([user, widget_tag])
+  @@index([widget_tag, created_at])
 }
 
 model reward_pool_buybacks {

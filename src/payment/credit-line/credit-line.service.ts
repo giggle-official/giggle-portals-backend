@@ -1,0 +1,457 @@
+import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common"
+import { credit_line_statement_type, credit_line_status, Prisma, user_credit_lines } from "@prisma/client"
+import {
+    WIDGET_PERMISSIONS_LIST,
+    WidgetCaslAbilityFactory,
+} from "src/casl/casl-ability.factory/widget-casl-ability.factory"
+import { PrismaService } from "src/common/prisma.service"
+import { UserJwtExtractDto } from "src/user/user.controller"
+import { CreditService } from "../credit/credit.service"
+import {
+    CreditLineDto,
+    GetCreditLinesResponseDto,
+    GetCreditLineStatementQueryDto,
+    GetCreditLineStatementsResponseDto,
+    GrantCreditLineDto,
+    WidgetCreditLineDto,
+} from "./credit-line.dto"
+
+/**
+ * The credit line account: a per-(user, widget) debt balance that is completely
+ * separate from the credit account (`users.current_credit_balance`), the way a
+ * credit card account is separate from the debit account it is repaid from.
+ *
+ * Every primitive that moves `used` takes a `Prisma.TransactionClient`, because
+ * a change to the debt is never the whole story: charging accompanies an order
+ * update, repaying accompanies a deduction from the real balance. The caller
+ * owns the transaction, and `lockLine` is how it takes the row lock that makes
+ * the read-modify-write safe.
+ *
+ * Invariant: `used` always equals the `used_after` of the account's last ledger
+ * row. That is the reconciliation anchor, so no primitive may touch `used`
+ * without writing a `credit_line_statements` row in the same transaction.
+ */
+@Injectable()
+export class CreditLineService {
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly creditService: CreditService,
+        private readonly widgetCaslAbilityFactory: WidgetCaslAbilityFactory,
+    ) {}
+
+    /**
+     * How much of the line can still be spent.
+     *
+     * Clamped at 0: lowering a limit below the outstanding debt is a legal state
+     * (that is how granting is switched off), and it leaves `credit_limit - used`
+     * negative. A negative number must never reach a caller or an API response.
+     */
+    available(line: user_credit_lines | null): number {
+        if (!line || line.status !== credit_line_status.active) {
+            return 0
+        }
+        return Math.max(0, line.credit_limit - line.used)
+    }
+
+    /**
+     * Reads a line without locking. Returns null when the user has no line with
+     * this widget — callers render that as a zeroed-out line, never as a 404, so
+     * that the widget-facing lookups cannot be used to probe whether an email is
+     * registered.
+     */
+    async getLine(user: string, widgetTag: string, tx?: Prisma.TransactionClient): Promise<user_credit_lines | null> {
+        const prisma = tx || this.prisma
+        return prisma.user_credit_lines.findUnique({
+            where: { user_widget_tag: { user, widget_tag: widgetTag } },
+        })
+    }
+
+    /**
+     * Takes the row lock for one credit line and returns the locked row.
+     *
+     * When the line does not exist yet the `SELECT ... FOR UPDATE` matches
+     * nothing but still gap-locks the slot in the `user_widget` unique index, so
+     * two concurrent grants for the same (user, widget) serialise instead of
+     * racing to insert.
+     */
+    async lockLine(tx: Prisma.TransactionClient, user: string, widgetTag: string): Promise<user_credit_lines | null> {
+        await tx.$queryRaw`SELECT id FROM user_credit_lines WHERE user = ${user} AND widget_tag = ${widgetTag} FOR UPDATE`
+        return this.getLine(user, widgetTag, tx)
+    }
+
+    /**
+     * Sets the line's limit to an absolute value, creating the line if needed.
+     *
+     * Absolute rather than incremental so that a retried grant is idempotent: a
+     * duplicated "set the limit to 500" is harmless, a duplicated "add 500" is
+     * not. The new limit is deliberately allowed to be below the current debt —
+     * that is the supported way to stop a user from borrowing more.
+     */
+    async setLimit(
+        tx: Prisma.TransactionClient,
+        user: string,
+        widgetTag: string,
+        creditLimit: number,
+        options: { operator?: string; note?: string } = {},
+    ): Promise<user_credit_lines> {
+        if (!Number.isInteger(creditLimit) || creditLimit < 0) {
+            throw new BadRequestException("Credit limit must be a non-negative integer")
+        }
+
+        await this.lockLine(tx, user, widgetTag)
+
+        return tx.user_credit_lines.upsert({
+            where: { user_widget_tag: { user, widget_tag: widgetTag } },
+            create: {
+                user,
+                widget_tag: widgetTag,
+                credit_limit: creditLimit,
+                operator: options.operator,
+                note: options.note,
+            },
+            update: {
+                credit_limit: creditLimit,
+                operator: options.operator,
+                ...(options.note !== undefined && { note: options.note }),
+            },
+        })
+    }
+
+    /**
+     * Spends `amount` of the line on an order. The only primitive that raises the
+     * debt.
+     */
+    async charge(
+        tx: Prisma.TransactionClient,
+        user: string,
+        widgetTag: string,
+        amount: number,
+        orderId: string,
+    ): Promise<user_credit_lines> {
+        this.assertPositiveAmount(amount)
+
+        const line = await this.lockLine(tx, user, widgetTag)
+        if (!line) {
+            throw new BadRequestException("No credit line granted by this widget")
+        }
+        if (line.status !== credit_line_status.active) {
+            throw new BadRequestException("Credit line is frozen")
+        }
+        if (this.available(line) < amount) {
+            throw new BadRequestException("Insufficient credit line")
+        }
+
+        return this.applyToLine(tx, line, {
+            type: credit_line_statement_type.consume,
+            usedDelta: amount,
+            amount: amount * -1,
+            orderId,
+        })
+    }
+
+    /**
+     * Repays `amount` of the debt.
+     *
+     * Makes no assumption about where the money came from: the caller is
+     * responsible for the credit-account leg (and for clamping `amount` to what
+     * is actually owed and affordable). Keeping this primitive source-agnostic is
+     * what will let a future statement-based auto-debit reuse it unchanged.
+     *
+     * It deliberately never looks at `credit_limit`. A limit lowered below the
+     * debt must not stop a user from paying that debt off.
+     */
+    async repay(
+        tx: Prisma.TransactionClient,
+        user: string,
+        widgetTag: string,
+        amount: number,
+        requestId: string,
+    ): Promise<user_credit_lines> {
+        this.assertPositiveAmount(amount)
+
+        const line = await this.lockLine(tx, user, widgetTag)
+        if (!line) {
+            throw new BadRequestException("No credit line granted by this widget")
+        }
+
+        // Deduped on the (user, widget_tag, request_id) triple rather than on
+        // request_id alone: the key comes from the caller and may well be an
+        // order number or a counter, which collides across users. The line row is
+        // locked, so this check-then-insert cannot race.
+        const duplicated = await tx.credit_line_statements.findFirst({
+            where: {
+                user,
+                widget_tag: widgetTag,
+                type: credit_line_statement_type.repay,
+                request_id: requestId,
+            },
+        })
+        if (duplicated) {
+            throw new BadRequestException("Duplicate repayment request id")
+        }
+
+        return this.applyToLine(tx, line, {
+            // Negative, like consumption: a repayment spends real credit. The
+            // settlement report adds this straight onto the paid figure, and
+            // flipping a sign there is the easiest mistake to make and the
+            // hardest to notice.
+            type: credit_line_statement_type.repay,
+            usedDelta: amount * -1,
+            amount: amount * -1,
+            requestId,
+        })
+    }
+
+    /**
+     * Refunds `amount` of a credit line order back onto the line.
+     *
+     * The real balance is not touched — the user never spent real credit on this
+     * order. `used` may go negative when the debt was already repaid, which is
+     * the credit-card notion of an overpayment: the account carries a prepaid
+     * amount that can be spent again.
+     */
+    async refund(
+        tx: Prisma.TransactionClient,
+        user: string,
+        widgetTag: string,
+        amount: number,
+        orderId: string,
+    ): Promise<user_credit_lines> {
+        this.assertPositiveAmount(amount)
+
+        const line = await this.lockLine(tx, user, widgetTag)
+        if (!line) {
+            throw new BadRequestException("No credit line granted by this widget")
+        }
+
+        return this.applyToLine(tx, line, {
+            type: credit_line_statement_type.refund,
+            usedDelta: amount * -1,
+            amount,
+            orderId,
+        })
+    }
+
+    /**
+     * The single place `used` moves. Writes the ledger row and the new `used` in
+     * one step so the two can never drift apart.
+     *
+     * `amount` carries the direction of money for the user (negative when they
+     * spend), `type` decides which way `used` moves; the two are independent and
+     * `usedDelta` states the second one explicitly rather than inferring it.
+     */
+    private async applyToLine(
+        tx: Prisma.TransactionClient,
+        line: user_credit_lines,
+        entry: {
+            type: credit_line_statement_type
+            usedDelta: number
+            amount: number
+            orderId?: string
+            requestId?: string
+        },
+    ): Promise<user_credit_lines> {
+        const updated = await tx.user_credit_lines.update({
+            where: { id: line.id },
+            data: { used: { increment: entry.usedDelta } },
+        })
+
+        await tx.credit_line_statements.create({
+            data: {
+                user: line.user,
+                widget_tag: line.widget_tag,
+                type: entry.type,
+                amount: entry.amount,
+                used_after: updated.used,
+                order_id: entry.orderId ?? null,
+                request_id: entry.requestId ?? null,
+            },
+        })
+
+        return updated
+    }
+
+    private assertPositiveAmount(amount: number): void {
+        if (!Number.isInteger(amount) || amount <= 0) {
+            throw new BadRequestException("Amount must be a positive integer")
+        }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * API surface
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Widget-facing: set a user's limit on the calling widget's own credit line.
+     *
+     * `req.user` under `IsWidgetGuard` is the widget AUTHOR, not the end user, so
+     * the target is resolved from the body's email. Reading it off `req.user`
+     * would silently grant the limit to the developer's own account — and since
+     * the developer is usually a legitimate user of their own widget, nothing
+     * would look wrong.
+     */
+    async grantCreditLine(body: GrantCreditLineDto, userInfo: UserJwtExtractDto): Promise<CreditLineDto> {
+        const widgetTag = this.requireWidgetTag(userInfo)
+
+        const max = this.widgetGrantMax()
+        if (max === null) {
+            throw new BadRequestException("Credit line granting is not configured on this deployment")
+        }
+        if (body.credit_limit > max) {
+            throw new BadRequestException(`Credit limit exceeds the maximum a widget may grant (${max})`)
+        }
+
+        const target = await this.prisma.users.findUnique({ where: { email: body.email } })
+        if (!target) {
+            throw new BadRequestException("User not found")
+        }
+
+        const line = await this.prisma.$transaction(async (tx) =>
+            this.setLimit(tx, target.username_in_be, widgetTag, body.credit_limit, {
+                // The widget, not `req.user` — that is the author's account.
+                operator: widgetTag,
+                note: body.note,
+            }),
+        )
+
+        return this.toDto(line, widgetTag)
+    }
+
+    /** User-facing: every credit line granted to the caller, one per widget. */
+    async getUserCreditLines(userInfo: UserJwtExtractDto): Promise<GetCreditLinesResponseDto> {
+        const lines = await this.prisma.user_credit_lines.findMany({
+            where: { user: userInfo.usernameShorted },
+            orderBy: { widget_tag: "asc" },
+        })
+
+        return { credit_lines: lines.map((line) => this.toDto(line, line.widget_tag)) }
+    }
+
+    /**
+     * Widget-facing: one user's credit line with the calling widget, plus the
+     * balance they could repay it with, so that a single call answers "should I
+     * make this user repay before serving them?".
+     *
+     * An unknown email returns a zeroed-out line rather than a 404 — otherwise
+     * this becomes an oracle for whether an email is registered.
+     */
+    async getWidgetCreditLine(email: string, userInfo: UserJwtExtractDto): Promise<WidgetCreditLineDto> {
+        const widgetTag = this.requireWidgetTag(userInfo)
+
+        const target = await this.prisma.users.findUnique({ where: { email } })
+        if (!target) {
+            return { ...this.toDto(null, widgetTag), credit_balance: 0 }
+        }
+
+        const line = await this.getLine(target.username_in_be, widgetTag)
+        const creditBalance = await this.creditService.getRepayableBalance(target.username_in_be)
+
+        return { ...this.toDto(line, widgetTag), credit_balance: creditBalance }
+    }
+
+    /**
+     * The credit line's own statement. Callable with a user JWT (their own lines,
+     * optionally narrowed to one widget) or with a widget JWT, which always reads
+     * its own line and must name the target user by email.
+     */
+    async getStatements(
+        query: GetCreditLineStatementQueryDto,
+        userInfo: UserJwtExtractDto,
+    ): Promise<GetCreditLineStatementsResponseDto> {
+        const where = await this.resolveStatementScope(query, userInfo)
+
+        const page = Math.max(1, parseInt(query.page?.toString()) || 1)
+        const pageSize = Math.max(1, parseInt(query.page_size?.toString()) || 10)
+
+        const [statements, count] = await Promise.all([
+            this.prisma.credit_line_statements.findMany({
+                where,
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+                orderBy: { id: "desc" },
+            }),
+            this.prisma.credit_line_statements.count({ where }),
+        ])
+
+        return {
+            count,
+            statements: statements.map((statement) => ({
+                id: statement.id,
+                widget_tag: statement.widget_tag,
+                type: statement.type,
+                amount: statement.amount,
+                used_after: statement.used_after,
+                order_id: statement.order_id,
+                request_id: statement.request_id,
+                created_at: statement.created_at,
+            })),
+        }
+    }
+
+    private async resolveStatementScope(
+        query: GetCreditLineStatementQueryDto,
+        userInfo: UserJwtExtractDto,
+    ): Promise<Prisma.credit_line_statementsWhereInput> {
+        const widgetTag = userInfo.developer_info?.tag
+        if (!widgetTag) {
+            return {
+                user: userInfo.usernameShorted,
+                ...(query.widget_tag && { widget_tag: query.widget_tag }),
+            }
+        }
+
+        // Widget caller. `IsWidgetGuard` cannot be used here because the route
+        // also serves user JWTs, so the permission bit is checked by hand.
+        const abilities = await this.widgetCaslAbilityFactory.createForWidget(widgetTag)
+        if (!abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE)) {
+            throw new ForbiddenException("This widget is not allowed to grant credit lines")
+        }
+        if (!query.email) {
+            throw new BadRequestException("email is required when reading a statement with a widget token")
+        }
+
+        const target = await this.prisma.users.findUnique({ where: { email: query.email } })
+        return {
+            // An unknown email matches nothing instead of erroring, for the same
+            // reason getWidgetCreditLine does not 404.
+            user: target?.username_in_be ?? "",
+            widget_tag: widgetTag,
+        }
+    }
+
+    private toDto(line: user_credit_lines | null, widgetTag: string): CreditLineDto {
+        return {
+            widget_tag: widgetTag,
+            credit_limit: line?.credit_limit ?? 0,
+            used: line?.used ?? 0,
+            available: this.available(line),
+            status: line?.status ?? credit_line_status.active,
+        }
+    }
+
+    private requireWidgetTag(userInfo: UserJwtExtractDto): string {
+        const widgetTag = userInfo.developer_info?.tag
+        if (!widgetTag) {
+            throw new BadRequestException("Widget tag is required")
+        }
+        return widgetTag
+    }
+
+    /**
+     * The ceiling on what a widget may grant, or null when the deployment has not
+     * configured one. Unconfigured fails closed on purpose: without a cap, any
+     * widget holding the permission bit could grant itself an unlimited line and
+     * spend the platform's money.
+     */
+    private widgetGrantMax(): number | null {
+        const raw = process.env.CREDIT_LINE_WIDGET_GRANT_MAX
+        if (!raw) {
+            return null
+        }
+        const parsed = Number(raw)
+        if (!Number.isInteger(parsed) || parsed < 0) {
+            return null
+        }
+        return parsed
+    }
+}
