@@ -714,6 +714,129 @@ describe("CreditService - Subscription Credit", () => {
         })
     })
 
+    describe("spendForCreditLineRepayment", () => {
+        /**
+         * The credit-account leg of a repayment, exercised for real rather than
+         * mocked out. The credit line service's own tests stub this method, so
+         * without these the promise that free credit never services a debt is only
+         * ever asserted as a clamp on the amount.
+         */
+        const givenBuckets = (opts: { total: number; free: number; subscription: number; subExpired?: boolean }) => {
+            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: opts.total })
+            mockTx.free_credit_issues.findMany.mockResolvedValue(
+                opts.free ? [{ id: 1, balance: opts.free, expire_date: new Date("2099-12-31") }] : [],
+            )
+            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: opts.free || null } })
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue(
+                opts.subscription
+                    ? [
+                          {
+                              ...mockSubscriptionCredit,
+                              current_balance: opts.subscription,
+                              expire_date: opts.subExpired ? new Date("2020-01-01") : new Date("2099-12-31"),
+                          },
+                      ]
+                    : [],
+            )
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
+                _sum: { current_balance: opts.subscription || null },
+            })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 0 })
+            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
+            mockTx.free_credit_issues.update.mockResolvedValue({})
+            mockTx.credit_statements.create.mockResolvedValue({})
+        }
+
+        it("leaves free credit alone even when it would cover the amount", async () => {
+            // 100 free + 200 subscription, repaying 200: the whole thing must come
+            // out of subscription.
+            givenBuckets({ total: 300, free: 100, subscription: 200 })
+
+            await service.spendForCreditLineRepayment(mockTx as any, "test_user_123", 200)
+
+            expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
+            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
+                where: { id: mockSubscriptionCredit.id },
+                data: { current_balance: { decrement: 200 } },
+            })
+            const statements = mockTx.credit_statements.create.mock.calls.map((c: any[]) => c[0].data)
+            expect(statements).toHaveLength(1)
+            expect(statements[0]).toMatchObject({
+                type: credit_statement_type.repay_credit_line,
+                amount: -200,
+                is_subscription_credit: true,
+            })
+            expect(statements[0].is_free_credit).toBeUndefined()
+        })
+
+        it("spends a subscription row whose expire_date has passed, and empties the row with it", async () => {
+            // This is the shape that used to drive the balance negative: the row was
+            // skipped, the balance was decremented anyway, and the sweep then took
+            // the untouched row as well.
+            givenBuckets({ total: 100, free: 0, subscription: 100, subExpired: true })
+
+            await service.spendForCreditLineRepayment(mockTx as any, "test_user_123", 100)
+
+            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
+                where: { id: mockSubscriptionCredit.id },
+                data: { current_balance: { decrement: 100 } },
+            })
+            expect(mockTx.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance: { decrement: 100 } },
+            })
+        })
+
+        it("crosses subscription into paid, one statement per bucket", async () => {
+            // 200 subscription + 300 paid, repaying 400.
+            givenBuckets({ total: 500, free: 0, subscription: 200 })
+
+            await service.spendForCreditLineRepayment(mockTx as any, "test_user_123", 400)
+
+            const statements = mockTx.credit_statements.create.mock.calls.map((c: any[]) => c[0].data)
+            expect(statements).toHaveLength(2)
+            expect(statements[0]).toMatchObject({ amount: -200, is_subscription_credit: true })
+            expect(statements[1]).toMatchObject({ amount: -200 })
+            expect(statements[1].is_subscription_credit).toBeUndefined()
+            expect(statements.every((s: any) => s.type === credit_statement_type.repay_credit_line)).toBe(true)
+        })
+
+        it("refuses rather than dipping into free credit when the rest cannot cover it", async () => {
+            // 100 free + 100 subscription, asked for 200: free is off limits, so the
+            // buckets come up short. The caller clamps to make this unreachable, and
+            // it must fail loudly rather than quietly spend the gift.
+            givenBuckets({ total: 200, free: 100, subscription: 100 })
+
+            await expect(
+                service.spendForCreditLineRepayment(mockTx as any, "test_user_123", 200),
+            ).rejects.toThrow("Insufficient credit balance")
+            expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("getRepayableBalance", () => {
+        it("is the balance minus all free credit, expired or not", async () => {
+            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 500 })
+            mockTx.free_credit_issues.findMany.mockResolvedValue([
+                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
+                { id: 2, balance: 50, expire_date: new Date("2020-01-01") },
+            ])
+
+            // Subscription credit does not expire, so what is left is exactly what
+            // the buckets will spend: no gap for a repayment to fall through.
+            expect(await service.getRepayableBalance("test_user_123", mockTx as any)).toBe(350)
+        })
+
+        it("never goes negative", async () => {
+            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 50 })
+            mockTx.free_credit_issues.findMany.mockResolvedValue([
+                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
+            ])
+
+            expect(await service.getRepayableBalance("test_user_123", mockTx as any)).toBe(0)
+        })
+    })
+
     describe("refundCredit - with subscription credits", () => {
         it("should refund subscription credits correctly", async () => {
             const consumeStatement = {
