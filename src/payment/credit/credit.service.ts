@@ -160,6 +160,41 @@ export class CreditService {
     }
 
     /**
+     * How much of `current_credit_balance` can actually be spent right now.
+     *
+     * The two differ because free credit expires: between the moment an issue row
+     * expires and the moment `expireFreeCredit` sweeps it, its balance is still
+     * inside `current_credit_balance` while no bucket will spend it. Spending
+     * against the raw total therefore takes the same credit twice — once from the
+     * balance, and again when the sweep deducts the untouched issue row — and
+     * leaves the balance negative.
+     *
+     * Subscription credit does not expire, so it never contributes a gap.
+     */
+    async getSpendableBalance(
+        userId: string,
+        tx?: Prisma.TransactionClient,
+    ): Promise<{ total: number; free: number; spendable: number; freeSpendable: number }> {
+        const prisma = tx || this.prisma
+        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userId, tx)
+
+        const freeSpendable =
+            (
+                await prisma.free_credit_issues.aggregate({
+                    _sum: { balance: true },
+                    where: { user: userId, balance: { gt: 0 }, expire_date: { gte: new Date() } },
+                })
+            )._sum.balance || 0
+
+        return {
+            total: total_credit_balance,
+            free: free_credit_balance,
+            freeSpendable,
+            spendable: total_credit_balance - (free_credit_balance - freeSpendable),
+        }
+    }
+
+    /**
      * The part of the balance that may be used to repay a credit line: everything
      * except free credit, i.e. subscription + paid.
      *
@@ -429,15 +464,18 @@ export class CreditService {
         // Lock user row to prevent concurrent credit consumption race condition
         await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${userInfo.usernameShorted} FOR UPDATE`
 
-        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userInfo.usernameShorted, tx)
+        // Sized against what the buckets will actually spend, not against the raw
+        // balance: expired-but-unswept free credit still sits in
+        // current_credit_balance and no bucket will touch it.
+        const { total, free, spendable } = await this.getSpendableBalance(userInfo.usernameShorted, tx)
 
-        if (!allow_free_credit && total_credit_balance - free_credit_balance < amount) {
+        if (!allow_free_credit && total - free < amount) {
             throw new BadRequestException(
                 "This consumption is not allowed to use free credit and the total credit balance is not enough",
             )
         }
 
-        if (allow_free_credit && total_credit_balance < amount) {
+        if (allow_free_credit && spendable < amount) {
             throw new BadRequestException("Insufficient credit balance")
         }
 
@@ -487,10 +525,12 @@ export class CreditService {
 
         // The paid balance is not stored anywhere; it is whatever is left of
         // current_credit_balance once the free and subscription buckets are taken out.
-        // Both subtrahends deliberately ignore expire_date: credits that expired but
-        // have not been swept yet are still counted in current_credit_balance, so
-        // filtering them here would overstate the paid balance and let the paid bucket
-        // consume more than the user actually paid for.
+        // The free subtrahend deliberately ignores expire_date: free credit that has
+        // expired but has not been swept yet is still counted in
+        // current_credit_balance, so filtering it here would overstate the paid
+        // balance and let the paid bucket consume more than the user actually paid
+        // for. Subscription credit does not expire, so the question does not arise
+        // for it.
         const subscriptionOnBooks =
             (
                 await tx.widget_subscription_credit_issues.aggregate({
@@ -505,12 +545,14 @@ export class CreditService {
 
         const paidCreditBalance = Math.max(0, total_credit_balance - free_credit_balance - subscriptionOnBooks)
 
+        // No expire_date filter: subscription credit does not expire. `expire_date`
+        // is still recorded, and still orders the walk oldest-first, but it no
+        // longer decides what may be spent.
         const widgetSubscriptionCredits = await tx.widget_subscription_credit_issues.findMany({
             where: {
                 user_id: user,
                 current_balance: { gt: 0 },
                 is_issue: true,
-                expire_date: { gte: now },
             },
             orderBy: {
                 expire_date: "asc",
@@ -617,29 +659,23 @@ export class CreditService {
             }
         }
 
-        // Anything still outstanding is taken off the balance untagged, which is what the
-        // previous implementation did implicitly for every non-free, non-subscription unit.
-        // Getting here means the buckets did not add up to current_credit_balance; expired
-        // credits awaiting the sweep job are the expected cause.
+        // Getting here means the buckets did not cover the amount even though the
+        // caller checked the balance first, so the balance contains credit that no
+        // bucket owns. Until now this branch took the shortfall off
+        // current_credit_balance untagged, which is how expired-but-unswept credit
+        // got spent twice: once here against the raw balance, and again when the
+        // sweep deducted the full issue row it had left untouched, leaving the user
+        // with a negative balance.
+        //
+        // Refusing is the safe answer. Callers must size the spend with
+        // `getSpendableBalance`, which excludes exactly the credit the buckets will
+        // not spend, so reaching this is a bug rather than an expected state.
         if (needCreditConsumed > 0) {
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: {
-                    current_credit_balance: {
-                        decrement: needCreditConsumed,
-                    },
-                },
-            })
-
-            await tx.credit_statements.create({
-                data: {
-                    user: user,
-                    type: statementType,
-                    amount: needCreditConsumed * -1,
-                    balance: userBalanceUpdated.current_credit_balance,
-                    order_id: orderId,
-                },
-            })
+            this.logger.error(
+                `Credit buckets came up ${needCreditConsumed} short for ${user}; ` +
+                    `current_credit_balance disagrees with the issue rows behind it`,
+            )
+            throw new BadRequestException("Insufficient credit balance")
         }
 
         return { free_credit_consumed: freeCreditConsumed }
@@ -847,60 +883,6 @@ export class CreditService {
     }
 
     /**
-     * Expire subscription credits
-     * @param subscriptionId - Optional: only expire credits for this subscription
-     */
-    async expireWidgetSubscriptionCredit(subscriptionId?: string): Promise<void> {
-        const now = new Date()
-        const where: any = {
-            expire_date: { lt: now },
-            is_issue: true,
-            current_balance: { gt: 0 },
-        }
-        if (subscriptionId) {
-            where.subscription_id = subscriptionId
-        }
-
-        const creditsToExpire = await this.prisma.widget_subscription_credit_issues.findMany({ where })
-
-        if (creditsToExpire.length === 0) {
-            this.logger.log(`[expireWidgetSubscriptionCredit] No subscription credit to expire`)
-            return
-        }
-
-        for (const expiredCredit of creditsToExpire) {
-            try {
-                await this.prisma.$transaction(async (tx) => {
-                    await tx.widget_subscription_credit_issues.update({
-                        where: { id: expiredCredit.id },
-                        data: { current_balance: 0 },
-                    })
-                    const userBalanceUpdated = await tx.users.update({
-                        where: { username_in_be: expiredCredit.user_id },
-                        data: { current_credit_balance: { decrement: expiredCredit.current_balance } },
-                    })
-                    await tx.credit_statements.create({
-                        data: {
-                            user: expiredCredit.user_id,
-                            type: credit_statement_type.expire_subscription_credit,
-                            amount: expiredCredit.current_balance * -1,
-                            balance: userBalanceUpdated.current_credit_balance,
-                            subscription_credit_issue_id: expiredCredit.id,
-                            order_id: expiredCredit.subscription_id,
-                            is_subscription_credit: true,
-                        },
-                    })
-                })
-                this.logger.log(`[expireWidgetSubscriptionCredit] Expired credit ${expiredCredit.id}`)
-            } catch (error) {
-                this.logger.error(
-                    `[expireWidgetSubscriptionCredit] Failed to expire credit ${expiredCredit.id}: ${error.message}`,
-                )
-            }
-        }
-    }
-
-    /**
      * Issue subscription credits
      * @param subscriptionId - Optional: only issue credits for this subscription
      */
@@ -955,7 +937,9 @@ export class CreditService {
     }
 
     /**
-     * Cron job: process all subscription credits (expire first, then issue)
+     * Cron job: issue subscription credits that have come due.
+     *
+     * There is no expiry step: subscription credit does not expire.
      */
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async processWidgetSubscriptionCredits(): Promise<void> {
@@ -964,10 +948,6 @@ export class CreditService {
         }
         this.logger.log(`[processWidgetSubscriptionCredits] Starting...`)
 
-        // Step 1: Expire old credits first
-        await this.expireWidgetSubscriptionCredit()
-
-        // Step 2: Issue new credits
         await this.issueWidgetSubscriptionCredit()
 
         this.logger.log(`[processWidgetSubscriptionCredits] Completed`)
@@ -1010,18 +990,8 @@ export class CreditService {
 
             //refund subscription credit
             if (statement.is_subscription_credit) {
-                const subscriptionCredit = await tx.widget_subscription_credit_issues.findUnique({
-                    where: { id: statement.subscription_credit_issue_id },
-                })
-                if (
-                    subscriptionCredit &&
-                    subscriptionCredit.expire_date &&
-                    subscriptionCredit.expire_date < new Date()
-                ) {
-                    this.logger.warn(`Subscription credit is expired, we cannot refund this statement: ${statement.id}`)
-                    continue
-                }
-                //update subscription credit table
+                // No expiry check, unlike free credit above: subscription credit does
+                // not expire, so there is no state in which it cannot be refunded.
                 await tx.widget_subscription_credit_issues.update({
                     where: { id: statement.subscription_credit_issue_id },
                     data: { current_balance: { increment: _refundAmount } },
