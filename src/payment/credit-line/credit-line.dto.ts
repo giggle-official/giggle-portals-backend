@@ -67,7 +67,9 @@ export class RepayCreditLineDto {
         description:
             "Idempotency key. Omit and one is generated server-side, in which case retrying really does repay " +
             "twice. Supply one and a repeat is rejected rather than charged again. Deduplicated per user and " +
-            "widget, so it need not be globally unique.",
+            "widget, so it need not be globally unique. The key is only recorded when a repayment actually " +
+            "happens: a call that repaid nothing does not consume it, so the same key still works if the debt " +
+            "shows up later.",
         required: false,
     })
     @IsString()

@@ -377,6 +377,11 @@ export class CreditLineService {
             // Before the nothing-to-repay shortcut below, so that replaying a
             // repayment that already cleared the debt is reported as a replay
             // rather than as a successful no-op.
+            //
+            // The mirror case is deliberate the other way: a call that repays
+            // nothing writes no ledger row, so it does not consume the key. A
+            // no-op should not permanently burn an idempotency key that the
+            // caller may need once a debt actually exists.
             await this.assertRepaymentNotReplayed(tx, user, widgetTag, requestId)
 
             const repayableBalance = await this.creditService.getRepayableBalance(user, tx)
