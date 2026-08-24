@@ -302,6 +302,20 @@ export class CreditLineService {
         return updated
     }
 
+    /**
+     * Throws unless the widget still holds the permission that let it lend.
+     *
+     * Checked on every borrow and every widget-side read rather than only when
+     * the limit is granted, so that revoking the permission takes effect at
+     * once instead of leaving already-granted limits spendable forever.
+     */
+    async assertWidgetMayLend(widgetTag: string): Promise<void> {
+        const abilities = await this.widgetCaslAbilityFactory.createForWidget(widgetTag)
+        if (!abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE)) {
+            throw new ForbiddenException("This widget is not allowed to grant credit lines")
+        }
+    }
+
     private assertPositiveAmount(amount: number): void {
         if (!Number.isInteger(amount) || amount <= 0) {
             throw new BadRequestException("Amount must be a positive integer")
@@ -436,10 +450,7 @@ export class CreditLineService {
             return { user: userInfo.usernameShorted, widgetTag: body.widget_tag }
         }
 
-        const abilities = await this.widgetCaslAbilityFactory.createForWidget(callerWidgetTag)
-        if (!abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE)) {
-            throw new ForbiddenException("This widget is not allowed to grant credit lines")
-        }
+        await this.assertWidgetMayLend(callerWidgetTag)
         if (!body.email) {
             throw new BadRequestException("email is required when repaying with a widget token")
         }
@@ -536,10 +547,7 @@ export class CreditLineService {
 
         // Widget caller. `IsWidgetGuard` cannot be used here because the route
         // also serves user JWTs, so the permission bit is checked by hand.
-        const abilities = await this.widgetCaslAbilityFactory.createForWidget(widgetTag)
-        if (!abilities.can(WIDGET_PERMISSIONS_LIST.CAN_GRANT_CREDIT_LINE)) {
-            throw new ForbiddenException("This widget is not allowed to grant credit lines")
-        }
+        await this.assertWidgetMayLend(widgetTag)
         if (!query.email) {
             throw new BadRequestException("email is required when reading a statement with a widget token")
         }
