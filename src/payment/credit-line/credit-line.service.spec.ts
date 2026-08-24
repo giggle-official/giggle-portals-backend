@@ -20,6 +20,8 @@ import { CreditLineService } from "./credit-line.service"
 
 describe("CreditLineService", () => {
     let service: CreditLineService
+    let prisma: any
+    let credit: any
 
     const activeLine: user_credit_lines = {
         id: 7,
@@ -55,6 +57,13 @@ describe("CreditLineService", () => {
         }).compile()
 
         service = module.get<CreditLineService>(CreditLineService)
+        prisma = module.get(PrismaService) as any
+        credit = module.get(CreditService) as any
+
+        prisma.$transaction = jest.fn((cb: any) => cb(mockTx))
+        prisma.users = { findUnique: jest.fn().mockResolvedValue({ username_in_be: "test_user_123" }) }
+        credit.getRepayableBalance = jest.fn().mockResolvedValue(1000)
+        credit.spendForCreditLineRepayment = jest.fn().mockResolvedValue(undefined)
     })
 
     /** The `used` the line is left with after the primitive under test ran. */
@@ -217,6 +226,153 @@ describe("CreditLineService", () => {
 
             expect(usedAfter()).toBe(-100)
             expect(service.available({ ...activeLine, used: -100 })).toBe(1100)
+        })
+    })
+
+    describe("repayCreditLine", () => {
+        const user = { usernameShorted: "test_user_123", developer_info: null } as any
+
+        it("spends real credit and lowers the debt, in that order", async () => {
+            givenLine({ used: 500 })
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            expect(credit.spendForCreditLineRepayment).toHaveBeenCalledWith(mockTx, "test_user_123", 500)
+            expect(mockTx.user_credit_lines.update).toHaveBeenCalledWith(
+                expect.objectContaining({ data: { used: { increment: -500 } } }),
+            )
+            expect(result).toEqual({
+                repaid: 500,
+                credit_line_used: 0,
+                credit_line_available: 1000,
+                credit_balance: 500,
+            })
+        })
+
+        it("locks the user row before the credit line row", async () => {
+            givenLine({ used: 100 })
+
+            await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            const locks = mockTx.$queryRaw.mock.calls.map((c: any[]) => c[0].join("?"))
+            expect(locks[0]).toContain("FROM users")
+            expect(locks[1]).toContain("FROM user_credit_lines")
+        })
+
+        it("repays only what is owed when asked for more", async () => {
+            givenLine({ used: 300 })
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget", amount: 999999 }, user)
+
+            expect(result.repaid).toBe(300)
+            expect(credit.spendForCreditLineRepayment).toHaveBeenCalledWith(mockTx, "test_user_123", 300)
+        })
+
+        it("repays only what is affordable when the balance is short", async () => {
+            givenLine({ used: 900 })
+            credit.getRepayableBalance.mockResolvedValue(400)
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            expect(result).toMatchObject({ repaid: 400, credit_line_used: 500, credit_balance: 0 })
+        })
+
+        it("repays nothing, without erroring, when nothing is owed", async () => {
+            givenLine({ used: 0 })
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            expect(result.repaid).toBe(0)
+            expect(credit.spendForCreditLineRepayment).not.toHaveBeenCalled()
+            expect(mockTx.user_credit_lines.update).not.toHaveBeenCalled()
+        })
+
+        it("repays nothing when the balance is all free credit", async () => {
+            givenLine({ used: 500 })
+            credit.getRepayableBalance.mockResolvedValue(0)
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            expect(result.repaid).toBe(0)
+            expect(credit.spendForCreditLineRepayment).not.toHaveBeenCalled()
+        })
+
+        it("rejects a replayed request id even once the debt is already clear", async () => {
+            // The reason the duplicate check runs before the nothing-to-repay
+            // shortcut: otherwise a replay would report success.
+            givenLine({ used: 0 })
+            mockTx.credit_line_statements.findFirst.mockResolvedValue({ id: 1 })
+
+            await expect(
+                service.repayCreditLine({ widget_tag: "test_widget", request_id: "r1" }, user),
+            ).rejects.toThrow(BadRequestException)
+            expect(credit.spendForCreditLineRepayment).not.toHaveBeenCalled()
+        })
+
+        it("generates a request id when the caller omits one", async () => {
+            givenLine({ used: 100 })
+
+            await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            const written = mockTx.credit_line_statements.create.mock.calls[0][0].data
+            expect(typeof written.request_id).toBe("string")
+            expect(written.request_id.length).toBeGreaterThan(0)
+        })
+
+        it("never consults credit_limit, so a revoked line can still be repaid", async () => {
+            givenLine({ credit_limit: 0, used: 500 })
+
+            const result = await service.repayCreditLine({ widget_tag: "test_widget" }, user)
+
+            expect(result).toMatchObject({ repaid: 500, credit_line_used: 0, credit_line_available: 0 })
+        })
+
+        it("requires a user token to name the widget", async () => {
+            await expect(service.repayCreditLine({}, user)).rejects.toThrow("widget_tag is required")
+        })
+
+        it("makes a widget token repay its own line, ignoring the body's widget_tag", async () => {
+            givenLine({ used: 100 })
+            const abilities = { can: jest.fn().mockReturnValue(true) }
+            ;(service as any).widgetCaslAbilityFactory.createForWidget = jest.fn().mockResolvedValue(abilities)
+            const widgetCaller = {
+                usernameShorted: "dev",
+                developer_info: { usernameShorted: "dev", tag: "test_widget" },
+            } as any
+
+            await service.repayCreditLine(
+                { email: "target@example.com", widget_tag: "someone_elses_widget" },
+                widgetCaller,
+            )
+
+            expect(prisma.users.findUnique).toHaveBeenCalledWith({ where: { email: "target@example.com" } })
+            const locked = mockTx.$queryRaw.mock.calls[1][0].join("?")
+            expect(locked).toContain("FROM user_credit_lines")
+            expect(mockTx.$queryRaw.mock.calls[1]).toContain("test_widget")
+        })
+
+        it("refuses a widget without the permission bit", async () => {
+            const abilities = { can: jest.fn().mockReturnValue(false) }
+            ;(service as any).widgetCaslAbilityFactory.createForWidget = jest.fn().mockResolvedValue(abilities)
+
+            await expect(
+                service.repayCreditLine({ email: "target@example.com" }, {
+                    usernameShorted: "dev",
+                    developer_info: { usernameShorted: "dev", tag: "test_widget" },
+                } as any),
+            ).rejects.toThrow("not allowed")
+        })
+
+        it("requires a widget to name the user", async () => {
+            const abilities = { can: jest.fn().mockReturnValue(true) }
+            ;(service as any).widgetCaslAbilityFactory.createForWidget = jest.fn().mockResolvedValue(abilities)
+
+            await expect(
+                service.repayCreditLine({}, {
+                    usernameShorted: "dev",
+                    developer_info: { usernameShorted: "dev", tag: "test_widget" },
+                } as any),
+            ).rejects.toThrow("email is required")
         })
     })
 
