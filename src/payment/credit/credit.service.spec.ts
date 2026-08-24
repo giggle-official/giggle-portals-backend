@@ -80,6 +80,9 @@ describe("CreditService - Subscription Credit", () => {
                 findMany: jest.fn(),
                 update: jest.fn(),
                 findUnique: jest.fn(),
+                // Spendable free credit: what is left once expired-but-unswept rows
+                // are taken out. Defaults to "nothing has expired".
+                aggregate: jest.fn().mockResolvedValue({ _sum: { balance: null } }),
             },
         }
 
@@ -328,49 +331,6 @@ describe("CreditService - Subscription Credit", () => {
         })
     })
 
-    describe("expireWidgetSubscriptionCredit", () => {
-        it("should expire credits with optional subscription_id filter", async () => {
-            const expiredCredit = {
-                id: 1,
-                user_id: "test_user_123",
-                current_balance: 300,
-                is_issue: true,
-                expire_date: new Date("2023-01-01"),
-                subscription_id: "sub_123",
-            }
-
-                ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([expiredCredit])
-            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
-            mockTx.credit_statements.create.mockResolvedValue({})
-
-            await service.expireWidgetSubscriptionCredit("sub_123")
-
-            expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
-                where: {
-                    expire_date: { lt: expect.any(Date) },
-                    is_issue: true,
-                    current_balance: { gt: 0 },
-                    subscription_id: "sub_123",
-                },
-            })
-        })
-
-        it("should expire all credits when no subscription_id provided", async () => {
-            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
-
-            await service.expireWidgetSubscriptionCredit()
-
-            expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
-                where: {
-                    expire_date: { lt: expect.any(Date) },
-                    is_issue: true,
-                    current_balance: { gt: 0 },
-                },
-            })
-        })
-    })
-
     describe("issueWidgetSubscriptionCredit", () => {
         it("should issue credits with optional subscription_id filter", async () => {
             const pendingCredit = {
@@ -415,14 +375,20 @@ describe("CreditService - Subscription Credit", () => {
     })
 
     describe("processWidgetSubscriptionCredits (cron job)", () => {
-        it("should call expireWidgetSubscriptionCredit then issueWidgetSubscriptionCredit", async () => {
-            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock)
-                .mockResolvedValueOnce([]) // For expire
-                .mockResolvedValueOnce([]) // For issue
+        it("only issues, because subscription credit does not expire", async () => {
+            process.env.TASK_SLOT = "1"
+            ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([])
 
             await service.processWidgetSubscriptionCredits()
 
-            expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledTimes(2)
+            expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledTimes(1)
+            expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
+                where: {
+                    issue_date: { lte: expect.any(Date) },
+                    current_balance: { gt: 0 },
+                    is_issue: false,
+                },
+            })
         })
     })
 
@@ -618,6 +584,7 @@ describe("CreditService - Subscription Credit", () => {
             mockTx.free_credit_issues.findMany.mockResolvedValue([
                 { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
             ])
+            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 100 } })
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
                 { ...mockSubscriptionCredit, current_balance: 100 },
             ])
@@ -665,15 +632,85 @@ describe("CreditService - Subscription Credit", () => {
 
             const result = await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
 
+            // No expire_date: subscription credit does not expire.
             expect(mockTx.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
                 where: {
                     user_id: "test_user_123",
                     current_balance: { gt: 0 },
                     is_issue: true,
-                    expire_date: { gte: expect.any(Date) },
                 },
                 orderBy: { expire_date: "asc" },
             })
+        })
+    })
+
+    describe("expired credit is not spendable", () => {
+        const userInfo = { usernameShorted: "test_user_123" } as any
+
+        /**
+         * A balance made entirely of free credit that expired but has not been
+         * swept yet: it still counts towards current_credit_balance, and no bucket
+         * will spend it.
+         */
+        const givenOnlyExpiredFreeCredit = (amount: number) => {
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: amount })
+            // getUserCredits does not filter by expiry, so it sees the row...
+            mockTx.free_credit_issues.findMany.mockImplementation(({ where }: any) =>
+                where?.expire_date ? [] : [{ id: 1, balance: amount, expire_date: new Date("2020-01-01") }],
+            )
+            // ...but none of it is spendable.
+            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 0 } })
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({ _sum: { current_balance: 0 } })
+        }
+
+        it("refuses to spend free credit that has expired but not been swept", async () => {
+            givenOnlyExpiredFreeCredit(100)
+
+            await expect(service.consumeCredit(100, "order_123", userInfo, mockTx as any, true)).rejects.toThrow(
+                "Insufficient credit balance",
+            )
+        })
+
+        it("does not touch the balance when it refuses", async () => {
+            givenOnlyExpiredFreeCredit(100)
+
+            await expect(service.consumeCredit(100, "order_123", userInfo, mockTx as any, true)).rejects.toThrow()
+
+            // The bug this guards: the balance used to be decremented here with no
+            // issue row behind it, and the sweep would then deduct the untouched row
+            // as well, leaving the user negative.
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+            expect(mockTx.credit_statements.create).not.toHaveBeenCalled()
+        })
+
+        it("reports expired free credit as unspendable while still counting it in the total", async () => {
+            givenOnlyExpiredFreeCredit(100)
+
+            const balances = await service.getSpendableBalance("test_user_123", mockTx as any)
+
+            expect(balances).toMatchObject({ total: 100, free: 100, freeSpendable: 0, spendable: 0 })
+        })
+
+        it("spends subscription credit regardless of its expire_date", async () => {
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 100 })
+            mockTx.free_credit_issues.findMany.mockResolvedValue([])
+            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 0 } })
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
+                { ...mockSubscriptionCredit, current_balance: 100, expire_date: new Date("2020-01-01") },
+            ])
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({ _sum: { current_balance: 100 } })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 0 })
+            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
+            mockTx.credit_statements.create.mockResolvedValue({})
+
+            const result = await service.consumeCredit(100, "order_123", userInfo, mockTx as any, true)
+
+            expect(result.total_credit_consumed).toBe(100)
+            const where = mockTx.widget_subscription_credit_issues.findMany.mock.calls[0][0].where
+            expect(where.expire_date).toBeUndefined()
         })
     })
 
@@ -719,7 +756,9 @@ describe("CreditService - Subscription Credit", () => {
             })
         })
 
-        it("should skip refund for expired subscription credits", async () => {
+        it("refunds subscription credit even when its expire_date has passed", async () => {
+            // Subscription credit does not expire, so a past expire_date is just a
+            // recorded date and must not block the refund.
             const consumeStatement = {
                 id: 1,
                 amount: -300,
@@ -730,66 +769,44 @@ describe("CreditService - Subscription Credit", () => {
             }
 
             mockTx.credit_statements.findMany = jest.fn().mockResolvedValue([consumeStatement])
-            mockTx.widget_subscription_credit_issues.findUnique = jest.fn().mockResolvedValue({
-                id: 1,
-                expire_date: new Date("2020-01-01"), // Expired (past date)
-            })
             mockTx.widget_subscription_credit_issues.update = jest.fn().mockResolvedValue({})
+            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, current_credit_balance: 1300 })
+            mockTx.credit_statements.create = jest.fn().mockResolvedValue({})
+
+            await service.refundCredit(300, "order_123", "test_user_123", mockTx as any)
+
+            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
+                where: { id: 1 },
+                data: { current_balance: { increment: 300 } },
+            })
+            expect(mockTx.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance: { increment: 300 } },
+            })
+        })
+
+        it("still skips free credit whose expiry has passed", async () => {
+            // Free credit does expire, so this branch stays.
+            mockTx.credit_statements.findMany = jest.fn().mockResolvedValue([
+                {
+                    id: 1,
+                    amount: -300,
+                    is_free_credit: true,
+                    is_subscription_credit: false,
+                    free_credit_issue_id: 1,
+                    subscription_credit_issue_id: null,
+                },
+            ])
+            mockTx.free_credit_issues.findUnique = jest
+                .fn()
+                .mockResolvedValue({ id: 1, expire_date: new Date("2020-01-01") })
+            mockTx.free_credit_issues.update = jest.fn().mockResolvedValue({})
             mockTx.users.update = jest.fn().mockResolvedValue({})
 
             await service.refundCredit(300, "order_123", "test_user_123", mockTx as any)
 
-            // Should NOT update subscription credit or user balance
-            expect(mockTx.widget_subscription_credit_issues.update).not.toHaveBeenCalled()
+            expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
             expect(mockTx.users.update).not.toHaveBeenCalled()
-        })
-
-        it("should track amounts correctly when skipping expired credits", async () => {
-            const statements = [
-                {
-                    id: 1,
-                    amount: -200,
-                    is_free_credit: false,
-                    is_subscription_credit: true,
-                    subscription_credit_issue_id: 1,
-                    free_credit_issue_id: null,
-                },
-                {
-                    id: 2,
-                    amount: -100,
-                    is_free_credit: false,
-                    is_subscription_credit: true,
-                    subscription_credit_issue_id: 2,
-                    free_credit_issue_id: null,
-                },
-            ]
-
-            mockTx.credit_statements.findMany = jest.fn().mockResolvedValue(statements)
-
-            // First credit is expired (has expire_date in past), second has no expiry
-            mockTx.widget_subscription_credit_issues.findUnique = jest
-                .fn()
-                .mockResolvedValueOnce({
-                    id: 1,
-                    expire_date: new Date("2020-01-01"), // Expired (past date)
-                })
-                .mockResolvedValueOnce({
-                    id: 2,
-                    expire_date: null, // No expiry - will proceed to refund
-                })
-
-            mockTx.widget_subscription_credit_issues.update = jest.fn().mockResolvedValue({})
-            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, current_credit_balance: 1100 })
-            mockTx.credit_statements.create = jest.fn().mockResolvedValue({})
-
-            await service.refundCredit(150, "order_123", "test_user_123", mockTx as any)
-
-            // Only second credit should be refunded (100 since statement amount is -100)
-            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledTimes(1)
-            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
-                where: { id: 2 },
-                data: { current_balance: { increment: 100 } },
-            })
         })
     })
 })

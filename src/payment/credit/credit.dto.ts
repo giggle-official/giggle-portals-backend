@@ -315,7 +315,10 @@ export class SubscriptionCreditDto {
     issue_date: Date
 
     @ApiProperty({
-        description: "The expire date of the subscription credit",
+        description:
+            "The expire date of the subscription credit. Recorded and used to order which issue row is " +
+            "consumed first, but subscription credit does not expire: nothing deducts the balance when this " +
+            "date passes.",
     })
     @IsDateString()
     @IsNotEmpty()

@@ -36,7 +36,11 @@ POST /api/v1/credit/update-widget-subscriptions
 | `subscription_credits`                      | array   | Yes      | Array of credits to issue (can be empty)                                  |
 | `subscription_credits[].amount`             | number  | Yes      | Credit amount (positive integer)                                          |
 | `subscription_credits[].issue_date`         | string  | Yes      | ISO 8601 date when credits become available                               |
-| `subscription_credits[].expire_date`        | string  | Yes      | ISO 8601 date when credits expire                                         |
+| `subscription_credits[].expire_date`        | string  | Yes      | ISO 8601 date, recorded but no longer acted on — see the note below       |
+
+> **Subscription credits do not expire.** `expire_date` is still required and still
+> stored, and it orders which issue row is consumed first, but nothing deducts a
+> balance when it passes. Issued credits stay spendable until they are consumed.
 
 ### Example Request
 
@@ -129,7 +133,7 @@ POST /api/v1/credit/cancel-widget-subscription
 
 -   Deletes the subscription record (allows user to subscribe again later)
 -   Removes all **unissued** credits (`is_issue: false`)
--   **Leaves issued credits as-is** - they will expire naturally on their `expire_date`
+-   **Leaves issued credits as-is** - and since subscription credits do not expire, the user keeps them until they are spent
 
 ### Error Responses
 
@@ -164,11 +168,11 @@ Use the `usernameShorted` value as the `user_id` in subscription APIs.
 ## Credit Lifecycle
 
 ```
-┌─────────────────┐     issue_date      ┌─────────────────┐     expire_date     ┌─────────────────┐
-│   Not Issued    │ ─────────────────▶  │     Issued      │ ─────────────────▶  │     Expired     │
-│  (is_issue=0)   │   (added to user    │  (is_issue=1)   │   (balance set     │  (balance=0)    │
-│                 │      balance)       │                 │      to 0)         │                 │
-└─────────────────┘                     └─────────────────┘                     └─────────────────┘
+┌─────────────────┐     issue_date      ┌─────────────────┐
+│   Not Issued    │ ─────────────────▶  │     Issued      │
+│  (is_issue=0)   │   (added to user    │  (is_issue=1)   │
+│                 │      balance)       │                 │
+└─────────────────┘                     └─────────────────┘
         │                                       │
         │ cancel subscription                   │ consume
         ▼                                       ▼
@@ -176,9 +180,12 @@ Use the `usernameShorted` value as the `user_id` in subscription APIs.
    │ Deleted │                           │  Consumed   │
    └─────────┘                           │ (balance-=) │
                                          └─────────────┘
+
+There is no expired state: issued subscription credit stays spendable.
 ```
 
 ### Automatic Processing (Daily at Midnight)
 
-1. **Expire**: Credits past their `expire_date` have remaining balance deducted from user
-2. **Issue**: Credits with `issue_date` <= today are issued and added to user balance
+1. **Issue**: Credits with `issue_date` <= today are issued and added to user balance
+
+There is no expiry step.
