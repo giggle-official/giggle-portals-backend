@@ -1,6 +1,6 @@
 # 授信积分（Credit Line）实施方案
 
-状态：**#2 #3 #4 #5 #6 已合并，只剩 #7（支付通道）。上线 DDL 见[§14](#14-上线-ddl-清单)，尚未在生产执行。**
+状态：**#2 #3 #4 #5 #6 #7 全部完成，功能闭环。上线 DDL 见[§14](#14-上线-ddl-清单)，尚未在生产执行——DDL 执行前授信功能在生产上不存在。**
 最后更新：2026-08-21
 
 授信积分让用户可以先消费后付款，类似信用卡。授信额度由 widget 授予、**只能在该 widget 内使用和还款**；还款是一个**显式的原子接口**，不随充值自动发生，门禁由 widget 来做。授信支付是一条**独立的支付通道**，与积分支付互斥，一个订单要么走授信、要么走积分，不存在混合支付。
@@ -263,6 +263,12 @@ orderRecord.is_credit_top_up === true     -> 拒绝
 这个检查必须放在支付时而不是建单时：`buyback_after_paid` 在建单时确定，而支付方式要到支付时才选定，widget 完全可以建一个既绑奖励池、又把 `CREDIT_LINE` 放进 `allowed_payment_methods` 的订单。
 
 支付完成后**只调用 `processCallback`**，不调用 `updateBindRewards`，不调用 `releaseRewards`（[D8](#1-已确认的决策)）。与现有的 `payCreditOrder` 相比，尾部那三步后置流程只保留通知这一步。
+
+### 实现时补的一道锁
+
+**支付前要锁订单行。** 现有的 `payCreditOrder` 不锁——两个并发请求付同一笔 pending 订单，两边都能通过 `allowPayOrder` 的状态校验，各扣一次。授信这条路径把它补上了：事务里先 `SELECT id FROM orders ... FOR UPDATE`、再重读订单确认仍是 `PENDING`，然后才 `charge`。授信账户行锁只能保证两个事务串行，挡不住「一笔订单被扣两次额度」，所以要锁的是被重复消费的那个对象——订单。
+
+锁序是**先订单行、后授信账户行**，与 `_refundCreditLineOrder` 一致，两条路径不会互相死锁。
 
 `releaseRewards` 内部还要再加一道 `paid_method === CREDIT_LINE` 直接返回的判断。判断写在**方法内部**而不是调用点：目前有 9 处会触发它（`order.service.ts` 六处、`payment-asia`、`paypal`、链上奖励池服务，其中包括 widget 主动调用的 `/order/release-rewards` 和 `releaseAllOrders`），只在授信支付路径里不调用等于没挡住——widget 拿着订单号调一次发奖接口就绕过去了。`releaseRewards` 本来就会自己重查订单并跑一串前置校验，新判断和它们并排放即可。
 

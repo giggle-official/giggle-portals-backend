@@ -83,6 +83,14 @@ export class OrderService {
         PaymentMethod.CREDIT,
         PaymentMethod.CREDIT2C,
         PaymentMethod.CUSTOMIZED,
+        // An order that names no payment method inherits this whole list, so
+        // every such order becomes credit line payable. That is deliberate and
+        // bounded: paying still requires a limit granted by this widget to this
+        // user, and `payCreditLineOrder` refuses reward-bearing, buyback and
+        // top-up orders outright. Leaving it out instead would mean a widget
+        // that asks for `credit-line` gets it silently dropped here and an
+        // "unsupported" error at payment time.
+        PaymentMethod.CREDIT_LINE,
     ]
 
     constructor(
@@ -638,6 +646,139 @@ export class OrderService {
             },
         })
         return await this.mapOrderDetail(newOrder)
+    }
+
+    async createAndPayCreditLineOrder(dto: CreateOrderDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const order = await this.createOrder(dto, userInfo)
+        //need extract user info if requester is developer
+        if (userInfo.developer_info) {
+            const user = await this.jwtService.verifyAsync(dto.user_jwt, {
+                secret: process.env.SESSION_SECRET,
+            })
+            userInfo = await this.userService.getProfile(user as UserJwtExtractDto)
+        }
+        return this.payCreditLineOrder(order, userInfo)
+    }
+
+    /**
+     * Pays an order by borrowing against the credit line the order's widget
+     * granted the order's owner.
+     *
+     * The account is located from the order (`owner` + `widget_tag`), never from
+     * whoever is calling. Whether the request arrives with the user's own JWT, a
+     * widget session token, or a widget paying on the user's behalf, the debt
+     * lands on the same account — the caller's identity only decides whether they
+     * may pay this order at all, which `allowPayOrder` already owns. An order
+     * with no widget matches no credit line, so platform-side orders cannot be
+     * borrowed against without needing a special case.
+     *
+     * Nothing here touches `users.current_credit_balance` or writes to
+     * `credit_statements`: no real credit moved, and a "consume" row on the
+     * credit statement would tell the user their balance had been spent.
+     */
+    async payCreditLineOrder(order: PayWithCreditRequestDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
+        const userProfile = await this.userService.getProfile(userInfo)
+        const orderId = order.order_id
+        const {
+            allow,
+            message,
+            order: orderRecord,
+        } = await this.allowPayOrder(orderId, userProfile, PaymentMethod.CREDIT_LINE)
+        if (!allow) {
+            throw new BadRequestException(message)
+        }
+
+        if (!orderRecord.widget_tag) {
+            throw new BadRequestException("Order has no widget tag and can not be paid with a credit line")
+        }
+
+        // Refused at payment time rather than at order creation, because the
+        // payment method is only chosen here: a widget can legitimately create a
+        // reward-bearing order that also lists `credit-line` among its methods.
+        this.assertOrderMayUseCreditLine(orderRecord)
+
+        // Revoking the permission stops further borrowing at once, including on
+        // limits granted while the widget still had it. Outside the transaction
+        // below on purpose: the ability lookup reads the widget row through its
+        // own client, so moving the call inside would not make it transactional.
+        await this.creditLineService.assertWidgetMayLend(orderRecord.widget_tag)
+
+        await this.prisma.$transaction(async (tx) => {
+            // Two concurrent payments of the same pending order would each pass
+            // the checks above and each charge the line. The order row is the
+            // thing being spent twice, so it is the thing to lock, and locking it
+            // before the credit line row keeps the order matching the refund path.
+            await tx.$queryRaw`SELECT id FROM orders WHERE order_id = ${orderRecord.order_id} FOR UPDATE`
+            const locked = await tx.orders.findUnique({ where: { order_id: orderRecord.order_id } })
+            if (!locked || locked.current_status !== OrderStatus.PENDING) {
+                throw new BadRequestException("Order is not pending")
+            }
+
+            // Rejects a missing, frozen or exhausted line. Deliberately all or
+            // nothing: an order short of available credit fails rather than
+            // falling back to part credit line and part balance.
+            await this.creditLineService.charge(
+                tx,
+                locked.owner,
+                locked.widget_tag,
+                locked.amount,
+                locked.order_id,
+            )
+
+            await tx.orders.update({
+                where: { id: locked.id },
+                data: {
+                    current_status: OrderStatus.COMPLETED,
+                    // Both the guard above and the column must say `credit-line`.
+                    // Everything that keeps borrowed orders out of revenue —
+                    // reward release, the buyback cron, `view_ip_incomes` — reads
+                    // this column, so a mismatch here silently undoes all of it.
+                    paid_method: PaymentMethod.CREDIT_LINE,
+                    paid_time: new Date(),
+                    // `credit_paid_amount` and `free_credit_paid` stay at zero on
+                    // purpose: no real credit was spent on this order.
+                },
+            })
+        })
+
+        // The only downstream step a credit line order gets. No `updateBindRewards`,
+        // no `releaseRewards`: the money has not arrived, so nothing may be paid
+        // out. The widget still needs to hear that the order is payable-complete
+        // so it can deliver.
+        await this.processCallback(orderRecord.order_id, orderRecord.callback_url)
+        const newOrder = await this.prisma.orders.findUnique({
+            where: {
+                order_id: orderRecord.order_id,
+            },
+        })
+        return await this.mapOrderDetail(newOrder)
+    }
+
+    /**
+     * Order shapes that may not be borrowed against.
+     *
+     * The first three are the same rule from three angles: a credit line order
+     * has no downstream, so an order that promises one must not be payable this
+     * way. Letting it through would show the user a reward estimate at checkout
+     * and then never pay it.
+     *
+     * A top-up is refused because borrowing to top up turns debt straight into
+     * spendable balance, which the user would then be asked to repay the debt
+     * with — a loop that moves nothing.
+     */
+    private assertOrderMayUseCreditLine(order: orders): void {
+        if (order.related_reward_id) {
+            throw new BadRequestException("Orders bound to a reward pool can not be paid with a credit line")
+        }
+        if (order.rewards_model_snapshot) {
+            throw new BadRequestException("Orders that carry rewards can not be paid with a credit line")
+        }
+        if (order.buyback_after_paid) {
+            throw new BadRequestException("Orders with buyback can not be paid with a credit line")
+        }
+        if (order.is_credit_top_up) {
+            throw new BadRequestException("Credit top up orders can not be paid with a credit line")
+        }
     }
 
     async refundOrder(dto: RefundOrderDto): Promise<OrderDetailDto> {

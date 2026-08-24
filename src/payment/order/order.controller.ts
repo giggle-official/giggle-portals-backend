@@ -182,6 +182,26 @@ export class OrderController {
         return await this.orderService.createAndPayCreditOrder(body, req.user as UserJwtExtractDto)
     }
 
+    @Post("/pay-with-credit-line")
+    @ApiOperation({
+        summary: "Create an order and pay it with a credit line",
+        description:
+            "Borrows against the credit line the order's widget granted the order's owner. The order is " +
+            "paid in full or not at all — an order larger than the available limit is refused rather than " +
+            "split across the credit line and the credit balance. The credit balance is untouched and no " +
+            "credit statement is written; the debt is repaid separately through POST /credit-line/repay. " +
+            "Orders bound to a reward pool, orders with buyback, and credit top up orders can not be paid " +
+            "this way, and such an order releases no rewards.",
+        tags: ["Order"],
+    })
+    @ApiBody({ type: CreateOrderDto })
+    @ApiResponse({ type: OrderDetailDto })
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(AuthGuard("jwt"))
+    async payOrderWithCreditLine(@Body() body: CreateOrderDto, @Req() req: Request): Promise<OrderDetailDto> {
+        return await this.orderService.createAndPayCreditLineOrder(body, req.user as UserJwtExtractDto)
+    }
+
     @Post("/wallet-quick-pay")
     @ApiOperation({ summary: "Create an order and pay with wallet", tags: ["Order"] })
     @ApiBody({ type: CreateOrderDto })
