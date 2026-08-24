@@ -52,6 +52,19 @@ interface CreditAmountStatRow {
     total_paid_consume: SqlNumeric
 }
 
+interface CreditLineStatRow {
+    daily_repay: SqlNumeric
+    monthly_repay: SqlNumeric
+    total_repay: SqlNumeric
+    daily_consume: SqlNumeric
+    monthly_consume: SqlNumeric
+    total_consume: SqlNumeric
+}
+
+interface CreditLineOutstandingRow {
+    outstanding: SqlNumeric
+}
+
 interface ConsumeUserCountRow {
     daily_free_users: SqlNumeric
     monthly_free_users: SqlNumeric
@@ -1193,8 +1206,16 @@ export class CreditService {
         // Each block below folds the daily / monthly / total variants of one metric into a
         // single pass. `credit_statements` and `assets` are large enough that re-scanning
         // them once per period was what made this report slow.
-        const [freeIssueRows, amountRows, consumeUserRows, firstTimeRows, perUserConsumeRows, widgetAssetRows] =
-            await Promise.all([
+        const [
+            freeIssueRows,
+            amountRows,
+            consumeUserRows,
+            firstTimeRows,
+            perUserConsumeRows,
+            widgetAssetRows,
+            creditLineRows,
+            creditLineOutstandingRows,
+        ] = await Promise.all([
                 this.prisma.$queryRaw<FreeIssueStatRow[]>`
                     SELECT issue_type,
                         COALESCE(SUM(CASE WHEN created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_amount,
@@ -1272,12 +1293,54 @@ export class CreditService {
                     FROM assets
                     WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
                 `,
+                // The credit line is a separate account, so none of the queries above can
+                // see it: credit line spending never reaches `credit_statements`. That is
+                // exactly what the report wants for spending — money borrowed is not
+                // revenue — but repayments are cash actually arriving, and they belong in
+                // the paid bucket on the day they land. Kept as its own query rather than
+                // folded into the block above, whose `INNER JOIN orders` a repayment has
+                // nothing to join to.
+                this.prisma.$queryRaw<CreditLineStatRow[]>`
+                    SELECT
+                        COALESCE(SUM(CASE WHEN type = 'repay' AND created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_repay,
+                        COALESCE(SUM(CASE WHEN type = 'repay' AND created_at >= ${monthlyStart} AND created_at < ${now} THEN amount END), 0) AS monthly_repay,
+                        COALESCE(SUM(CASE WHEN type = 'repay' THEN amount END), 0) AS total_repay,
+                        COALESCE(SUM(CASE WHEN type IN ('consume', 'refund') AND created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_consume,
+                        COALESCE(SUM(CASE WHEN type IN ('consume', 'refund') AND created_at >= ${monthlyStart} AND created_at < ${now} THEN amount END), 0) AS monthly_consume,
+                        COALESCE(SUM(CASE WHEN type IN ('consume', 'refund') THEN amount END), 0) AS total_consume
+                    FROM credit_line_statements
+                    WHERE widget_tag = ${widgetTag}
+                `,
+                // Point in time, not a period: what this widget is owed right now. Rows
+                // with a negative `used` are overpayments, and netting them off would
+                // understate the exposure, so only debts are summed.
+                this.prisma.$queryRaw<CreditLineOutstandingRow[]>`
+                    SELECT COALESCE(SUM(used), 0) AS outstanding
+                    FROM user_credit_lines
+                    WHERE widget_tag = ${widgetTag} AND used > 0
+                `,
             ])
 
         const amounts = amountRows[0]
         const consumeUsers = consumeUserRows[0]
         const firstTime = firstTimeRows[0]
         const widgetAssets = widgetAssetRows[0]
+        const creditLine = creditLineRows[0]
+        const creditLineOutstanding = toNumber(creditLineOutstandingRows[0]?.outstanding)
+
+        // Both ledgers store spending as a negative number — `credit_statements.amount`
+        // for a consume, `credit_line_statements.amount` for a repay — so revenue
+        // recognition is a plain addition with no sign to flip.
+        //
+        // The repayment's other leg does land in `credit_statements`, as a
+        // `repay_credit_line` row, but that type is outside the `IN ('consume',
+        // 'refund')` filter the paid bucket uses, so it is counted here once and only
+        // once. Adding `repay_credit_line` to that filter would count it twice.
+        const paidConsume = {
+            daily: toNumber(amounts?.daily_paid_consume) + toNumber(creditLine?.daily_repay),
+            monthly: toNumber(amounts?.monthly_paid_consume) + toNumber(creditLine?.monthly_repay),
+            total: toNumber(amounts?.total_paid_consume) + toNumber(creditLine?.total_repay),
+        }
 
         const freeIssueByPeriod = (period: "daily_amount" | "monthly_amount" | "total_amount") =>
             freeIssueRows.map((row) => ({ issue_type: row.issue_type, _sum: { amount: toNumber(row[period]) } }))
@@ -1362,9 +1425,16 @@ export class CreditService {
             dailyFreeCreditConsume: { _sum: { amount: toNumber(amounts?.daily_free_consume) } },
             monthlyFreeCreditConsume: { _sum: { amount: toNumber(amounts?.monthly_free_consume) } },
             totalFreeCreditConsume: { _sum: { amount: toNumber(amounts?.total_free_consume) } },
-            dailyNoFreeCreditConsume: { _sum: { amount: toNumber(amounts?.daily_paid_consume) } },
-            monthlyNoFreeCreditConsume: { _sum: { amount: toNumber(amounts?.monthly_paid_consume) } },
-            totalNoFreeCreditConsume: { _sum: { amount: toNumber(amounts?.total_paid_consume) } },
+            dailyNoFreeCreditConsume: { _sum: { amount: paidConsume.daily } },
+            monthlyNoFreeCreditConsume: { _sum: { amount: paidConsume.monthly } },
+            totalNoFreeCreditConsume: { _sum: { amount: paidConsume.total } },
+            dailyCreditLineRepay: { _sum: { amount: toNumber(creditLine?.daily_repay) } },
+            monthlyCreditLineRepay: { _sum: { amount: toNumber(creditLine?.monthly_repay) } },
+            totalCreditLineRepay: { _sum: { amount: toNumber(creditLine?.total_repay) } },
+            dailyCreditLineConsume: { _sum: { amount: toNumber(creditLine?.daily_consume) } },
+            monthlyCreditLineConsume: { _sum: { amount: toNumber(creditLine?.monthly_consume) } },
+            totalCreditLineConsume: { _sum: { amount: toNumber(creditLine?.total_consume) } },
+            creditLineOutstanding,
             freeCreditConsumeTop10Users: buildTop10(freeTop10, "total", "total_free_amount"),
             noFreeCreditConsumeTop10Users: buildTop10(paidTop10, "total", "total_paid_amount"),
             dailyFreeCreditConsumeTop10Users: buildTop10(dailyFreeTop10, "daily", "daily_free_amount"),
@@ -1534,6 +1604,17 @@ export class CreditService {
                 image_count: Number(user.image_count ?? 0),
             }))
 
+        // Stored negative, displayed positive, same as every other consumption figure
+        // in this report.
+        const asPositive = (value: any) => Number(value?._sum?.amount || 0) * -1
+
+        const creditLineOutstanding = Number(data.creditLineOutstanding || 0)
+        const totalCreditLineConsume = asPositive(data.totalCreditLineConsume)
+        const totalCreditLineRepay = asPositive(data.totalCreditLineRepay)
+        // A widget that has never granted a credit line gets the report it got before
+        // this section existed, rather than a block of zeroes.
+        const hasCreditLine = creditLineOutstanding !== 0 || totalCreditLineConsume !== 0 || totalCreditLineRepay !== 0
+
         const freeCreditTop10Users = formatTop10Users(data.freeCreditConsumeTop10Users || [])
         const noFreeCreditTop10Users = formatTop10Users(data.noFreeCreditConsumeTop10Users || [])
         const dailyFreeCreditTop10Users = formatTop10Users(data.dailyFreeCreditConsumeTop10Users || [])
@@ -1563,6 +1644,18 @@ export class CreditService {
             dailyNoFreeCreditConsume: Number(data.dailyNoFreeCreditConsume?._sum?.amount || 0) * -1,
             monthlyNoFreeCreditConsume: Number(data.monthlyNoFreeCreditConsume?._sum?.amount || 0) * -1,
             totalNoFreeCreditConsume: Number(data.totalNoFreeCreditConsume?._sum?.amount || 0) * -1,
+
+            // Credit line. The repay figures are already inside the paid consumption
+            // numbers above; they are broken out here so the reader can see how much of
+            // the paid bucket arrived as repayment rather than as spending.
+            hasCreditLine,
+            creditLineOutstanding,
+            dailyCreditLineConsume: asPositive(data.dailyCreditLineConsume),
+            monthlyCreditLineConsume: asPositive(data.monthlyCreditLineConsume),
+            totalCreditLineConsume,
+            dailyCreditLineRepay: asPositive(data.dailyCreditLineRepay),
+            monthlyCreditLineRepay: asPositive(data.monthlyCreditLineRepay),
+            totalCreditLineRepay,
 
             // Free issue data by type
             freeIssueData,
