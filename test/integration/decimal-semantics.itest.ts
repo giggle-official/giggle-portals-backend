@@ -241,7 +241,9 @@ describeItest("decimal column semantics", () => {
         it("serialises to a JSON string, not a number", async () => {
             await start(0, "6.500000")
             const user = await db().users.findUnique({ where: { username_in_be: USER } })
-            const wire = JSON.parse(JSON.stringify({ v: (user as Record<string, unknown>).current_credit_balance_precise }))
+            const wire = JSON.parse(
+                JSON.stringify({ v: (user as Record<string, unknown>).current_credit_balance_precise }),
+            )
 
             // The regression the whole serialisation section of the plan exists
             // to prevent: a `Decimal` reaching a response body arrives as "6.5".
