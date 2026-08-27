@@ -19,6 +19,7 @@ import * as crypto from "crypto"
 import { v4 as uuidv4 } from "uuid"
 import { NotificationService } from "src/notification/notification.service"
 import { SettleService } from "src/payment/settle/settle.service"
+import { PROJECTED, adjustProjected, projectedValues } from "src/payment/credit/credit-precision"
 
 /**
  * Raw-query row shapes for the consolidated credit statistics report.
@@ -138,7 +139,7 @@ export class CreditService {
 
         @Inject(forwardRef(() => SettleService))
         private readonly settleService: SettleService,
-    ) { }
+    ) {}
 
     async getUserCredits(userId: string, tx?: Prisma.TransactionClient): Promise<UserCreditBalanceDto> {
         const prisma = tx || this.prisma
@@ -293,21 +294,13 @@ export class CreditService {
 
         //issue credit
         await this.prisma.$transaction(async (tx) => {
-            const userBalanceUpdated = await tx.users.update({
-                where: {
-                    username_in_be: order.owner,
-                },
-                data: {
-                    current_credit_balance: {
-                        increment: order.amount,
-                    },
-                },
-            })
+            const balanceAfter = await adjustProjected(tx, PROJECTED.userBalance, order.owner, order.amount ?? 0)
             await tx.credit_statements.create({
                 data: {
                     order_id: order.order_id,
-                    amount: order.amount,
-                    balance: userBalanceUpdated.current_credit_balance,
+                    ...projectedValues("amount", order.amount ?? 0),
+                    balance: balanceAfter.whole,
+                    balance_precise: balanceAfter.precise,
                     user: order.owner,
                     type: credit_statement_type.top_up,
                 },
@@ -603,23 +596,18 @@ export class CreditService {
             needCreditConsumed -= consumeAmount
 
             //update user table
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: { current_credit_balance: { decrement: consumeAmount } },
-            })
+            const balanceAfter = await adjustProjected(tx, PROJECTED.userBalance, user, -consumeAmount)
             //update subscription credit table
-            await tx.widget_subscription_credit_issues.update({
-                where: { id: subscriptionCredit.id },
-                data: { current_balance: { decrement: consumeAmount } },
-            })
+            await adjustProjected(tx, PROJECTED.subscriptionBalance, subscriptionCredit.id, -consumeAmount)
 
             //create statement
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: statementType,
-                    amount: consumeAmount * -1,
-                    balance: userBalanceUpdated.current_credit_balance,
+                    ...projectedValues("amount", -consumeAmount),
+                    balance: balanceAfter.whole,
+                    balance_precise: balanceAfter.precise,
                     is_subscription_credit: true,
                     subscription_credit_issue_id: subscriptionCredit.id,
                     order_id: orderId,
@@ -632,17 +620,15 @@ export class CreditService {
             const consumeAmount = Math.min(paidCreditBalance, needCreditConsumed)
             needCreditConsumed -= consumeAmount
 
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: { current_credit_balance: { decrement: consumeAmount } },
-            })
+            const balanceAfter = await adjustProjected(tx, PROJECTED.userBalance, user, -consumeAmount)
 
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: statementType,
-                    amount: consumeAmount * -1,
-                    balance: userBalanceUpdated.current_credit_balance,
+                    ...projectedValues("amount", -consumeAmount),
+                    balance: balanceAfter.whole,
+                    balance_precise: balanceAfter.precise,
                     order_id: orderId,
                 },
             })
@@ -670,23 +656,21 @@ export class CreditService {
                 needCreditConsumed -= consumeAmount
 
                 //update user table
-                const userBalanceUpdated = await tx.users.update({
-                    where: { username_in_be: user },
-                    data: { current_credit_balance: { decrement: consumeAmount } },
-                })
-                //update free credit table
-                await tx.free_credit_issues.update({
-                    where: { id: freeCredit.id },
-                    data: { balance: freeCredit.balance - consumeAmount },
-                })
+                const balanceAfter = await adjustProjected(tx, PROJECTED.userBalance, user, -consumeAmount)
+                // Update the free credit row by delta rather than by assigning
+                // `freeCredit.balance - consumeAmount`. The absolute form reads the
+                // integer column as its base, which silently drops any fraction the
+                // row is carrying.
+                await adjustProjected(tx, PROJECTED.freeCreditBalance, freeCredit.id, -consumeAmount)
 
                 //create statement
                 await tx.credit_statements.create({
                     data: {
                         user: user,
                         type: statementType,
-                        amount: consumeAmount * -1,
-                        balance: userBalanceUpdated.current_credit_balance,
+                        ...projectedValues("amount", -consumeAmount),
+                        balance: balanceAfter.whole,
+                        balance_precise: balanceAfter.precise,
                         is_free_credit: true,
                         order_id: orderId,
                         free_credit_issue_id: freeCredit.id,
@@ -783,8 +767,8 @@ export class CreditService {
                         is_issue: false,
                         widget_tag: developerInfo.developer_info.tag,
                         subscription_id: subscriptionId,
-                        issue_credits: subscription_credit.amount,
-                        current_balance: subscription_credit.amount,
+                        ...projectedValues("issue_credits", subscription_credit.amount),
+                        ...projectedValues("current_balance", subscription_credit.amount),
                         issue_date: subscription_credit.issue_date,
                         expire_date: subscription_credit.expire_date,
                     }
@@ -943,16 +927,19 @@ export class CreditService {
         for (const issueCredit of creditsToIssue) {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    const userBalanceUpdated = await tx.users.update({
-                        where: { username_in_be: issueCredit.user_id },
-                        data: { current_credit_balance: { increment: issueCredit.current_balance } },
-                    })
+                    const balanceAfter = await adjustProjected(
+                        tx,
+                        PROJECTED.userBalance,
+                        issueCredit.user_id,
+                        issueCredit.current_balance ?? 0,
+                    )
                     await tx.credit_statements.create({
                         data: {
                             user: issueCredit.user_id,
                             type: credit_statement_type.issue_subscription_credit,
-                            amount: issueCredit.current_balance,
-                            balance: userBalanceUpdated.current_credit_balance,
+                            ...projectedValues("amount", issueCredit.current_balance ?? 0),
+                            balance: balanceAfter.whole,
+                            balance_precise: balanceAfter.precise,
                             subscription_credit_issue_id: issueCredit.id,
                             is_subscription_credit: true,
                             order_id: issueCredit.subscription_id,
@@ -1018,38 +1005,35 @@ export class CreditService {
                     continue
                 }
                 //update free credit table
-                await tx.free_credit_issues.update({
-                    where: { id: statement.free_credit_issue_id },
-                    data: { balance: { increment: _refundAmount } },
-                })
+                await adjustProjected(tx, PROJECTED.freeCreditBalance, statement.free_credit_issue_id, _refundAmount)
             }
 
             //refund subscription credit
             if (statement.is_subscription_credit) {
                 // No expiry check, unlike free credit above: subscription credit does
                 // not expire, so there is no state in which it cannot be refunded.
-                await tx.widget_subscription_credit_issues.update({
-                    where: { id: statement.subscription_credit_issue_id },
-                    data: { current_balance: { increment: _refundAmount } },
-                })
+                await adjustProjected(
+                    tx,
+                    PROJECTED.subscriptionBalance,
+                    statement.subscription_credit_issue_id,
+                    _refundAmount,
+                )
             }
 
             needRefundAmount -= _refundAmount
             refundedAmount += _refundAmount
 
             //update user table
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: { current_credit_balance: { increment: _refundAmount } },
-            })
+            const balanceAfter = await adjustProjected(tx, PROJECTED.userBalance, user, _refundAmount)
 
             //create statement
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: credit_statement_type.refund,
-                    amount: _refundAmount,
-                    balance: userBalanceUpdated.current_credit_balance,
+                    ...projectedValues("amount", _refundAmount),
+                    balance: balanceAfter.whole,
+                    balance_precise: balanceAfter.precise,
                     order_id: order_id,
                     is_free_credit: statement.is_free_credit,
                     free_credit_issue_id: statement.free_credit_issue_id,
@@ -1083,22 +1067,22 @@ export class CreditService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: issuedFreeCredit.username_in_be },
-                data: {
-                    current_credit_balance: { increment: body.amount },
-                },
-            })
+            const balanceAfter = await adjustProjected(
+                tx,
+                PROJECTED.userBalance,
+                issuedFreeCredit.username_in_be,
+                body.amount,
+            )
 
             const issueRecord = await tx.free_credit_issues.create({
                 data: {
                     user: issuedFreeCredit.username_in_be,
-                    amount: body.amount,
+                    ...projectedValues("amount", body.amount),
                     description: body?.description,
                     expire_date: new Date(Date.now() + this.freeCreditExpireDays * 24 * 60 * 60 * 1000),
                     widget_tag: userInfo?.developer_info?.tag,
                     app_id: userInfo?.app_id,
-                    balance: body.amount,
+                    ...projectedValues("balance", body.amount),
                     invited_user_id: options.invited_user_id || "",
                     issue_type: body.issue_type || free_credit_issue_type.widget_direct_issue,
                 },
@@ -1107,8 +1091,9 @@ export class CreditService {
             await tx.credit_statements.create({
                 data: {
                     user: issuedFreeCredit.username_in_be,
-                    amount: body.amount,
-                    balance: userBalanceUpdated.current_credit_balance,
+                    ...projectedValues("amount", body.amount),
+                    balance: balanceAfter.whole,
+                    balance_precise: balanceAfter.precise,
                     is_free_credit: true,
                     order_id: uuidv4() as string,
                     type: credit_statement_type.issue_free_credit,
@@ -1216,7 +1201,7 @@ export class CreditService {
             creditLineRows,
             creditLineOutstandingRows,
         ] = await Promise.all([
-                this.prisma.$queryRaw<FreeIssueStatRow[]>`
+            this.prisma.$queryRaw<FreeIssueStatRow[]>`
                     SELECT issue_type,
                         COALESCE(SUM(CASE WHEN created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_amount,
                         COALESCE(SUM(CASE WHEN created_at >= ${monthlyStart} AND created_at < ${now} THEN amount END), 0) AS monthly_amount,
@@ -1225,7 +1210,7 @@ export class CreditService {
                     WHERE widget_tag = ${widgetTag}
                     GROUP BY issue_type
                 `,
-                this.prisma.$queryRaw<CreditAmountStatRow[]>`
+            this.prisma.$queryRaw<CreditAmountStatRow[]>`
                     SELECT
                         COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_top_up,
                         COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS monthly_top_up,
@@ -1240,7 +1225,7 @@ export class CreditService {
                     INNER JOIN orders o ON cs.order_id = o.order_id
                     WHERE o.widget_tag = ${widgetTag}
                 `,
-                this.prisma.$queryRaw<ConsumeUserCountRow[]>`
+            this.prisma.$queryRaw<ConsumeUserCountRow[]>`
                     SELECT
                         COUNT(DISTINCT CASE WHEN cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.user END) AS daily_free_users,
                         COUNT(DISTINCT CASE WHEN cs.is_free_credit = 1 AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.user END) AS monthly_free_users,
@@ -1252,7 +1237,7 @@ export class CreditService {
                     INNER JOIN orders o ON cs.order_id = o.order_id
                     WHERE cs.type IN ('consume') AND o.widget_tag = ${widgetTag}
                 `,
-                this.prisma.$queryRaw<FirstTimeConsumeRow[]>`
+            this.prisma.$queryRaw<FirstTimeConsumeRow[]>`
                     SELECT
                         SUM(CASE WHEN first_at >= ${dailyStart} AND first_at < ${now} THEN 1 ELSE 0 END) AS daily_first_time,
                         SUM(CASE WHEN first_at >= ${monthlyStart} AND first_at < ${now} THEN 1 ELSE 0 END) AS monthly_first_time,
@@ -1265,9 +1250,9 @@ export class CreditService {
                         GROUP BY cs.user
                     ) sub
                 `,
-                // One pass over every consuming user; the four Top-10 rankings are derived
-                // from this in memory rather than by four separate grouped scans.
-                this.prisma.$queryRaw<PerUserConsumeRow[]>`
+            // One pass over every consuming user; the four Top-10 rankings are derived
+            // from this in memory rather than by four separate grouped scans.
+            this.prisma.$queryRaw<PerUserConsumeRow[]>`
                     SELECT cs.user,
                         COALESCE(SUM(CASE WHEN cs.is_free_credit = 1 THEN cs.amount END), 0) AS total_free_amount,
                         COALESCE(SUM(CASE WHEN cs.is_free_credit = 0 THEN cs.amount END), 0) AS total_paid_amount,
@@ -1282,7 +1267,7 @@ export class CreditService {
                     WHERE cs.type IN ('consume', 'refund') AND o.widget_tag = ${widgetTag}
                     GROUP BY cs.user
                 `,
-                this.prisma.$queryRaw<WidgetAssetStatRow[]>`
+            this.prisma.$queryRaw<WidgetAssetStatRow[]>`
                     SELECT
                         COALESCE(SUM(CASE WHEN type = 'video' AND created_at >= ${dailyStart} AND created_at < ${now} THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) END), 0) AS daily_video_seconds,
                         COALESCE(SUM(CASE WHEN type = 'video' AND created_at >= ${monthlyStart} AND created_at < ${now} THEN CAST(JSON_EXTRACT(asset_info, '$.videoInfo.duration') AS DECIMAL(10,2)) END), 0) AS monthly_video_seconds,
@@ -1293,14 +1278,14 @@ export class CreditService {
                     FROM assets
                     WHERE widget_tag = ${widgetTag} AND name LIKE 'task\\_%' AND type IN ('video', 'image')
                 `,
-                // The credit line is a separate account, so none of the queries above can
-                // see it: credit line spending never reaches `credit_statements`. That is
-                // exactly what the report wants for spending — money borrowed is not
-                // revenue — but repayments are cash actually arriving, and they belong in
-                // the paid bucket on the day they land. Kept as its own query rather than
-                // folded into the block above, whose `INNER JOIN orders` a repayment has
-                // nothing to join to.
-                this.prisma.$queryRaw<CreditLineStatRow[]>`
+            // The credit line is a separate account, so none of the queries above can
+            // see it: credit line spending never reaches `credit_statements`. That is
+            // exactly what the report wants for spending — money borrowed is not
+            // revenue — but repayments are cash actually arriving, and they belong in
+            // the paid bucket on the day they land. Kept as its own query rather than
+            // folded into the block above, whose `INNER JOIN orders` a repayment has
+            // nothing to join to.
+            this.prisma.$queryRaw<CreditLineStatRow[]>`
                     SELECT
                         COALESCE(SUM(CASE WHEN type = 'repay' AND created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_repay,
                         COALESCE(SUM(CASE WHEN type = 'repay' AND created_at >= ${monthlyStart} AND created_at < ${now} THEN amount END), 0) AS monthly_repay,
@@ -1311,15 +1296,15 @@ export class CreditService {
                     FROM credit_line_statements
                     WHERE widget_tag = ${widgetTag}
                 `,
-                // Point in time, not a period: what this widget is owed right now. Rows
-                // with a negative `used` are overpayments, and netting them off would
-                // understate the exposure, so only debts are summed.
-                this.prisma.$queryRaw<CreditLineOutstandingRow[]>`
+            // Point in time, not a period: what this widget is owed right now. Rows
+            // with a negative `used` are overpayments, and netting them off would
+            // understate the exposure, so only debts are summed.
+            this.prisma.$queryRaw<CreditLineOutstandingRow[]>`
                     SELECT COALESCE(SUM(used), 0) AS outstanding
                     FROM user_credit_lines
                     WHERE widget_tag = ${widgetTag} AND used > 0
                 `,
-            ])
+        ])
 
         const amounts = amountRows[0]
         const consumeUsers = consumeUserRows[0]
@@ -1717,21 +1702,22 @@ export class CreditService {
         for (const freeCredit of freeCredits) {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    const creditbalance = freeCredit.balance
+                    const creditbalance = freeCredit.balance ?? 0
                     //update user table
-                    const userBalanceUpdated = await tx.users.update({
-                        where: { username_in_be: freeCredit.user },
-                        data: {
-                            current_credit_balance: { decrement: creditbalance },
-                        },
-                    })
+                    const balanceAfter = await adjustProjected(
+                        tx,
+                        PROJECTED.userBalance,
+                        freeCredit.user,
+                        -creditbalance,
+                    )
 
                     //create statement
                     await tx.credit_statements.create({
                         data: {
                             user: freeCredit.user,
-                            amount: creditbalance * -1,
-                            balance: userBalanceUpdated.current_credit_balance,
+                            ...projectedValues("amount", -creditbalance),
+                            balance: balanceAfter.whole,
+                            balance_precise: balanceAfter.precise,
                             is_free_credit: true,
                             type: credit_statement_type.expire_free_credit,
                             free_credit_issue_id: freeCredit.id,
@@ -1741,7 +1727,7 @@ export class CreditService {
                     //update free credit table
                     await tx.free_credit_issues.update({
                         where: { id: freeCredit.id },
-                        data: { balance: 0 },
+                        data: projectedValues("balance", 0),
                     })
                 })
             } catch (error) {

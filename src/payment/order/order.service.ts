@@ -65,6 +65,7 @@ import { JwtService } from "@nestjs/jwt"
 import { CreditService } from "../credit/credit.service"
 import { CreditLineService } from "../credit-line/credit-line.service"
 import { Credit2cService } from "../credit-2c/credit-2c.service"
+import { PROJECTED, adjustProjected, projectedValues } from "../credit/credit-precision"
 
 interface CreateOrderOptions {
     related_to_reward_pool?: boolean
@@ -120,7 +121,7 @@ export class OrderService {
 
         @Inject(forwardRef(() => CreditLineService))
         private readonly creditLineService: CreditLineService,
-    ) { }
+    ) {}
 
     async createOrder(
         order: CreateOrderDto,
@@ -349,7 +350,7 @@ export class OrderService {
                 ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appId,
-                amount: order.amount,
+                ...projectedValues("amount", order.amount),
                 item: order.item || widgetTag,
                 description: order.description,
                 metadata: order?.metadata || {},
@@ -397,7 +398,6 @@ export class OrderService {
         if (!order.widget_tag) {
             throw new BadRequestException("Widget tag is required to update rewards")
         }
-
 
         //if relate reward pool is true, we need relate the reward pool to the order
         let relatedRewardId = order.related_reward_id
@@ -456,7 +456,6 @@ export class OrderService {
             }
         }
 
-
         //process costs allocation
         let costsAllocation = order.costs_allocation as unknown as OrderCostsAllocationDto[]
         if (dto.costs_allocation) {
@@ -475,10 +474,9 @@ export class OrderService {
             }
         }
 
-
-
         //process ip-holder revenue re-allocation
-        let ipHolderRevenueReallocation = order.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
+        let ipHolderRevenueReallocation =
+            order.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
         if (dto.ip_holder_revenue_reallocation) {
             ipHolderRevenueReallocation = dto.ip_holder_revenue_reallocation
             let ipHolderRevenueReallocationPercent = new Decimal(0)
@@ -625,10 +623,10 @@ export class OrderService {
                 where: { id: orderRecord.id },
                 data: {
                     current_status: OrderStatus.COMPLETED,
-                    credit_paid_amount: needCredits,
+                    ...projectedValues("credit_paid_amount", needCredits),
                     paid_method: PaymentMethod.CREDIT,
                     paid_time: new Date(),
-                    free_credit_paid: free_credit_consumed,
+                    ...projectedValues("free_credit_paid", free_credit_consumed),
                 },
             })
         })
@@ -717,13 +715,7 @@ export class OrderService {
             // Rejects a missing, frozen or exhausted line. Deliberately all or
             // nothing: an order short of available credit fails rather than
             // falling back to part credit line and part balance.
-            await this.creditLineService.charge(
-                tx,
-                locked.owner,
-                locked.widget_tag,
-                locked.amount,
-                locked.order_id,
-            )
+            await this.creditLineService.charge(tx, locked.owner, locked.widget_tag, locked.amount, locked.order_id)
 
             await tx.orders.update({
                 where: { id: locked.id },
@@ -844,7 +836,7 @@ export class OrderService {
                 where: { order_id: order.order_id },
                 data: {
                     current_status: OrderStatus.REFUNDED,
-                    refunded_amount: order.amount,
+                    ...projectedValues("refunded_amount", order.amount ?? 0),
                     refund_time: new Date(),
                     refund_status: "success",
                     refund_detail: [
@@ -879,7 +871,8 @@ export class OrderService {
             }
 
             await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
-            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) || []) as OrderRefundedDetailDto[]
+            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) ||
+                []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
                 amount: refundAmount,
@@ -887,12 +880,10 @@ export class OrderService {
                 refunded_time: new Date(),
             })
 
+            await adjustProjected(tx, PROJECTED.orderRefunded, order.order_id, refundAmount)
             let updated = await tx.orders.update({
                 where: { order_id: order.order_id },
                 data: {
-                    refunded_amount: {
-                        increment: refundAmount,
-                    },
                     current_status: OrderStatus.PARTIAL_REFUNDED,
                     refund_time: new Date(),
                     refund_status: "success",
@@ -957,12 +948,10 @@ export class OrderService {
                 refunded_time: new Date(),
             })
 
+            await adjustProjected(tx, PROJECTED.orderRefunded, order.order_id, refundAmount)
             let updated = await tx.orders.update({
                 where: { order_id: order.order_id },
                 data: {
-                    refunded_amount: {
-                        increment: refundAmount,
-                    },
                     current_status: OrderStatus.PARTIAL_REFUNDED,
                     refund_time: new Date(),
                     refund_status: "success",
@@ -2683,5 +2672,5 @@ where r.ticker != 'usdc'
     }
 
     //update user_rewards_withdraw
-    async updateUserRewardsWithdraw() { }
+    async updateUserRewardsWithdraw() {}
 }

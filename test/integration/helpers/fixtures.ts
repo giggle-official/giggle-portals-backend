@@ -61,18 +61,22 @@ let seq = 0
 /** A pending order owned by the fixture user, payable by credit and by credit line. */
 export async function seedOrder(overrides: Record<string, unknown> = {}): Promise<string> {
     const order_id = itestId(`o${++seq}`)
+    const data = {
+        order_id,
+        owner: USER,
+        widget_tag: WIDGET,
+        amount: 100,
+        current_status: STATUS_PENDING,
+        supported_payment_method: [METHOD_CREDIT, METHOD_CREDIT_LINE],
+        costs_allocation: [],
+        ...overrides,
+    }
     await db().orders.create({
-        data: {
-            order_id,
-            owner: USER,
-            widget_tag: WIDGET,
-            amount: 100,
-            amount_precise: 100,
-            current_status: STATUS_PENDING,
-            supported_payment_method: [METHOD_CREDIT, METHOD_CREDIT_LINE],
-            costs_allocation: [],
-            ...overrides,
-        } as never,
+        // `amount_precise` is derived after the spread, never alongside the
+        // default. Written as a sibling of `amount: 100` it would keep the
+        // default while an override changed `amount`, leaving the fixture
+        // itself in breach of the invariant the suite goes on to assert.
+        data: { ...data, amount_precise: data.amount } as never,
     })
     return order_id
 }
