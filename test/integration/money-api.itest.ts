@@ -85,7 +85,10 @@ describeItest("money API golden baseline", () => {
 
     describe("credit line", () => {
         it("grant", async () => {
-            matchGolden("credit-line.grant", await creditLine.grantCreditLine({ email: EMAIL, credit_limit: 1000 }, asWidget))
+            matchGolden(
+                "credit-line.grant",
+                await creditLine.grantCreditLine({ email: EMAIL, credit_limit: 1000 }, asWidget),
+            )
         })
 
         it("widget view of a user's line", async () => {
@@ -109,7 +112,10 @@ describeItest("money API golden baseline", () => {
         })
 
         it("statement", async () => {
-            matchGolden("credit-line.statement", await creditLine.getStatements({ widget_tag: WIDGET } as never, asUser))
+            matchGolden(
+                "credit-line.statement",
+                await creditLine.getStatements({ widget_tag: WIDGET } as never, asUser),
+            )
         })
     })
 

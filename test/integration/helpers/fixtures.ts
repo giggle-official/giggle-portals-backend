@@ -38,7 +38,11 @@ export async function seedWorld(opts: { balance?: number } = {}): Promise<void> 
             email: EMAIL,
             // Not a login. The column is required and tests never authenticate.
             password: itestId("not_a_login"),
+            // Both columns, always. Writing only the integer one leaves the
+            // fixture itself breaching `COALESCE(whole,0) = FLOOR(precise)`,
+            // which makes every suite seeded from here start out inconsistent.
             current_credit_balance: opts.balance ?? 0,
+            current_credit_balance_precise: opts.balance ?? 0,
         } as never,
     })
     await p.widgets.create({
@@ -63,6 +67,7 @@ export async function seedOrder(overrides: Record<string, unknown> = {}): Promis
             owner: USER,
             widget_tag: WIDGET,
             amount: 100,
+            amount_precise: 100,
             current_status: STATUS_PENDING,
             supported_payment_method: [METHOD_CREDIT, METHOD_CREDIT_LINE],
             costs_allocation: [],
