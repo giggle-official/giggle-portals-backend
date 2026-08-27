@@ -1,0 +1,147 @@
+{
+  "dailyFreeIssue": [
+    {
+      "issue_type": "widget_direct_issue",
+      "_sum": {
+        "amount": 50
+      }
+    }
+  ],
+  "monthlyFreeIssue": [
+    {
+      "issue_type": "widget_direct_issue",
+      "_sum": {
+        "amount": 50
+      }
+    }
+  ],
+  "totalFreeIssue": [
+    {
+      "issue_type": "widget_direct_issue",
+      "_sum": {
+        "amount": 50
+      }
+    }
+  ],
+  "dailyTopUp": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "monthlyTopUp": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "totalTopUp": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "dailyFreeCreditConsume": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "monthlyFreeCreditConsume": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "totalFreeCreditConsume": {
+    "_sum": {
+      "amount": 0
+    }
+  },
+  "dailyNoFreeCreditConsume": {
+    "_sum": {
+      "amount": -650
+    }
+  },
+  "monthlyNoFreeCreditConsume": {
+    "_sum": {
+      "amount": -650
+    }
+  },
+  "totalNoFreeCreditConsume": {
+    "_sum": {
+      "amount": -650
+    }
+  },
+  "dailyCreditLineRepay": {
+    "_sum": {
+      "amount": -100
+    }
+  },
+  "monthlyCreditLineRepay": {
+    "_sum": {
+      "amount": -100
+    }
+  },
+  "totalCreditLineRepay": {
+    "_sum": {
+      "amount": -100
+    }
+  },
+  "dailyCreditLineConsume": {
+    "_sum": {
+      "amount": -250
+    }
+  },
+  "monthlyCreditLineConsume": {
+    "_sum": {
+      "amount": -250
+    }
+  },
+  "totalCreditLineConsume": {
+    "_sum": {
+      "amount": -250
+    }
+  },
+  "creditLineOutstanding": 150,
+  "freeCreditConsumeTop10Users": [],
+  "noFreeCreditConsumeTop10Users": [
+    {
+      "user": "<string>",
+      "user_email": "<string>",
+      "_sum": {
+        "amount": -550
+      },
+      "free_amount": 0,
+      "paid_amount": -550,
+      "total_amount": -550,
+      "video_duration": 0,
+      "image_count": 0
+    }
+  ],
+  "dailyFreeCreditConsumeTop10Users": [],
+  "dailyNoFreeCreditConsumeTop10Users": [
+    {
+      "user": "<string>",
+      "user_email": "<string>",
+      "_sum": {
+        "amount": -550
+      },
+      "free_amount": 0,
+      "paid_amount": -550,
+      "total_amount": -550,
+      "video_duration": 0,
+      "image_count": 0
+    }
+  ],
+  "dailyFreeCreditConsumeUserCount": 0,
+  "monthlyFreeCreditConsumeUserCount": 0,
+  "totalFreeCreditConsumeUserCount": 0,
+  "dailyNoFreeCreditConsumeUserCount": 1,
+  "monthlyNoFreeCreditConsumeUserCount": 1,
+  "totalNoFreeCreditConsumeUserCount": 1,
+  "dailyFirstTimeConsumeUserCount": 1,
+  "monthlyFirstTimeConsumeUserCount": 1,
+  "totalFirstTimeConsumeUserCount": 1,
+  "dailyVideoDuration": 0,
+  "monthlyVideoDuration": 0,
+  "totalVideoDuration": 0,
+  "dailyImageCount": 0,
+  "monthlyImageCount": 0,
+  "totalImageCount": 0
+}

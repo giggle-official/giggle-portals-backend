@@ -1,0 +1,25 @@
+{
+  "count": 2,
+  "statements": [
+    {
+      "id": "<number>",
+      "widget_tag": "zz_itest_wg",
+      "type": "repay",
+      "amount": -100,
+      "used_after": 150,
+      "order_id": "<null>",
+      "request_id": "<string>",
+      "created_at": "<string>"
+    },
+    {
+      "id": "<number>",
+      "widget_tag": "zz_itest_wg",
+      "type": "consume",
+      "amount": -250,
+      "used_after": 250,
+      "order_id": "<string>",
+      "request_id": "<null>",
+      "created_at": "<string>"
+    }
+  ]
+}
