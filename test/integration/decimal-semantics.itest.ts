@@ -3,26 +3,29 @@ import { describeItest } from "./helpers/itest"
 import { seedWorld, USER } from "./helpers/fixtures"
 
 /**
- * Locks down the database behaviour the projection design rests on.
+ * Records how this database engine actually behaves, on the real column pair.
  *
  * Old integer columns are kept as `FLOOR` projections of the new `*_precise`
- * columns, maintained in the same statement:
+ * ones. `adjustProjected` maintains both in a single statement written so that
+ * it does not depend on which way `SET` is evaluated — the projection comes
+ * first and repeats the arithmetic, so both assignments read the pre-statement
+ * value under either semantics. See `credit-precision.ts` for why.
  *
- *     SET current_credit_balance_precise = current_credit_balance_precise - ?,
- *         current_credit_balance         = FLOOR(current_credit_balance_precise)
+ * The `SET evaluates left to right` cases below therefore document the engine
+ * rather than guard the design. They are still worth keeping: the ordering
+ * decides whether the delta would be applied once or twice if someone swapped
+ * the two assignments, and the reversed-order control is the evidence that the
+ * first assignment reads the old value. Production runs MariaDB while
+ * development runs MySQL, so what an engine does here is a fact to be measured,
+ * not inherited.
  *
- * That is only correct if the second assignment sees the value the first one
- * just wrote. The SQL standard says it must not — every right-hand side reads
- * the row as it was before the statement. MySQL and MariaDB deliberately
- * deviate and evaluate `SET` left to right.
+ * The rest — FLOOR's direction, DECIMAL exactness, sub-scale rounding, the
+ * declared shape of all eleven columns — is load bearing, and is asserted
+ * against the real `users` columns rather than a synthetic table so that the
+ * declared types are part of what is being tested.
  *
- * The whole design is a wager on that deviation, so it is tested rather than
- * assumed, and on the real column pair rather than a synthetic table: what has
- * to hold is the behaviour of `users.current_credit_balance` against
- * `users.current_credit_balance_precise`, with their actual declared types.
- *
- * If these fail, nothing else in the decimal work is salvageable and the
- * projection has to be rewritten to repeat the arithmetic on both columns.
+ * `scripts/mariadb-semantics-probe.sql` is the same set of questions in a form
+ * that can be run against production without touching a real row.
  */
 describeItest("decimal column semantics", () => {
     beforeAll(cleanupFixtures)

@@ -74,12 +74,30 @@ const bind = (v: CreditAmount): string => toDecimal(v).toFixed(6)
 /**
  * Adds `delta` (signed) to a projected column pair and returns the new values.
  *
- * The single statement is what makes this safe. The projection reads the
- * precise column *after* the first assignment has already updated it, which
- * works because MySQL evaluates `SET` left to right rather than against the
- * pre-statement row as the SQL standard requires. That deviation is load
- * bearing and is pinned by `test/integration/decimal-semantics.itest.ts`;
- * reordering the two assignments here silently stops the projection tracking.
+ * The statement is deliberately written so that it is correct under *both* SQL
+ * evaluation semantics, and depends on neither.
+ *
+ * The projection comes first and repeats the arithmetic rather than reading the
+ * already-updated column:
+ *
+ *     SET whole   = FLOOR(precise + d),
+ *         precise = precise + d
+ *
+ * Under the SQL standard every right-hand side sees the pre-statement row, so
+ * both read the old `precise` and both are right. Under MySQL's and MariaDB's
+ * left-to-right evaluation the first assignment reads `precise` before anything
+ * has written it, which is the same value — so both are right there too.
+ *
+ * The obvious form — updating `precise` first and projecting with a bare
+ * `FLOOR(precise)` — is shorter but only correct on an engine that evaluates
+ * left to right. That was the original design, and it made the entire feature
+ * rest on one non-standard behaviour, on an engine that differs between
+ * development (MySQL) and production (MariaDB). Binding the delta twice is a
+ * small price for not having to be right about that.
+ *
+ * The order still matters, just for a weaker reason: with the assignments
+ * swapped, a left-to-right engine would add the delta twice. The reversed-order
+ * control in `decimal-semantics.itest.ts` is what pins that down.
  *
  * Doing it in one statement also means the pair cannot be observed apart, and
  * that a concurrent writer holding the row lock cannot interleave between them.
@@ -94,13 +112,15 @@ export async function adjustProjected(
     delta: CreditAmount,
 ): Promise<{ whole: number; precise: Prisma.Decimal }> {
     const { table, whole, precise, key: keyColumn } = pair
+    const amount = bind(delta)
 
     await tx.$executeRawUnsafe(
         `UPDATE ${table}
-            SET ${precise} = ${precise} + CAST(? AS DECIMAL(18,6)),
-                ${whole}   = FLOOR(${precise})
+            SET ${whole}   = FLOOR(${precise} + CAST(? AS DECIMAL(18,6))),
+                ${precise} = ${precise} + CAST(? AS DECIMAL(18,6))
           WHERE ${keyColumn} = ?`,
-        bind(delta),
+        amount,
+        amount,
         key,
     )
 
