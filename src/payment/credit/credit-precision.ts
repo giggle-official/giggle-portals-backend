@@ -136,7 +136,39 @@ export async function adjustProjected(
     // Read back rather than compute: the value that matters downstream is what
     // the row now holds, and after `FLOOR` that is not always what arithmetic on
     // the previous value would predict.
-    return { whole: Number(row.whole ?? 0), precise: toDecimal(row.precise) }
+    const result = { whole: Number(row.whole ?? 0), precise: toDecimal(row.precise) }
+
+    assertProjection(result, `${table}.${whole}`, `${keyColumn} = ${String(key)}`)
+
+    return result
+}
+
+/**
+ * Throws unless the integer value really is the floor of the precise one.
+ *
+ * Called on the row `adjustProjected` just wrote, every time. The read costs
+ * nothing extra — it already happened — and it turns the one assumption the
+ * design cannot check any other way into a loud failure.
+ *
+ * The statement is correct under standard SQL evaluation and under MySQL's and
+ * MariaDB's left-to-right evaluation. But "no engine does anything else" is
+ * exactly the kind of thing that is true until it is not, production is a
+ * MariaDB we have no write access to probe, and development runs a different
+ * engine entirely. This is what stands in for the probe we cannot run.
+ *
+ * Throwing rolls the caller's transaction back, so the failure mode is a
+ * rejected request rather than a balance that is quietly wrong. For money that
+ * is the right way round.
+ */
+export function assertProjection(row: { whole: number; precise: Prisma.Decimal }, column: string, where: string): void {
+    const expected = row.precise.floor()
+    if (expected.equals(row.whole)) return
+
+    throw new Error(
+        `projection broken: ${column} is ${row.whole} but FLOOR(precise) is ${expected.toFixed(0)} ` +
+            `(precise = ${row.precise.toFixed(6)}) for ${where}. Either something wrote the integer ` +
+            `column directly, or this database does not evaluate UPDATE ... SET the way the statement assumes.`,
+    )
 }
 
 /**

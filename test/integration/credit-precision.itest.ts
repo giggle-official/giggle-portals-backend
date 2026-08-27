@@ -2,7 +2,12 @@ import { Prisma } from "@prisma/client"
 import { cleanupFixtures, closeDb, db } from "./helpers/db"
 import { describeItest } from "./helpers/itest"
 import { seedWorld, USER, WIDGET } from "./helpers/fixtures"
-import { PROJECTED, adjustProjected, projectedValues } from "../../src/payment/credit/credit-precision"
+import {
+    PROJECTED,
+    adjustProjected,
+    assertProjection,
+    projectedValues,
+} from "../../src/payment/credit/credit-precision"
 
 /**
  * Tests the write primitive, on a real database, against the invariant it
@@ -195,6 +200,50 @@ describeItest("credit write primitive", () => {
                 expect([name, after.precise.toFixed(6)]).toEqual([name, "1.750000"])
                 expect([name, after.whole]).toEqual([name, 1])
             }
+        })
+    })
+
+    describe("assertProjection", () => {
+        // The runtime guard that stands in for the write probe we cannot run
+        // against production. MySQL cannot be made to compute the projection
+        // wrongly on demand, so what is tested here is the guard's own
+        // judgement: it has to accept every shape a correct row can take and
+        // reject a drifted one.
+        const at = (whole: number, precise: string) => () =>
+            assertProjection({ whole, precise: new Prisma.Decimal(precise) }, "t.whole", "id = 1")
+
+        it("accepts an exact integer", () => {
+            expect(at(7, "7.000000")).not.toThrow()
+        })
+
+        it("accepts a fraction floored down", () => {
+            expect(at(6, "6.999999")).not.toThrow()
+        })
+
+        it("accepts a negative floored away from zero", () => {
+            expect(at(-1, "-0.000001")).not.toThrow()
+        })
+
+        it("rejects a value that was rounded instead of floored", () => {
+            // The likeliest way for this to be wrong in practice: something
+            // reimplements the projection with ROUND, and every balance ending
+            // above .5 reads one credit too high.
+            expect(at(7, "6.999999")).toThrow(/projection broken/)
+        })
+
+        it("rejects a value that was truncated instead of floored", () => {
+            // Math.trunc on a negative gives 0 where FLOOR gives -1.
+            expect(at(0, "-0.5")).toThrow(/projection broken/)
+        })
+
+        it("rejects an integer column left at its pre-update value", () => {
+            // Exactly what a right-to-left engine, or a lost second assignment,
+            // would leave behind.
+            expect(at(10, "6.5")).toThrow(/projection broken/)
+        })
+
+        it("names the column, both values and the row in the message", () => {
+            expect(at(10, "6.5")).toThrow(/t\.whole is 10 but FLOOR\(precise\) is 6.*precise = 6\.500000.*id = 1/)
         })
     })
 
