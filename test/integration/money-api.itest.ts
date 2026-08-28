@@ -1,7 +1,8 @@
 import { closeApp, CreditLineService, CreditService, get, OrderService } from "./helpers/app"
 import { cleanupFixtures, closeDb, db, waitPastFixtureClock } from "./helpers/db"
 import { EMAIL, seedOrder, seedWorld, USER, WIDGET, resetOrderSeq } from "./helpers/fixtures"
-import { describeItest } from "./helpers/itest"
+import { describeItest, PREFIX } from "./helpers/itest"
+import { findBreaches } from "../../scripts/check-credit-invariant"
 import { matchGolden } from "./helpers/snapshot"
 
 /**
@@ -85,7 +86,10 @@ describeItest("money API golden baseline", () => {
 
     describe("credit line", () => {
         it("grant", async () => {
-            matchGolden("credit-line.grant", await creditLine.grantCreditLine({ email: EMAIL, credit_limit: 1000 }, asWidget))
+            matchGolden(
+                "credit-line.grant",
+                await creditLine.grantCreditLine({ email: EMAIL, credit_limit: 1000 }, asWidget),
+            )
         })
 
         it("widget view of a user's line", async () => {
@@ -109,7 +113,10 @@ describeItest("money API golden baseline", () => {
         })
 
         it("statement", async () => {
-            matchGolden("credit-line.statement", await creditLine.getStatements({ widget_tag: WIDGET } as never, asUser))
+            matchGolden(
+                "credit-line.statement",
+                await creditLine.getStatements({ widget_tag: WIDGET } as never, asUser),
+            )
         })
     })
 
@@ -128,6 +135,26 @@ describeItest("money API golden baseline", () => {
             // future; the report would then not count it. See `waitPastFixtureClock`.
             await waitPastFixtureClock(USER)
             matchGolden("credit.statistics", await credit.getCreditStatictics(WIDGET))
+        })
+    })
+
+    describe("projection invariant", () => {
+        it("holds across every row these flows touched", async () => {
+            // Runs last, deliberately: by this point the suite has topped up,
+            // paid an order with credit, refunded part of it, drawn on and
+            // repaid a credit line, and issued free credit — through the real
+            // services, not fixtures. Every one of those paths writes a money
+            // column, and every one of them has to leave the integer column
+            // equal to the floor of its precise sibling.
+            //
+            // The golden baselines above prove the responses did not change.
+            // They cannot prove this: a service that updated only the old
+            // integer column would return byte-identical JSON and still leave
+            // the database inconsistent. This is the assertion that catches it,
+            // and it is why it reuses the flows rather than seeding rows.
+            const breaches = await findBreaches(db(), `${PREFIX}%`)
+
+            expect(breaches.map((b) => `${b.pair}: ${b.offenders} row(s)`)).toEqual([])
         })
     })
 })

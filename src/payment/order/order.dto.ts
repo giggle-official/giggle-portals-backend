@@ -75,7 +75,14 @@ export class OrderRefundedDetailDto {
     refunded_time: Date
 }
 
-export class OrderDto implements orders {
+/** Shadow columns excluded deliberately — see `CreditStatementDto` for why. */
+export class OrderDto
+    implements
+        Omit<
+            orders,
+            "amount_precise" | "free_credit_paid_precise" | "credit_paid_amount_precise" | "refunded_amount_precise"
+        >
+{
     id: number
     @ApiProperty({
         description: "The order id",
@@ -448,7 +455,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     refund_detail: OrderRefundedDetailDto[]
 }
 
-export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) { }
+export class PreviewOrderDto extends OmitType(OrderDetailDto, ["order_id", "order_url", "current_status"]) {}
 
 export class ItemDto {
     @ApiProperty({
@@ -683,13 +690,18 @@ The order revenue will be distributed to the user 123 and 456, all of them will 
     metadata?: Record<string, any>
 }
 
-export class UpdateRewardsDto extends PickType(CreateOrderDto, ["order_id", "reward_token", "rewards_model", "costs_allocation", "ip_holder_revenue_reallocation"]) {
+export class UpdateRewardsDto extends PickType(CreateOrderDto, [
+    "order_id",
+    "reward_token",
+    "rewards_model",
+    "costs_allocation",
+    "ip_holder_revenue_reallocation",
+]) {
     @ApiProperty({
         description: "The order id to update rewards",
     })
     order_id: string
 }
-
 
 export class OrderListDto {
     @ApiProperty({
