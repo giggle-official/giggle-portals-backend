@@ -1194,10 +1194,10 @@ model user_credit_lines {
   id           Int                @id @default(autoincrement())
   user         String             @db.VarChar(32)
   widget_tag   String             @db.VarChar(32)
-  credit_limit Int                @default(0)
+  credit_limit Decimal            @default(0) @db.Decimal(18, 6)
   /// Outstanding debt. May go negative when a refund lands after the debt was
   /// already repaid, which is the credit-card notion of an overpayment.
-  used         Int                @default(0)
+  used         Decimal            @default(0) @db.Decimal(18, 6)
   status       credit_line_status @default(active)
   note         String?            @db.VarChar(1024)
   /// Who last changed the limit: the widget tag for widget-granted limits.
@@ -1219,10 +1219,10 @@ model credit_line_statements {
   /// Signed by direction of money for the user: negative for spending
   /// (consume, repay), positive for money coming back (refund). The type, not
   /// the sign, decides which way `used` moves.
-  amount     Int
+  amount     Decimal                    @db.Decimal(18, 6)
   /// Snapshot of `used` after this row, so a statement can show the running
   /// debt without recomputing it.
-  used_after Int
+  used_after Decimal                    @db.Decimal(18, 6)
   /// consume / refund: the order. repay: null.
   order_id   String?                    @db.VarChar(64)
   /// repay only: caller-supplied idempotency key, deduped per (user, widget).
