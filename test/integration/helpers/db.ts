@@ -52,28 +52,47 @@ export async function cleanupFixtures(): Promise<void> {
 }
 
 /**
- * Waits until the database clock is strictly past every fixture row's stored
- * timestamp.
+ * Waits until a `new Date()` taken now would be strictly past every fixture
+ * row's stored timestamp, in every table the reports window on.
  *
  * `created_at` columns are `TIMESTAMP(0)`, and MySQL **rounds** fractional
  * seconds rather than truncating them: a row written at 11:52:22.9 is stored as
- * 11:52:23, up to half a second in the future. The report queries filter with
- * `created_at < now`, where `now` comes from the Node process — so a row can be
- * written and then not counted, purely because of when in the second it landed.
+ * 11:52:23, up to half a second in the future. The reports filter with
+ * `created_at < now` where `now` is a `new Date()` from the Node process — so a
+ * freshly written row can be excluded purely because of when in the second it
+ * landed, and the daily and monthly figures drop to zero while the totals, which
+ * have no upper bound, stay right.
  *
- * That makes any assertion over a freshly written row a coin flip. Waiting the
- * rounding out is the deterministic fix; sleeping a fixed interval is not,
- * because it is the database's clock that matters, not this process's.
+ * Two things this has to get right, both learned the hard way:
+ *
+ * The comparison is made in exactly the terms the report makes it — a JS `Date`
+ * bound as a parameter, against the stored column. An earlier version compared
+ * MySQL's own `NOW()` instead, which is a different clock than the one the
+ * filter uses and can agree while the report still disagrees.
+ *
+ * And it covers every table the report reads, not just one. The earlier version
+ * waited only on `free_credit_issues`, so the consumption figures — which come
+ * from `credit_statements`, written later in the suite — were never waited for
+ * at all.
+ *
+ * Sleeping a fixed interval is not a fix: it is the stored timestamps that
+ * matter, and how far in the future they landed is not known in advance.
  */
 export async function waitPastFixtureClock(user: string): Promise<void> {
-    for (let i = 0; i < 40; i++) {
-        const [row] = await db().$queryRaw<{ ok: number }[]>`
-            SELECT COALESCE(NOW() > MAX(created_at), 1) AS ok
-              FROM free_credit_issues WHERE user = ${user}`
-        if (Number(row?.ok) === 1) return
-        await new Promise((r) => setTimeout(r, 100))
+    for (let i = 0; i < 60; i++) {
+        const [row] = await db().$queryRaw<{ ok: number | null }[]>`
+            SELECT ${new Date()} > MAX(t) AS ok FROM (
+                SELECT MAX(created_at) AS t FROM free_credit_issues WHERE user = ${user}
+                UNION ALL
+                SELECT MAX(created_at)      FROM credit_statements  WHERE user = ${user}
+                UNION ALL
+                SELECT MAX(created_at)      FROM orders             WHERE owner = ${user}
+            ) x`
+        // NULL means there are no fixture rows at all, which is trivially past.
+        if (row?.ok === null || Number(row?.ok) === 1) return
+        await new Promise((r) => setTimeout(r, 50))
     }
-    throw new Error("database clock never advanced past the fixture timestamps")
+    throw new Error("fixture timestamps never fell behind the process clock")
 }
 
 /** Counts anything the fixtures could have left behind. Every entry must be 0. */
