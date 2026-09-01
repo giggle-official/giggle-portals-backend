@@ -120,7 +120,7 @@ export class OrderService {
 
         @Inject(forwardRef(() => CreditLineService))
         private readonly creditLineService: CreditLineService,
-    ) { }
+    ) {}
 
     async createOrder(
         order: CreateOrderDto,
@@ -350,6 +350,7 @@ export class OrderService {
                 widget_tag: widgetTag,
                 app_id: appId,
                 amount: order.amount,
+                amount_precise: order.amount,
                 item: order.item || widgetTag,
                 description: order.description,
                 metadata: order?.metadata || {},
@@ -397,7 +398,6 @@ export class OrderService {
         if (!order.widget_tag) {
             throw new BadRequestException("Widget tag is required to update rewards")
         }
-
 
         //if relate reward pool is true, we need relate the reward pool to the order
         let relatedRewardId = order.related_reward_id
@@ -456,7 +456,6 @@ export class OrderService {
             }
         }
 
-
         //process costs allocation
         let costsAllocation = order.costs_allocation as unknown as OrderCostsAllocationDto[]
         if (dto.costs_allocation) {
@@ -475,10 +474,9 @@ export class OrderService {
             }
         }
 
-
-
         //process ip-holder revenue re-allocation
-        let ipHolderRevenueReallocation = order.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
+        let ipHolderRevenueReallocation =
+            order.ip_holder_revenue_reallocation as unknown as IpHolderRevenueReallocationDto[]
         if (dto.ip_holder_revenue_reallocation) {
             ipHolderRevenueReallocation = dto.ip_holder_revenue_reallocation
             let ipHolderRevenueReallocationPercent = new Decimal(0)
@@ -626,9 +624,11 @@ export class OrderService {
                 data: {
                     current_status: OrderStatus.COMPLETED,
                     credit_paid_amount: needCredits,
+                    credit_paid_amount_precise: needCredits,
                     paid_method: PaymentMethod.CREDIT,
                     paid_time: new Date(),
                     free_credit_paid: free_credit_consumed,
+                    free_credit_paid_precise: free_credit_consumed,
                 },
             })
         })
@@ -717,13 +717,7 @@ export class OrderService {
             // Rejects a missing, frozen or exhausted line. Deliberately all or
             // nothing: an order short of available credit fails rather than
             // falling back to part credit line and part balance.
-            await this.creditLineService.charge(
-                tx,
-                locked.owner,
-                locked.widget_tag,
-                locked.amount,
-                locked.order_id,
-            )
+            await this.creditLineService.charge(tx, locked.owner, locked.widget_tag, locked.amount, locked.order_id)
 
             await tx.orders.update({
                 where: { id: locked.id },
@@ -845,6 +839,7 @@ export class OrderService {
                 data: {
                     current_status: OrderStatus.REFUNDED,
                     refunded_amount: order.amount,
+                    refunded_amount_precise: order.amount ?? 0,
                     refund_time: new Date(),
                     refund_status: "success",
                     refund_detail: [
@@ -879,7 +874,8 @@ export class OrderService {
             }
 
             await this.creditService.refundCredit(refundAmount, order.order_id, order.owner, tx)
-            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) || []) as OrderRefundedDetailDto[]
+            let refundedDetail = ((order.refund_detail as unknown as OrderRefundedDetailDto[]) ||
+                []) as OrderRefundedDetailDto[]
 
             refundedDetail.push({
                 amount: refundAmount,
@@ -891,6 +887,9 @@ export class OrderService {
                 where: { order_id: order.order_id },
                 data: {
                     refunded_amount: {
+                        increment: refundAmount,
+                    },
+                    refunded_amount_precise: {
                         increment: refundAmount,
                     },
                     current_status: OrderStatus.PARTIAL_REFUNDED,
@@ -961,6 +960,9 @@ export class OrderService {
                 where: { order_id: order.order_id },
                 data: {
                     refunded_amount: {
+                        increment: refundAmount,
+                    },
+                    refunded_amount_precise: {
                         increment: refundAmount,
                     },
                     current_status: OrderStatus.PARTIAL_REFUNDED,
@@ -2683,5 +2685,5 @@ where r.ticker != 'usdc'
     }
 
     //update user_rewards_withdraw
-    async updateUserRewardsWithdraw() { }
+    async updateUserRewardsWithdraw() {}
 }
