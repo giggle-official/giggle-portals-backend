@@ -35,7 +35,6 @@ model users {
   is_developer                   Boolean?                      @default(false)
   plan_settings                  Json?
   current_credit_balance         Int?
-  current_credit_balance_precise Decimal                       @default(0) @db.Decimal(18, 6)
   description                    String?                       @db.Text
   followers                      Int?                          @default(0)
   following                      Int?                          @default(0)
@@ -848,7 +847,6 @@ model orders {
   description                    String?   @db.Text
   metadata                       Json?
   amount                         Int?
-  amount_precise                 Decimal   @default(0) @db.Decimal(18, 6)
   item                           String?   @db.VarChar(64)
   owner                          String    @db.VarChar(32)
   sales_agent                    String?   @db.VarChar(32)
@@ -862,7 +860,6 @@ model orders {
   is_credit_top_up               Boolean?  @default(false)
   current_status                 String?   @db.VarChar(32)
   free_credit_paid               Int?      @default(0)
-  free_credit_paid_precise       Decimal   @default(0) @db.Decimal(18, 6)
   paid_method                    String?   @db.VarChar(32)
   stripe_invoice_id              String?   @db.VarChar(32)
   stripe_invoice_detail          Json?
@@ -885,13 +882,11 @@ model orders {
   redirect_url                   String?   @db.VarChar(4096)
   allow_free_credit              Boolean?  @default(true)
   credit_paid_amount             Int?
-  credit_paid_amount_precise     Decimal   @default(0) @db.Decimal(18, 6)
   paid_time                      DateTime? @db.DateTime(0)
   cancelled_time                 DateTime? @db.DateTime(0)
   expire_time                    DateTime? @db.DateTime(0)
   cancelled_detail               Json?
   refunded_amount                Int?      @default(0)
-  refunded_amount_precise        Decimal   @default(0) @db.Decimal(18, 6)
   refund_time                    DateTime? @db.DateTime(0)
   refund_status                  String?   @db.VarChar(32)
   refund_error                   Json?
@@ -1253,9 +1248,7 @@ model credit_statements {
   is_subscription_credit       Boolean?                           @default(false)
   subscription_credit_issue_id Int?
   amount                       Int?
-  amount_precise               Decimal                            @default(0) @db.Decimal(18, 6)
   balance                      Int?
-  balance_precise              Decimal                            @default(0) @db.Decimal(18, 6)
   order_id                     String?                            @db.VarChar(64)
   created_at                   DateTime?                          @default(now()) @db.Timestamp(0)
   updated_at                   DateTime?                          @default(now()) @db.Timestamp(0)
@@ -1361,10 +1354,8 @@ model free_credit_issues {
   invited_user_id   String?                 @default("") @db.VarChar(32)
   description       String?                 @db.VarChar(1024)
   amount            Int?
-  amount_precise    Decimal                 @default(0) @db.Decimal(18, 6)
   expire_date       DateTime?               @db.DateTime(0)
   balance           Int?
-  balance_precise   Decimal                 @default(0) @db.Decimal(18, 6)
   created_at        DateTime?               @default(now()) @db.Timestamp(0)
   updated_at        DateTime?               @default(now()) @db.Timestamp(0)
   invited_user_info users?                  @relation(fields: [invited_user_id], references: [username_in_be])
@@ -1386,20 +1377,18 @@ model widget_subscriptions {
 }
 
 model widget_subscription_credit_issues {
-  id                      Int                 @id @default(autoincrement())
-  widget_tag              String?             @db.VarChar(255)
-  user_id                 String?             @db.VarChar(64)
-  subscription_id         String              @db.VarChar(64)
-  issue_credits           Int?
-  issue_credits_precise   Decimal             @default(0) @db.Decimal(18, 6)
-  current_balance         Int?
-  current_balance_precise Decimal             @default(0) @db.Decimal(18, 6)
-  is_issue                Boolean?            @default(false)
-  issue_date              DateTime?           @db.DateTime(0)
-  expire_date             DateTime?           @db.DateTime(0)
-  created_at              DateTime?           @default(now()) @db.Timestamp(0)
-  updated_at              DateTime?           @default(now()) @db.Timestamp(0)
-  creditStatements        credit_statements[]
+  id               Int                 @id @default(autoincrement())
+  widget_tag       String?             @db.VarChar(255)
+  user_id          String?             @db.VarChar(64)
+  subscription_id  String              @db.VarChar(64)
+  issue_credits    Int?
+  current_balance  Int?
+  is_issue         Boolean?            @default(false)
+  issue_date       DateTime?           @db.DateTime(0)
+  expire_date      DateTime?           @db.DateTime(0)
+  created_at       DateTime?           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?           @default(now()) @db.Timestamp(0)
+  creditStatements credit_statements[]
 }
 
 model view_ip_token_prices {
