@@ -138,7 +138,15 @@ export class FreeCreditInvitedUserInfoDto {
     avatar: string
 }
 
-export class CreditStatementDto implements credit_statements {
+/**
+ * The shadow columns are excluded deliberately, not overlooked.
+ *
+ * This phase writes them and reads nothing from them; the response stays the
+ * integer-only contract integrators already consume. `Omit` rather than
+ * silence, so that adding them later is a decision the compiler makes us take
+ * rather than something that happens by itself.
+ */
+export class CreditStatementDto implements Omit<credit_statements, "amount_precise" | "balance_precise"> {
     @ApiProperty({
         description: "The id of the statement",
     })
@@ -206,7 +214,8 @@ export class CreditStatementDto implements credit_statements {
     free_credit_invited_user_info: FreeCreditInvitedUserInfoDto
 
     @ApiProperty({
-        description: "Human-readable note attached to a free credit issue (e.g. refund reason). Null for non-free-credit statements or when the issuer didn't supply one.",
+        description:
+            "Human-readable note attached to a free credit issue (e.g. refund reason). Null for non-free-credit statements or when the issuer didn't supply one.",
         required: false,
         nullable: true,
     })
