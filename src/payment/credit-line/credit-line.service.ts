@@ -7,6 +7,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { CreditService } from "../credit/credit.service"
+import { toNumber } from "src/payment/money"
 import {
     CreditLineDto,
     GetCreditLinesResponseDto,
@@ -53,24 +54,6 @@ export class CreditLineService {
     ) {}
 
     /**
-     * Reads a money column as a plain number.
-     *
-     * The columns are `DECIMAL(18,6)`; this service still does its arithmetic in
-     * `number`. This is the seam between the two, and it is deliberately
-     * temporary — #29 replaces it with real Decimal arithmetic once fractional
-     * amounts are allowed in.
-     *
-     * `Number`, never `Math.floor`. While amounts are integers the two are
-     * identical, but the moment a fraction arrives flooring here would silently
-     * truncate it, where `Number` carries it through. Keeping fractions out
-     * until #29 is `assertPositiveAmount`'s job and `setLimit`'s integer check:
-     * rejecting loudly beats truncating quietly.
-     */
-    private asNumber(v: Prisma.Decimal | number | null | undefined): number {
-        return Number(v ?? 0)
-    }
-
-    /**
      * How much of the line can still be spent.
      *
      * Clamped at 0: lowering a limit below the outstanding debt is a legal state
@@ -81,7 +64,7 @@ export class CreditLineService {
         if (!line || line.status !== credit_line_status.active) {
             return 0
         }
-        return Math.max(0, this.asNumber(line.credit_limit) - this.asNumber(line.used))
+        return Math.max(0, toNumber(line.credit_limit) - toNumber(line.used))
     }
 
     /**
@@ -417,7 +400,7 @@ export class CreditLineService {
             await this.assertRepaymentNotReplayed(tx, user, widgetTag, requestId)
 
             const repayableBalance = await this.creditService.getRepayableBalance(user, tx)
-            const owed = Math.max(0, this.asNumber(line.used))
+            const owed = Math.max(0, toNumber(line.used))
             const repaid = Math.min(body.amount ?? Number.MAX_SAFE_INTEGER, owed, repayableBalance)
 
             // Nothing owed, or nothing to pay with. Not an error: a widget that
@@ -441,7 +424,7 @@ export class CreditLineService {
     ): RepayCreditLineResponseDto {
         return {
             repaid,
-            credit_line_used: this.asNumber(line.used),
+            credit_line_used: toNumber(line.used),
             credit_line_available: this.available(line),
             credit_balance: creditBalance,
         }
@@ -542,8 +525,8 @@ export class CreditLineService {
                 id: statement.id,
                 widget_tag: statement.widget_tag,
                 type: statement.type,
-                amount: this.asNumber(statement.amount),
-                used_after: this.asNumber(statement.used_after),
+                amount: toNumber(statement.amount),
+                used_after: toNumber(statement.used_after),
                 order_id: statement.order_id,
                 request_id: statement.request_id,
                 created_at: statement.created_at,
@@ -582,8 +565,8 @@ export class CreditLineService {
     private toDto(line: user_credit_lines | null, widgetTag: string): CreditLineDto {
         return {
             widget_tag: widgetTag,
-            credit_limit: this.asNumber(line?.credit_limit),
-            used: this.asNumber(line?.used),
+            credit_limit: toNumber(line?.credit_limit),
+            used: toNumber(line?.used),
             available: this.available(line),
             status: line?.status ?? credit_line_status.active,
         }

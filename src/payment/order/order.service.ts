@@ -35,6 +35,7 @@ import {
     UpdateRewardsDto,
 } from "./order.dto"
 import { PrismaService } from "src/common/prisma.service"
+import { toNumber } from "src/payment/money"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
 import { orders, Prisma, user_rewards, users } from "@prisma/client"
@@ -1006,11 +1007,13 @@ export class OrderService {
             app_id: data.app_id,
             is_credit_top_up: data.is_credit_top_up,
             amount: data.amount,
+            amount_precise: toNumber(data.amount_precise),
             item: data.item,
             description: data.description,
             current_status: data.current_status as OrderStatus,
             metadata: data.metadata,
             free_credit_paid: data.free_credit_paid,
+            free_credit_paid_precise: toNumber(data.free_credit_paid_precise),
             created_at: data.created_at,
             updated_at: data.updated_at,
             paid_method: data.paid_method,
@@ -1029,7 +1032,9 @@ export class OrderService {
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
             current_reward_pool_detail: current_reward_pool_detail,
             credit_paid_amount: data.credit_paid_amount,
+            credit_paid_amount_precise: toNumber(data.credit_paid_amount_precise),
             refunded_amount: data.refunded_amount,
+            refunded_amount_precise: toNumber(data.refunded_amount_precise),
             refund_time: data.refund_time,
             refund_status: data.refund_status,
             refund_error: data.refund_error,

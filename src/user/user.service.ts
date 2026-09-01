@@ -184,6 +184,8 @@ export class UserService {
             phone_national: _userInfoFromDb.phone_national,
             current_credit_balance: balanceInfo.total_credit_balance,
             free_credit_balance: balanceInfo.free_credit_balance,
+            current_credit_balance_precise: balanceInfo.total_credit_balance_precise,
+            free_credit_balance_precise: balanceInfo.free_credit_balance_precise,
             wallet_address: _userInfoFromDb.wallet_address,
             is_sale_agent: !!salsAgent,
             recharged_credits: await this.creditService.getUserRechargedCredits(userInfo.usernameShorted),

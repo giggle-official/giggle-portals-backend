@@ -195,6 +195,18 @@ export class UserInfoDTO extends LoginDTO {
     @ApiProperty()
     free_credit_balance?: number
 
+    @ApiProperty({
+        description:
+            "The credit balance to 6 decimal places. Today it always equals `current_credit_balance`; " +
+            "once fractional credit is accepted this is the exact value and the integer field is its floor.",
+    })
+    current_credit_balance_precise?: number
+
+    @ApiProperty({
+        description: "The free credit balance to 6 decimal places. See `current_credit_balance_precise`.",
+    })
+    free_credit_balance_precise?: number
+
     @ApiProperty()
     recharged_credits?: number
 

@@ -39,6 +39,10 @@ export async function seedWorld(opts: { balance?: number } = {}): Promise<void> 
             // Not a login. The column is required and tests never authenticate.
             password: itestId("not_a_login"),
             current_credit_balance: opts.balance ?? 0,
+            // Seeded together, always. A user who starts with the two columns
+            // out of step is not a state production can reach, and every
+            // balance the suite asserts on would inherit the gap.
+            current_credit_balance_precise: opts.balance ?? 0,
         } as never,
     })
     await p.widgets.create({
@@ -57,18 +61,21 @@ let seq = 0
 /** A pending order owned by the fixture user, payable by credit and by credit line. */
 export async function seedOrder(overrides: Record<string, unknown> = {}): Promise<string> {
     const order_id = itestId(`o${++seq}`)
-    await db().orders.create({
-        data: {
-            order_id,
-            owner: USER,
-            widget_tag: WIDGET,
-            amount: 100,
-            current_status: STATUS_PENDING,
-            supported_payment_method: [METHOD_CREDIT, METHOD_CREDIT_LINE],
-            costs_allocation: [],
-            ...overrides,
-        } as never,
-    })
+    const data: Record<string, unknown> = {
+        order_id,
+        owner: USER,
+        widget_tag: WIDGET,
+        amount: 100,
+        current_status: STATUS_PENDING,
+        supported_payment_method: [METHOD_CREDIT, METHOD_CREDIT_LINE],
+        costs_allocation: [],
+        ...overrides,
+    }
+    // Derived after the spread, never beside the default: an `amount` override
+    // has to move both columns, and a sibling default would leave the precise
+    // one at 100 while the order is worth 400.
+    data.amount_precise ??= data.amount
+    await db().orders.create({ data: data as never })
     return order_id
 }
 

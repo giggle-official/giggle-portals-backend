@@ -1,4 +1,6 @@
 {
   "total_credit_balance": 5000,
-  "free_credit_balance": 0
+  "free_credit_balance": 0,
+  "total_credit_balance_precise": 5000,
+  "free_credit_balance_precise": 0
 }

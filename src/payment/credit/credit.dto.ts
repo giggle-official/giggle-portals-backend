@@ -139,12 +139,13 @@ export class FreeCreditInvitedUserInfoDto {
 }
 
 /**
- * The shadow columns are excluded deliberately, not overlooked.
+ * The precise columns stay outside the `implements` contract on purpose.
  *
- * This phase writes them and reads nothing from them; the response stays the
- * integer-only contract integrators already consume. `Omit` rather than
- * silence, so that adding them later is a decision the compiler makes us take
- * rather than something that happens by itself.
+ * Prisma types them as `Decimal`, and a `Decimal` must never reach the wire:
+ * `JSON.stringify(new Decimal(6.5))` is `"6.5"`, a string where every other
+ * money field is a number. Declaring them here as `number` means the compiler
+ * rejects assigning the raw column and forces the conversion at each mapping
+ * site, which is the whole reason they were omitted rather than ignored.
  */
 export class CreditStatementDto implements Omit<credit_statements, "amount_precise" | "balance_precise"> {
     @ApiProperty({
@@ -193,6 +194,18 @@ export class CreditStatementDto implements Omit<credit_statements, "amount_preci
     balance: number
 
     @ApiProperty({
+        description:
+            "The amount of the statement, to 6 decimal places. Today it always equals `amount`; " +
+            "once fractional credit is accepted this is the exact value and `amount` is its floor.",
+    })
+    amount_precise: number
+
+    @ApiProperty({
+        description: "After balance of the statement, to 6 decimal places. See `amount_precise`.",
+    })
+    balance_precise: number
+
+    @ApiProperty({
         description: "The created at of the statement",
     })
     created_at: Date
@@ -232,6 +245,18 @@ export class UserCreditBalanceDto {
         description: "The free credit balance of the user",
     })
     free_credit_balance: number
+
+    @ApiProperty({
+        description:
+            "The total credit balance of the user, to 6 decimal places. Today it always equals " +
+            "`total_credit_balance`; once fractional credit is accepted this is the exact value.",
+    })
+    total_credit_balance_precise: number
+
+    @ApiProperty({
+        description: "The free credit balance of the user, to 6 decimal places. See `total_credit_balance_precise`.",
+    })
+    free_credit_balance_precise: number
 }
 
 export class IssueFreeCreditDto {

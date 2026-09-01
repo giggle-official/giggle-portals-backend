@@ -1,0 +1,29 @@
+{
+  "statements": [
+    {
+      "id": "<number>",
+      "order_id": "<string>",
+      "widget_tag": "zz_itest_wg",
+      "ip_id": null,
+      "order_item": null,
+      "type": "consume",
+      "is_free_credit": false,
+      "free_credit_invited_user_info": {
+        "invited_user_id": "",
+        "username": "",
+        "avatar": ""
+      },
+      "free_credit_issue_id": null,
+      "is_subscription_credit": false,
+      "subscription_credit_issue_id": null,
+      "amount": -300,
+      "balance": 4700,
+      "amount_precise": -300,
+      "balance_precise": 4700,
+      "created_at": "<string>",
+      "updated_at": "<string>",
+      "description": null
+    }
+  ],
+  "count": 1
+}
