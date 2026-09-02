@@ -25,7 +25,7 @@ describeItest("integration harness", () => {
 
         await cleanupFixtures()
 
-        expect(Object.values(await leftoverFixtures())).toEqual(Array(10).fill(0))
+        expect(Object.values(await leftoverFixtures())).toEqual(Array(11).fill(0))
     })
 
     it("scopes every fixture under the reserved prefix", async () => {

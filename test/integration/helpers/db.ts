@@ -38,6 +38,7 @@ export async function cleanupFixtures(): Promise<void> {
     const user = { startsWith: PREFIX }
     const tag = { startsWith: PREFIX }
 
+    await p.widget_consumption_snapshots.deleteMany({ where: { user } })
     await p.credit_line_statements.deleteMany({ where: { user } })
     await p.user_credit_lines.deleteMany({ where: { user } })
     await p.credit_statements.deleteMany({ where: { user } })
@@ -99,20 +100,33 @@ export async function waitPastFixtureClock(user: string): Promise<void> {
 export async function leftoverFixtures(): Promise<Record<string, number>> {
     const p = db()
     const user = { startsWith: PREFIX }
-    const [lineStatements, lines, statements, freeCredits, subCredits, orders, sessions, binds, widgets, users] =
-        await Promise.all([
-            p.credit_line_statements.count({ where: { user } }),
-            p.user_credit_lines.count({ where: { user } }),
-            p.credit_statements.count({ where: { user } }),
-            p.free_credit_issues.count({ where: { user } }),
-            p.widget_subscription_credit_issues.count({ where: { user_id: user } }),
-            p.orders.count({ where: { owner: user } }),
-            p.widget_sessions.count({ where: { user: user } }),
-            p.app_bind_ips.count({ where: { app_id: { startsWith: PREFIX } } }),
-            p.widgets.count({ where: { tag: { startsWith: PREFIX } } }),
-            p.users.count({ where: { username_in_be: user } }),
-        ])
+    const [
+        snapshots,
+        lineStatements,
+        lines,
+        statements,
+        freeCredits,
+        subCredits,
+        orders,
+        sessions,
+        binds,
+        widgets,
+        users,
+    ] = await Promise.all([
+        p.widget_consumption_snapshots.count({ where: { user } }),
+        p.credit_line_statements.count({ where: { user } }),
+        p.user_credit_lines.count({ where: { user } }),
+        p.credit_statements.count({ where: { user } }),
+        p.free_credit_issues.count({ where: { user } }),
+        p.widget_subscription_credit_issues.count({ where: { user_id: user } }),
+        p.orders.count({ where: { owner: user } }),
+        p.widget_sessions.count({ where: { user: user } }),
+        p.app_bind_ips.count({ where: { app_id: { startsWith: PREFIX } } }),
+        p.widgets.count({ where: { tag: { startsWith: PREFIX } } }),
+        p.users.count({ where: { username_in_be: user } }),
+    ])
     return {
+        widget_consumption_snapshots: snapshots,
         credit_line_statements: lineStatements,
         user_credit_lines: lines,
         credit_statements: statements,
