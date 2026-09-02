@@ -9,12 +9,15 @@ import {
     TopUpDto,
     UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
+    WidgetConsumptionQueryDto,
+    WidgetConsumptionResponseDto,
 } from "./credit.dto"
 import { Request } from "express"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { OrderDetailDto } from "../order/order.dto"
 import { AuthGuard } from "@nestjs/passport"
-import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger"
+import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiExcludeEndpoint, ApiHeader } from "@nestjs/swagger"
+import { IsAdminGuard } from "src/auth/is_admin.guard"
 import { IsWidgetGuard } from "src/auth/is_widget.guard"
 import { CheckWidgetPolicies, WidgetPoliciesGuard } from "src/guards/widget-policies.guard"
 import { WIDGET_PERMISSIONS_LIST } from "src/casl/casl-ability.factory/widget-casl-ability.factory"
@@ -113,6 +116,22 @@ export class CreditController {
             throw new BadRequestException("Widget tag is required")
         }
         return this.creditService.getCreditStatictics(widgetTag)
+    }
+
+    @Get("/widget-consumption")
+    @ApiTags("Credit")
+    @ApiOperation({
+        summary: "Per-user credit and consumption for one widget",
+        description:
+            "Credit granted counts every widget, because a credit balance is global; consumption counts only " +
+            "this widget's orders. Emails are masked. Admin only.",
+        tags: ["Credit"],
+    })
+    @UseGuards(IsAdminGuard)
+    @ApiHeader({ name: "x-api-key", required: true })
+    @ApiResponse({ type: WidgetConsumptionResponseDto })
+    async getWidgetConsumption(@Query() query: WidgetConsumptionQueryDto): Promise<WidgetConsumptionResponseDto> {
+        return this.creditService.getWidgetConsumption(query)
     }
 
     @Post("/update-widget-subscriptions")
