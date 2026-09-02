@@ -21,12 +21,27 @@ describe("CreditService - Subscription Credit", () => {
     let service: CreditService
     let prisma: jest.Mocked<PrismaService>
 
+    /**
+     * Every money column has an integer and a precise twin, and production keeps
+     * them equal while amounts are whole credits. These two builders exist so a
+     * fixture cannot accidentally set one and not the other — the service reads the
+     * precise column, and a half-set fixture reads as a zero balance rather than as
+     * the obvious mistake it is.
+     */
+    const userRow = (balance: number | null) => ({
+        current_credit_balance: balance,
+        current_credit_balance_precise: balance,
+    })
+
+    const sumOf = (key: "balance" | "current_balance" | "amount", value: number | null) =>
+        ({ _sum: { [key]: value, [`${key}_precise`]: value } }) as never
+
     // Mock data
     const mockUser = {
         id: 1,
         username_in_be: "test_user_123",
         email: "test@example.com",
-        current_credit_balance: 1000,
+        ...userRow(1000),
     }
 
     const mockDeveloperInfo = {
@@ -42,7 +57,9 @@ describe("CreditService - Subscription Credit", () => {
         widget_tag: "test_widget",
         subscription_id: "sub_123",
         issue_credits: 500,
+        issue_credits_precise: 500,
         current_balance: 500,
+        current_balance_precise: 500,
         is_issue: true,
         issue_date: new Date("2024-01-01"),
         expire_date: new Date("2025-12-31"),
@@ -64,7 +81,7 @@ describe("CreditService - Subscription Credit", () => {
                 createMany: jest.fn(),
                 findUnique: jest.fn(),
                 deleteMany: jest.fn(),
-                aggregate: jest.fn().mockResolvedValue({ _sum: { current_balance: 0 } }),
+                aggregate: jest.fn().mockResolvedValue(sumOf("current_balance", 0)),
             },
             widget_subscriptions: {
                 findFirst: jest.fn(),
@@ -82,7 +99,7 @@ describe("CreditService - Subscription Credit", () => {
                 findUnique: jest.fn(),
                 // Spendable free credit: what is left once expired-but-unswept rows
                 // are taken out. Defaults to "nothing has expired".
-                aggregate: jest.fn().mockResolvedValue({ _sum: { balance: null } }),
+                aggregate: jest.fn().mockResolvedValue(sumOf("balance", null)),
             },
         }
 
@@ -319,7 +336,7 @@ describe("CreditService - Subscription Credit", () => {
                         subscription_id: "new_sub_id",
                     },
                 ])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 1500 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(1500) })
             mockTx.credit_statements.create.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
 
@@ -343,7 +360,7 @@ describe("CreditService - Subscription Credit", () => {
             }
 
                 ; (prisma.widget_subscription_credit_issues.findMany as jest.Mock).mockResolvedValue([pendingCredit])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 1500 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(1500) })
             mockTx.credit_statements.create.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
 
@@ -461,11 +478,11 @@ describe("CreditService - Subscription Credit", () => {
             // Mock getUserCredits via tx (after lock)
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(1000)),
             }
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(700) })
             mockTx.credit_statements.create.mockResolvedValue({})
 
             await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
@@ -483,11 +500,11 @@ describe("CreditService - Subscription Credit", () => {
             mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(1000)),
             }
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(700) })
             mockTx.credit_statements.create.mockResolvedValue({})
 
             await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
@@ -509,7 +526,7 @@ describe("CreditService - Subscription Credit", () => {
             // Mock getUserCredits via tx
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(1000)),
             }
 
             // No free credits
@@ -517,9 +534,9 @@ describe("CreditService - Subscription Credit", () => {
 
             // Has subscription credits
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
-                { ...mockSubscriptionCredit, current_balance: 500 },
+                { ...mockSubscriptionCredit, current_balance: 500, current_balance_precise: 500 },
             ])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(700) })
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
 
@@ -528,7 +545,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(result.total_credit_consumed).toBe(300)
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: { decrement: 300 } },
+                data: { current_balance: { decrement: 300 }, current_balance_precise: { decrement: 300 } },
             })
         })
 
@@ -541,23 +558,23 @@ describe("CreditService - Subscription Credit", () => {
             // Mock getUserCredits via tx
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 1000 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(1000)),
             }
 
             // Free credits (100)
             mockTx.free_credit_issues.findMany.mockResolvedValue([
-                { id: 1, balance: 100, expire_date: new Date("2025-12-31") },
+                { id: 1, balance: 100, balance_precise: 100, expire_date: new Date("2025-12-31") },
             ])
 
             // Subscription credits (500)
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
-                { ...mockSubscriptionCredit, current_balance: 500 },
+                { ...mockSubscriptionCredit, current_balance: 500, current_balance_precise: 500 },
             ])
             mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
-                _sum: { current_balance: 500 },
+                _sum: { current_balance: 500, current_balance_precise: 500 },
             })
 
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 700 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(700) })
             mockTx.free_credit_issues.update.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
@@ -578,21 +595,21 @@ describe("CreditService - Subscription Credit", () => {
             // Total 400 = 100 subscription + 200 paid + 100 free
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 400 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(400)),
             }
 
             mockTx.free_credit_issues.findMany.mockResolvedValue([
-                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
+                { id: 1, balance: 100, balance_precise: 100, expire_date: new Date("2099-12-31") },
             ])
-            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 100 } })
+            mockTx.free_credit_issues.aggregate.mockResolvedValue(sumOf("balance", 100))
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
-                { ...mockSubscriptionCredit, current_balance: 100 },
+                { ...mockSubscriptionCredit, current_balance: 100, current_balance_precise: 100 },
             ])
             mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
-                _sum: { current_balance: 100 },
+                _sum: { current_balance: 100, current_balance_precise: 100 },
             })
 
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 50 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(50) })
             mockTx.free_credit_issues.update.mockResolvedValue({})
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
@@ -621,13 +638,13 @@ describe("CreditService - Subscription Credit", () => {
             // Mock getUserCredits via tx
             mockTx.users = {
                 ...mockTx.users,
-                findFirst: jest.fn().mockResolvedValue({ current_credit_balance: 500 }),
+                findFirst: jest.fn().mockResolvedValue(userRow(500)),
             }
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
 
             // Query should only return is_issue: true
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 200 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(200) })
             mockTx.credit_statements.create.mockResolvedValue({})
 
             const result = await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
@@ -654,15 +671,15 @@ describe("CreditService - Subscription Credit", () => {
          */
         const givenOnlyExpiredFreeCredit = (amount: number) => {
             mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
-            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: amount })
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(amount))
             // getUserCredits does not filter by expiry, so it sees the row...
             mockTx.free_credit_issues.findMany.mockImplementation(({ where }: any) =>
-                where?.expire_date ? [] : [{ id: 1, balance: amount, expire_date: new Date("2020-01-01") }],
+                where?.expire_date ? [] : [{ id: 1, balance: amount, balance_precise: amount, expire_date: new Date("2020-01-01") }],
             )
             // ...but none of it is spendable.
-            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 0 } })
+            mockTx.free_credit_issues.aggregate.mockResolvedValue(sumOf("balance", 0))
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
-            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({ _sum: { current_balance: 0 } })
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue(sumOf("current_balance", 0))
         }
 
         it("refuses to spend free credit that has expired but not been swept", async () => {
@@ -695,14 +712,14 @@ describe("CreditService - Subscription Credit", () => {
 
         it("spends subscription credit regardless of its expire_date", async () => {
             mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
-            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 100 })
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(100))
             mockTx.free_credit_issues.findMany.mockResolvedValue([])
-            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: 0 } })
+            mockTx.free_credit_issues.aggregate.mockResolvedValue(sumOf("balance", 0))
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
                 { ...mockSubscriptionCredit, current_balance: 100, expire_date: new Date("2020-01-01") },
             ])
-            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({ _sum: { current_balance: 100 } })
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 0 })
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue(sumOf("current_balance", 100))
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(0) })
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
 
@@ -722,26 +739,30 @@ describe("CreditService - Subscription Credit", () => {
          * ever asserted as a clamp on the amount.
          */
         const givenBuckets = (opts: { total: number; free: number; subscription: number; subExpired?: boolean }) => {
-            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: opts.total })
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(opts.total))
             mockTx.free_credit_issues.findMany.mockResolvedValue(
-                opts.free ? [{ id: 1, balance: opts.free, expire_date: new Date("2099-12-31") }] : [],
+                opts.free ? [{ id: 1, balance: opts.free, balance_precise: opts.free, expire_date: new Date("2099-12-31") }] : [],
             )
-            mockTx.free_credit_issues.aggregate.mockResolvedValue({ _sum: { balance: opts.free || null } })
+            mockTx.free_credit_issues.aggregate.mockResolvedValue(sumOf("balance", opts.free || null))
             mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue(
                 opts.subscription
                     ? [
                           {
                               ...mockSubscriptionCredit,
                               current_balance: opts.subscription,
+                              current_balance_precise: opts.subscription,
                               expire_date: opts.subExpired ? new Date("2020-01-01") : new Date("2099-12-31"),
                           },
                       ]
                     : [],
             )
             mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue({
-                _sum: { current_balance: opts.subscription || null },
+                _sum: {
+                    current_balance: opts.subscription || null,
+                    current_balance_precise: opts.subscription || null,
+                },
             })
-            mockTx.users.update.mockResolvedValue({ ...mockUser, current_credit_balance: 0 })
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(0) })
             mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
             mockTx.free_credit_issues.update.mockResolvedValue({})
             mockTx.credit_statements.create.mockResolvedValue({})
@@ -757,7 +778,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: mockSubscriptionCredit.id },
-                data: { current_balance: { decrement: 200 } },
+                data: { current_balance: { decrement: 200 }, current_balance_precise: { decrement: 200 } },
             })
             const statements = mockTx.credit_statements.create.mock.calls.map((c: any[]) => c[0].data)
             expect(statements).toHaveLength(1)
@@ -779,11 +800,11 @@ describe("CreditService - Subscription Credit", () => {
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: mockSubscriptionCredit.id },
-                data: { current_balance: { decrement: 100 } },
+                data: { current_balance: { decrement: 100 }, current_balance_precise: { decrement: 100 } },
             })
             expect(mockTx.users.update).toHaveBeenCalledWith({
                 where: { username_in_be: "test_user_123" },
-                data: { current_credit_balance: { decrement: 100 } },
+                data: { current_credit_balance: { decrement: 100 }, current_credit_balance_precise: { decrement: 100 } },
             })
         })
 
@@ -816,10 +837,10 @@ describe("CreditService - Subscription Credit", () => {
 
     describe("getRepayableBalance", () => {
         it("is the balance minus all free credit, expired or not", async () => {
-            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 500 })
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(500))
             mockTx.free_credit_issues.findMany.mockResolvedValue([
-                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
-                { id: 2, balance: 50, expire_date: new Date("2020-01-01") },
+                { id: 1, balance: 100, balance_precise: 100, expire_date: new Date("2099-12-31") },
+                { id: 2, balance: 50, balance_precise: 50, expire_date: new Date("2020-01-01") },
             ])
 
             // Subscription credit does not expire, so what is left is exactly what
@@ -828,9 +849,9 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("never goes negative", async () => {
-            mockTx.users.findFirst = jest.fn().mockResolvedValue({ current_credit_balance: 50 })
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(50))
             mockTx.free_credit_issues.findMany.mockResolvedValue([
-                { id: 1, balance: 100, expire_date: new Date("2099-12-31") },
+                { id: 1, balance: 100, balance_precise: 100, expire_date: new Date("2099-12-31") },
             ])
 
             expect(await service.getRepayableBalance("test_user_123", mockTx as any)).toBe(0)
@@ -860,14 +881,14 @@ describe("CreditService - Subscription Credit", () => {
                 current_balance: 500,
             })
             mockTx.widget_subscription_credit_issues.update = jest.fn().mockResolvedValue({})
-            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, current_credit_balance: 1300 })
+            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, ...userRow(1300) })
             mockTx.credit_statements.create = jest.fn().mockResolvedValue({})
 
             await service.refundCredit(300, "order_123", "test_user_123", mockTx as any)
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: { increment: 300 } },
+                data: { current_balance: { increment: 300 }, current_balance_precise: { increment: 300 } },
             })
             expect(mockTx.credit_statements.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
@@ -893,18 +914,18 @@ describe("CreditService - Subscription Credit", () => {
 
             mockTx.credit_statements.findMany = jest.fn().mockResolvedValue([consumeStatement])
             mockTx.widget_subscription_credit_issues.update = jest.fn().mockResolvedValue({})
-            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, current_credit_balance: 1300 })
+            mockTx.users.update = jest.fn().mockResolvedValue({ ...mockUser, ...userRow(1300) })
             mockTx.credit_statements.create = jest.fn().mockResolvedValue({})
 
             await service.refundCredit(300, "order_123", "test_user_123", mockTx as any)
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: { increment: 300 } },
+                data: { current_balance: { increment: 300 }, current_balance_precise: { increment: 300 } },
             })
             expect(mockTx.users.update).toHaveBeenCalledWith({
                 where: { username_in_be: "test_user_123" },
-                data: { current_credit_balance: { increment: 300 } },
+                data: { current_credit_balance: { increment: 300 }, current_credit_balance_precise: { increment: 300 } },
             })
         })
 

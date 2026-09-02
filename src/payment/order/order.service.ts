@@ -805,8 +805,12 @@ export class OrderService {
             throw new BadRequestException("Order is no longer refundable after paid 10 days")
         }
 
-        let refundAmount = dto.refund_amount ? dto.refund_amount : orderRecord.amount - orderRecord.refunded_amount
-        const canRefundedAmount = orderRecord.amount - orderRecord.refunded_amount
+        // Exact, not floored: this is a guard and the size of a full refund. Flooring
+        // the headroom would refuse the last fraction of a legitimate refund, and
+        // flooring the full-refund amount would leave that fraction stranded on the
+        // order forever.
+        const canRefundedAmount = toNumber(orderRecord.amount_precise) - toNumber(orderRecord.refunded_amount_precise)
+        let refundAmount = dto.refund_amount ? dto.refund_amount : canRefundedAmount
         if (refundAmount > canRefundedAmount) {
             throw new BadRequestException("Refund amount is greater than can refunded amount")
         }
@@ -840,13 +844,16 @@ export class OrderService {
                 data: {
                     current_status: OrderStatus.REFUNDED,
                     refunded_amount: order.amount,
-                    refunded_amount_precise: order.amount ?? 0,
+                    // Sourced from the precise column, not from `order.amount`: once the
+                    // integer column is a floor, seeding the precise refund from it would
+                    // strand the fraction on the order.
+                    refunded_amount_precise: toNumber(order.amount_precise),
                     refund_time: new Date(),
                     refund_status: "success",
                     refund_detail: [
                         {
-                            amount: order.amount,
-                            order_amount_after_refund: order.amount,
+                            amount: Math.floor(toNumber(order.amount_precise)),
+                            order_amount_after_refund: Math.floor(toNumber(order.amount_precise)),
                             refunded_time: new Date(),
                         },
                     ],
@@ -880,7 +887,9 @@ export class OrderService {
 
             refundedDetail.push({
                 amount: refundAmount,
-                order_amount_after_refund: order.amount - (order.refunded_amount || 0) - refundAmount,
+                order_amount_after_refund: Math.floor(
+                    toNumber(order.amount_precise) - toNumber(order.refunded_amount_precise) - refundAmount,
+                ),
                 refunded_time: new Date(),
             })
 
@@ -953,7 +962,9 @@ export class OrderService {
 
             refundedDetail.push({
                 amount: refundAmount,
-                order_amount_after_refund: order.amount - (order.refunded_amount || 0) - refundAmount,
+                order_amount_after_refund: Math.floor(
+                    toNumber(order.amount_precise) - toNumber(order.refunded_amount_precise) - refundAmount,
+                ),
                 refunded_time: new Date(),
             })
 
@@ -1006,13 +1017,13 @@ export class OrderService {
             widget_tag: data.widget_tag,
             app_id: data.app_id,
             is_credit_top_up: data.is_credit_top_up,
-            amount: data.amount,
+            amount: Math.floor(toNumber(data.amount_precise)),
             amount_precise: toNumber(data.amount_precise),
             item: data.item,
             description: data.description,
             current_status: data.current_status as OrderStatus,
             metadata: data.metadata,
-            free_credit_paid: data.free_credit_paid,
+            free_credit_paid: Math.floor(toNumber(data.free_credit_paid_precise)),
             free_credit_paid_precise: toNumber(data.free_credit_paid_precise),
             created_at: data.created_at,
             updated_at: data.updated_at,
@@ -1031,9 +1042,13 @@ export class OrderService {
             from_source_link: data.from_source_link,
             source_link_summary: await this.linkService.getLinkSummary(data.from_source_link),
             current_reward_pool_detail: current_reward_pool_detail,
-            credit_paid_amount: data.credit_paid_amount,
+            // Null is preserved rather than floored to 0: an order never paid with
+            // credit has always reported `null` here, and turning that into `0` would
+            // be a contract change hiding inside a rounding change.
+            credit_paid_amount:
+                data.credit_paid_amount === null ? null : Math.floor(toNumber(data.credit_paid_amount_precise)),
             credit_paid_amount_precise: toNumber(data.credit_paid_amount_precise),
-            refunded_amount: data.refunded_amount,
+            refunded_amount: Math.floor(toNumber(data.refunded_amount_precise)),
             refunded_amount_precise: toNumber(data.refunded_amount_precise),
             refund_time: data.refund_time,
             refund_status: data.refund_status,
