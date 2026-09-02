@@ -16,6 +16,7 @@ import {
     WIDGET_CONSUMPTION_MAX_LIMIT,
 } from "./credit.dto"
 import { maskEmail } from "src/common/mask"
+import { isInternalEmail } from "src/common/internal-email"
 import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
@@ -1273,6 +1274,10 @@ export class CreditService {
      * be capped away. The clamp below is for data that predates these ledgers, not
      * for the cross-widget case.
      *
+     * Staff accounts are left out entirely — see `isInternalEmail`. The report is
+     * meant to be handed to the widget's operator, and our own test and ops users
+     * are not their customers.
+     *
      * Aggregation happens in the database, ranking and truncation in memory. The
      * whole user table is a few thousand rows, so no widget's user set is large
      * enough for the sort to be worth pushing into SQL — and a ranking has to see
@@ -1400,7 +1405,11 @@ export class CreditService {
         )
         const emailBy = new Map(profiles.map((p) => [p.username_in_be, p.email]))
 
-        const rows: WidgetConsumptionUserDto[] = users.map((user) => {
+        // Staff accounts are dropped before ranking, not after, so a `limit` of 10
+        // returns ten customers rather than ten rows that a few of ours fell out of.
+        const external = users.filter((user) => !isInternalEmail(emailBy.get(user)))
+
+        const rows: WidgetConsumptionUserDto[] = external.map((user) => {
             const granted_paid = paidBy.get(user) ?? 0
             const granted_free = freeBy.get(user) ?? 0
             const granted_subscription = subscriptionBy.get(user) ?? 0

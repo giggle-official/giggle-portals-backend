@@ -124,7 +124,7 @@ export class CreditController {
         summary: "Per-user credit and consumption for one widget",
         description:
             "Credit granted counts every widget, because a credit balance is global; consumption counts only " +
-            "this widget's orders. Emails are masked. Admin only.",
+            "this widget's orders. Emails are masked, and internal staff accounts are excluded. Admin only.",
         tags: ["Credit"],
     })
     @UseGuards(IsAdminGuard)

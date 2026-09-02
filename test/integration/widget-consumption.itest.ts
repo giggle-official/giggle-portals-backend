@@ -154,6 +154,51 @@ describeItest("widget consumption report", () => {
         expect(row?.consumed).toBe(0)
     })
 
+    /**
+     * The report is handed to the widget's operator, so our own accounts must not
+     * be in it. Excluded before ranking, so a `limit` still returns that many
+     * customers rather than a page a few of ours fell out of.
+     */
+    it("leaves internal staff accounts out entirely", async () => {
+        const staff = itestId("u3")
+        await db().users.create({
+            data: {
+                username_in_be: staff,
+                username: staff,
+                email: `${staff}@cobra37.com`,
+                password: itestId("not_a_login"),
+            } as never,
+        })
+        await db().free_credit_issues.create({
+            data: {
+                user: staff,
+                widget_tag: WIDGET,
+                amount: 999,
+                amount_precise: "999",
+                balance: 999,
+                balance_precise: "999",
+                expire_date: new Date("2099-12-31"),
+            } as never,
+        })
+
+        const originalDomains = process.env.INTERNAL_EMAIL_DOMAINS
+        process.env.INTERNAL_EMAIL_DOMAINS = "cobra37.com,3bodylabs.ai"
+
+        try {
+            const report = await credit.getWidgetConsumption({
+                widget_tag: WIDGET,
+                sort: WidgetConsumptionSort.GRANTED_DESC,
+            })
+            expect(report.users.some((u) => u.granted_free === 999)).toBe(false)
+            expect(JSON.stringify(report)).not.toContain("cob")
+        } finally {
+            if (originalDomains === undefined) delete process.env.INTERNAL_EMAIL_DOMAINS
+            else process.env.INTERNAL_EMAIL_DOMAINS = originalDomains
+            await db().free_credit_issues.deleteMany({ where: { user: staff } })
+            await db().users.deleteMany({ where: { username_in_be: staff } })
+        }
+    })
+
     it("honours sort and limit", async () => {
         const desc = await credit.getWidgetConsumption({
             widget_tag: WIDGET,
