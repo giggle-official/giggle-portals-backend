@@ -8,6 +8,7 @@ import {
     IsJWT,
     IsNotEmpty,
     IsNumber,
+    IsNumberString,
     IsObject,
     IsOptional,
     IsPositive,
@@ -437,4 +438,102 @@ export class CancelWidgetSubscriptionDto {
     @IsString()
     @IsNotEmpty()
     user_id: string
+}
+
+export enum WidgetConsumptionSort {
+    CONSUMED_DESC = "consumed_desc",
+    CONSUMED_ASC = "consumed_asc",
+    GRANTED_DESC = "granted_desc",
+    GRANTED_ASC = "granted_asc",
+    REMAINING_DESC = "remaining_desc",
+}
+
+export const WIDGET_CONSUMPTION_MAX_LIMIT = 1000
+
+export class WidgetConsumptionQueryDto {
+    @ApiProperty({
+        description: "The widget to report on. Consumption is counted only against this widget's orders.",
+    })
+    @IsString()
+    @IsNotEmpty()
+    widget_tag: string
+
+    @ApiProperty({
+        description: "Row order",
+        enum: WidgetConsumptionSort,
+        required: false,
+        default: WidgetConsumptionSort.CONSUMED_DESC,
+    })
+    @IsEnum(WidgetConsumptionSort)
+    @IsOptional()
+    sort?: WidgetConsumptionSort
+
+    /**
+     * A string, like every other query parameter in this API. The global
+     * `ValidationPipe` is constructed without `transform`, so `@Type(() => Number)`
+     * would never run and an `@IsInt()` here would reject every request that sends
+     * a limit at all. The range is enforced in the service, where the value is
+     * parsed. See `PaginationDto` for the same shape.
+     */
+    @ApiProperty({
+        description: `Maximum rows to return, at most ${WIDGET_CONSUMPTION_MAX_LIMIT}`,
+        required: false,
+        default: "100",
+        example: "100",
+    })
+    @IsNumberString()
+    @IsOptional()
+    limit?: string
+}
+
+export class WidgetConsumptionUserDto {
+    @ApiProperty({
+        description: "The user's email, masked. The unmasked address is never returned.",
+        example: "abc****@****.com",
+    })
+    email: string
+
+    @ApiProperty({
+        description:
+            "Everything this user was ever granted, across every widget — the sum of the four buckets below. " +
+            "Deliberately not scoped to `widget_tag`: scoping it would make a user who spent here on credit " +
+            "granted elsewhere look like they consumed more than they had.",
+    })
+    granted: number
+
+    @ApiProperty({ description: "Credit bought (top-up), all widgets" })
+    granted_paid: number
+
+    @ApiProperty({ description: "Free credit issued, all widgets" })
+    granted_free: number
+
+    @ApiProperty({ description: "Subscription credit issued, all widgets" })
+    granted_subscription: number
+
+    @ApiProperty({
+        description:
+            "Credit line granted, all widgets. This is the limit, not what was drawn on it — a user with a " +
+            "1,000,000 limit counts 1,000,000 whether or not they used any of it.",
+    })
+    granted_credit_line: number
+
+    @ApiProperty({
+        description:
+            "Spent on this widget's orders only, credit account and credit line together, as a positive number.",
+    })
+    consumed: number
+
+    @ApiProperty({ description: "`granted` minus `consumed`" })
+    remaining: number
+}
+
+export class WidgetConsumptionResponseDto {
+    @ApiProperty({ description: "The widget the report is scoped to" })
+    widget_tag: string
+
+    @ApiProperty({ description: "Rows returned, after `limit`" })
+    count: number
+
+    @ApiProperty({ type: () => WidgetConsumptionUserDto, isArray: true })
+    users: WidgetConsumptionUserDto[]
 }

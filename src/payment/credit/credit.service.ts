@@ -9,7 +9,13 @@ import {
     TopUpDto,
     UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
+    WidgetConsumptionQueryDto,
+    WidgetConsumptionResponseDto,
+    WidgetConsumptionSort,
+    WidgetConsumptionUserDto,
+    WIDGET_CONSUMPTION_MAX_LIMIT,
 } from "./credit.dto"
+import { maskEmail } from "src/common/mask"
 import { OrderDetailDto, OrderStatus, PaymentMethod } from "src/payment/order/order.dto"
 import { OrderService } from "src/payment/order/order.service"
 import { UserService } from "src/user/user.service"
@@ -1248,6 +1254,199 @@ export class CreditService {
         await this.settleService.postSubscriptionOrderToSettle(order.order_id)
 
         return { success: true }
+    }
+
+    /**
+     * Per-user credit and consumption for one widget.
+     *
+     * The two halves are deliberately scoped differently, and that asymmetry is
+     * the whole design:
+     *
+     * - **granted** counts every widget. A credit balance is global — a user tops
+     *   up once and spends it wherever they like — so scoping the grant to one
+     *   widget would report a user who spent here on credit bought elsewhere as
+     *   having consumed more than they were ever given.
+     * - **consumed** counts this widget only, which is the question being asked.
+     *
+     * Because a single widget's spending cannot exceed what the user was granted
+     * everywhere, `consumed <= granted` holds by construction and nothing has to
+     * be capped away. The clamp below is for data that predates these ledgers, not
+     * for the cross-widget case.
+     *
+     * Aggregation happens in the database, ranking and truncation in memory. The
+     * whole user table is a few thousand rows, so no widget's user set is large
+     * enough for the sort to be worth pushing into SQL — and a ranking has to see
+     * every row before it can take the top of it.
+     */
+    async getWidgetConsumption(query: WidgetConsumptionQueryDto): Promise<WidgetConsumptionResponseDto> {
+        const { widget_tag } = query
+        const sort = query.sort ?? WidgetConsumptionSort.CONSUMED_DESC
+
+        const limit = query.limit === undefined ? 100 : Number(query.limit)
+        if (!Number.isInteger(limit) || limit < 1 || limit > WIDGET_CONSUMPTION_MAX_LIMIT) {
+            throw new BadRequestException(`limit must be an integer between 1 and ${WIDGET_CONSUMPTION_MAX_LIMIT}`)
+        }
+
+        const spentTypes = [credit_statement_type.consume, credit_statement_type.refund]
+
+        // Both ledgers store spending as a negative number, and a refund as the
+        // positive that walks it back, so each group sums to the net spend.
+        const [creditSpend, creditLineSpend] = await Promise.all([
+            this.prisma.credit_statements.groupBy({
+                by: ["user"],
+                where: { type: { in: spentTypes }, order: { widget_tag } },
+                _sum: { amount_precise: true },
+            }),
+            this.prisma.credit_line_statements.groupBy({
+                by: ["user"],
+                where: { type: { in: ["consume", "refund"] }, widget_tag },
+                _sum: { amount: true },
+            }),
+        ])
+
+        // Everyone this widget touched, including users it granted credit to who
+        // have not spent any of it yet — they are the widget's users too, and a
+        // report that hides them cannot show an unused grant.
+        const [freeGrantees, subscriptionGrantees, creditLineGrantees] = await Promise.all([
+            this.prisma.free_credit_issues.findMany({
+                where: { widget_tag },
+                select: { user: true },
+                distinct: ["user"],
+            }),
+            this.prisma.widget_subscription_credit_issues.findMany({
+                where: { widget_tag, is_issue: true },
+                select: { user_id: true },
+                distinct: ["user_id"],
+            }),
+            this.prisma.user_credit_lines.findMany({ where: { widget_tag }, select: { user: true } }),
+        ])
+
+        const users = [
+            ...new Set(
+                [
+                    ...creditSpend.map((r) => r.user),
+                    ...creditLineSpend.map((r) => r.user),
+                    ...freeGrantees.map((r) => r.user),
+                    ...subscriptionGrantees.map((r) => r.user_id),
+                    ...creditLineGrantees.map((r) => r.user),
+                ].filter((u): u is string => !!u),
+            ),
+        ]
+
+        if (users.length === 0) {
+            return { widget_tag, count: 0, users: [] }
+        }
+
+        // No `widget_tag` on any of these: the grant side is global on purpose.
+        const [paid, free, subscription, creditLine, profiles] = await Promise.all([
+            this.prisma.credit_statements.groupBy({
+                by: ["user"],
+                where: { user: { in: users }, type: credit_statement_type.top_up },
+                _sum: { amount_precise: true },
+            }),
+            this.prisma.free_credit_issues.groupBy({
+                by: ["user"],
+                where: { user: { in: users } },
+                _sum: { amount_precise: true },
+            }),
+            this.prisma.widget_subscription_credit_issues.groupBy({
+                by: ["user_id"],
+                where: { user_id: { in: users }, is_issue: true },
+                _sum: { issue_credits_precise: true },
+            }),
+            this.prisma.user_credit_lines.groupBy({
+                by: ["user"],
+                where: { user: { in: users } },
+                _sum: { credit_limit: true },
+            }),
+            this.prisma.users.findMany({
+                where: { username_in_be: { in: users } },
+                select: { username_in_be: true, email: true },
+            }),
+        ])
+
+        const index = <T>(rows: T[], key: (row: T) => string | null, value: (row: T) => unknown) =>
+            new Map(rows.map((row) => [key(row), toNumber(value(row) as never)] as const))
+
+        const spentHere = index(
+            creditSpend,
+            (r) => r.user,
+            (r) => r._sum.amount_precise,
+        )
+        const spentHereOnLine = index(
+            creditLineSpend,
+            (r) => r.user,
+            (r) => r._sum.amount,
+        )
+        const paidBy = index(
+            paid,
+            (r) => r.user,
+            (r) => r._sum.amount_precise,
+        )
+        const freeBy = index(
+            free,
+            (r) => r.user,
+            (r) => r._sum.amount_precise,
+        )
+        const subscriptionBy = index(
+            subscription,
+            (r) => r.user_id,
+            (r) => r._sum.issue_credits_precise,
+        )
+        const creditLineBy = index(
+            creditLine,
+            (r) => r.user,
+            (r) => r._sum.credit_limit,
+        )
+        const emailBy = new Map(profiles.map((p) => [p.username_in_be, p.email]))
+
+        const rows: WidgetConsumptionUserDto[] = users.map((user) => {
+            const granted_paid = paidBy.get(user) ?? 0
+            const granted_free = freeBy.get(user) ?? 0
+            const granted_subscription = subscriptionBy.get(user) ?? 0
+            const granted_credit_line = creditLineBy.get(user) ?? 0
+            const granted = granted_paid + granted_free + granted_subscription + granted_credit_line
+
+            const spent = Math.abs((spentHere.get(user) ?? 0) + (spentHereOnLine.get(user) ?? 0))
+
+            // Unreachable through the ledgers, so worth a line in the log rather
+            // than a silent clamp: it means credit reached this user by a path
+            // that wrote no statement, and the report would otherwise show them
+            // spending more than they ever had.
+            if (spent > granted) {
+                this.logger.warn(
+                    `widget-consumption: ${user} spent ${spent} on ${widget_tag} against a global grant of ` +
+                        `${granted}; clamping. Credit likely reached this user without a statement row.`,
+                )
+            }
+            const consumed = Math.min(spent, granted)
+
+            return {
+                email: maskEmail(emailBy.get(user)),
+                granted,
+                granted_paid,
+                granted_free,
+                granted_subscription,
+                granted_credit_line,
+                consumed,
+                remaining: granted - consumed,
+            }
+        })
+
+        const rank: Record<
+            WidgetConsumptionSort,
+            (a: WidgetConsumptionUserDto, b: WidgetConsumptionUserDto) => number
+        > = {
+            [WidgetConsumptionSort.CONSUMED_DESC]: (a, b) => b.consumed - a.consumed,
+            [WidgetConsumptionSort.CONSUMED_ASC]: (a, b) => a.consumed - b.consumed,
+            [WidgetConsumptionSort.GRANTED_DESC]: (a, b) => b.granted - a.granted,
+            [WidgetConsumptionSort.GRANTED_ASC]: (a, b) => a.granted - b.granted,
+            [WidgetConsumptionSort.REMAINING_DESC]: (a, b) => b.remaining - a.remaining,
+        }
+
+        const ranked = rows.sort(rank[sort]).slice(0, limit)
+
+        return { widget_tag, count: ranked.length, users: ranked }
     }
 
     async getCreditStatictics(widgetTag: string) {
