@@ -75,7 +75,7 @@ export class OrderRefundedDetailDto {
     refunded_time: Date
 }
 
-/** Shadow columns excluded deliberately — see `CreditStatementDto` for why. */
+/** Precise columns kept outside the `implements` contract — see `CreditStatementDto` for why. */
 export class OrderDto
     implements
         Omit<
@@ -105,6 +105,15 @@ export class OrderDto
         description: "The amount of the order",
     })
     amount: number
+
+    @ApiProperty({
+        description:
+            "The amount of the order, to 6 decimal places. Today it always equals `amount`; once " +
+            "fractional credit is accepted this is the exact value and `amount` is its floor. " +
+            "Unlike the integer fields it shadows, a `*_precise` field is never null — an absent " +
+            "amount reads as 0.",
+    })
+    amount_precise: number
 
     @ApiProperty({
         description: "The item of the order",
@@ -152,6 +161,11 @@ export class OrderDto
         description: "The free credit paid of the order",
     })
     free_credit_paid: number
+
+    @ApiProperty({
+        description: "The free credit paid of the order, to 6 decimal places. See `amount_precise`.",
+    })
+    free_credit_paid_precise: number
 
     @ApiProperty({
         description: "The paid method of the order",
@@ -315,9 +329,21 @@ export class OrderDto
     credit_paid_amount: number
 
     @ApiProperty({
+        description:
+            "The credit paid amount of the order, to 6 decimal places. See `amount_precise`. Note that " +
+            "`credit_paid_amount` is null on an order that was not paid with credit, where this reads 0.",
+    })
+    credit_paid_amount_precise: number
+
+    @ApiProperty({
         description: "The refunded amount of the order",
     })
     refunded_amount: number
+
+    @ApiProperty({
+        description: "The refunded amount of the order, to 6 decimal places. See `amount_precise`.",
+    })
+    refunded_amount_precise: number
 
     @ApiProperty({
         description: "The refund time of the order",

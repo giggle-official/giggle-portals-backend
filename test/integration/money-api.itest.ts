@@ -70,6 +70,18 @@ describeItest("money API golden baseline", () => {
             matchGolden("credit.statement-rows", rows)
         })
 
+        /**
+         * The row-level golden above reads the table directly, so it says
+         * nothing about the response. This one goes through the endpoint, which
+         * is where a `Decimal` would leak onto the wire.
+         */
+        it("the statement list response", async () => {
+            matchGolden(
+                "credit.statements",
+                await credit.getStatements({ page: "1", page_size: "10" } as never, asUser),
+            )
+        })
+
         it("balance after payment", async () => {
             matchGolden("credit.balance-after-pay", await credit.getUserCredits(USER))
         })

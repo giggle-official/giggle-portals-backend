@@ -19,19 +19,14 @@ import * as crypto from "crypto"
 import { v4 as uuidv4 } from "uuid"
 import { NotificationService } from "src/notification/notification.service"
 import { SettleService } from "src/payment/settle/settle.service"
+import { Numeric, toNumber } from "src/payment/money"
 
 /**
  * Raw-query row shapes for the consolidated credit statistics report.
  * MariaDB hands SUM()/COUNT() back as string, number or bigint depending on the
  * column type, so every numeric field is normalised through `toNumber`.
  */
-type SqlNumeric = string | number | bigint | null
-
-const toNumber = (value: SqlNumeric | undefined): number => {
-    if (value === null || value === undefined) return 0
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : 0
-}
+type SqlNumeric = Numeric
 
 interface FreeIssueStatRow {
     issue_type: free_credit_issue_type | null
@@ -153,6 +148,8 @@ export class CreditService {
             return {
                 total_credit_balance: 0,
                 free_credit_balance: 0,
+                total_credit_balance_precise: 0,
+                free_credit_balance_precise: 0,
             }
         }
 
@@ -169,6 +166,11 @@ export class CreditService {
         return {
             total_credit_balance: user.current_credit_balance,
             free_credit_balance: freeCredit.reduce((acc, curr) => acc + (curr.balance || 0), 0),
+            total_credit_balance_precise: toNumber(user.current_credit_balance_precise),
+            // Summed over the same rows the integer total is summed over — the
+            // `balance > 0` filter stays on the integer column so that the two
+            // totals cannot disagree about which issues are in scope.
+            free_credit_balance_precise: freeCredit.reduce((acc, curr) => acc + toNumber(curr.balance_precise), 0),
         }
     }
 
@@ -462,6 +464,8 @@ export class CreditService {
                 subscription_credit_issue_id: statement.subscription_credit_issue_id,
                 amount: statement.amount,
                 balance: statement.balance,
+                amount_precise: toNumber(statement.amount_precise),
+                balance_precise: toNumber(statement.balance_precise),
                 created_at: statement.created_at,
                 updated_at: statement.updated_at,
                 // Expose the free-credit issuer's note so refund / bonus
