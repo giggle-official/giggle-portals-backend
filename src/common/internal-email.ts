@@ -19,7 +19,7 @@ let cachedRaw: string | undefined
 let cachedDomains: string[] = []
 let warned = false
 
-function internalDomains(): string[] {
+export function internalEmailDomains(): string[] {
     const raw = process.env.INTERNAL_EMAIL_DOMAINS ?? ""
     if (raw !== cachedRaw) {
         cachedRaw = raw
@@ -47,5 +47,5 @@ export function isInternalEmail(email: string | null | undefined): boolean {
     if (at < 0) return false
 
     const host = email.slice(at + 1).toLowerCase()
-    return internalDomains().some((d) => host === d || host.endsWith(`.${d}`))
+    return internalEmailDomains().some((d) => host === d || host.endsWith(`.${d}`))
 }

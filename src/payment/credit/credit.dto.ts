@@ -534,6 +534,14 @@ export class WidgetConsumptionResponseDto {
     @ApiProperty({ description: "Rows returned, after `limit`" })
     count: number
 
+    @ApiProperty({
+        description:
+            "When the snapshot behind these rows was built. It is rebuilt every ten minutes, so the figures " +
+            "are up to that stale. Null when the report is empty.",
+        nullable: true,
+    })
+    generated_at: Date | null
+
     @ApiProperty({ type: () => WidgetConsumptionUserDto, isArray: true })
     users: WidgetConsumptionUserDto[]
 }

@@ -76,6 +76,7 @@ model users {
   orders                         orders[]
   market_makers                  market_makers[]
   freeCreditIssues               free_credit_issues[]
+  widget_consumption_snapshots   widget_consumption_snapshots[]
 }
 
 model user_request_log {
@@ -1449,4 +1450,43 @@ model site_cookies {
   error_message  String?   @db.Text
   created_at     DateTime? @default(now()) @db.Timestamp(0)
   updated_at     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+/// Ten-minute snapshot behind the widget consumption report, rebuilt whole by
+/// `CreditService.refreshWidgetConsumption`. Nothing else writes to it.
+///
+/// The report ranks users on a total summed from five ledgers, and a ranking has
+/// to see every candidate before it can take the top of it — so computing it per
+/// request meant aggregating every user of the widget and discarding all but a
+/// page of them. Here it is computed once and read by an index.
+///
+/// One row per (widget, user) the widget has touched, with no truncation: capping
+/// the snapshot to a top N would have to pick one of the report's sort orders to
+/// cap by, and a user with a large unused credit line ranks last by `consumed`
+/// and first by `granted`.
+///
+/// The email is deliberately absent — it is joined from `users` at read time, so
+/// the snapshot holds no copy of it and a change to INTERNAL_EMAIL_DOMAINS takes
+/// effect immediately rather than at the next run.
+model widget_consumption_snapshots {
+  id                   Int      @id @default(autoincrement())
+  widget_tag           String   @db.VarChar(255)
+  user                 String   @db.VarChar(64)
+  granted_paid         Decimal  @default(0) @db.Decimal(18, 6)
+  granted_free         Decimal  @default(0) @db.Decimal(18, 6)
+  granted_subscription Decimal  @default(0) @db.Decimal(18, 6)
+  granted_credit_line  Decimal  @default(0) @db.Decimal(18, 6)
+  granted              Decimal  @default(0) @db.Decimal(18, 6)
+  /// Unclamped spend. Kept so that `consumed < spent` can be found with plain
+  /// SQL: it means credit reached the user without writing a statement row.
+  spent                Decimal  @default(0) @db.Decimal(18, 6)
+  consumed             Decimal  @default(0) @db.Decimal(18, 6)
+  remaining            Decimal  @default(0) @db.Decimal(18, 6)
+  generated_at         DateTime @db.DateTime(0)
+  user_info            users?   @relation(fields: [user], references: [username_in_be])
+
+  @@unique([widget_tag, user], map: "uk_widget_user")
+  @@index([widget_tag, consumed], map: "idx_widget_consumed")
+  @@index([widget_tag, granted], map: "idx_widget_granted")
+  @@index([widget_tag, remaining], map: "idx_widget_remaining")
 }

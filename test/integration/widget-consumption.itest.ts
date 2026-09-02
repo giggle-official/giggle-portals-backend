@@ -64,10 +64,28 @@ describeItest("widget consumption report", () => {
         await closeDb()
     })
 
-    const rowFor = async (widget_tag: string) => {
-        const report = await credit.getWidgetConsumption({ widget_tag })
-        return report.users[0]
+    /**
+     * The report reads a snapshot, so every case rebuilds it first. The cron is
+     * called directly rather than waited for — what is under test is the SQL it
+     * runs, not the schedule.
+     */
+    const refresh = async () => {
+        const slot = process.env.TASK_SLOT
+        process.env.TASK_SLOT = "1"
+        try {
+            await credit.refreshWidgetConsumption()
+        } finally {
+            if (slot === undefined) delete process.env.TASK_SLOT
+            else process.env.TASK_SLOT = slot
+        }
     }
+
+    const reportFor = async (widget_tag: string, extra: Record<string, unknown> = {}) => {
+        await refresh()
+        return credit.getWidgetConsumption({ widget_tag, ...extra } as never)
+    }
+
+    const rowFor = async (widget_tag: string) => (await reportFor(widget_tag)).users[0]
 
     it("counts only this widget's spending as consumed", async () => {
         expect((await rowFor(WIDGET))?.consumed).toBe(700)
@@ -89,7 +107,7 @@ describeItest("widget consumption report", () => {
 
     it("never reports more consumed than granted", async () => {
         for (const widget of [WIDGET, OTHER_WIDGET]) {
-            const { users } = await credit.getWidgetConsumption({ widget_tag: widget })
+            const { users } = await reportFor(widget)
             for (const row of users) {
                 expect(row.consumed).toBeLessThanOrEqual(row.granted)
             }
@@ -104,7 +122,7 @@ describeItest("widget consumption report", () => {
     })
 
     it("masks the email and never returns the raw address", async () => {
-        const report = await credit.getWidgetConsumption({ widget_tag: WIDGET })
+        const report = await reportFor(WIDGET)
         expect(report.users[0].email).toMatch(/^.{1,3}\*\*\*\*@\*\*\*\*\.[a-z]+$/)
         expect(JSON.stringify(report)).not.toContain("@example.com")
     })
@@ -148,7 +166,7 @@ describeItest("widget consumption report", () => {
             } as never,
         })
 
-        const { users } = await credit.getWidgetConsumption({ widget_tag: WIDGET })
+        const { users } = await reportFor(WIDGET)
         const row = users.find((u) => u.granted_free === 50)
         expect(row).toBeDefined()
         expect(row?.consumed).toBe(0)
@@ -185,10 +203,7 @@ describeItest("widget consumption report", () => {
         process.env.INTERNAL_EMAIL_DOMAINS = "cobra37.com,3bodylabs.ai"
 
         try {
-            const report = await credit.getWidgetConsumption({
-                widget_tag: WIDGET,
-                sort: WidgetConsumptionSort.GRANTED_DESC,
-            })
+            const report = await reportFor(WIDGET, { sort: WidgetConsumptionSort.GRANTED_DESC })
             expect(report.users.some((u) => u.granted_free === 999)).toBe(false)
             expect(JSON.stringify(report)).not.toContain("cob")
         } finally {
@@ -200,19 +215,13 @@ describeItest("widget consumption report", () => {
     })
 
     it("honours sort and limit", async () => {
-        const desc = await credit.getWidgetConsumption({
-            widget_tag: WIDGET,
-            sort: WidgetConsumptionSort.CONSUMED_DESC,
-        })
+        const desc = await reportFor(WIDGET, { sort: WidgetConsumptionSort.CONSUMED_DESC })
         expect(desc.users[0].consumed).toBe(700)
 
-        const asc = await credit.getWidgetConsumption({
-            widget_tag: WIDGET,
-            sort: WidgetConsumptionSort.CONSUMED_ASC,
-        })
+        const asc = await reportFor(WIDGET, { sort: WidgetConsumptionSort.CONSUMED_ASC })
         expect(asc.users[0].consumed).toBe(0)
 
-        const capped = await credit.getWidgetConsumption({ widget_tag: WIDGET, limit: "1" })
+        const capped = await reportFor(WIDGET, { limit: "1" })
         expect(capped.users).toHaveLength(1)
         expect(capped.count).toBe(1)
     })
@@ -225,8 +234,59 @@ describeItest("widget consumption report", () => {
         }
     })
 
+    it("reports when the snapshot was built", async () => {
+        const before = new Date(Date.now() - 1000)
+        const report = await reportFor(WIDGET)
+        expect(report.generated_at).toBeInstanceOf(Date)
+        expect(report.generated_at!.getTime()).toBeGreaterThanOrEqual(before.getTime())
+    })
+
+    /**
+     * Rebuilt whole, not merged: a user who stops belonging to the widget has to
+     * leave the snapshot, and a refresh that only upserts would leave them behind
+     * forever.
+     */
+    it("drops rows for activity that no longer exists", async () => {
+        const gone = itestId("u4")
+        await db().users.create({
+            data: {
+                username_in_be: gone,
+                username: gone,
+                email: `${gone}@example.com`,
+                password: itestId("not_a_login"),
+            } as never,
+        })
+        const issue = await db().free_credit_issues.create({
+            data: {
+                user: gone,
+                widget_tag: WIDGET,
+                amount: 42,
+                amount_precise: "42",
+                balance: 42,
+                balance_precise: "42",
+                expire_date: new Date("2099-12-31"),
+            } as never,
+        })
+
+        try {
+            expect((await reportFor(WIDGET)).users.some((u) => u.granted_free === 42)).toBe(true)
+
+            await db().free_credit_issues.delete({ where: { id: issue.id } })
+
+            expect((await reportFor(WIDGET)).users.some((u) => u.granted_free === 42)).toBe(false)
+        } finally {
+            await db().free_credit_issues.deleteMany({ where: { user: gone } })
+            await db().users.deleteMany({ where: { username_in_be: gone } })
+        }
+    })
+
     it("returns an empty report for a widget nobody has used", async () => {
-        const report = await credit.getWidgetConsumption({ widget_tag: itestId("wg_unused") })
-        expect(report).toEqual({ widget_tag: itestId("wg_unused"), count: 0, users: [] })
+        const report = await reportFor(itestId("wg_unused"))
+        expect(report).toEqual({
+            widget_tag: itestId("wg_unused"),
+            count: 0,
+            generated_at: null,
+            users: [],
+        })
     })
 })
