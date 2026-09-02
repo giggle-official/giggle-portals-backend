@@ -452,11 +452,15 @@ export const WIDGET_CONSUMPTION_MAX_LIMIT = 1000
 
 export class WidgetConsumptionQueryDto {
     @ApiProperty({
-        description: "The widget to report on. Consumption is counted only against this widget's orders.",
+        description:
+            "The widget to report on. Consumption counts only this widget's orders. Omit it to report every " +
+            "widget together, where consumption is each user's total across all of them.",
+        required: false,
     })
     @IsString()
     @IsNotEmpty()
-    widget_tag: string
+    @IsOptional()
+    widget_tag?: string
 
     @ApiProperty({
         description: "Row order",
@@ -512,24 +516,47 @@ export class WidgetConsumptionUserDto {
 
     @ApiProperty({
         description:
-            "Credit line granted, all widgets. This is the limit, not what was drawn on it — a user with a " +
-            "1,000,000 limit counts 1,000,000 whether or not they used any of it.",
+            "Credit line granted. The limit, not what was drawn on it — a user with a 1,000,000 limit counts " +
+            "1,000,000 whether or not they used any of it. Scoped to this widget, since a credit line belongs " +
+            "to one; the all-widgets report sums them.",
     })
     granted_credit_line: number
 
     @ApiProperty({
+        description: "Outstanding on the credit line, and part of `consumed`.",
+    })
+    credit_line_used: number
+
+    @ApiProperty({
         description:
-            "Spent on this widget's orders only, credit account and credit line together, as a positive number.",
+            "The credit account balance — what `GET /credit/balance` reports for this user. Global. " +
+            "`remaining` is this plus the unused credit line, so the two differ whenever a line exists.",
+    })
+    balance: number
+
+    @ApiProperty({
+        description:
+            "Spent on this widget: its orders paid from the credit balance, plus whatever is drawn on this " +
+            "widget's credit line. A positive number.",
     })
     consumed: number
 
-    @ApiProperty({ description: "`granted` minus `consumed`" })
+    @ApiProperty({
+        description:
+            "What the user can still spend: `granted_credit_line - credit_line_used` plus their credit " +
+            "balance. With a credit line in play this deliberately differs from the account balance, which " +
+            "is the credit half alone. It is also not `granted` minus `consumed` — free credit that expired " +
+            "and credit spent repaying a line leave the balance without counting as consumption here.",
+    })
     remaining: number
 }
 
 export class WidgetConsumptionResponseDto {
-    @ApiProperty({ description: "The widget the report is scoped to" })
-    widget_tag: string
+    @ApiProperty({
+        description: "The widget the report is scoped to, or null when it covers every widget.",
+        nullable: true,
+    })
+    widget_tag: string | null
 
     @ApiProperty({ description: "Rows returned, after `limit`" })
     count: number
