@@ -122,6 +122,21 @@ export interface CreditTop10User {
     image_count: number
 }
 
+/**
+ * The `widget_tag` under which the all-widgets rollup is stored.
+ *
+ * An empty string, which is safe only because the snapshot never stores one
+ * otherwise: an order can carry `widget_tag = ''` as well as NULL — production has
+ * both — and every source below rejects each of them. Treating the two alike is
+ * the honest reading anyway. This is a per-widget report, and an order belonging
+ * to no widget has no place in it under either spelling.
+ *
+ * A made-up name would be worse, not better: anything printable is a tag somebody
+ * could register, and a rollup row colliding with a real widget would silently
+ * double that widget's numbers.
+ */
+const ALL_WIDGETS = ""
+
 @Injectable()
 export class CreditService {
     private readonly logger = new Logger(CreditService.name)
@@ -1260,92 +1275,133 @@ export class CreditService {
     /**
      * Rebuilds the widget consumption snapshot.
      *
-     * The report ranks users on a total summed from five ledgers. A ranking has to
-     * see every candidate before it can take the top of it, so computing this per
-     * request meant aggregating every user of the widget and throwing away all but
-     * one page. It is the same work whether one person asks or a hundred do, and it
-     * does not change minute to minute — so it is done here, once, and the endpoint
-     * reads an index.
+     * `credit_statements` is a complete ledger: every grant, every spend, every
+     * expiry and every credit-line repayment writes a signed row, and nothing
+     * moves a balance without one — verified on production, where summing the
+     * ledger per user matches `current_credit_balance_precise` for all of them.
+     * So one pass over that table yields the grant breakdown *and* the balance,
+     * and expiry needs no special handling: it is already a negative row.
+     *
+     * Only two things are not in it. Consumption has to be attributed to a widget,
+     * and a statement carries no `widget_tag` — hence the join to `orders`. And a
+     * credit line is a separate account whose limit was never in the balance, read
+     * straight from `user_credit_lines`.
+     *
+     * The scoping asymmetry is the design:
+     *
+     * - **granted** and **remaining** are per user, across every widget. A credit
+     *   balance is global — a user tops up once and spends it wherever they like —
+     *   so scoping the grant to one widget would report someone who spent here on
+     *   credit bought elsewhere as having consumed more than they were ever given.
+     * - **consumed** is per widget, which is the question being asked.
+     *
+     * A credit line counts on both sides: its limit is part of `granted`, what has
+     * been drawn on it is part of `consumed`, and `remaining` is what is left of it
+     * plus the credit balance — the money the user can still spend, not the balance
+     * alone. With a line in play `remaining` therefore does not equal the account
+     * balance, which is the point of it.
+     *
+     * Nothing is clamped. Consumption at one widget cannot exceed the ledger's own
+     * total of grants, because both sides are that same ledger.
      *
      * Rebuilt whole rather than merged: a widget losing a user has to remove the
-     * row, and reconciling that is more moving parts than writing the table again.
-     * Both statements share a transaction, so a reader never sees the empty middle.
-     *
-     * The scoping asymmetry is the design, and it lives in this SQL:
-     *
-     * - **granted** joins nothing to `widget_tag`. A credit balance is global — a
-     *   user tops up once and spends it wherever they like — so scoping the grant
-     *   to one widget would report someone who spent here on credit bought
-     *   elsewhere as having consumed more than they were ever given.
-     * - **consumed** groups by `widget_tag`, which is the question being asked.
-     *
-     * A single widget's spending therefore cannot exceed the global grant, and
-     * `LEAST` only ever fires on data that predates these ledgers. `spent` keeps the
-     * unclamped figure so that case stays findable.
+     * row. All statements share a transaction, so a reader never sees the empty
+     * middle.
      */
     @Cron(CronExpression.EVERY_10_MINUTES)
     async refreshWidgetConsumption(): Promise<void> {
         if (process.env.TASK_SLOT != "1") return
 
         const startedAt = Date.now()
+
+        // One pass over the ledger, per user, global. `SUM(amount_precise)` over
+        // every row is the balance; the CASE arms pick the grant types out of the
+        // same scan.
+        const ledger = Prisma.sql`
+            SELECT user,
+                   SUM(CASE WHEN type = 'top_up' THEN amount_precise ELSE 0 END) AS paid,
+                   SUM(CASE WHEN type = 'issue_free_credit' THEN amount_precise ELSE 0 END) AS free,
+                   SUM(CASE WHEN type = 'issue_subscription_credit' THEN amount_precise ELSE 0 END) AS subscription,
+                   SUM(amount_precise) AS balance
+              FROM credit_statements
+             WHERE user IS NOT NULL
+             GROUP BY user`
+
         const granted = Prisma.sql`
-            COALESCE(gp.total, 0) + COALESCE(gf.total, 0)
-              + COALESCE(gs.total, 0) + COALESCE(gc.total, 0)`
-        const spent = Prisma.sql`ABS(COALESCE(sp.total, 0) + COALESCE(cl.total, 0))`
+            COALESCE(led.paid, 0) + COALESCE(led.free, 0)
+              + COALESCE(led.subscription, 0) + COALESCE(cl.credit_limit, 0)`
 
         await this.prisma.$transaction([
             this.prisma.$executeRaw`DELETE FROM widget_consumption_snapshots`,
             this.prisma.$executeRaw`
                 INSERT INTO widget_consumption_snapshots
                     (widget_tag, user, granted_paid, granted_free, granted_subscription,
-                     granted_credit_line, granted, spent, consumed, remaining, generated_at)
+                     granted_credit_line, credit_line_used, balance, granted, consumed, remaining,
+                     generated_at)
                 SELECT
                     wu.widget_tag,
                     wu.user,
-                    COALESCE(gp.total, 0),
-                    COALESCE(gf.total, 0),
-                    COALESCE(gs.total, 0),
-                    COALESCE(gc.total, 0),
+                    COALESCE(led.paid, 0),
+                    COALESCE(led.free, 0),
+                    COALESCE(led.subscription, 0),
+                    COALESCE(cl.credit_limit, 0),
+                    COALESCE(cl.used, 0),
+                    COALESCE(led.balance, 0),
                     ${granted},
-                    ${spent},
-                    LEAST(${spent}, ${granted}),
-                    ${granted} - LEAST(${spent}, ${granted}),
+                    ABS(COALESCE(sp.total, 0)) + COALESCE(cl.used, 0),
+                    COALESCE(cl.credit_limit, 0) - COALESCE(cl.used, 0) + COALESCE(led.balance, 0),
                     NOW()
                 FROM (
                     SELECT o.widget_tag AS widget_tag, cs.user AS user
                       FROM credit_statements cs JOIN orders o ON o.order_id = cs.order_id
-                     WHERE o.widget_tag IS NOT NULL AND cs.user IS NOT NULL
-                    UNION
-                    SELECT widget_tag, user FROM credit_line_statements
+                     WHERE o.widget_tag IS NOT NULL AND o.widget_tag <> '' AND cs.user IS NOT NULL
                     UNION
                     SELECT widget_tag, user FROM free_credit_issues
-                     WHERE widget_tag IS NOT NULL AND user IS NOT NULL
+                     WHERE widget_tag IS NOT NULL AND widget_tag <> '' AND user IS NOT NULL
                     UNION
                     SELECT widget_tag, user_id FROM widget_subscription_credit_issues
-                     WHERE is_issue = 1 AND widget_tag IS NOT NULL AND user_id IS NOT NULL
+                     WHERE is_issue = 1 AND widget_tag IS NOT NULL AND widget_tag <> ''
+                       AND user_id IS NOT NULL
                     UNION
-                    SELECT widget_tag, user FROM user_credit_lines
+                    SELECT widget_tag, user FROM user_credit_lines WHERE widget_tag <> ''
                 ) wu
-                LEFT JOIN (SELECT user, SUM(amount_precise) total FROM credit_statements
-                            WHERE type = 'top_up' GROUP BY user) gp ON gp.user = wu.user
-                LEFT JOIN (SELECT user, SUM(amount_precise) total FROM free_credit_issues
-                            GROUP BY user) gf ON gf.user = wu.user
-                LEFT JOIN (SELECT user_id, SUM(issue_credits_precise) total
-                             FROM widget_subscription_credit_issues
-                            WHERE is_issue = 1 GROUP BY user_id) gs ON gs.user_id = wu.user
-                LEFT JOIN (SELECT user, SUM(credit_limit) total FROM user_credit_lines
-                            GROUP BY user) gc ON gc.user = wu.user
+                LEFT JOIN (${ledger}) led ON led.user = wu.user
                 LEFT JOIN (SELECT o.widget_tag AS widget_tag, cs.user AS user,
-                                  SUM(cs.amount_precise) total
+                                  SUM(cs.amount_precise) AS total
                              FROM credit_statements cs JOIN orders o ON o.order_id = cs.order_id
                             WHERE cs.type IN ('consume', 'refund')
+                              AND o.widget_tag IS NOT NULL AND o.widget_tag <> ''
                             GROUP BY o.widget_tag, cs.user) sp
                        ON sp.widget_tag = wu.widget_tag AND sp.user = wu.user
-                LEFT JOIN (SELECT widget_tag, user, SUM(amount) total
-                             FROM credit_line_statements
-                            WHERE type IN ('consume', 'refund')
-                            GROUP BY widget_tag, user) cl
+                LEFT JOIN user_credit_lines cl
                        ON cl.widget_tag = wu.widget_tag AND cl.user = wu.user`,
+
+            // The all-widgets rollup, derived from the rows just written so the two
+            // can never disagree. Per-user figures repeat identically on every row
+            // and are taken with MAX; only spending and the credit lines are per
+            // widget and have to be summed.
+            this.prisma.$executeRaw`
+                INSERT INTO widget_consumption_snapshots
+                    (widget_tag, user, granted_paid, granted_free, granted_subscription,
+                     granted_credit_line, credit_line_used, balance, granted, consumed, remaining,
+                     generated_at)
+                SELECT
+                    ${ALL_WIDGETS},
+                    user,
+                    MAX(granted_paid),
+                    MAX(granted_free),
+                    MAX(granted_subscription),
+                    SUM(granted_credit_line),
+                    SUM(credit_line_used),
+                    MAX(balance),
+                    MAX(granted_paid) + MAX(granted_free) + MAX(granted_subscription)
+                      + SUM(granted_credit_line),
+                    SUM(consumed),
+                    SUM(granted_credit_line) - SUM(credit_line_used) + MAX(balance),
+                    NOW()
+                FROM widget_consumption_snapshots
+                WHERE widget_tag <> ${ALL_WIDGETS}
+                GROUP BY user`,
         ])
 
         this.logger.log(`refreshWidgetConsumption finished in ${Date.now() - startedAt}ms`)
@@ -1359,7 +1415,6 @@ export class CreditService {
      * itself, so a change to INTERNAL_EMAIL_DOMAINS takes effect at once.
      */
     async getWidgetConsumption(query: WidgetConsumptionQueryDto): Promise<WidgetConsumptionResponseDto> {
-        const { widget_tag } = query
         const sort = query.sort ?? WidgetConsumptionSort.CONSUMED_DESC
 
         const limit = query.limit === undefined ? 100 : Number(query.limit)
@@ -1383,14 +1438,14 @@ export class CreditService {
         ])
 
         const rows = await this.prisma.widget_consumption_snapshots.findMany({
-            where: { widget_tag, ...(staff.length > 0 && { NOT: staff }) },
+            where: { widget_tag: query.widget_tag ?? ALL_WIDGETS, ...(staff.length > 0 && { NOT: staff }) },
             orderBy: orderBy[sort],
             take: limit,
             include: { user_info: { select: { email: true } } },
         })
 
         return {
-            widget_tag,
+            widget_tag: query.widget_tag ?? null,
             count: rows.length,
             generated_at: rows[0]?.generated_at ?? null,
             users: rows.map((row) => ({
@@ -1400,6 +1455,8 @@ export class CreditService {
                 granted_free: toNumber(row.granted_free),
                 granted_subscription: toNumber(row.granted_subscription),
                 granted_credit_line: toNumber(row.granted_credit_line),
+                credit_line_used: toNumber(row.credit_line_used),
+                balance: toNumber(row.balance),
                 consumed: toNumber(row.consumed),
                 remaining: toNumber(row.remaining),
             })),

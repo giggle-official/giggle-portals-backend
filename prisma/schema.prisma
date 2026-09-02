@@ -1476,11 +1476,16 @@ model widget_consumption_snapshots {
   granted_free         Decimal  @default(0) @db.Decimal(18, 6)
   granted_subscription Decimal  @default(0) @db.Decimal(18, 6)
   granted_credit_line  Decimal  @default(0) @db.Decimal(18, 6)
+  /// Outstanding on the credit line. A separate account: it is not part of
+  /// `remaining`, which is the credit balance alone.
+  credit_line_used     Decimal  @default(0) @db.Decimal(18, 6)
+  /// The credit account balance, summed from the ledger. Global, so it repeats
+  /// on every row of a user; stored rather than derived so the all-widgets
+  /// rollup can take it with MAX instead of backing it out of `remaining`.
+  balance              Decimal  @default(0) @db.Decimal(18, 6)
   granted              Decimal  @default(0) @db.Decimal(18, 6)
-  /// Unclamped spend. Kept so that `consumed < spent` can be found with plain
-  /// SQL: it means credit reached the user without writing a statement row.
-  spent                Decimal  @default(0) @db.Decimal(18, 6)
   consumed             Decimal  @default(0) @db.Decimal(18, 6)
+  /// What the user can still spend: the unused credit line plus `balance`.
   remaining            Decimal  @default(0) @db.Decimal(18, 6)
   generated_at         DateTime @db.DateTime(0)
   user_info            users?   @relation(fields: [user], references: [username_in_be])

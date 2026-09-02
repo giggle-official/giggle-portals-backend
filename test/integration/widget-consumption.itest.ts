@@ -102,7 +102,8 @@ describeItest("widget consumption report", () => {
         expect(row.consumed).toBe(200)
         expect(row.granted).toBe(1000)
         expect(row.granted_paid).toBe(1000)
-        expect(row.remaining).toBe(800)
+        // The balance is global: 1000 bought, 900 spent across both widgets.
+        expect(row.remaining).toBe(100)
     })
 
     it("never reports more consumed than granted", async () => {
@@ -111,6 +112,81 @@ describeItest("widget consumption report", () => {
             for (const row of users) {
                 expect(row.consumed).toBeLessThanOrEqual(row.granted)
             }
+        }
+    })
+
+    /**
+     * `balance` is the ledger's own sum — 1000 bought, 700 spent here, 200
+     * elsewhere — not the `users` row, which the report no longer reads. With no
+     * credit line, spending power is that balance.
+     */
+    it("reports the account balance separately from what is left to spend", async () => {
+        const row = await rowFor(WIDGET)
+        expect(row.balance).toBe(100)
+        expect(row.remaining).toBe(100)
+    })
+
+    /**
+     * Expired free credit is a negative row in the ledger, so it leaves `balance`
+     * on its own. It was still granted, so it stays in `granted` — which is why
+     * `granted - consumed` is not the balance and never was.
+     */
+    it("does not count expired free credit as still available", async () => {
+        await db().credit_statements.create({
+            data: {
+                user: USER,
+                type: "issue_free_credit",
+                amount: 500,
+                amount_precise: "500",
+                balance: 800,
+                balance_precise: "800",
+            } as never,
+        })
+        const expiry = await db().credit_statements.create({
+            data: {
+                user: USER,
+                type: "expire_free_credit",
+                amount: -500,
+                amount_precise: "-500",
+                balance: 300,
+                balance_precise: "300",
+            } as never,
+        })
+        try {
+            const row = await rowFor(WIDGET)
+            expect(row.granted_free).toBe(500)
+            expect(row.balance).toBe(100)
+            expect(row.granted - row.consumed).not.toBe(row.balance)
+        } finally {
+            await db().credit_statements.deleteMany({
+                where: { user: USER, type: { in: ["issue_free_credit", "expire_free_credit"] } },
+            })
+            void expiry
+        }
+    })
+
+    /**
+     * A credit line counts on both sides: the limit adds to `granted`, the draw
+     * adds to `consumed`, and `remaining` is the unused part plus the balance. This
+     * is the case where `remaining` and `balance` must come apart.
+     */
+    it("counts a credit line on both sides and separates remaining from balance", async () => {
+        await db().user_credit_lines.create({
+            data: { user: USER, widget_tag: WIDGET, credit_limit: "1000", used: "400" } as never,
+        })
+        try {
+            const row = await rowFor(WIDGET)
+            expect(row.granted_credit_line).toBe(1000)
+            expect(row.credit_line_used).toBe(400)
+            // 700 spent here plus 400 drawn on the line.
+            expect(row.consumed).toBe(1100)
+            // 1000 bought plus the 1000 limit.
+            expect(row.granted).toBe(2000)
+            expect(row.balance).toBe(100)
+            // 1000 - 400 + 100
+            expect(row.remaining).toBe(700)
+        } finally {
+            await db().user_credit_lines.deleteMany({ where: { user: USER } })
         }
     })
 
@@ -139,6 +215,8 @@ describeItest("widget consumption report", () => {
             const row = await rowFor(WIDGET)
             expect(row.granted_credit_line).toBe(1_000_000)
             expect(row.granted).toBe(1_001_000)
+            // Nothing drawn, so the whole limit is still spendable on top of the balance.
+            expect(row.remaining).toBe(1_000_100)
         } finally {
             await db().user_credit_lines.deleteMany({ where: { user: USER } })
         }
@@ -154,6 +232,8 @@ describeItest("widget consumption report", () => {
                 password: itestId("not_a_login"),
             } as never,
         })
+        // Two rows, as production writes them: the issue attributes the grant to
+        // this widget, the statement is what the report sums.
         await db().free_credit_issues.create({
             data: {
                 user: idle,
@@ -163,6 +243,17 @@ describeItest("widget consumption report", () => {
                 balance: 50,
                 balance_precise: "50",
                 expire_date: new Date("2099-12-31"),
+            } as never,
+        })
+        await db().credit_statements.create({
+            data: {
+                user: idle,
+                type: "issue_free_credit",
+                amount: 50,
+                amount_precise: "50",
+                balance: 50,
+                balance_precise: "50",
+                is_free_credit: true,
             } as never,
         })
 
@@ -198,6 +289,17 @@ describeItest("widget consumption report", () => {
                 expire_date: new Date("2099-12-31"),
             } as never,
         })
+        await db().credit_statements.create({
+            data: {
+                user: staff,
+                type: "issue_free_credit",
+                amount: 999,
+                amount_precise: "999",
+                balance: 999,
+                balance_precise: "999",
+                is_free_credit: true,
+            } as never,
+        })
 
         const originalDomains = process.env.INTERNAL_EMAIL_DOMAINS
         process.env.INTERNAL_EMAIL_DOMAINS = "cobra37.com,3bodylabs.ai"
@@ -212,6 +314,26 @@ describeItest("widget consumption report", () => {
             await db().free_credit_issues.deleteMany({ where: { user: staff } })
             await db().users.deleteMany({ where: { username_in_be: staff } })
         }
+    })
+
+    /**
+     * Omitting `widget_tag` reports every widget together. Consumption and credit
+     * lines are per widget and must be summed; the grant and the balance are
+     * already global and must not be — adding a user's rows would multiply them by
+     * the number of widgets they used.
+     */
+    it("reports every widget together when widget_tag is omitted", async () => {
+        await refresh()
+        const all = await credit.getWidgetConsumption({} as never)
+        expect(all.widget_tag).toBeNull()
+
+        const row = all.users.find((u) => u.granted_paid === 1000)
+        expect(row).toBeDefined()
+        // 700 here plus 200 on the other widget.
+        expect(row?.consumed).toBe(900)
+        expect(row?.granted).toBe(1000)
+        expect(row?.balance).toBe(100)
+        expect(row?.remaining).toBe(100)
     })
 
     it("honours sort and limit", async () => {
@@ -267,6 +389,17 @@ describeItest("widget consumption report", () => {
                 expire_date: new Date("2099-12-31"),
             } as never,
         })
+        await db().credit_statements.create({
+            data: {
+                user: gone,
+                type: "issue_free_credit",
+                amount: 42,
+                amount_precise: "42",
+                balance: 42,
+                balance_precise: "42",
+                is_free_credit: true,
+            } as never,
+        })
 
         try {
             expect((await reportFor(WIDGET)).users.some((u) => u.granted_free === 42)).toBe(true)
@@ -275,6 +408,7 @@ describeItest("widget consumption report", () => {
 
             expect((await reportFor(WIDGET)).users.some((u) => u.granted_free === 42)).toBe(false)
         } finally {
+            await db().credit_statements.deleteMany({ where: { user: gone } })
             await db().free_credit_issues.deleteMany({ where: { user: gone } })
             await db().users.deleteMany({ where: { username_in_be: gone } })
         }
