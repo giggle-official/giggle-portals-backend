@@ -417,6 +417,12 @@ export class CreditLineService {
         })
     }
 
+    /**
+     * `creditBalance` arrives exact — `getRepayableBalance` is a guard input first —
+     * and is floored here because `credit_balance` has always been a whole number on
+     * the wire. The credit-line figures beside it need no floor: those columns are
+     * `DECIMAL` themselves since #31.
+     */
     private repaymentResult(
         line: user_credit_lines,
         creditBalance: number,
@@ -426,7 +432,7 @@ export class CreditLineService {
             repaid,
             credit_line_used: toNumber(line.used),
             credit_line_available: this.available(line),
-            credit_balance: creditBalance,
+            credit_balance: Math.floor(creditBalance),
         }
     }
 
@@ -492,7 +498,8 @@ export class CreditLineService {
         const line = await this.getLine(target.username_in_be, widgetTag)
         const creditBalance = await this.creditService.getRepayableBalance(target.username_in_be)
 
-        return { ...this.toDto(line, widgetTag), credit_balance: creditBalance }
+        // Floored for the same reason as in `repaymentResult`.
+        return { ...this.toDto(line, widgetTag), credit_balance: Math.floor(creditBalance) }
     }
 
     /**

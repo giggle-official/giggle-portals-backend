@@ -46,6 +46,7 @@ import { LinkDetailDto } from "src/open-app/link/link.dto"
 import * as fs from "fs"
 import sharp from "sharp"
 import { CreditService } from "src/payment/credit/credit.service"
+import { toNumber } from "src/payment/money"
 import { SettleService } from "src/payment/settle/settle.service"
 import { Cron, CronExpression } from "@nestjs/schedule"
 
@@ -188,7 +189,7 @@ export class UserService {
             free_credit_balance_precise: balanceInfo.free_credit_balance_precise,
             wallet_address: _userInfoFromDb.wallet_address,
             is_sale_agent: !!salsAgent,
-            recharged_credits: await this.creditService.getUserRechargedCredits(userInfo.usernameShorted),
+            recharged_credits: Math.floor(await this.creditService.getUserRechargedCredits(userInfo.usernameShorted)),
             invite_code: (await this.getInviteCode(userInfo)).code,
         }
 
@@ -1227,7 +1228,7 @@ Message: ${contactInfo.message}
             is_developer: record?.is_developer || false,
             phone_number: record?.phone_number || "",
             phone_national: record?.phone_national || "",
-            current_credit_balance: record?.current_credit_balance || 0,
+            current_credit_balance: Math.floor(toNumber(record?.current_credit_balance_precise)),
             wallet_address: record?.wallet_address || "",
         }
     }

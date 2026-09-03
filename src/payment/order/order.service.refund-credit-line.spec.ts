@@ -51,8 +51,19 @@ describe("OrderService - refunding a credit line order", () => {
         refund_detail: null,
     }
 
+    /**
+     * The precise columns are derived after the spread, never declared beside the
+     * defaults: an `amount` or `refunded_amount` override has to move both columns.
+     * A fixture where they disagree is not a state production can reach, and the
+     * service reads the precise ones.
+     */
     const givenOrder = (overrides: Partial<typeof baseOrder> = {}) => {
-        const order = { ...baseOrder, ...overrides }
+        const merged = { ...baseOrder, ...overrides }
+        const order = {
+            ...merged,
+            amount_precise: merged.amount,
+            refunded_amount_precise: merged.refunded_amount,
+        }
         prisma.orders.findUnique.mockResolvedValue(order)
         mockTx.orders.findUnique.mockResolvedValue(order)
         mockTx.orders.update.mockImplementation(({ data }: any) =>

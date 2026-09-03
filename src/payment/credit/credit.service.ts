@@ -185,14 +185,17 @@ export class CreditService {
             },
         })
 
+        const totalPrecise = toNumber(user.current_credit_balance_precise)
+        const freePrecise = freeCredit.reduce((acc, curr) => acc + toNumber(curr.balance_precise), 0)
+
         return {
-            total_credit_balance: user.current_credit_balance,
-            free_credit_balance: freeCredit.reduce((acc, curr) => acc + (curr.balance || 0), 0),
-            total_credit_balance_precise: toNumber(user.current_credit_balance_precise),
-            // Summed over the same rows the integer total is summed over — the
-            // `balance > 0` filter stays on the integer column so that the two
-            // totals cannot disagree about which issues are in scope.
-            free_credit_balance_precise: freeCredit.reduce((acc, curr) => acc + toNumber(curr.balance_precise), 0),
+            // `floor(sum)`, never `sum(floor)`: flooring each issue row before adding
+            // them would lose up to one credit per row, which is the drift this whole
+            // change exists to remove.
+            total_credit_balance: Math.floor(totalPrecise),
+            free_credit_balance: Math.floor(freePrecise),
+            total_credit_balance_precise: totalPrecise,
+            free_credit_balance_precise: freePrecise,
         }
     }
 
@@ -207,27 +210,32 @@ export class CreditService {
      * leaves the balance negative.
      *
      * Subscription credit does not expire, so it never contributes a gap.
+     *
+     * Every figure here is exact, not floored. It is not a response — it sizes the
+     * spend and backs the `spendable < amount` guard, and a floored guard would
+     * refuse a 0.6 credit charge against a 0.6 credit balance.
      */
     async getSpendableBalance(
         userId: string,
         tx?: Prisma.TransactionClient,
     ): Promise<{ total: number; free: number; spendable: number; freeSpendable: number }> {
         const prisma = tx || this.prisma
-        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userId, tx)
+        const { total_credit_balance_precise, free_credit_balance_precise } = await this.getUserCredits(userId, tx)
 
-        const freeSpendable =
+        const freeSpendable = toNumber(
             (
                 await prisma.free_credit_issues.aggregate({
-                    _sum: { balance: true },
+                    _sum: { balance_precise: true },
                     where: { user: userId, balance: { gt: 0 }, expire_date: { gte: new Date() } },
                 })
-            )._sum.balance || 0
+            )._sum.balance_precise,
+        )
 
         return {
-            total: total_credit_balance,
-            free: free_credit_balance,
+            total: total_credit_balance_precise,
+            free: free_credit_balance_precise,
             freeSpendable,
-            spendable: total_credit_balance - (free_credit_balance - freeSpendable),
+            spendable: total_credit_balance_precise - (free_credit_balance_precise - freeSpendable),
         }
     }
 
@@ -243,18 +251,26 @@ export class CreditService {
      * `getUserCredits`: credit that has expired but has not been swept yet is
      * still inside `current_credit_balance`, so filtering it out here would
      * overstate what the user can actually repay with.
+     *
+     * Exact, not floored, for the same reason as `getSpendableBalance`: callers
+     * clamp a repayment against this. Callers that put it in a response floor it
+     * there.
      */
     async getRepayableBalance(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
-        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(userId, tx)
-        return Math.max(0, total_credit_balance - free_credit_balance)
+        const { total_credit_balance_precise, free_credit_balance_precise } = await this.getUserCredits(userId, tx)
+        return Math.max(0, total_credit_balance_precise - free_credit_balance_precise)
     }
 
+    /**
+     * Lifetime credit bought, as an exact figure. `recharged_credits` in the user
+     * profile is its floor.
+     */
     async getUserRechargedCredits(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
         const prisma = tx || this.prisma
 
         const user = await prisma.credit_statements.aggregate({
             _sum: {
-                amount: true,
+                amount_precise: true,
             },
             where: {
                 user: userId,
@@ -264,7 +280,7 @@ export class CreditService {
             },
         })
 
-        return user._sum?.amount || 0
+        return toNumber(user._sum?.amount_precise)
     }
 
     async topUp(body: TopUpDto, userInfo: UserJwtExtractDto): Promise<OrderDetailDto> {
@@ -484,8 +500,8 @@ export class CreditService {
                 free_credit_issue_id: statement.free_credit_issue_id,
                 is_subscription_credit: statement.is_subscription_credit,
                 subscription_credit_issue_id: statement.subscription_credit_issue_id,
-                amount: statement.amount,
-                balance: statement.balance,
+                amount: Math.floor(toNumber(statement.amount_precise)),
+                balance: Math.floor(toNumber(statement.balance_precise)),
                 amount_precise: toNumber(statement.amount_precise),
                 balance_precise: toNumber(statement.balance_precise),
                 created_at: statement.created_at,
@@ -588,7 +604,7 @@ export class CreditService {
 
         const now = new Date()
 
-        const { total_credit_balance, free_credit_balance } = await this.getUserCredits(user, tx)
+        const { total_credit_balance_precise, free_credit_balance_precise } = await this.getUserCredits(user, tx)
 
         // The paid balance is not stored anywhere; it is whatever is left of
         // current_credit_balance once the free and subscription buckets are taken out.
@@ -598,19 +614,23 @@ export class CreditService {
         // balance and let the paid bucket consume more than the user actually paid
         // for. Subscription credit does not expire, so the question does not arise
         // for it.
-        const subscriptionOnBooks =
+        const subscriptionOnBooks = toNumber(
             (
                 await tx.widget_subscription_credit_issues.aggregate({
-                    _sum: { current_balance: true },
+                    _sum: { current_balance_precise: true },
                     where: {
                         user_id: user,
                         current_balance: { gt: 0 },
                         is_issue: true,
                     },
                 })
-            )._sum.current_balance || 0
+            )._sum.current_balance_precise,
+        )
 
-        const paidCreditBalance = Math.max(0, total_credit_balance - free_credit_balance - subscriptionOnBooks)
+        const paidCreditBalance = Math.max(
+            0,
+            total_credit_balance_precise - free_credit_balance_precise - subscriptionOnBooks,
+        )
 
         // No expire_date filter: subscription credit does not expire. `expire_date`
         // is still recorded, and still orders the walk oldest-first, but it no
@@ -630,7 +650,7 @@ export class CreditService {
             if (needCreditConsumed <= 0) {
                 break
             }
-            const consumeAmount = Math.min(subscriptionCredit.current_balance, needCreditConsumed)
+            const consumeAmount = Math.min(toNumber(subscriptionCredit.current_balance_precise), needCreditConsumed)
             needCreditConsumed -= consumeAmount
 
             //update user table
@@ -709,7 +729,7 @@ export class CreditService {
                 if (needCreditConsumed <= 0) {
                     break
                 }
-                const consumeAmount = Math.min(freeCredit.balance, needCreditConsumed)
+                const consumeAmount = Math.min(toNumber(freeCredit.balance_precise), needCreditConsumed)
                 freeCreditConsumed += consumeAmount
                 needCreditConsumed -= consumeAmount
 
@@ -1472,6 +1492,21 @@ export class CreditService {
         // Each block below folds the daily / monthly / total variants of one metric into a
         // single pass. `credit_statements` and `assets` are large enough that re-scanning
         // them once per period was what made this report slow.
+        //
+        // Every money figure sums the precise column and is returned exact, NOT floored.
+        //
+        // Flooring a total is not the same safety property as flooring a balance. A
+        // balance backs a guard, where rounding against the user is the safe direction.
+        // A total is the settlement basis, where any rounding is a systematic bias — and
+        // consumption is stored negative, so flooring would inflate reported revenue by
+        // up to one credit per figure. The credit-line totals in this same response have
+        // been exact decimals since #31; matching them keeps one report from carrying two
+        // rounding rules.
+        //
+        // Consequence worth knowing: summing the `amount` field of the statement list no
+        // longer reproduces these totals, because that field is floored per row. That gap
+        // is `SUM(FLOOR(x)) != FLOOR(SUM(x))` itself, and `amount_precise` is the field
+        // that closes it.
         const [
             freeIssueRows,
             amountRows,
@@ -1484,24 +1519,24 @@ export class CreditService {
         ] = await Promise.all([
             this.prisma.$queryRaw<FreeIssueStatRow[]>`
                     SELECT issue_type,
-                        COALESCE(SUM(CASE WHEN created_at >= ${dailyStart} AND created_at < ${now} THEN amount END), 0) AS daily_amount,
-                        COALESCE(SUM(CASE WHEN created_at >= ${monthlyStart} AND created_at < ${now} THEN amount END), 0) AS monthly_amount,
-                        COALESCE(SUM(amount), 0) AS total_amount
+                        COALESCE(SUM(CASE WHEN created_at >= ${dailyStart} AND created_at < ${now} THEN amount_precise END), 0) AS daily_amount,
+                        COALESCE(SUM(CASE WHEN created_at >= ${monthlyStart} AND created_at < ${now} THEN amount_precise END), 0) AS monthly_amount,
+                        COALESCE(SUM(amount_precise), 0) AS total_amount
                     FROM free_credit_issues
                     WHERE widget_tag = ${widgetTag}
                     GROUP BY issue_type
                 `,
             this.prisma.$queryRaw<CreditAmountStatRow[]>`
                     SELECT
-                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_top_up,
-                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS monthly_top_up,
-                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' THEN cs.amount END), 0) AS total_top_up,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_free_consume,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS monthly_free_consume,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 THEN cs.amount END), 0) AS total_free_consume,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_paid_consume,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS monthly_paid_consume,
-                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 THEN cs.amount END), 0) AS total_paid_consume
+                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS daily_top_up,
+                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS monthly_top_up,
+                        COALESCE(SUM(CASE WHEN cs.type = 'top_up' THEN cs.amount_precise END), 0) AS total_top_up,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS daily_free_consume,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS monthly_free_consume,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 1 THEN cs.amount_precise END), 0) AS total_free_consume,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS daily_paid_consume,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 AND cs.created_at >= ${monthlyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS monthly_paid_consume,
+                        COALESCE(SUM(CASE WHEN cs.type IN ('consume', 'refund') AND cs.is_free_credit = 0 THEN cs.amount_precise END), 0) AS total_paid_consume
                     FROM credit_statements cs
                     INNER JOIN orders o ON cs.order_id = o.order_id
                     WHERE o.widget_tag = ${widgetTag}
@@ -1535,10 +1570,10 @@ export class CreditService {
             // from this in memory rather than by four separate grouped scans.
             this.prisma.$queryRaw<PerUserConsumeRow[]>`
                     SELECT cs.user,
-                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 1 THEN cs.amount END), 0) AS total_free_amount,
-                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 0 THEN cs.amount END), 0) AS total_paid_amount,
-                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_free_amount,
-                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 0 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount END), 0) AS daily_paid_amount,
+                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 1 THEN cs.amount_precise END), 0) AS total_free_amount,
+                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 0 THEN cs.amount_precise END), 0) AS total_paid_amount,
+                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS daily_free_amount,
+                        COALESCE(SUM(CASE WHEN cs.is_free_credit = 0 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN cs.amount_precise END), 0) AS daily_paid_amount,
                         SUM(CASE WHEN cs.is_free_credit = 1 THEN 1 ELSE 0 END) AS total_free_rows,
                         SUM(CASE WHEN cs.is_free_credit = 0 THEN 1 ELSE 0 END) AS total_paid_rows,
                         SUM(CASE WHEN cs.is_free_credit = 1 AND cs.created_at >= ${dailyStart} AND cs.created_at < ${now} THEN 1 ELSE 0 END) AS daily_free_rows,
