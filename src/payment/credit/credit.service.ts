@@ -25,6 +25,7 @@ import { Cron, CronExpression } from "@nestjs/schedule"
 import * as crypto from "crypto"
 import { v4 as uuidv4 } from "uuid"
 import { NotificationService } from "src/notification/notification.service"
+import { PaymentNotifyService } from "src/notification/payment-notify.service"
 import { SettleService } from "src/payment/settle/settle.service"
 import { Numeric, toNumber } from "src/payment/money"
 
@@ -152,6 +153,8 @@ export class CreditService {
         private readonly orderService: OrderService,
 
         private readonly notificationService: NotificationService,
+
+        private readonly paymentNotify: PaymentNotifyService,
 
         @Inject(forwardRef(() => SettleService))
         private readonly settleService: SettleService,
@@ -332,7 +335,7 @@ export class CreditService {
         }
 
         //issue credit
-        await this.prisma.$transaction(async (tx) => {
+        const balanceAfter = await this.prisma.$transaction(async (tx) => {
             const userBalanceUpdated = await tx.users.update({
                 where: {
                     username_in_be: order.owner,
@@ -357,7 +360,28 @@ export class CreditService {
                     type: credit_statement_type.top_up,
                 },
             })
+            return toNumber(userBalanceUpdated.current_credit_balance_precise)
         })
+
+        // Ops wants eyes on any unusually large top-up the moment it lands.
+        // Fire-and-forget: the credit is already committed, and the notifier
+        // never throws.
+        const credits = toNumber(order.amount_precise)
+        if (this.paymentNotify.isLargeTopUp(credits)) {
+            const owner = await this.prisma.users.findUnique({
+                where: { username_in_be: order.owner },
+                select: { email: true },
+            })
+            void this.paymentNotify.notifyLargeTopUp({
+                order_id: order.order_id,
+                email: owner?.email ?? null,
+                user: order.owner,
+                credits,
+                balance_after: balanceAfter,
+                widget_tag: order.widget_tag,
+                paid_method: order.paid_method,
+            })
+        }
 
         //process rewards
         this.processRewards(order)

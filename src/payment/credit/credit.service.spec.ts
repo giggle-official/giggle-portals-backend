@@ -9,6 +9,7 @@ jest.mock("../../user/user.service")
 jest.mock("../order/order.service")
 jest.mock("../../notification/notification.service")
 jest.mock("../settle/settle.service")
+jest.mock("../../notification/payment-notify.service")
 
 import { CreditService } from "./credit.service"
 import { PrismaService } from "../../common/prisma.service"
@@ -16,6 +17,7 @@ import { UserService } from "../../user/user.service"
 import { OrderService } from "../order/order.service"
 import { NotificationService } from "../../notification/notification.service"
 import { SettleService } from "../settle/settle.service"
+import { PaymentNotifyService } from "../../notification/payment-notify.service"
 
 describe("CreditService - Subscription Credit", () => {
     let service: CreditService
@@ -67,6 +69,7 @@ describe("CreditService - Subscription Credit", () => {
 
     // Transaction mock
     let mockTx: any
+    let mockPaymentNotify: { isLargeTopUp: jest.Mock; notifyLargeTopUp: jest.Mock }
 
     beforeEach(async () => {
         mockTx = {
@@ -149,6 +152,11 @@ describe("CreditService - Subscription Credit", () => {
             settleOrder: jest.fn(),
         }
 
+        mockPaymentNotify = {
+            isLargeTopUp: jest.fn().mockReturnValue(false),
+            notifyLargeTopUp: jest.fn().mockResolvedValue(undefined),
+        }
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 CreditService,
@@ -157,6 +165,7 @@ describe("CreditService - Subscription Credit", () => {
                 { provide: OrderService, useValue: mockOrderService },
                 { provide: NotificationService, useValue: mockNotificationService },
                 { provide: SettleService, useValue: mockSettleService },
+                { provide: PaymentNotifyService, useValue: mockPaymentNotify },
             ],
         }).compile()
 
@@ -166,6 +175,72 @@ describe("CreditService - Subscription Credit", () => {
 
     afterEach(() => {
         jest.clearAllMocks()
+    })
+
+    describe("issueCredit", () => {
+        const topUpOrder = {
+            order_id: "order-big",
+            owner: "test_user_123",
+            is_credit_top_up: true,
+            current_status: "completed",
+            amount: 50000,
+            amount_precise: 50000,
+            widget_tag: "storyclaw_api_management",
+            paid_method: "alipay_global",
+        }
+
+        beforeEach(() => {
+            ; (prisma.credit_statements.findFirst as jest.Mock).mockResolvedValue(null)
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(51234) })
+            mockTx.credit_statements.create.mockResolvedValue({})
+            ; (prisma.users.findUnique as jest.Mock).mockResolvedValue({ email: "big@example.com" })
+            // Rewards are a separate concern with their own tests.
+            jest.spyOn(service, "processRewards").mockResolvedValue(undefined)
+        })
+
+        it("announces a top-up above the threshold with who, how much, and the balance after", async () => {
+            mockPaymentNotify.isLargeTopUp.mockReturnValue(true)
+
+            await service.issueCredit(topUpOrder as any)
+
+            expect(mockPaymentNotify.isLargeTopUp).toHaveBeenCalledWith(50000)
+            expect(mockPaymentNotify.notifyLargeTopUp).toHaveBeenCalledWith({
+                order_id: "order-big",
+                email: "big@example.com",
+                user: "test_user_123",
+                credits: 50000,
+                balance_after: 51234,
+                widget_tag: "storyclaw_api_management",
+                paid_method: "alipay_global",
+            })
+        })
+
+        it("stays quiet for an ordinary top-up", async () => {
+            mockPaymentNotify.isLargeTopUp.mockReturnValue(false)
+
+            await service.issueCredit({ ...topUpOrder, amount: 500, amount_precise: 500 } as any)
+
+            expect(mockPaymentNotify.notifyLargeTopUp).not.toHaveBeenCalled()
+            // The credit itself is unaffected either way.
+            expect(mockTx.credit_statements.create).toHaveBeenCalledTimes(1)
+        })
+
+        /** The announcement is decided only after the credit has been committed. */
+        it("issues the credit before it looks up who to announce", async () => {
+            mockPaymentNotify.isLargeTopUp.mockReturnValue(true)
+            const order: string[] = []
+            mockTx.credit_statements.create.mockImplementation(async () => {
+                order.push("credit")
+                return {}
+            })
+            mockPaymentNotify.notifyLargeTopUp.mockImplementation(async () => {
+                order.push("notify")
+            })
+
+            await service.issueCredit(topUpOrder as any)
+
+            expect(order).toEqual(["credit", "notify"])
+        })
     })
 
     describe("updateWidgetSubscriptions", () => {
