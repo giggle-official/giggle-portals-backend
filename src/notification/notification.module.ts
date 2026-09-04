@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common"
 import { NotificationService } from "./notification.service"
 import { MailgunModule } from "nestjs-mailgun"
 import { EventsNotifyService } from "./events-notify/events-notify.service"
+import { PaymentNotifyService } from "./payment-notify.service"
 import { HttpModule } from "@nestjs/axios"
 import { PrismaService } from "src/common/prisma.service"
 
@@ -13,7 +14,7 @@ import { PrismaService } from "src/common/prisma.service"
         }),
         HttpModule,
     ],
-    providers: [NotificationService, PrismaService, EventsNotifyService],
-    exports: [NotificationService, EventsNotifyService],
+    providers: [NotificationService, PrismaService, EventsNotifyService, PaymentNotifyService],
+    exports: [NotificationService, EventsNotifyService, PaymentNotifyService],
 })
 export class NotificationModule {}
