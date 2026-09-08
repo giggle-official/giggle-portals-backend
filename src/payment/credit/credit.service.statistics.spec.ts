@@ -6,6 +6,7 @@ jest.mock("../../user/user.service")
 jest.mock("../order/order.service")
 jest.mock("../../notification/notification.service")
 jest.mock("../settle/settle.service")
+jest.mock("../../notification/payment-notify.service")
 
 import { CreditService } from "./credit.service"
 import { PrismaService } from "../../common/prisma.service"
@@ -13,6 +14,7 @@ import { UserService } from "../../user/user.service"
 import { OrderService } from "../order/order.service"
 import { NotificationService } from "../../notification/notification.service"
 import { SettleService } from "../settle/settle.service"
+import { PaymentNotifyService } from "../../notification/payment-notify.service"
 
 /**
  * The daily report is what suppliers are settled against, so the question it has
@@ -57,7 +59,15 @@ describe("CreditService - credit line in the daily report", () => {
         outstanding = 0
 
         const module: TestingModule = await Test.createTestingModule({
-            providers: [CreditService, PrismaService, UserService, OrderService, NotificationService, SettleService],
+            providers: [
+                CreditService,
+                PrismaService,
+                UserService,
+                OrderService,
+                NotificationService,
+                SettleService,
+                PaymentNotifyService,
+            ],
         }).compile()
 
         service = module.get<CreditService>(CreditService)

@@ -57,7 +57,9 @@ describe("OrderService - paying an order with a credit line", () => {
     }
 
     const givenOrder = (overrides: Partial<typeof baseOrder> = {}) => {
-        const order = { ...baseOrder, ...overrides }
+        const merged = { ...baseOrder, ...overrides }
+        // Derived after the spread: the service charges the precise amount.
+        const order = { ...merged, amount_precise: merged.amount }
         prisma.orders.findUnique.mockResolvedValue(order)
         mockTx.orders.findUnique.mockResolvedValue(order)
         return order

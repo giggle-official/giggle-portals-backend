@@ -444,7 +444,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
                 where: {
                     issue_date: { lte: expect.any(Date) },
-                    current_balance: { gt: 0 },
+                    current_balance_precise: { gt: 0 },
                     is_issue: false,
                     subscription_id: "sub_123",
                 },
@@ -459,7 +459,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
                 where: {
                     issue_date: { lte: expect.any(Date) },
-                    current_balance: { gt: 0 },
+                    current_balance_precise: { gt: 0 },
                     is_issue: false,
                 },
             })
@@ -477,7 +477,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(prisma.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
                 where: {
                     issue_date: { lte: expect.any(Date) },
-                    current_balance: { gt: 0 },
+                    current_balance_precise: { gt: 0 },
                     is_issue: false,
                 },
             })
@@ -612,15 +612,21 @@ describe("CreditService - Subscription Credit", () => {
                 { ...mockSubscriptionCredit, current_balance: 500, current_balance_precise: 500 },
             ])
             mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(700) })
-            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
+            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({ current_balance_precise: 200 })
             mockTx.credit_statements.create.mockResolvedValue({})
 
             const result = await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true)
 
             expect(result.total_credit_consumed).toBe(300)
-            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
+            // The precise column takes the atomic decrement; the integer column is then
+            // set to the floor of what that produced, never decremented itself.
+            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenNthCalledWith(1, {
                 where: { id: 1 },
-                data: { current_balance: { decrement: 300 }, current_balance_precise: { decrement: 300 } },
+                data: { current_balance_precise: { increment: -300 } },
+            })
+            expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenNthCalledWith(2, {
+                where: { id: 1 },
+                data: { current_balance: 200 },
             })
         })
 
@@ -728,7 +734,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(mockTx.widget_subscription_credit_issues.findMany).toHaveBeenCalledWith({
                 where: {
                     user_id: "test_user_123",
-                    current_balance: { gt: 0 },
+                    current_balance_precise: { gt: 0 },
                     is_issue: true,
                 },
                 orderBy: { expire_date: "asc" },
@@ -853,7 +859,7 @@ describe("CreditService - Subscription Credit", () => {
             expect(mockTx.free_credit_issues.update).not.toHaveBeenCalled()
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: mockSubscriptionCredit.id },
-                data: { current_balance: { decrement: 200 }, current_balance_precise: { decrement: 200 } },
+                data: { current_balance_precise: { increment: -200 } },
             })
             const statements = mockTx.credit_statements.create.mock.calls.map((c: any[]) => c[0].data)
             expect(statements).toHaveLength(1)
@@ -875,11 +881,11 @@ describe("CreditService - Subscription Credit", () => {
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: mockSubscriptionCredit.id },
-                data: { current_balance: { decrement: 100 }, current_balance_precise: { decrement: 100 } },
+                data: { current_balance_precise: { increment: -100 } },
             })
             expect(mockTx.users.update).toHaveBeenCalledWith({
                 where: { username_in_be: "test_user_123" },
-                data: { current_credit_balance: { decrement: 100 }, current_credit_balance_precise: { decrement: 100 } },
+                data: { current_credit_balance_precise: { increment: -100 } },
             })
         })
 
@@ -938,6 +944,7 @@ describe("CreditService - Subscription Credit", () => {
             const consumeStatement = {
                 id: 1,
                 amount: -300,
+                amount_precise: -300,
                 is_free_credit: false,
                 is_subscription_credit: true,
                 subscription_credit_issue_id: 1,
@@ -963,7 +970,7 @@ describe("CreditService - Subscription Credit", () => {
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: { increment: 300 }, current_balance_precise: { increment: 300 } },
+                data: { current_balance_precise: { increment: 300 } },
             })
             expect(mockTx.credit_statements.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
@@ -981,6 +988,7 @@ describe("CreditService - Subscription Credit", () => {
             const consumeStatement = {
                 id: 1,
                 amount: -300,
+                amount_precise: -300,
                 is_free_credit: false,
                 is_subscription_credit: true,
                 subscription_credit_issue_id: 1,
@@ -996,11 +1004,11 @@ describe("CreditService - Subscription Credit", () => {
 
             expect(mockTx.widget_subscription_credit_issues.update).toHaveBeenCalledWith({
                 where: { id: 1 },
-                data: { current_balance: { increment: 300 }, current_balance_precise: { increment: 300 } },
+                data: { current_balance_precise: { increment: 300 } },
             })
             expect(mockTx.users.update).toHaveBeenCalledWith({
                 where: { username_in_be: "test_user_123" },
-                data: { current_credit_balance: { increment: 300 }, current_credit_balance_precise: { increment: 300 } },
+                data: { current_credit_balance_precise: { increment: 300 } },
             })
         })
 
@@ -1010,6 +1018,7 @@ describe("CreditService - Subscription Credit", () => {
                 {
                     id: 1,
                     amount: -300,
+                    amount_precise: -300,
                     is_free_credit: true,
                     is_subscription_credit: false,
                     free_credit_issue_id: 1,

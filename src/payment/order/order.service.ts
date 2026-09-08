@@ -35,7 +35,7 @@ import {
     UpdateRewardsDto,
 } from "./order.dto"
 import { PrismaService } from "src/common/prisma.service"
-import { toNumber } from "src/payment/money"
+import { legacyInt, roundCredits, toNumber } from "src/payment/money"
 import { CreateOrderDto } from "./order.dto"
 import { v4 as uuidv4 } from "uuid"
 import { orders, Prisma, user_rewards, users } from "@prisma/client"
@@ -350,7 +350,7 @@ export class OrderService {
                 ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appId,
-                amount: order.amount,
+                amount: legacyInt(order.amount),
                 amount_precise: order.amount,
                 item: order.item || widgetTag,
                 description: order.description,
@@ -612,7 +612,9 @@ export class OrderService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-            const needCredits = orderRecord.amount
+            // Exact: the order is worth its precise amount, and the integer column is
+            // its floor, so charging the integer would let the fraction go unpaid.
+            const needCredits = toNumber(orderRecord.amount_precise)
             const { free_credit_consumed } = await this.creditService.consumeCredit(
                 needCredits,
                 orderRecord.order_id,
@@ -624,11 +626,11 @@ export class OrderService {
                 where: { id: orderRecord.id },
                 data: {
                     current_status: OrderStatus.COMPLETED,
-                    credit_paid_amount: needCredits,
+                    credit_paid_amount: legacyInt(needCredits),
                     credit_paid_amount_precise: needCredits,
                     paid_method: PaymentMethod.CREDIT,
                     paid_time: new Date(),
-                    free_credit_paid: free_credit_consumed,
+                    free_credit_paid: legacyInt(free_credit_consumed),
                     free_credit_paid_precise: free_credit_consumed,
                 },
             })
@@ -718,7 +720,14 @@ export class OrderService {
             // Rejects a missing, frozen or exhausted line. Deliberately all or
             // nothing: an order short of available credit fails rather than
             // falling back to part credit line and part balance.
-            await this.creditLineService.charge(tx, locked.owner, locked.widget_tag, locked.amount, locked.order_id)
+            // Exact: the integer column is a floor, and a 0.25 credit order would charge nothing.
+            await this.creditLineService.charge(
+                tx,
+                locked.owner,
+                locked.widget_tag,
+                toNumber(locked.amount_precise),
+                locked.order_id,
+            )
 
             await tx.orders.update({
                 where: { id: locked.id },
@@ -809,7 +818,9 @@ export class OrderService {
         // the headroom would refuse the last fraction of a legitimate refund, and
         // flooring the full-refund amount would leave that fraction stranded on the
         // order forever.
-        const canRefundedAmount = toNumber(orderRecord.amount_precise) - toNumber(orderRecord.refunded_amount_precise)
+        const canRefundedAmount = roundCredits(
+            toNumber(orderRecord.amount_precise) - toNumber(orderRecord.refunded_amount_precise),
+        )
         let refundAmount = dto.refund_amount ? dto.refund_amount : canRefundedAmount
         if (refundAmount > canRefundedAmount) {
             throw new BadRequestException("Refund amount is greater than can refunded amount")
@@ -843,10 +854,10 @@ export class OrderService {
                 where: { order_id: order.order_id },
                 data: {
                     current_status: OrderStatus.REFUNDED,
-                    refunded_amount: order.amount,
-                    // Sourced from the precise column, not from `order.amount`: once the
-                    // integer column is a floor, seeding the precise refund from it would
-                    // strand the fraction on the order.
+                    // Sourced from the precise column, not from `order.amount`: the
+                    // integer column is a floor, so seeding the precise refund from it
+                    // would strand the fraction on the order.
+                    refunded_amount: legacyInt(order.amount_precise),
                     refunded_amount_precise: toNumber(order.amount_precise),
                     refund_time: new Date(),
                     refund_status: "success",
@@ -893,12 +904,9 @@ export class OrderService {
                 refunded_time: new Date(),
             })
 
-            let updated = await tx.orders.update({
+            const moved = await tx.orders.update({
                 where: { order_id: order.order_id },
                 data: {
-                    refunded_amount: {
-                        increment: refundAmount,
-                    },
                     refunded_amount_precise: {
                         increment: refundAmount,
                     },
@@ -908,9 +916,16 @@ export class OrderService {
                     refund_detail: refundedDetail as any,
                 },
             })
-            if (updated.refunded_amount > order.amount) {
+            // The integer column mirrors the floor of the precise total just produced;
+            // incrementing it by a fraction would drift by one per refund.
+            let updated = await tx.orders.update({
+                where: { order_id: order.order_id },
+                data: { refunded_amount: legacyInt(moved.refunded_amount_precise) },
+            })
+            const refundedSoFar = new Decimal(updated.refunded_amount_precise)
+            if (refundedSoFar.gt(order.amount_precise)) {
                 throw new BadRequestException("Refund amount is greater than order amount")
-            } else if (updated.refunded_amount === order.amount) {
+            } else if (refundedSoFar.eq(order.amount_precise)) {
                 updated = await tx.orders.update({
                     where: { order_id: order.order_id },
                     data: {
@@ -968,12 +983,9 @@ export class OrderService {
                 refunded_time: new Date(),
             })
 
-            let updated = await tx.orders.update({
+            const moved = await tx.orders.update({
                 where: { order_id: order.order_id },
                 data: {
-                    refunded_amount: {
-                        increment: refundAmount,
-                    },
                     refunded_amount_precise: {
                         increment: refundAmount,
                     },
@@ -983,9 +995,16 @@ export class OrderService {
                     refund_detail: refundedDetail as any,
                 },
             })
-            if (updated.refunded_amount > order.amount) {
+            // The integer column mirrors the floor of the precise total just produced;
+            // incrementing it by a fraction would drift by one per refund.
+            let updated = await tx.orders.update({
+                where: { order_id: order.order_id },
+                data: { refunded_amount: legacyInt(moved.refunded_amount_precise) },
+            })
+            const refundedSoFar = new Decimal(updated.refunded_amount_precise)
+            if (refundedSoFar.gt(order.amount_precise)) {
                 throw new BadRequestException("Refund amount is greater than order amount")
-            } else if (updated.refunded_amount === order.amount) {
+            } else if (refundedSoFar.eq(order.amount_precise)) {
                 updated = await tx.orders.update({
                     where: { order_id: order.order_id },
                     data: {

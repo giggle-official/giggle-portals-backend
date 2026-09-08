@@ -29,3 +29,46 @@ export function toNumber(value: Numeric | undefined): number {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : 0
 }
+
+/** Decimal places a credit amount may carry: the scale of every `*_precise` column. */
+export const CREDIT_SCALE = 6
+
+/**
+ * Whether `value` fits the precise columns without rounding.
+ *
+ * MariaDB rounds a `DECIMAL(18,6)` overflow instead of refusing it, so a
+ * seventh decimal place has to be refused here or it is silently rounded on
+ * the way in. The tolerance absorbs float representation noise (`0.1 * 1e6`
+ * is not exactly `100000`) without admitting a real seventh digit.
+ */
+export function hasCreditScale(value: number): boolean {
+    if (!Number.isFinite(value)) return false
+    const scaled = value * 10 ** CREDIT_SCALE
+    return Math.abs(scaled - Math.round(scaled)) < 1e-6
+}
+
+/**
+ * Snaps a running total back onto the credit grid.
+ *
+ * Bucket walks subtract one float from another in a loop, and `0.3 - 0.1` is
+ * `0.19999999999999998`. The database would round that away, but the loop's own
+ * exit test would not: a residue of `5e-17` still reads as "something left to
+ * spend" and produces a zero-amount statement row.
+ */
+export function roundCredits(value: number): number {
+    return Math.round(value * 10 ** CREDIT_SCALE) / 10 ** CREDIT_SCALE
+}
+
+/**
+ * The value a legacy integer column holds beside its precise twin.
+ *
+ * `FLOOR`, matching the read-side projection: a fraction of a credit rounds
+ * against the holder, so a balance is never overstated and a debt never
+ * understated. Immutable rows take this at insert; accumulating columns take it
+ * from the precise value the same statement just produced, never by
+ * incrementing the integer column itself — `SUM(FLOOR(x)) != FLOOR(SUM(x))`,
+ * and the gap grows with every row.
+ */
+export function legacyInt(value: Numeric | undefined): number {
+    return Math.floor(toNumber(value))
+}

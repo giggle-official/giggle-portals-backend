@@ -66,15 +66,19 @@ describe("OrderService - refunding a credit line order", () => {
         }
         prisma.orders.findUnique.mockResolvedValue(order)
         mockTx.orders.findUnique.mockResolvedValue(order)
-        mockTx.orders.update.mockImplementation(({ data }: any) =>
-            Promise.resolve({
-                ...order,
-                ...data,
-                refunded_amount: data.refunded_amount?.increment
-                    ? (order.refunded_amount || 0) + data.refunded_amount.increment
-                    : order.refunded_amount,
-            }),
-        )
+        // A stateful row: a refund is now several updates (precise increment, then
+        // the integer mirror, then possibly the status), and each one has to see
+        // what the previous one wrote.
+        const row: Record<string, any> = { ...order }
+        mockTx.orders.update.mockImplementation(({ data }: any) => {
+            for (const [key, value] of Object.entries<any>(data)) {
+                row[key] =
+                    value && typeof value === "object" && "increment" in value
+                        ? (row[key] || 0) + value.increment
+                        : value
+            }
+            return Promise.resolve({ ...row })
+        })
         return order
     }
 

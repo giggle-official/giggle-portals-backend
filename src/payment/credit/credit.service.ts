@@ -27,7 +27,7 @@ import { v4 as uuidv4 } from "uuid"
 import { NotificationService } from "src/notification/notification.service"
 import { PaymentNotifyService } from "src/notification/payment-notify.service"
 import { SettleService } from "src/payment/settle/settle.service"
-import { Numeric, toNumber } from "src/payment/money"
+import { legacyInt, Numeric, roundCredits, toNumber } from "src/payment/money"
 
 /**
  * Raw-query row shapes for the consolidated credit statistics report.
@@ -182,7 +182,7 @@ export class CreditService {
         const freeCredit = await prisma.free_credit_issues.findMany({
             where: {
                 user: userId,
-                balance: {
+                balance_precise: {
                     gt: 0,
                 },
             },
@@ -229,7 +229,7 @@ export class CreditService {
             (
                 await prisma.free_credit_issues.aggregate({
                     _sum: { balance_precise: true },
-                    where: { user: userId, balance: { gt: 0 }, expire_date: { gte: new Date() } },
+                    where: { user: userId, balance_precise: { gt: 0 }, expire_date: { gte: new Date() } },
                 })
             )._sum.balance_precise,
         )
@@ -238,7 +238,9 @@ export class CreditService {
             total: total_credit_balance_precise,
             free: free_credit_balance_precise,
             freeSpendable,
-            spendable: total_credit_balance_precise - (free_credit_balance_precise - freeSpendable),
+            // Snapped to the grid: `1.2 - 0.9` is `0.29999999999999993`, and a spend of
+            // exactly 0.3 must not be refused for it.
+            spendable: roundCredits(total_credit_balance_precise - (free_credit_balance_precise - freeSpendable)),
         }
     }
 
@@ -261,7 +263,7 @@ export class CreditService {
      */
     async getRepayableBalance(userId: string, tx?: Prisma.TransactionClient): Promise<number> {
         const { total_credit_balance_precise, free_credit_balance_precise } = await this.getUserCredits(userId, tx)
-        return Math.max(0, total_credit_balance_precise - free_credit_balance_precise)
+        return roundCredits(Math.max(0, total_credit_balance_precise - free_credit_balance_precise))
     }
 
     /**
@@ -336,24 +338,13 @@ export class CreditService {
 
         //issue credit
         const balanceAfter = await this.prisma.$transaction(async (tx) => {
-            const userBalanceUpdated = await tx.users.update({
-                where: {
-                    username_in_be: order.owner,
-                },
-                data: {
-                    current_credit_balance: {
-                        increment: order.amount,
-                    },
-                    current_credit_balance_precise: {
-                        increment: order.amount,
-                    },
-                },
-            })
+            const amount = toNumber(order.amount_precise)
+            const userBalanceUpdated = await this.adjustUserBalance(tx, order.owner, amount)
             await tx.credit_statements.create({
                 data: {
                     order_id: order.order_id,
-                    amount: order.amount,
-                    amount_precise: order.amount ?? 0,
+                    amount: legacyInt(amount),
+                    amount_precise: amount,
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
                     user: order.owner,
@@ -599,6 +590,51 @@ export class CreditService {
     }
 
     /**
+     * Moves the user's balance by `delta` and returns the row as it now stands.
+     *
+     * The precise column takes the atomic increment; the legacy integer column is
+     * then set to the floor of the value that increment produced. It is never
+     * incremented itself: ten decrements of 0.5 would take it down by 10 or by 0
+     * depending on how each 0.5 rounds, while the precise column correctly loses
+     * 5. Two statements, but the caller holds the row inside a transaction, so
+     * nothing observes the pair mid-update.
+     */
+    private async adjustUserBalance(tx: Prisma.TransactionClient, user: string, delta: number) {
+        const moved = await tx.users.update({
+            where: { username_in_be: user },
+            data: { current_credit_balance_precise: { increment: delta } },
+        })
+        return tx.users.update({
+            where: { username_in_be: user },
+            data: { current_credit_balance: legacyInt(moved.current_credit_balance_precise) },
+        })
+    }
+
+    /** Same two-step mirror as `adjustUserBalance`, for a free credit issue row. */
+    private async adjustFreeCreditBalance(tx: Prisma.TransactionClient, id: number, delta: number) {
+        const moved = await tx.free_credit_issues.update({
+            where: { id },
+            data: { balance_precise: { increment: delta } },
+        })
+        return tx.free_credit_issues.update({
+            where: { id },
+            data: { balance: legacyInt(moved.balance_precise) },
+        })
+    }
+
+    /** Same two-step mirror as `adjustUserBalance`, for a subscription credit issue row. */
+    private async adjustSubscriptionBalance(tx: Prisma.TransactionClient, id: number, delta: number) {
+        const moved = await tx.widget_subscription_credit_issues.update({
+            where: { id },
+            data: { current_balance_precise: { increment: delta } },
+        })
+        return tx.widget_subscription_credit_issues.update({
+            where: { id },
+            data: { current_balance: legacyInt(moved.current_balance_precise) },
+        })
+    }
+
+    /**
      * Spends `amount` out of the user's real balance, walking the buckets in the
      * order subscription -> paid -> free.
      *
@@ -644,16 +680,15 @@ export class CreditService {
                     _sum: { current_balance_precise: true },
                     where: {
                         user_id: user,
-                        current_balance: { gt: 0 },
+                        current_balance_precise: { gt: 0 },
                         is_issue: true,
                     },
                 })
             )._sum.current_balance_precise,
         )
 
-        const paidCreditBalance = Math.max(
-            0,
-            total_credit_balance_precise - free_credit_balance_precise - subscriptionOnBooks,
+        const paidCreditBalance = roundCredits(
+            Math.max(0, total_credit_balance_precise - free_credit_balance_precise - subscriptionOnBooks),
         )
 
         // No expire_date filter: subscription credit does not expire. `expire_date`
@@ -662,7 +697,7 @@ export class CreditService {
         const widgetSubscriptionCredits = await tx.widget_subscription_credit_issues.findMany({
             where: {
                 user_id: user,
-                current_balance: { gt: 0 },
+                current_balance_precise: { gt: 0 },
                 is_issue: true,
             },
             orderBy: {
@@ -675,31 +710,17 @@ export class CreditService {
                 break
             }
             const consumeAmount = Math.min(toNumber(subscriptionCredit.current_balance_precise), needCreditConsumed)
-            needCreditConsumed -= consumeAmount
+            needCreditConsumed = roundCredits(needCreditConsumed - consumeAmount)
 
-            //update user table
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: {
-                    current_credit_balance: { decrement: consumeAmount },
-                    current_credit_balance_precise: { decrement: consumeAmount },
-                },
-            })
-            //update subscription credit table
-            await tx.widget_subscription_credit_issues.update({
-                where: { id: subscriptionCredit.id },
-                data: {
-                    current_balance: { decrement: consumeAmount },
-                    current_balance_precise: { decrement: consumeAmount },
-                },
-            })
+            const userBalanceUpdated = await this.adjustUserBalance(tx, user, -consumeAmount)
+            await this.adjustSubscriptionBalance(tx, subscriptionCredit.id, -consumeAmount)
 
             //create statement
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: statementType,
-                    amount: consumeAmount * -1,
+                    amount: legacyInt(consumeAmount * -1),
                     amount_precise: consumeAmount * -1,
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
@@ -713,21 +734,15 @@ export class CreditService {
         //consume paid credit before free credit
         if (needCreditConsumed > 0 && paidCreditBalance > 0) {
             const consumeAmount = Math.min(paidCreditBalance, needCreditConsumed)
-            needCreditConsumed -= consumeAmount
+            needCreditConsumed = roundCredits(needCreditConsumed - consumeAmount)
 
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: {
-                    current_credit_balance: { decrement: consumeAmount },
-                    current_credit_balance_precise: { decrement: consumeAmount },
-                },
-            })
+            const userBalanceUpdated = await this.adjustUserBalance(tx, user, -consumeAmount)
 
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: statementType,
-                    amount: consumeAmount * -1,
+                    amount: legacyInt(consumeAmount * -1),
                     amount_precise: consumeAmount * -1,
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
@@ -740,7 +755,7 @@ export class CreditService {
             const freeCredits = await tx.free_credit_issues.findMany({
                 where: {
                     user: user,
-                    balance: { gt: 0 },
+                    balance_precise: { gt: 0 },
                     expire_date: { gte: now },
                 },
                 orderBy: {
@@ -754,32 +769,18 @@ export class CreditService {
                     break
                 }
                 const consumeAmount = Math.min(toNumber(freeCredit.balance_precise), needCreditConsumed)
-                freeCreditConsumed += consumeAmount
-                needCreditConsumed -= consumeAmount
+                freeCreditConsumed = roundCredits(freeCreditConsumed + consumeAmount)
+                needCreditConsumed = roundCredits(needCreditConsumed - consumeAmount)
 
-                //update user table
-                const userBalanceUpdated = await tx.users.update({
-                    where: { username_in_be: user },
-                    data: {
-                        current_credit_balance: { decrement: consumeAmount },
-                        current_credit_balance_precise: { decrement: consumeAmount },
-                    },
-                })
-                //update free credit table
-                await tx.free_credit_issues.update({
-                    where: { id: freeCredit.id },
-                    data: {
-                        balance: freeCredit.balance - consumeAmount,
-                        balance_precise: { decrement: consumeAmount },
-                    },
-                })
+                const userBalanceUpdated = await this.adjustUserBalance(tx, user, -consumeAmount)
+                await this.adjustFreeCreditBalance(tx, freeCredit.id, -consumeAmount)
 
                 //create statement
                 await tx.credit_statements.create({
                     data: {
                         user: user,
                         type: statementType,
-                        amount: consumeAmount * -1,
+                        amount: legacyInt(consumeAmount * -1),
                         amount_precise: consumeAmount * -1,
                         balance: userBalanceUpdated.current_credit_balance,
                         balance_precise: userBalanceUpdated.current_credit_balance_precise,
@@ -879,9 +880,9 @@ export class CreditService {
                         is_issue: false,
                         widget_tag: developerInfo.developer_info.tag,
                         subscription_id: subscriptionId,
-                        issue_credits: subscription_credit.amount,
+                        issue_credits: legacyInt(subscription_credit.amount),
                         issue_credits_precise: subscription_credit.amount,
-                        current_balance: subscription_credit.amount,
+                        current_balance: legacyInt(subscription_credit.amount),
                         current_balance_precise: subscription_credit.amount,
                         issue_date: subscription_credit.issue_date,
                         expire_date: subscription_credit.expire_date,
@@ -946,7 +947,8 @@ export class CreditService {
                 ip_id: appBindIp.ip_id,
                 widget_tag: widgetTag,
                 app_id: appBindWidget.app_id,
-                amount: paidAmount,
+                amount: legacyInt(paidAmount),
+                amount_precise: paidAmount,
                 item: `Subscription: ${subscriptionId}`,
                 description: `Subscription payment for ${subscriptionId}`,
                 current_status: OrderStatus.REWARDS_RELEASED,
@@ -1024,7 +1026,7 @@ export class CreditService {
         const now = new Date()
         const where: any = {
             issue_date: { lte: now },
-            current_balance: { gt: 0 },
+            current_balance_precise: { gt: 0 },
             is_issue: false,
         }
         if (subscriptionId) {
@@ -1041,19 +1043,14 @@ export class CreditService {
         for (const issueCredit of creditsToIssue) {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    const userBalanceUpdated = await tx.users.update({
-                        where: { username_in_be: issueCredit.user_id },
-                        data: {
-                            current_credit_balance: { increment: issueCredit.current_balance },
-                            current_credit_balance_precise: { increment: issueCredit.current_balance },
-                        },
-                    })
+                    const amount = toNumber(issueCredit.current_balance_precise)
+                    const userBalanceUpdated = await this.adjustUserBalance(tx, issueCredit.user_id, amount)
                     await tx.credit_statements.create({
                         data: {
                             user: issueCredit.user_id,
                             type: credit_statement_type.issue_subscription_credit,
-                            amount: issueCredit.current_balance,
-                            amount_precise: issueCredit.current_balance ?? 0,
+                            amount: legacyInt(amount),
+                            amount_precise: amount,
                             balance: userBalanceUpdated.current_credit_balance,
                             balance_precise: userBalanceUpdated.current_credit_balance_precise,
                             subscription_credit_issue_id: issueCredit.id,
@@ -1109,7 +1106,7 @@ export class CreditService {
 
         //we need refund free credit first
         for (const statement of statements) {
-            const _refundAmount = Math.min(statement.amount * -1, needRefundAmount)
+            const _refundAmount = Math.min(toNumber(statement.amount_precise) * -1, needRefundAmount)
 
             if (statement.is_free_credit) {
                 //if free credit is expired, we need not refund this statement
@@ -1120,47 +1117,27 @@ export class CreditService {
                     this.logger.warn(`Free credit is expired, we cannot refund this statement: ${statement.id}`)
                     continue
                 }
-                //update free credit table
-                await tx.free_credit_issues.update({
-                    where: { id: statement.free_credit_issue_id },
-                    data: {
-                        balance: { increment: _refundAmount },
-                        balance_precise: { increment: _refundAmount },
-                    },
-                })
+                await this.adjustFreeCreditBalance(tx, statement.free_credit_issue_id, _refundAmount)
             }
 
             //refund subscription credit
             if (statement.is_subscription_credit) {
                 // No expiry check, unlike free credit above: subscription credit does
                 // not expire, so there is no state in which it cannot be refunded.
-                await tx.widget_subscription_credit_issues.update({
-                    where: { id: statement.subscription_credit_issue_id },
-                    data: {
-                        current_balance: { increment: _refundAmount },
-                        current_balance_precise: { increment: _refundAmount },
-                    },
-                })
+                await this.adjustSubscriptionBalance(tx, statement.subscription_credit_issue_id, _refundAmount)
             }
 
-            needRefundAmount -= _refundAmount
-            refundedAmount += _refundAmount
+            needRefundAmount = roundCredits(needRefundAmount - _refundAmount)
+            refundedAmount = roundCredits(refundedAmount + _refundAmount)
 
-            //update user table
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: user },
-                data: {
-                    current_credit_balance: { increment: _refundAmount },
-                    current_credit_balance_precise: { increment: _refundAmount },
-                },
-            })
+            const userBalanceUpdated = await this.adjustUserBalance(tx, user, _refundAmount)
 
             //create statement
             await tx.credit_statements.create({
                 data: {
                     user: user,
                     type: credit_statement_type.refund,
-                    amount: _refundAmount,
+                    amount: legacyInt(_refundAmount),
                     amount_precise: _refundAmount,
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
@@ -1197,24 +1174,18 @@ export class CreditService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-            const userBalanceUpdated = await tx.users.update({
-                where: { username_in_be: issuedFreeCredit.username_in_be },
-                data: {
-                    current_credit_balance: { increment: body.amount },
-                    current_credit_balance_precise: { increment: body.amount },
-                },
-            })
+            const userBalanceUpdated = await this.adjustUserBalance(tx, issuedFreeCredit.username_in_be, body.amount)
 
             const issueRecord = await tx.free_credit_issues.create({
                 data: {
                     user: issuedFreeCredit.username_in_be,
-                    amount: body.amount,
+                    amount: legacyInt(body.amount),
                     amount_precise: body.amount,
                     description: body?.description,
                     expire_date: new Date(Date.now() + this.freeCreditExpireDays * 24 * 60 * 60 * 1000),
                     widget_tag: userInfo?.developer_info?.tag,
                     app_id: userInfo?.app_id,
-                    balance: body.amount,
+                    balance: legacyInt(body.amount),
                     balance_precise: body.amount,
                     invited_user_id: options.invited_user_id || "",
                     issue_type: body.issue_type || free_credit_issue_type.widget_direct_issue,
@@ -1224,7 +1195,7 @@ export class CreditService {
             await tx.credit_statements.create({
                 data: {
                     user: issuedFreeCredit.username_in_be,
-                    amount: body.amount,
+                    amount: legacyInt(body.amount),
                     amount_precise: body.amount,
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
@@ -2031,7 +2002,7 @@ export class CreditService {
         const freeCredits = await this.prisma.free_credit_issues.findMany({
             where: {
                 expire_date: { lt: new Date() },
-                balance: { gt: 0 },
+                balance_precise: { gt: 0 },
             },
         })
         if (freeCredits.length === 0) {
@@ -2042,22 +2013,15 @@ export class CreditService {
         for (const freeCredit of freeCredits) {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    const creditbalance = freeCredit.balance
-                    //update user table
-                    const userBalanceUpdated = await tx.users.update({
-                        where: { username_in_be: freeCredit.user },
-                        data: {
-                            current_credit_balance: { decrement: creditbalance },
-                            current_credit_balance_precise: { decrement: creditbalance },
-                        },
-                    })
+                    const creditbalance = toNumber(freeCredit.balance_precise)
+                    const userBalanceUpdated = await this.adjustUserBalance(tx, freeCredit.user, -creditbalance)
 
                     //create statement
                     await tx.credit_statements.create({
                         data: {
                             user: freeCredit.user,
-                            amount: creditbalance * -1,
-                            amount_precise: (creditbalance ?? 0) * -1,
+                            amount: legacyInt(creditbalance * -1),
+                            amount_precise: creditbalance * -1,
                             balance: userBalanceUpdated.current_credit_balance,
                             balance_precise: userBalanceUpdated.current_credit_balance_precise,
                             is_free_credit: true,

@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { credit_line_statement_type, credit_line_status } from "@prisma/client"
-import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator"
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Min } from "class-validator"
+import { CREDIT_SCALE } from "src/payment/money"
 import { PaginationDto } from "src/common/common.dto"
 
 export class GrantCreditLineDto {
@@ -16,8 +17,7 @@ export class GrantCreditLineDto {
             "The absolute credit limit to set, not a delta. Capped by CREDIT_LINE_WIDGET_GRANT_MAX. " +
             "Set it to 0 to stop the user from borrowing any further; an outstanding debt is unaffected.",
     })
-    @IsNumber()
-    @IsInt()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     @Min(0)
     credit_limit: number
 
@@ -57,9 +57,8 @@ export class RepayCreditLineDto {
             "The amount is always capped by both.",
         required: false,
     })
-    @IsNumber()
-    @IsInt()
-    @Min(1)
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
+    @IsPositive()
     @IsOptional()
     amount?: number
 

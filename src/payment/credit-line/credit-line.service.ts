@@ -7,7 +7,7 @@ import {
 import { PrismaService } from "src/common/prisma.service"
 import { UserJwtExtractDto } from "src/user/user.controller"
 import { CreditService } from "../credit/credit.service"
-import { toNumber } from "src/payment/money"
+import { hasCreditScale, roundCredits, toNumber } from "src/payment/money"
 import {
     CreditLineDto,
     GetCreditLinesResponseDto,
@@ -64,7 +64,7 @@ export class CreditLineService {
         if (!line || line.status !== credit_line_status.active) {
             return 0
         }
-        return Math.max(0, toNumber(line.credit_limit) - toNumber(line.used))
+        return roundCredits(Math.max(0, toNumber(line.credit_limit) - toNumber(line.used)))
     }
 
     /**
@@ -108,8 +108,8 @@ export class CreditLineService {
         creditLimit: number,
         options: { operator?: string; note?: string } = {},
     ): Promise<user_credit_lines> {
-        if (!Number.isInteger(creditLimit) || creditLimit < 0) {
-            throw new BadRequestException("Credit limit must be a non-negative integer")
+        if (!hasCreditScale(creditLimit) || creditLimit < 0) {
+            throw new BadRequestException("Credit limit must be a non-negative number with at most 6 decimal places")
         }
 
         await this.lockLine(tx, user, widgetTag)
@@ -318,8 +318,8 @@ export class CreditLineService {
     }
 
     private assertPositiveAmount(amount: number): void {
-        if (!Number.isInteger(amount) || amount <= 0) {
-            throw new BadRequestException("Amount must be a positive integer")
+        if (!hasCreditScale(amount) || amount <= 0) {
+            throw new BadRequestException("Amount must be a positive number with at most 6 decimal places")
         }
     }
 
@@ -601,11 +601,11 @@ export class CreditLineService {
             return DEFAULT_WIDGET_GRANT_MAX
         }
         const parsed = Number(raw)
-        if (!Number.isInteger(parsed) || parsed < 0) {
+        if (!hasCreditScale(parsed) || parsed < 0) {
             // Falling back silently would hide a typo in a money setting behind a
             // limit nobody chose.
             this.logger.warn(
-                `CREDIT_LINE_WIDGET_GRANT_MAX is not a non-negative integer ("${raw}"), ` +
+                `CREDIT_LINE_WIDGET_GRANT_MAX is not a non-negative credit amount ("${raw}"), ` +
                     `falling back to ${DEFAULT_WIDGET_GRANT_MAX}`,
             )
             return DEFAULT_WIDGET_GRANT_MAX
