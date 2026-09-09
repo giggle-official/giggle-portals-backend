@@ -1260,9 +1260,16 @@ model credit_statements {
   order_id                     String?                            @db.VarChar(64)
   created_at                   DateTime?                          @default(now()) @db.Timestamp(0)
   updated_at                   DateTime?                          @default(now()) @db.Timestamp(0)
+  // A reversal is a second top_up row with the amount negated and the same order_id,
+  // pointing at the row it cancels; the original points back. Sums net on their own,
+  // counts and lists treat `reversal_of IS NULL AND reversed_by IS NULL` as a live top-up.
+  reversal_of                  Int?
+  reversed_by                  Int?
   order                        orders?                            @relation(fields: [order_id], references: [order_id])
   free_credit_issue            free_credit_issues?                @relation(fields: [free_credit_issue_id], references: [id])
   subscription_credit_issue    widget_subscription_credit_issues? @relation(fields: [subscription_credit_issue_id], references: [id])
+
+  @@index([reversal_of], map: "idx_credit_statements_reversal_of")
 }
 
 enum nft_task_status {

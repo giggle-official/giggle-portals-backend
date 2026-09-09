@@ -20,6 +20,8 @@
       "balance": 4700,
       "amount_precise": -300,
       "balance_precise": 4700,
+      "reversal_of": null,
+      "reversed_by": null,
       "created_at": "<string>",
       "updated_at": "<string>",
       "description": null
