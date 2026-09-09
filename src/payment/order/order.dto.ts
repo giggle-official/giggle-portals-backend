@@ -7,8 +7,10 @@ import {
     IsEnum,
     IsInt,
     IsNotEmpty,
+    IsNumber,
     IsObject,
     IsOptional,
+    IsPositive,
     IsString,
     IsUUID,
     Matches,
@@ -18,6 +20,7 @@ import {
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
+import { CREDIT_SCALE } from "src/payment/money"
 import { LinkSummaryDto } from "src/open-app/link/link.dto"
 import {
     DeveloperSpecifiedRewardSnapshotDto,
@@ -577,9 +580,10 @@ export class CreateOrderDto {
     order_id?: string
 
     @ApiProperty({
-        description: "The amount of the order, only accept integer, 100 means $1.00, min is 1($0.01)",
+        description:
+            "The amount of the order in credits, 100 means $1.00. Up to 6 decimal places; more are rejected, not rounded.",
     })
-    @IsInt()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     @IsNotEmpty()
     @Min(0)
     amount: number
@@ -778,14 +782,14 @@ export class RefundOrderDto {
 
     @ApiProperty({
         description: `
-The amount of the order to refund, if not specified, the order amount will be refunded, only accept integer, 100 means $1.00, min is 1($0.01).
+The amount of the order to refund, if not specified, the order amount will be refunded. 100 means $1.00, up to 6 decimal places.
 For wallet paid orders, currently we only support refund with the full amount of the order.
             `,
         required: false,
     })
-    @IsInt()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     @IsOptional()
-    @Min(1)
+    @IsPositive()
     refund_amount?: number
 }
 

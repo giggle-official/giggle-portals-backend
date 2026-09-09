@@ -4,7 +4,6 @@ import {
     IsDateString,
     IsEmail,
     IsEnum,
-    IsInt,
     IsJWT,
     IsNotEmpty,
     IsNumber,
@@ -19,6 +18,7 @@ import {
     ValidateNested,
 } from "class-validator"
 import { PaginationDto } from "src/common/common.dto"
+import { CREDIT_SCALE } from "src/payment/money"
 import { credit_statement_type, credit_statements, free_credit_issue_type } from "@prisma/client"
 import { ApiProperty, OmitType } from "@nestjs/swagger"
 import { Type } from "class-transformer"
@@ -26,11 +26,11 @@ import { PaymentMethod } from "../order/order.dto"
 
 export class TopUpDto {
     @ApiProperty({
-        description: "The amount of the top up, every 1 credit is 0.01 USDC, minimum 10 credits and must be integer",
+        description:
+            "The amount of the top up, every 1 credit is 0.01 USDC, minimum 10 credits, up to 6 decimal places",
     })
     @IsNotEmpty()
-    @IsNumber()
-    @IsInt()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     @Min(10)
     amount: number
 
@@ -262,12 +262,11 @@ export class UserCreditBalanceDto {
 
 export class IssueFreeCreditDto {
     @ApiProperty({
-        description: "The amount of the free credit, minimum 1 and maximum 10000",
+        description: "The amount of the free credit, minimum 1 and maximum 10000, up to 6 decimal places",
     })
     @Min(1)
     @Max(10000)
-    @IsInt()
-    @IsNumber()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     amount: number
 
     @ApiProperty({
@@ -337,8 +336,7 @@ export class SubscriptionCreditDto {
         description: "The subscription id of the subscription credit",
     })
     @IsNotEmpty()
-    @IsNumber()
-    @IsInt()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
     @IsPositive()
     amount: number
 
