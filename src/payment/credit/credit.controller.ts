@@ -1,6 +1,8 @@
-import { Body, Controller, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
+import { Body, Controller, Param, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import {
+    AdminReverseStatementDto,
+    AdminReverseStatementResponseDto,
     CancelWidgetSubscriptionDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
@@ -132,6 +134,31 @@ export class CreditController {
     @ApiResponse({ type: WidgetConsumptionResponseDto })
     async getWidgetConsumption(@Query() query: WidgetConsumptionQueryDto): Promise<WidgetConsumptionResponseDto> {
         return this.creditService.getWidgetConsumption(query)
+    }
+
+    @Post("/admin/statements/:id/reverse")
+    @ApiTags("Credit")
+    @ApiOperation({
+        summary: "Reverse a top-up statement",
+        description:
+            "Appends a top_up statement with the amount negated, linked to the original through reversal_of / " +
+            "reversed_by, takes the credit off the user's balance (which may go negative), and cancels the top-up " +
+            "order. Nothing is deleted. Only top_up statements, once each. Admin only.",
+        tags: ["Credit"],
+    })
+    @UseGuards(IsAdminGuard)
+    @ApiBody({ type: AdminReverseStatementDto })
+    @ApiResponse({ type: AdminReverseStatementResponseDto })
+    async adminReverseStatement(
+        @Param("id") id: string,
+        @Body() body: AdminReverseStatementDto,
+        @Req() req: Request,
+    ): Promise<AdminReverseStatementResponseDto> {
+        const statementId = Number(id)
+        if (!Number.isInteger(statementId) || statementId <= 0) {
+            throw new BadRequestException("Invalid statement id")
+        }
+        return this.creditService.adminReverseStatement(statementId, body, req.user as UserJwtExtractDto)
     }
 
     @Post("/update-widget-subscriptions")

@@ -207,6 +207,20 @@ export class CreditStatementDto implements Omit<credit_statements, "amount_preci
     balance_precise: number
 
     @ApiProperty({
+        description:
+            "Set on a reversal row: the id of the top_up statement it cancels. A reversal is a top_up with a " +
+            "negative amount; show it as a reversed top-up, not as a top-up.",
+        nullable: true,
+    })
+    reversal_of: number | null
+
+    @ApiProperty({
+        description: "Set on a top_up that has been reversed: the id of the reversal row. The two net to zero.",
+        nullable: true,
+    })
+    reversed_by: number | null
+
+    @ApiProperty({
         description: "The created at of the statement",
     })
     created_at: Date
@@ -569,4 +583,42 @@ export class WidgetConsumptionResponseDto {
 
     @ApiProperty({ type: () => WidgetConsumptionUserDto, isArray: true })
     users: WidgetConsumptionUserDto[]
+}
+
+export class AdminReverseStatementDto {
+    @ApiProperty({
+        description: "Why this top-up is being reversed. Stored in admin_logs.",
+        example: "ChinaPay callback replay 2026-09-04, payment never made",
+    })
+    @IsString()
+    @IsNotEmpty()
+    reason: string
+}
+
+export class AdminReverseStatementResponseDto {
+    @ApiProperty({ description: "The reversed top-up statement" })
+    statement_id: number
+
+    @ApiProperty({ description: "The new statement that carries the negated amount" })
+    reversal_id: number
+
+    @ApiProperty({ description: "The user the statement belongs to" })
+    user: string
+
+    @ApiProperty({ description: "The credit the top-up carried, now taken off the balance" })
+    amount: number
+
+    @ApiProperty({ description: "The user's precise balance before the reversal" })
+    balance_before: number
+
+    @ApiProperty({
+        description: "The user's precise balance after the reversal. Negative when the credit had already been spent.",
+    })
+    balance_after: number
+
+    @ApiProperty({ description: "The top-up order behind the statement, if any", nullable: true })
+    order_id: string | null
+
+    @ApiProperty({ description: "Whether that order was set to cancelled" })
+    order_cancelled: boolean
 }

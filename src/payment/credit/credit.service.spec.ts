@@ -1037,4 +1037,141 @@ describe("CreditService - Subscription Credit", () => {
             expect(mockTx.users.update).not.toHaveBeenCalled()
         })
     })
+    describe("adminReverseStatement", () => {
+        const admin = { usernameShorted: "admin_1" } as any
+        const topUp = {
+            id: 42,
+            user: "test_user_123",
+            type: credit_statement_type.top_up,
+            amount: 5000,
+            amount_precise: 5000,
+            order_id: "fake-order",
+            reversal_of: null,
+            reversed_by: null,
+        }
+
+        beforeEach(() => {
+            ;(prisma.credit_statements.findUnique as jest.Mock) = jest.fn().mockResolvedValue(topUp)
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+            mockTx.credit_statements.findUniqueOrThrow = jest.fn().mockResolvedValue(topUp)
+            mockTx.credit_statements.create.mockResolvedValue({ id: 99 })
+            mockTx.credit_statements.update = jest.fn().mockResolvedValue({})
+            mockTx.users.findUniqueOrThrow = jest.fn().mockResolvedValue(userRow(1200))
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(-3800) })
+            mockTx.orders = {
+                findUnique: jest.fn().mockResolvedValue({ order_id: "fake-order", is_credit_top_up: true }),
+                update: jest.fn().mockResolvedValue({}),
+            }
+            mockTx.admin_logs = { create: jest.fn().mockResolvedValue({}) }
+        })
+
+        it("appends a negated top_up linked both ways, takes the amount off the balance, cancels the order, logs it", async () => {
+            const result = await service.adminReverseStatement(42, { reason: "replayed callback" }, admin)
+
+            expect(result).toEqual({
+                statement_id: 42,
+                reversal_id: 99,
+                user: "test_user_123",
+                amount: 5000,
+                balance_before: 1200,
+                balance_after: -3800,
+                order_id: "fake-order",
+                order_cancelled: true,
+            })
+            // Balance: precise decrement, then the integer mirror.
+            expect(mockTx.users.update).toHaveBeenNthCalledWith(1, {
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance_precise: { increment: -5000 } },
+            })
+            expect(mockTx.credit_statements.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    user: "test_user_123",
+                    type: credit_statement_type.top_up,
+                    amount: -5000,
+                    amount_precise: -5000,
+                    balance: -3800,
+                    balance_precise: -3800,
+                    order_id: "fake-order",
+                    reversal_of: 42,
+                }),
+            })
+            expect(mockTx.credit_statements.update).toHaveBeenCalledWith({
+                where: { id: 42 },
+                data: { reversed_by: 99 },
+            })
+            expect(mockTx.orders.update).toHaveBeenCalledWith({
+                where: { order_id: "fake-order" },
+                data: expect.objectContaining({ current_status: "cancelled" }),
+            })
+            expect(mockTx.admin_logs.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    action: "reverse_credit_statement",
+                    user: "admin_1",
+                    data: expect.objectContaining({ reason: "replayed callback", reversal_id: 99 }),
+                }),
+            })
+        })
+
+        it("locks the user row before touching anything", async () => {
+            await service.adminReverseStatement(42, { reason: "x" }, admin)
+
+            expect(mockTx.$queryRaw.mock.calls[0][0].join("?")).toContain("FOR UPDATE")
+            expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                mockTx.users.update.mock.invocationCallOrder[0],
+            )
+        })
+
+        it("leaves an order that is not a top-up order alone", async () => {
+            mockTx.orders.findUnique.mockResolvedValue({ order_id: "fake-order", is_credit_top_up: false })
+
+            const result = await service.adminReverseStatement(42, { reason: "x" }, admin)
+
+            expect(result.order_cancelled).toBe(false)
+            expect(mockTx.orders.update).not.toHaveBeenCalled()
+        })
+
+        /** Every other type also moved a bucket or an order's paid status; a reversal would not unwind those. */
+        it("refuses anything but a top_up", async () => {
+            for (const type of [
+                credit_statement_type.consume,
+                credit_statement_type.refund,
+                credit_statement_type.issue_free_credit,
+                credit_statement_type.issue_subscription_credit,
+            ]) {
+                ;(prisma.credit_statements.findUnique as jest.Mock).mockResolvedValue({ ...topUp, type })
+
+                await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+                    "Only top_up statements can be reversed",
+                )
+            }
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+        })
+
+        /** Checked under the lock, so two admins cannot reverse the same top-up twice. */
+        it("refuses a top-up that is already reversed, and a reversal row itself", async () => {
+            mockTx.credit_statements.findUniqueOrThrow.mockResolvedValue({ ...topUp, reversed_by: 77 })
+            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+                "already reversed by 77",
+            )
+
+            mockTx.credit_statements.findUniqueOrThrow.mockResolvedValue({ ...topUp, reversal_of: 41, amount_precise: -5000 })
+            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+                "A reversal cannot itself be reversed",
+            )
+
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+            expect(mockTx.credit_statements.create).not.toHaveBeenCalled()
+        })
+
+        it("requires a reason and an existing statement", async () => {
+            await expect(service.adminReverseStatement(42, { reason: "  " }, admin)).rejects.toThrow(
+                "A reason is required",
+            )
+            ;(prisma.credit_statements.findUnique as jest.Mock).mockResolvedValue(null)
+            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+                "Statement not found",
+            )
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+        })
+    })
 })

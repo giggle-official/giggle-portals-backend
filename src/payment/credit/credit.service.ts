@@ -1,7 +1,9 @@
-import { BadRequestException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common"
+import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import {
+    AdminReverseStatementDto,
+    AdminReverseStatementResponseDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
@@ -519,6 +521,8 @@ export class CreditService {
                 balance: Math.floor(toNumber(statement.balance_precise)),
                 amount_precise: toNumber(statement.amount_precise),
                 balance_precise: toNumber(statement.balance_precise),
+                reversal_of: statement.reversal_of ?? null,
+                reversed_by: statement.reversed_by ?? null,
                 created_at: statement.created_at,
                 updated_at: statement.updated_at,
                 // Expose the free-credit issuer's note so refund / bonus
@@ -1157,6 +1161,121 @@ export class CreditService {
                 throw new BadRequestException("balance calculated error")
             }
         }
+    }
+
+    /**
+     * Reverses one top-up: the ledger's way of saying it never should have
+     * happened. Admin only.
+     *
+     * For a replayed payment callback or a gateway bug, not for corrections.
+     * Nothing is deleted or rewritten: a second `top_up` row is appended with the
+     * amount negated, the same `order_id`, and `reversal_of` pointing at the row it
+     * cancels, which points back through `reversed_by`. Every sum over top-ups nets
+     * to zero on its own; counts and lists filter on the two columns. The balance
+     * loses the amount and may go negative when the credit was already spent — that
+     * consumption was real and stays on the books as the debt it is. The top-up
+     * order is cancelled so no income figure counts it.
+     *
+     * Only `top_up` rows: every other type also moved a free or subscription
+     * bucket, or an order's paid status, and a reversal would not unwind those.
+     */
+    async adminReverseStatement(
+        id: number,
+        body: AdminReverseStatementDto,
+        admin: UserJwtExtractDto,
+    ): Promise<AdminReverseStatementResponseDto> {
+        const reason = body.reason?.trim()
+        if (!reason) {
+            throw new BadRequestException("A reason is required")
+        }
+        const found = await this.prisma.credit_statements.findUnique({ where: { id } })
+        if (!found) {
+            throw new NotFoundException("Statement not found")
+        }
+        if (found.type !== credit_statement_type.top_up) {
+            throw new BadRequestException("Only top_up statements can be reversed")
+        }
+
+        return this.prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${found.user} FOR UPDATE`
+            // Re-read under the lock: two admins reversing the same row must not
+            // take the amount off the balance twice.
+            const statement = await tx.credit_statements.findUniqueOrThrow({ where: { id } })
+            if (statement.reversed_by !== null) {
+                throw new BadRequestException(`Statement already reversed by ${statement.reversed_by}`)
+            }
+            if (statement.reversal_of !== null) {
+                throw new BadRequestException("A reversal cannot itself be reversed")
+            }
+            const amount = toNumber(statement.amount_precise)
+            const before = await tx.users.findUniqueOrThrow({
+                where: { username_in_be: statement.user },
+                select: { current_credit_balance_precise: true },
+            })
+
+            const after = await this.adjustUserBalance(tx, statement.user, -amount)
+
+            const reversal = await tx.credit_statements.create({
+                data: {
+                    user: statement.user,
+                    type: credit_statement_type.top_up,
+                    amount: legacyInt(-amount),
+                    amount_precise: -amount,
+                    balance: after.current_credit_balance,
+                    balance_precise: after.current_credit_balance_precise,
+                    order_id: statement.order_id,
+                    reversal_of: statement.id,
+                },
+            })
+            await tx.credit_statements.update({ where: { id: statement.id }, data: { reversed_by: reversal.id } })
+
+            const order = statement.order_id
+                ? await tx.orders.findUnique({ where: { order_id: statement.order_id } })
+                : null
+            const orderCancelled = Boolean(order?.is_credit_top_up)
+            if (orderCancelled) {
+                await tx.orders.update({
+                    where: { order_id: order.order_id },
+                    data: { current_status: OrderStatus.CANCELLED, cancelled_time: new Date() },
+                })
+            }
+
+            const balanceBefore = toNumber(before.current_credit_balance_precise)
+            const balanceAfter = toNumber(after.current_credit_balance_precise)
+            await tx.admin_logs.create({
+                data: {
+                    action: "reverse_credit_statement",
+                    user: admin.usernameShorted,
+                    // Through JSON so Decimal columns land as strings, not objects.
+                    data: JSON.parse(
+                        JSON.stringify({
+                            reason,
+                            statement_id: statement.id,
+                            reversal_id: reversal.id,
+                            order_id: statement.order_id,
+                            order_cancelled: orderCancelled,
+                            amount,
+                            balance_before: balanceBefore,
+                            balance_after: balanceAfter,
+                        }),
+                    ),
+                },
+            })
+            this.logger.warn(
+                `Admin ${admin.usernameShorted} reversed top_up statement ${id} (${amount}) of ${statement.user} as ${reversal.id}: ${reason}`,
+            )
+
+            return {
+                statement_id: statement.id,
+                reversal_id: reversal.id,
+                user: statement.user,
+                amount,
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                order_id: statement.order_id ?? null,
+                order_cancelled: orderCancelled,
+            }
+        })
     }
 
     async issueFreeCredit(
