@@ -1,89 +1,19 @@
-import { BadRequestException, Injectable } from "@nestjs/common"
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common"
 import { UserJwtExtractDto } from "src/user/user.controller"
-import { MintNftReqDto, MyNftReqDto, NftDetailResDto, NftMintJobDataDto } from "./nft.dto"
+import { MyNftReqDto, NftDetailResDto } from "./nft.dto"
 import { PrismaService } from "src/common/prisma.service"
-import { InjectQueue } from "@nestjs/bullmq"
-import { Queue } from "bullmq"
-import { GiggleService } from "src/web3/giggle/giggle.service"
-import { v4 as uuidv4 } from "uuid"
-import { UserService } from "src/user/user.service"
 import { Prisma, user_nfts } from "@prisma/client"
 import { isEmail } from "class-validator"
 
 @Injectable()
 export class NftService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly giggleService: GiggleService,
-        private readonly userService: UserService,
-        @InjectQueue("nft-mint-queue") private readonly nftMintQueue: Queue,
-    ) {}
-    async mintNft(user: UserJwtExtractDto, body: MintNftReqDto) {
-        //check balance
-        const userProfile = await this.userService.getProfile(user)
-        const userUsdtBalance = await this.giggleService.getUsdcBalance(user)
-        if (userUsdtBalance.balance < 6) {
-            throw new BadRequestException("Insufficient balance for minting nft, top-up least 6 USDC")
-        }
-
-        //check cover asset
-        const coverAsset = await this.prisma.assets.findUnique({
-            where: { asset_id: body.cover_asset_id, type: "image", user: user.usernameShorted },
-        })
-        if (!coverAsset) {
-            throw new BadRequestException("Cover asset not found or not an image")
-        }
-
-        //check video asset
-        if (body?.video_asset_id) {
-            const videoAsset = await this.prisma.assets.findUnique({
-                where: { asset_id: body.video_asset_id, type: "video", user: user.usernameShorted },
-            })
-            if (!videoAsset) {
-                throw new BadRequestException("Video asset not found or not a video")
-            }
-        }
-
-        const userDetail = await this.prisma.users.findUnique({
-            where: { username_in_be: user.usernameShorted },
-        })
-
-        const jobId = uuidv4()
-
-        //create data in db
-        const nft = await this.prisma.$transaction(async (tx) => {
-            const nft = await tx.user_nfts.create({
-                data: {
-                    user: user.usernameShorted,
-                    collection: userDetail.collection,
-                    status: "pending",
-                    mint_task_id: jobId,
-                    cover_asset_id: body.cover_asset_id,
-                    video_asset_id: body?.video_asset_id,
-                    widget_tag: userProfile?.widget_info?.widget_tag,
-                    app_id: userProfile?.widget_info?.app_id,
-                },
-            })
-
-            //put it to queue
-            await this.nftMintQueue.add(
-                "mint-nft",
-                {
-                    user: user.usernameShorted,
-                    collection: userDetail.collection,
-                    cover_asset_id: body.cover_asset_id,
-                    video_asset_id: body?.video_asset_id,
-                    name: body.name,
-                    description: body.description,
-                } as NftMintJobDataDto,
-                {
-                    jobId: jobId,
-                },
-            )
-            return nft
-        })
-
-        return this.mapNftDetail(nft)
+    constructor(private readonly prisma: PrismaService) {}
+    /** NFT minting is retired: it was the only Redis/BullMQ consumer left and had
+     *  no users, so the queue was removed along with the worker. The endpoint stays
+     *  registered so existing clients get a clear 503 instead of a 404, and
+     *  GET /api/v1/nft/my keeps serving the historical records. */
+    async mintNft(): Promise<never> {
+        throw new ServiceUnavailableException("NFT minting is no longer available")
     }
 
     async getMyNfts(req: UserJwtExtractDto, query: MyNftReqDto) {

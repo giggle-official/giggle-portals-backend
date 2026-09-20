@@ -1,6 +1,5 @@
-import { forwardRef, Module, Provider } from "@nestjs/common"
+import { forwardRef, Module } from "@nestjs/common"
 import { HttpModule } from "@nestjs/axios"
-import { BullModule } from "@nestjs/bullmq"
 import { GiggleController } from "./giggle/giggle.controller"
 import { GiggleService } from "./giggle/giggle.service"
 import { AssetsModule } from "src/assets/assets.module"
@@ -16,31 +15,20 @@ import { LaunchAgentService } from "./launch-agent/launch-agent.service"
 import { LaunchAgentController } from "./launch-agent/launch-agent.controller"
 import { NftController } from "./nft/nft.controller"
 import { NftService } from "./nft/nft.service"
-import { NftMintQueue } from "./nft/nft-mint.queue"
 import { PaymentModule } from "src/payment/payment.module"
 import { CacheModule } from "@nestjs/cache-manager"
 import { ClawfarmController } from "./clawfarm/clawfarm.controller"
-
-//enable ipfs upload queue only on task slot 1
-const queueProviders: Provider[] = []
-if (process.env.TASK_SLOT == "1") {
-    queueProviders.push(NftMintQueue)
-}
 
 @Module({
     imports: [
         CacheModule.register(),
         HttpModule,
-        BullModule.registerQueue({
-            name: "nft-mint-queue",
-        }),
         forwardRef(() => AssetsModule),
         forwardRef(() => UserModule),
         forwardRef(() => IpLibraryModule),
         forwardRef(() => PaymentModule),
     ],
     providers: [
-        ...queueProviders,
         GiggleService,
         PrismaService,
         UtilitiesService,

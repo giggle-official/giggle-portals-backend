@@ -38,8 +38,6 @@ import { createReadStream } from "fs"
 import * as cliProgress from "cli-progress"
 import { HttpService } from "@nestjs/axios"
 import { lastValueFrom } from "rxjs"
-import { InjectQueue, Processor } from "@nestjs/bullmq"
-import { Queue } from "bullmq"
 import { PinataSDK } from "pinata-web3"
 
 const ffmpeg = require("fluent-ffmpeg")
@@ -58,9 +56,6 @@ export class AssetsService {
         private readonly userService: UserService,
 
         private readonly httpService: HttpService,
-
-        @InjectQueue("ipfs-upload-queue")
-        private readonly ipfsUploadQueue: Queue,
     ) {}
 
     async getAssets(user: UserJwtExtractDto, query: AssetListReqDto): Promise<AssetsListResDto> {
@@ -283,15 +278,6 @@ export class AssetsService {
                     exported_by_task_id: body instanceof UploadedByTaskDto ? body.task_id : null,
                 },
             })
-            //put asset to ipfs queue
-            //await this.ipfsUploadQueue.add(
-            //    "uploadAssetToIpfs",
-            //    { asset_id: created.asset_id },
-            //    {
-            //        jobId: created.asset_id,
-            //        attempts: 3,
-            //    },
-            //)
             return await this.getAsset(userInfo, created.asset_id)
         } catch (error) {
             this.logger.error(
