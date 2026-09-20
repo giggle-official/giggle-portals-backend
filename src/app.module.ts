@@ -18,15 +18,6 @@ import { DashboardModule } from "./dashboard/dashboard.module"
 import { DocsModule } from "./docs/docs.module"
 import { StatsModule } from "./stats/stats.module"
 import { CookieModule } from "./cookie/cookie.module"
-import { BullModule } from "@nestjs/bullmq"
-import { Cluster } from "ioredis"
-
-const redisConnection = {
-    username: process.env.REDIS_USER,
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT),
-    password: process.env.REDIS_PASSWORD,
-}
 
 @Module({
     imports: [
@@ -51,29 +42,6 @@ const redisConnection = {
         DocsModule,
         StatsModule,
         CookieModule,
-        //queue
-        BullModule.forRoot({
-            connection:
-                process.env.REDIS_MODE === "cluster"
-                    ? new Cluster(
-                          [
-                              {
-                                  host: redisConnection.host,
-                                  port: redisConnection.port,
-                              },
-                          ],
-                          {
-                              dnsLookup: (address, callback) => callback(null, address),
-                              redisOptions: {
-                                  tls: {},
-                                  username: redisConnection.username,
-                                  password: redisConnection.password,
-                              },
-                          },
-                      )
-                    : redisConnection,
-            prefix: process.env.REDIS_PREFIX,
-        }),
     ],
     controllers: [AppController],
     providers: [AppService],

@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common"
-import { MintNftReqDto, MyNftListResDto, MyNftReqDto, NftDetailResDto } from "./nft.dto"
+import { Controller, Get, Post, Query, Req, UseGuards } from "@nestjs/common"
+import { MyNftListResDto, MyNftReqDto } from "./nft.dto"
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { NftService } from "./nft.service"
 import { AuthGuard } from "@nestjs/passport"
@@ -13,15 +13,15 @@ export class NftController {
 
     @Post("/mint")
     @ApiOperation({
-        summary: "Mint a nft from an asset",
-        description:
-            "Mint a nft from an asset, you must use our asset service to upload the asset first, this api will create a task id, you can use the task id to retrieve the nft minting status",
+        summary: "Mint a nft from an asset (retired)",
+        description: "NFT minting has been retired. This endpoint always responds 503.",
+        deprecated: true,
     })
     @ApiBearerAuth()
-    @ApiResponse({ type: NftDetailResDto })
+    @ApiResponse({ status: 503, description: "NFT minting is no longer available" })
     @UseGuards(AuthGuard("jwt"))
-    async mint(@Req() req: Request, @Body() body: MintNftReqDto) {
-        return await this.nftService.mintNft(req.user as UserJwtExtractDto, body)
+    async mint() {
+        return await this.nftService.mintNft()
     }
 
     @Get("/my")
