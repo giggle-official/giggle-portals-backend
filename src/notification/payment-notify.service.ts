@@ -14,6 +14,9 @@ export class PaymentNotifyService {
     /** Top-ups strictly above this many credits are announced. */
     static readonly DEFAULT_LARGE_TOPUP_THRESHOLD = 10_000
 
+    /** Transfers strictly above this many credits are announced. */
+    static readonly DEFAULT_LARGE_TRANSFER_THRESHOLD = 10_000
+
     largeTopUpThreshold(): number {
         const raw = process.env.LARGE_TOPUP_NOTIFY_THRESHOLD
         const parsed = raw === undefined || raw === "" ? NaN : Number(raw)
@@ -22,6 +25,38 @@ export class PaymentNotifyService {
 
     isLargeTopUp(credits: number): boolean {
         return credits > this.largeTopUpThreshold()
+    }
+
+    largeTransferThreshold(): number {
+        const raw = process.env.LARGE_TRANSFER_NOTIFY_THRESHOLD
+        const parsed = raw === undefined || raw === "" ? NaN : Number(raw)
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : PaymentNotifyService.DEFAULT_LARGE_TRANSFER_THRESHOLD
+    }
+
+    isLargeTransfer(credits: number): boolean {
+        return credits > this.largeTransferThreshold()
+    }
+
+    /**
+     * A transfer moves credit between accounts without any money entering the
+     * system, which makes it the cheapest way to move a balance somewhere it was
+     * never bought. Large ones are worth a human glance.
+     */
+    async notifyLargeTransfer(event: {
+        transfer_id: string
+        from_email: string | null
+        from_user: string
+        to_email: string | null
+        to_user: string
+        credits: number
+    }): Promise<void> {
+        const text = [
+            `:arrows_counterclockwise: **Large credit transfer: ${formatCredits(event.credits)} credits**`,
+            `- from: ${event.from_email ?? "(no email)"} (\`${event.from_user}\`)`,
+            `- to: ${event.to_email ?? "(no email)"} (\`${event.to_user}\`)`,
+            `- transfer: \`${event.transfer_id}\``,
+        ].join("\n")
+        await this.post(text)
     }
 
     async notifyLargeTopUp(event: {

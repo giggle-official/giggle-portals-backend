@@ -39,6 +39,7 @@ export async function cleanupFixtures(): Promise<void> {
     const tag = { startsWith: PREFIX }
 
     await p.widget_consumption_snapshots.deleteMany({ where: { user } })
+    await p.credit_transfers.deleteMany({ where: { OR: [{ from_user: user }, { to_user: user }] } })
     await p.credit_line_statements.deleteMany({ where: { user } })
     await p.user_credit_lines.deleteMany({ where: { user } })
     await p.credit_statements.deleteMany({ where: { user } })
@@ -102,6 +103,7 @@ export async function leftoverFixtures(): Promise<Record<string, number>> {
     const user = { startsWith: PREFIX }
     const [
         snapshots,
+        transfers,
         lineStatements,
         lines,
         statements,
@@ -114,6 +116,7 @@ export async function leftoverFixtures(): Promise<Record<string, number>> {
         users,
     ] = await Promise.all([
         p.widget_consumption_snapshots.count({ where: { user } }),
+        p.credit_transfers.count({ where: { OR: [{ from_user: user }, { to_user: user }] } }),
         p.credit_line_statements.count({ where: { user } }),
         p.user_credit_lines.count({ where: { user } }),
         p.credit_statements.count({ where: { user } }),
@@ -127,6 +130,7 @@ export async function leftoverFixtures(): Promise<Record<string, number>> {
     ])
     return {
         widget_consumption_snapshots: snapshots,
+        credit_transfers: transfers,
         credit_line_statements: lineStatements,
         user_credit_lines: lines,
         credit_statements: statements,
