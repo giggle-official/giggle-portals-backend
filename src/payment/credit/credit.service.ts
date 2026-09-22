@@ -4,11 +4,15 @@ import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import {
     AdminReverseStatementDto,
     AdminReverseStatementResponseDto,
+    AdminSetTransferLimitDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
     PayTopUpOrderDto,
     TopUpDto,
+    TransferCreditDto,
+    TransferCreditResponseDto,
+    TransferLimitDto,
     UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
     WidgetConsumptionQueryDto,
@@ -36,6 +40,21 @@ import { legacyInt, Numeric, roundCredits, toNumber } from "src/payment/money"
  * MariaDB hands SUM()/COUNT() back as string, number or bigint depending on the
  * column type, so every numeric field is normalised through `toNumber`.
  */
+/** Caps applied to a transfer when the account carries no override of its own. */
+export const DEFAULT_TRANSFER_MAX_AMOUNT = 100_000
+export const DEFAULT_TRANSFER_MAX_DAILY_COUNT = 20
+
+/** A transfer takes two account locks; give it room on a loaded instance. */
+const TRANSFER_TX_TIMEOUT_MS = 15_000
+const TRANSFER_TX_MAX_WAIT_MS = 10_000
+
+/** Midnight of `now` in the server's own timezone, which is how the daily cap is counted. */
+function startOfDay(now: Date = new Date()): Date {
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    return start
+}
+
 type SqlNumeric = Numeric
 
 interface FreeIssueStatRow {
@@ -500,6 +519,24 @@ export class CreditService {
             where,
         })
 
+        // Transfer rows store the counterparty as a user id, which is stable but
+        // means nothing to a reader. Resolve the page's ids to emails in one query
+        // rather than joining every statement to `users` for the sake of the few
+        // rows that are transfers.
+        const peerIds = Array.from(
+            new Set(statements.map((statement) => statement.transfer_peer).filter((peer): peer is string => !!peer)),
+        )
+        const peerEmails = new Map(
+            peerIds.length === 0
+                ? []
+                : (
+                      await this.prisma.users.findMany({
+                          where: { username_in_be: { in: peerIds } },
+                          select: { username_in_be: true, email: true },
+                      })
+                  ).map((peer) => [peer.username_in_be, peer.email]),
+        )
+
         return {
             statements: statements.map((statement) => ({
                 id: statement.id,
@@ -523,6 +560,8 @@ export class CreditService {
                 balance_precise: toNumber(statement.balance_precise),
                 reversal_of: statement.reversal_of ?? null,
                 reversed_by: statement.reversed_by ?? null,
+                transfer_peer: statement.transfer_peer ?? null,
+                transfer_peer_email: statement.transfer_peer ? (peerEmails.get(statement.transfer_peer) ?? null) : null,
                 created_at: statement.created_at,
                 updated_at: statement.updated_at,
                 // Expose the free-credit issuer's note so refund / bonus
@@ -659,9 +698,11 @@ export class CreditService {
             allowFreeCredit: boolean
             statementType: credit_statement_type
             orderId: string | null
+            /** Set on a transfer: the account on the other side of it. */
+            transferPeer?: string | null
         },
     ): Promise<{ free_credit_consumed: number }> {
-        const { allowFreeCredit, statementType, orderId } = options
+        const { allowFreeCredit, statementType, orderId, transferPeer = null } = options
 
         let needCreditConsumed = amount
         let freeCreditConsumed = 0
@@ -731,6 +772,7 @@ export class CreditService {
                     is_subscription_credit: true,
                     subscription_credit_issue_id: subscriptionCredit.id,
                     order_id: orderId,
+                    transfer_peer: transferPeer,
                 },
             })
         }
@@ -751,6 +793,7 @@ export class CreditService {
                     balance: userBalanceUpdated.current_credit_balance,
                     balance_precise: userBalanceUpdated.current_credit_balance_precise,
                     order_id: orderId,
+                    transfer_peer: transferPeer,
                 },
             })
         }
@@ -790,6 +833,7 @@ export class CreditService {
                         balance_precise: userBalanceUpdated.current_credit_balance_precise,
                         is_free_credit: true,
                         order_id: orderId,
+                        transfer_peer: transferPeer,
                         free_credit_issue_id: freeCredit.id,
                     },
                 })
@@ -1179,6 +1223,256 @@ export class CreditService {
      * Only `top_up` rows: every other type also moved a free or subscription
      * bucket, or an order's paid status, and a reversal would not unwind those.
      */
+    /**
+     * Moves credit from one account to another, the way a bank transfer moves
+     * money: it either lands whole or not at all.
+     *
+     * Only paid and subscription credit moves. Free credit is a gift, and the rule
+     * that keeps it from servicing a credit line debt keeps it from being given
+     * away too, so the transferable amount is exactly `getRepayableBalance`.
+     *
+     * The sender's side walks the balance buckets rather than just decrementing
+     * the total, for the same reason a credit line repayment does: subscription
+     * credit is held per issue row, and taking it off the total alone would leave
+     * the issue rows holding credit the balance no longer has, which the buckets
+     * would then happily spend a second time.
+     *
+     * The recipient's side is plain paid credit with no issue row of its own. They
+     * never subscribed to anything, and paid credit is the residual left when the
+     * free and subscription buckets are taken out of the balance, so it needs no
+     * voucher.
+     */
+    async transferCredit(body: TransferCreditDto, userInfo: UserJwtExtractDto): Promise<TransferCreditResponseDto> {
+        const amount = roundCredits(body.amount)
+
+        const sender = await this.prisma.users.findUnique({ where: { username_in_be: userInfo.usernameShorted } })
+        if (!sender) throw new BadRequestException("User not found")
+
+        // The recipient must already exist. `payTopUpOrder` creates an account for
+        // an unknown email, but doing that here would mean a typo silently funds a
+        // ghost account that nobody can sign into and the credit cannot be got back.
+        const recipient = await this.prisma.users.findUnique({ where: { email: body.to_email } })
+        if (!recipient) throw new BadRequestException("Recipient account not found")
+        if (recipient.username_in_be === sender.username_in_be) {
+            throw new BadRequestException("Cannot transfer credit to yourself")
+        }
+
+        const limits = this.effectiveTransferLimits(sender)
+        if (amount > limits.maxAmount) {
+            throw new BadRequestException(`A single transfer may not exceed ${limits.maxAmount} credits`)
+        }
+
+        // Answer the ordinary retry without taking any locks. The authoritative
+        // check is inside the transaction; this one only keeps a client that
+        // retries on a timeout from queueing behind the account lock.
+        const replayed = await this.prisma.credit_transfers.findFirst({
+            where: { from_user: sender.username_in_be, request_id: body.request_id },
+        })
+        if (replayed) return this.describeTransfer(replayed, body.to_email, true)
+
+        const transferId = uuidv4() as string
+        const now = new Date()
+
+        const { transfer, duplicate } = await this.prisma.$transaction(
+            async (tx) => {
+                // Both accounts, locked in a fixed order. Two people transferring to
+                // each other at the same moment would otherwise each hold the row the
+                // other one needs.
+                const ordered = [sender.username_in_be, recipient.username_in_be].sort()
+                for (const account of ordered) {
+                    await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${account} FOR UPDATE`
+                }
+
+                const underLock = await tx.credit_transfers.findFirst({
+                    where: { from_user: sender.username_in_be, request_id: body.request_id },
+                })
+                if (underLock) return { transfer: underLock, duplicate: true }
+
+                const sentToday = await tx.credit_transfers.count({
+                    where: { from_user: sender.username_in_be, created_at: { gte: startOfDay(now) } },
+                })
+                if (sentToday >= limits.maxDailyCount) {
+                    throw new BadRequestException(
+                        `Daily transfer limit reached: ${limits.maxDailyCount} transfers per day`,
+                    )
+                }
+
+                const transferable = await this.getRepayableBalance(sender.username_in_be, tx)
+                if (transferable < amount) {
+                    throw new BadRequestException(
+                        "Insufficient transferable credit. Free credit cannot be transferred.",
+                    )
+                }
+
+                await this.spendBalanceBuckets(tx, sender.username_in_be, amount, {
+                    allowFreeCredit: false,
+                    statementType: credit_statement_type.transfer_out,
+                    orderId: transferId,
+                    transferPeer: recipient.username_in_be,
+                })
+
+                const recipientBalance = await this.adjustUserBalance(tx, recipient.username_in_be, amount)
+                await tx.credit_statements.create({
+                    data: {
+                        user: recipient.username_in_be,
+                        type: credit_statement_type.transfer_in,
+                        amount: legacyInt(amount),
+                        amount_precise: amount,
+                        balance: recipientBalance.current_credit_balance,
+                        balance_precise: recipientBalance.current_credit_balance_precise,
+                        order_id: transferId,
+                        transfer_peer: sender.username_in_be,
+                    },
+                })
+
+                const created = await tx.credit_transfers.create({
+                    data: {
+                        transfer_id: transferId,
+                        from_user: sender.username_in_be,
+                        to_user: recipient.username_in_be,
+                        amount: legacyInt(amount),
+                        amount_precise: amount,
+                        request_id: body.request_id,
+                        memo: body.memo ?? null,
+                    },
+                })
+                return { transfer: created, duplicate: false }
+            },
+            // The default 5s is not enough head room on an instance where an
+            // unrelated report can stall ordinary statements for seconds.
+            { timeout: TRANSFER_TX_TIMEOUT_MS, maxWait: TRANSFER_TX_MAX_WAIT_MS },
+        )
+
+        if (!duplicate) {
+            this.logger.log(
+                `Credit transfer ${transferId}: ${amount} from ${sender.username_in_be} to ${recipient.username_in_be}`,
+            )
+            if (this.paymentNotify.isLargeTransfer(amount)) {
+                await this.paymentNotify.notifyLargeTransfer({
+                    transfer_id: transferId,
+                    from_email: sender.email,
+                    from_user: sender.username_in_be,
+                    to_email: recipient.email,
+                    to_user: recipient.username_in_be,
+                    credits: amount,
+                })
+            }
+        }
+
+        return this.describeTransfer(transfer, body.to_email, duplicate)
+    }
+
+    /**
+     * What this account may transfer right now, and what it has already sent
+     * today. The form needs all four figures to be drawable before the user types
+     * anything.
+     */
+    async getTransferLimit(userId: string): Promise<TransferLimitDto> {
+        const user = await this.prisma.users.findUnique({ where: { username_in_be: userId } })
+        if (!user) throw new BadRequestException("User not found")
+
+        const [usedToday, transferable] = await Promise.all([
+            this.prisma.credit_transfers.count({
+                where: { from_user: userId, created_at: { gte: startOfDay() } },
+            }),
+            this.getRepayableBalance(userId),
+        ])
+        const limits = this.effectiveTransferLimits(user)
+
+        return {
+            max_amount: limits.maxAmount,
+            max_daily_count: limits.maxDailyCount,
+            used_today: usedToday,
+            transferable_precise: transferable,
+            transferable: Math.floor(transferable),
+        }
+    }
+
+    /**
+     * Raises or lowers one account's transfer caps. `null` clears an override and
+     * puts the account back on the global default.
+     */
+    async adminSetTransferLimit(
+        userId: string,
+        body: AdminSetTransferLimitDto,
+        admin: UserJwtExtractDto,
+    ): Promise<TransferLimitDto> {
+        if (body.max_amount === undefined && body.max_daily_count === undefined) {
+            throw new BadRequestException("Nothing to change")
+        }
+        const user = await this.prisma.users.findUnique({ where: { username_in_be: userId } })
+        if (!user) throw new NotFoundException("User not found")
+
+        await this.prisma.users.update({
+            where: { username_in_be: userId },
+            data: {
+                ...(body.max_amount !== undefined && { transfer_max_amount: body.max_amount }),
+                ...(body.max_daily_count !== undefined && { transfer_max_daily_count: body.max_daily_count }),
+            },
+        })
+        await this.prisma.admin_logs.create({
+            data: {
+                action: "set_transfer_limit",
+                user: admin.usernameShorted,
+                data: {
+                    target_user: userId,
+                    max_amount: body.max_amount ?? null,
+                    max_daily_count: body.max_daily_count ?? null,
+                },
+            },
+        })
+        this.logger.warn(`Admin ${admin.usernameShorted} changed the transfer limits of ${userId}`)
+
+        return this.getTransferLimit(userId)
+    }
+
+    /**
+     * The caps in force for one account: its own overrides where set, the global
+     * defaults everywhere else.
+     */
+    private effectiveTransferLimits(user: {
+        transfer_max_amount: Prisma.Decimal | null
+        transfer_max_daily_count: number | null
+    }): { maxAmount: number; maxDailyCount: number } {
+        const fromEnv = (raw: string | undefined, fallback: number) => {
+            const parsed = raw === undefined || raw === "" ? NaN : Number(raw)
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+        }
+        return {
+            maxAmount:
+                user.transfer_max_amount === null
+                    ? fromEnv(process.env.CREDIT_TRANSFER_MAX_AMOUNT, DEFAULT_TRANSFER_MAX_AMOUNT)
+                    : toNumber(user.transfer_max_amount),
+            maxDailyCount:
+                user.transfer_max_daily_count ??
+                fromEnv(process.env.CREDIT_TRANSFER_MAX_DAILY_COUNT, DEFAULT_TRANSFER_MAX_DAILY_COUNT),
+        }
+    }
+
+    /**
+     * The sender's balance is read fresh rather than recorded on the transfer, so
+     * on a replay it is the balance now rather than the balance the original
+     * transfer left behind.
+     */
+    private async describeTransfer(
+        transfer: { transfer_id: string; amount_precise: Prisma.Decimal; from_user: string; created_at: Date | null },
+        toEmail: string,
+        duplicate: boolean,
+    ): Promise<TransferCreditResponseDto> {
+        const { total_credit_balance, total_credit_balance_precise } = await this.getUserCredits(transfer.from_user)
+        const amount = toNumber(transfer.amount_precise)
+        return {
+            transfer_id: transfer.transfer_id,
+            to_email: toEmail,
+            amount_precise: amount,
+            amount: legacyInt(amount),
+            balance_after_precise: total_credit_balance_precise,
+            balance_after: total_credit_balance,
+            duplicate,
+            created_at: transfer.created_at ?? new Date(),
+        }
+    }
+
     async adminReverseStatement(
         id: number,
         body: AdminReverseStatementDto,

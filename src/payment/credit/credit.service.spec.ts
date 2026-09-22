@@ -69,13 +69,19 @@ describe("CreditService - Subscription Credit", () => {
 
     // Transaction mock
     let mockTx: any
-    let mockPaymentNotify: { isLargeTopUp: jest.Mock; notifyLargeTopUp: jest.Mock }
+    let mockPaymentNotify: {
+        isLargeTopUp: jest.Mock
+        notifyLargeTopUp: jest.Mock
+        isLargeTransfer: jest.Mock
+        notifyLargeTransfer: jest.Mock
+    }
 
     beforeEach(async () => {
         mockTx = {
             users: {
                 update: jest.fn(),
                 findUnique: jest.fn(),
+                findFirst: jest.fn(),
             },
             widget_subscription_credit_issues: {
                 findMany: jest.fn(),
@@ -95,6 +101,11 @@ describe("CreditService - Subscription Credit", () => {
             credit_statements: {
                 create: jest.fn(),
                 findMany: jest.fn(),
+            },
+            credit_transfers: {
+                findFirst: jest.fn().mockResolvedValue(null),
+                count: jest.fn().mockResolvedValue(0),
+                create: jest.fn(),
             },
             free_credit_issues: {
                 findMany: jest.fn(),
@@ -128,6 +139,13 @@ describe("CreditService - Subscription Credit", () => {
                 count: jest.fn(),
                 create: jest.fn(),
             },
+            credit_transfers: {
+                findFirst: jest.fn().mockResolvedValue(null),
+                count: jest.fn().mockResolvedValue(0),
+            },
+            admin_logs: {
+                create: jest.fn(),
+            },
             free_credit_issues: {
                 findMany: jest.fn(),
             },
@@ -155,6 +173,8 @@ describe("CreditService - Subscription Credit", () => {
         mockPaymentNotify = {
             isLargeTopUp: jest.fn().mockReturnValue(false),
             notifyLargeTopUp: jest.fn().mockResolvedValue(undefined),
+            isLargeTransfer: jest.fn().mockReturnValue(false),
+            notifyLargeTransfer: jest.fn().mockResolvedValue(undefined),
         }
 
         const module: TestingModule = await Test.createTestingModule({
@@ -1174,4 +1194,206 @@ describe("CreditService - Subscription Credit", () => {
             expect(mockTx.users.update).not.toHaveBeenCalled()
         })
     })
+
+    describe("transferCredit", () => {
+        const sender = { ...mockUser, transfer_max_amount: null, transfer_max_daily_count: null }
+        const recipient = {
+            id: 2,
+            username_in_be: "aaa_recipient",
+            email: "friend@example.com",
+            ...userRow(0),
+            transfer_max_amount: null,
+            transfer_max_daily_count: null,
+        }
+        const asSender = { usernameShorted: "test_user_123" } as any
+        const body = { to_email: "friend@example.com", amount: 300, request_id: "req-1" }
+
+        beforeEach(() => {
+            ;(prisma.users.findUnique as jest.Mock).mockImplementation(({ where }: any) =>
+                where.email === "friend@example.com" || where.username_in_be === "aaa_recipient"
+                    ? recipient
+                    : where.username_in_be === "test_user_123"
+                      ? sender
+                      : null,
+            )
+            mockTx.$queryRaw = jest.fn().mockResolvedValue([{ id: 1 }])
+            // The sender holds 1000, none of it free, so all of it may be transferred.
+            mockTx.users.findFirst.mockResolvedValue({ ...sender, ...userRow(1000) })
+            mockTx.free_credit_issues.findMany.mockResolvedValue([])
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([])
+            mockTx.users.update.mockResolvedValue({ ...sender, ...userRow(700) })
+            mockTx.credit_statements.create.mockResolvedValue({ id: 1 })
+            mockTx.credit_transfers.create.mockResolvedValue({
+                transfer_id: "t-1",
+                from_user: "test_user_123",
+                amount_precise: 300,
+                created_at: new Date("2026-09-22T00:00:00Z"),
+            })
+            ;(prisma.users.findFirst as jest.Mock).mockResolvedValue({ ...sender, ...userRow(700) })
+            ;(prisma.free_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+        })
+
+        it("debits the sender through the buckets and credits the recipient as plain paid credit", async () => {
+            const result = await service.transferCredit(body as any, asSender)
+
+            const creates = mockTx.credit_statements.create.mock.calls.map((c: any[]) => c[0].data)
+            const out = creates.find((d: any) => d.type === credit_statement_type.transfer_out)
+            const incoming = creates.find((d: any) => d.type === credit_statement_type.transfer_in)
+
+            expect(out).toMatchObject({
+                user: "test_user_123",
+                amount_precise: -300,
+                transfer_peer: "aaa_recipient",
+            })
+            // The recipient never subscribed to anything, so nothing marks their row
+            // as subscription or free credit: it is ordinary paid credit.
+            expect(incoming).toMatchObject({
+                user: "aaa_recipient",
+                amount_precise: 300,
+                transfer_peer: "test_user_123",
+            })
+            expect(incoming.is_free_credit).toBeUndefined()
+            expect(incoming.is_subscription_credit).toBeUndefined()
+            // Both legs carry the same transfer id, which is also the log's key.
+            expect(out.order_id).toBe(incoming.order_id)
+            expect(mockTx.credit_transfers.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    from_user: "test_user_123",
+                    to_user: "aaa_recipient",
+                    amount_precise: 300,
+                    amount: 300,
+                    request_id: "req-1",
+                }),
+            })
+            expect(result.duplicate).toBe(false)
+        })
+
+        /** Two people transferring to each other at once deadlock unless the order is fixed. */
+        it("locks both accounts, always in the same order", async () => {
+            await service.transferCredit(body as any, asSender)
+
+            const locked = mockTx.$queryRaw.mock.calls.map((call: any[]) => call[1])
+            expect(locked).toEqual(["aaa_recipient", "test_user_123"])
+        })
+
+        it("refuses to send to yourself", async () => {
+            await expect(
+                service.transferCredit({ ...body, to_email: "test@example.com" } as any, asSender),
+            ).rejects.toThrow(BadRequestException)
+        })
+
+        it("refuses an account that does not exist rather than creating one", async () => {
+            ;(prisma.users.findUnique as jest.Mock).mockImplementation(({ where }: any) =>
+                where.username_in_be === "test_user_123" ? sender : null,
+            )
+            await expect(
+                service.transferCredit({ ...body, to_email: "nobody@example.com" } as any, asSender),
+            ).rejects.toThrow("Recipient account not found")
+            expect(mockTx.credit_transfers.create).not.toHaveBeenCalled()
+        })
+
+        it("refuses more than the per-transfer cap, and reads the cap off the account first", async () => {
+            await expect(service.transferCredit({ ...body, amount: 100_001 } as any, asSender)).rejects.toThrow(
+                /may not exceed 100000/,
+            )
+
+            ;(prisma.users.findUnique as jest.Mock).mockImplementation(({ where }: any) =>
+                where.email === "friend@example.com"
+                    ? recipient
+                    : { ...sender, transfer_max_amount: 50 as never },
+            )
+            await expect(service.transferCredit({ ...body, amount: 60 } as any, asSender)).rejects.toThrow(
+                /may not exceed 50/,
+            )
+        })
+
+        it("refuses once the account has sent its allowance of transfers for the day", async () => {
+            mockTx.credit_transfers.count.mockResolvedValue(20)
+            await expect(service.transferCredit(body as any, asSender)).rejects.toThrow(/Daily transfer limit/)
+            expect(mockTx.credit_transfers.create).not.toHaveBeenCalled()
+        })
+
+        /** Free credit is a gift; it stays with the account it was given to. */
+        it("will not transfer free credit, even though it is inside the balance", async () => {
+            mockTx.users.findFirst.mockResolvedValue({ ...sender, ...userRow(1000) })
+            mockTx.free_credit_issues.findMany.mockResolvedValue([{ id: 7, balance_precise: 800 }])
+
+            await expect(service.transferCredit({ ...body, amount: 300 } as any, asSender)).rejects.toThrow(
+                /Free credit cannot be transferred/,
+            )
+        })
+
+        it("replays a repeated request_id without moving credit again", async () => {
+            ;(prisma.credit_transfers.findFirst as jest.Mock).mockResolvedValue({
+                transfer_id: "t-original",
+                from_user: "test_user_123",
+                amount_precise: 300,
+                created_at: new Date("2026-09-20T00:00:00Z"),
+            })
+
+            const result = await service.transferCredit(body as any, asSender)
+
+            expect(result).toMatchObject({ transfer_id: "t-original", duplicate: true, amount_precise: 300 })
+            expect(prisma.$transaction).not.toHaveBeenCalled()
+            expect(mockTx.credit_statements.create).not.toHaveBeenCalled()
+        })
+
+        it("announces a large transfer with both parties", async () => {
+            mockPaymentNotify.isLargeTransfer.mockReturnValue(true)
+
+            await service.transferCredit(body as any, asSender)
+
+            expect(mockPaymentNotify.notifyLargeTransfer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    from_email: "test@example.com",
+                    from_user: "test_user_123",
+                    to_email: "friend@example.com",
+                    to_user: "aaa_recipient",
+                    credits: 300,
+                }),
+            )
+        })
+    })
+
+    describe("adminSetTransferLimit", () => {
+        const admin = { usernameShorted: "admin_1" } as any
+
+        beforeEach(() => {
+            ;(prisma.users.findUnique as jest.Mock).mockResolvedValue({
+                username_in_be: "test_user_123",
+                transfer_max_amount: null,
+                transfer_max_daily_count: null,
+            })
+            ;(prisma.users.update as jest.Mock).mockResolvedValue({})
+            ;(prisma.users.findFirst as jest.Mock).mockResolvedValue(userRow(500))
+            ;(prisma.free_credit_issues.findMany as jest.Mock).mockResolvedValue([])
+        })
+
+        it("writes the override and logs who changed it", async () => {
+            await service.adminSetTransferLimit("test_user_123", { max_amount: 5000 }, admin)
+
+            expect(prisma.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { transfer_max_amount: 5000 },
+            })
+            expect(prisma.admin_logs.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({ action: "set_transfer_limit", user: "admin_1" }),
+            })
+        })
+
+        /** Null is the way back to the global default, so it must reach the column. */
+        it("clears an override with null instead of ignoring it", async () => {
+            await service.adminSetTransferLimit("test_user_123", { max_daily_count: null }, admin)
+
+            expect(prisma.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { transfer_max_daily_count: null },
+            })
+        })
+
+        it("refuses a body that changes nothing", async () => {
+            await expect(service.adminSetTransferLimit("test_user_123", {}, admin)).rejects.toThrow(BadRequestException)
+        })
+    })
+
 })

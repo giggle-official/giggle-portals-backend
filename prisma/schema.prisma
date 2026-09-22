@@ -36,6 +36,10 @@ model users {
   plan_settings                  Json?
   current_credit_balance         Int?
   current_credit_balance_precise Decimal                       @default(0) @db.Decimal(18, 6)
+  /// Per-transfer cap for this account. NULL falls back to the global default.
+  transfer_max_amount            Decimal?                      @db.Decimal(18, 6)
+  /// Transfers this account may send per day. NULL falls back to the global default.
+  transfer_max_daily_count       Int?
   description                    String?                       @db.Text
   followers                      Int?                          @default(0)
   following                      Int?                          @default(0)
@@ -1175,6 +1179,12 @@ enum credit_statement_type {
   // line keeps its own ledger. New values must be appended at the end of this
   // list, otherwise MySQL rebuilds the whole credit_statements table.
   repay_credit_line
+  // A transfer between two users: `transfer_out` on the sender, `transfer_in` on
+  // the recipient. Both legs carry the same transfer id in `order_id`. The outgoing
+  // leg walks the balance buckets, so one transfer may be several `transfer_out`
+  // rows against exactly one `transfer_in` row.
+  transfer_out
+  transfer_in
 }
 
 enum credit_line_status {
@@ -1265,11 +1275,43 @@ model credit_statements {
   // counts and lists treat `reversal_of IS NULL AND reversed_by IS NULL` as a live top-up.
   reversal_of                  Int?
   reversed_by                  Int?
+  // The other party on a transfer row: the recipient on `transfer_out`, the sender
+  // on `transfer_in`. Denormalised so the statement list can name the counterparty
+  // without joining anything.
+  transfer_peer                String?                            @db.VarChar(32)
   order                        orders?                            @relation(fields: [order_id], references: [order_id])
   free_credit_issue            free_credit_issues?                @relation(fields: [free_credit_issue_id], references: [id])
   subscription_credit_issue    widget_subscription_credit_issues? @relation(fields: [subscription_credit_issue_id], references: [id])
 
   @@index([reversal_of], map: "idx_credit_statements_reversal_of")
+}
+
+/// One row per credit transfer between users.
+///
+/// The two `credit_statements` legs already carry the money, so this table exists
+/// for the two things they cannot answer. Idempotency: a retried request must not
+/// transfer twice, and `(from_user, request_id)` is unique here. Rate limiting:
+/// the daily cap counts transfers, and the outgoing leg may be several statement
+/// rows for one transfer, so counting statement rows would overcount. Both reads
+/// are indexed, which `credit_statements` is not.
+model credit_transfers {
+  id             Int      @id @default(autoincrement())
+  /// Shared by both statement legs as their `order_id`.
+  transfer_id    String   @unique(map: "uk_credit_transfers_transfer_id") @db.VarChar(64)
+  from_user      String   @db.VarChar(32)
+  to_user        String   @db.VarChar(32)
+  /// The floor of `amount_precise`, kept for the same reason every other legacy
+  /// integer column is kept. Never the figure to settle on.
+  amount         Int      @default(0)
+  amount_precise Decimal  @default(0) @db.Decimal(18, 6)
+  /// Caller-supplied idempotency key, unique per sender.
+  request_id     String   @db.VarChar(64)
+  memo           String?  @db.VarChar(255)
+  created_at     DateTime @default(now()) @db.Timestamp(0)
+
+  @@unique([from_user, request_id], map: "uk_credit_transfers_request")
+  @@index([from_user, created_at], map: "idx_credit_transfers_from_created")
+  @@index([to_user, created_at], map: "idx_credit_transfers_to_created")
 }
 
 enum nft_task_status {

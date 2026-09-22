@@ -9,6 +9,10 @@ import {
     IssueFreeCreditDto,
     PayTopUpOrderDto,
     TopUpDto,
+    TransferCreditDto,
+    TransferCreditResponseDto,
+    TransferLimitDto,
+    AdminSetTransferLimitDto,
     UpdateWidgetSubscriptionsDto,
     UserCreditBalanceDto,
     WidgetConsumptionQueryDto,
@@ -51,6 +55,46 @@ export class CreditController {
     @UseGuards(AuthGuard("jwt"))
     async topUp(@Body() body: TopUpDto, @Req() req: Request) {
         return this.creditService.topUp(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/transfer")
+    @ApiTags("Credit")
+    @ApiOperation({
+        summary: "Transfer credit to another account",
+        description:
+            "Moves paid and subscription credit to another account. Free credit cannot be transferred. " +
+            "The recipient must already exist. Send the same `request_id` again to retry safely.",
+        tags: ["Credit"],
+    })
+    @ApiResponse({ type: TransferCreditResponseDto })
+    @ApiBody({ type: TransferCreditDto })
+    @UseGuards(AuthGuard("jwt"))
+    async transferCredit(@Body() body: TransferCreditDto, @Req() req: Request) {
+        return this.creditService.transferCredit(body, req.user as UserJwtExtractDto)
+    }
+
+    @Get("/transfer-limit")
+    @ApiTags("Credit")
+    @ApiOperation({
+        summary: "Transfer caps and what is left of them today",
+        tags: ["Credit"],
+    })
+    @ApiResponse({ type: TransferLimitDto })
+    @UseGuards(AuthGuard("jwt"))
+    async getTransferLimit(@Req() req: Request) {
+        const user = req.user as UserJwtExtractDto
+        return this.creditService.getTransferLimit(user.usernameShorted)
+    }
+
+    @Post("/admin/users/:user/transfer-limit")
+    @ApiExcludeEndpoint()
+    @UseGuards(IsAdminGuard)
+    async adminSetTransferLimit(
+        @Param("user") user: string,
+        @Body() body: AdminSetTransferLimitDto,
+        @Req() req: Request,
+    ) {
+        return this.creditService.adminSetTransferLimit(user, body, req.user as UserJwtExtractDto)
     }
 
     @Get("/statement")

@@ -221,6 +221,19 @@ export class CreditStatementDto implements Omit<credit_statements, "amount_preci
     reversed_by: number | null
 
     @ApiProperty({
+        description:
+            "Set on a transfer row: the other party. The recipient on `transfer_out`, the sender on `transfer_in`.",
+        nullable: true,
+    })
+    transfer_peer: string | null
+
+    @ApiProperty({
+        description: "The other party's email, resolved for display. Null when the account no longer exists.",
+        nullable: true,
+    })
+    transfer_peer_email: string | null
+
+    @ApiProperty({
         description: "The created at of the statement",
     })
     created_at: Date
@@ -306,6 +319,110 @@ export class IssueFreeCreditDto {
     @IsString()
     @IsOptional()
     description?: string
+}
+
+/**
+ * A user-to-user credit transfer.
+ *
+ * Only paid and subscription credit moves. Free credit is a gift and stays with
+ * the account it was given to, the same rule that keeps it from servicing a
+ * credit line debt.
+ */
+export class TransferCreditDto {
+    @ApiProperty({
+        description: "Email of the account to receive the credit. It must already exist; no account is created here.",
+    })
+    @IsEmail()
+    @IsNotEmpty()
+    to_email: string
+
+    @ApiProperty({
+        description:
+            "How much to transfer, up to 6 decimal places. Capped per transfer; see `GET /credit/transfer-limit`.",
+    })
+    @IsPositive()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
+    amount: number
+
+    @ApiProperty({
+        description:
+            "Idempotency key, unique per sender. Replaying it returns the original transfer instead of sending again.",
+    })
+    @IsString()
+    @IsNotEmpty()
+    request_id: string
+
+    @ApiProperty({ description: "Optional note shown on both statements", required: false })
+    @IsString()
+    @IsOptional()
+    memo?: string
+}
+
+export class TransferCreditResponseDto {
+    @ApiProperty({ description: "Id of the transfer, and the `order_id` on both statement legs" })
+    transfer_id: string
+
+    @ApiProperty({ description: "Email of the account that received the credit" })
+    to_email: string
+
+    @ApiProperty({ description: "The exact amount transferred" })
+    amount_precise: number
+
+    @ApiProperty({ description: "The floor of `amount_precise`" })
+    amount: number
+
+    @ApiProperty({ description: "The sender's exact balance after the transfer" })
+    balance_after_precise: number
+
+    @ApiProperty({ description: "The floor of `balance_after_precise`" })
+    balance_after: number
+
+    @ApiProperty({
+        description: "True when this request replayed an existing `request_id`; no credit moved a second time.",
+    })
+    duplicate: boolean
+
+    @ApiProperty({ description: "When the transfer was made" })
+    created_at: Date
+}
+
+export class TransferLimitDto {
+    @ApiProperty({ description: "The largest single transfer this account may send" })
+    max_amount: number
+
+    @ApiProperty({ description: "How many transfers this account may send per day" })
+    max_daily_count: number
+
+    @ApiProperty({ description: "Transfers already sent today" })
+    used_today: number
+
+    @ApiProperty({ description: "How much of the balance may be transferred right now: paid plus subscription credit" })
+    transferable_precise: number
+
+    @ApiProperty({ description: "The floor of `transferable_precise`" })
+    transferable: number
+}
+
+export class AdminSetTransferLimitDto {
+    @ApiProperty({
+        description: "Per-transfer cap for this account. Null clears the override and restores the global default.",
+        required: false,
+        nullable: true,
+    })
+    @IsPositive()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
+    @IsOptional()
+    max_amount?: number | null
+
+    @ApiProperty({
+        description: "Transfers per day for this account. Null clears the override and restores the global default.",
+        required: false,
+        nullable: true,
+    })
+    @IsPositive()
+    @IsNumber({ maxDecimalPlaces: 0 })
+    @IsOptional()
+    max_daily_count?: number | null
 }
 
 export class CreditStatementDetailDto extends OmitType(CreditStatementDto, ["user"]) {

@@ -22,6 +22,8 @@
       "balance_precise": 4700,
       "reversal_of": null,
       "reversed_by": null,
+      "transfer_peer": null,
+      "transfer_peer_email": null,
       "created_at": "<string>",
       "updated_at": "<string>",
       "description": null
