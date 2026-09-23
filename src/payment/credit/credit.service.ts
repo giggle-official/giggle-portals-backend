@@ -1482,6 +1482,7 @@ export class CreditService {
         if (!reason) {
             throw new BadRequestException("A reason is required")
         }
+        const requested = roundCredits(body.amount)
         const found = await this.prisma.credit_statements.findUnique({ where: { id } })
         if (!found) {
             throw new NotFoundException("Statement not found")
@@ -1501,31 +1502,64 @@ export class CreditService {
             if (statement.reversal_of !== null) {
                 throw new BadRequestException("A reversal cannot itself be reversed")
             }
-            const amount = toNumber(statement.amount_precise)
+
+            const statementAmount = toNumber(statement.amount_precise)
+            // What earlier reversals already took off this statement. Derived rather
+            // than stored: the reversal rows are the record, and a counter column
+            // beside them is one more thing that can disagree with them. Read inside
+            // the lock, or two admins each clawing back half could between them take
+            // back more than was ever issued.
+            const alreadyReversed = roundCredits(
+                -toNumber(
+                    (
+                        await tx.credit_statements.aggregate({
+                            _sum: { amount_precise: true },
+                            where: { reversal_of: statement.id },
+                        })
+                    )._sum.amount_precise,
+                ),
+            )
+            const reversible = roundCredits(statementAmount - alreadyReversed)
+            if (requested > reversible) {
+                throw new BadRequestException(
+                    `Cannot reverse ${requested}: only ${reversible} of statement ${statement.id} is left unreversed`,
+                )
+            }
+            const reversedTotal = roundCredits(alreadyReversed + requested)
+            const fullyReversed = reversedTotal === statementAmount
+
             const before = await tx.users.findUniqueOrThrow({
                 where: { username_in_be: statement.user },
                 select: { current_credit_balance_precise: true },
             })
 
-            const after = await this.adjustUserBalance(tx, statement.user, -amount)
+            const after = await this.adjustUserBalance(tx, statement.user, -requested)
 
             const reversal = await tx.credit_statements.create({
                 data: {
                     user: statement.user,
                     type: credit_statement_type.top_up,
-                    amount: legacyInt(-amount),
-                    amount_precise: -amount,
+                    amount: legacyInt(-requested),
+                    amount_precise: -requested,
                     balance: after.current_credit_balance,
                     balance_precise: after.current_credit_balance_precise,
                     order_id: statement.order_id,
                     reversal_of: statement.id,
                 },
             })
-            await tx.credit_statements.update({ where: { id: statement.id }, data: { reversed_by: reversal.id } })
+            // `reversed_by` means "this top-up no longer stands", so it is written
+            // only once nothing of it is left. A partly clawed-back top-up is still a
+            // real top-up and must keep counting as one.
+            if (fullyReversed) {
+                await tx.credit_statements.update({ where: { id: statement.id }, data: { reversed_by: reversal.id } })
+            }
 
-            const order = statement.order_id
-                ? await tx.orders.findUnique({ where: { order_id: statement.order_id } })
-                : null
+            // Same reasoning for the order: it is cancelled only when the whole
+            // top-up goes, never when part of it is clawed back.
+            const order =
+                fullyReversed && statement.order_id
+                    ? await tx.orders.findUnique({ where: { order_id: statement.order_id } })
+                    : null
             const orderCancelled = Boolean(order?.is_credit_top_up)
             if (orderCancelled) {
                 await tx.orders.update({
@@ -1548,7 +1582,10 @@ export class CreditService {
                             reversal_id: reversal.id,
                             order_id: statement.order_id,
                             order_cancelled: orderCancelled,
-                            amount,
+                            amount: requested,
+                            statement_amount: statementAmount,
+                            reversed_total: reversedTotal,
+                            fully_reversed: fullyReversed,
                             balance_before: balanceBefore,
                             balance_after: balanceAfter,
                         }),
@@ -1556,14 +1593,18 @@ export class CreditService {
                 },
             })
             this.logger.warn(
-                `Admin ${admin.usernameShorted} reversed top_up statement ${id} (${amount}) of ${statement.user} as ${reversal.id}: ${reason}`,
+                `Admin ${admin.usernameShorted} reversed ${requested} of ${statementAmount} on top_up statement ${id} ` +
+                    `(${reversedTotal} reversed in total) for ${statement.user} as ${reversal.id}: ${reason}`,
             )
 
             return {
                 statement_id: statement.id,
                 reversal_id: reversal.id,
                 user: statement.user,
-                amount,
+                amount: requested,
+                statement_amount: statementAmount,
+                reversed_total: reversedTotal,
+                fully_reversed: fullyReversed,
                 balance_before: balanceBefore,
                 balance_after: balanceAfter,
                 order_id: statement.order_id ?? null,

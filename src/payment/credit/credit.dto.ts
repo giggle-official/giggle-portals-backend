@@ -704,6 +704,17 @@ export class WidgetConsumptionResponseDto {
 
 export class AdminReverseStatementDto {
     @ApiProperty({
+        description:
+            "How much of the top-up to claw back, up to 6 decimal places. Required: on an endpoint that moves " +
+            "money there is no sensible default, and stating the figure is itself the check. Pass the statement's " +
+            "full amount to reverse it whole. It may not exceed what is left unreversed on the statement.",
+        example: 66600,
+    })
+    @IsPositive()
+    @IsNumber({ maxDecimalPlaces: CREDIT_SCALE })
+    amount: number
+
+    @ApiProperty({
         description: "Why this top-up is being reversed. Stored in admin_logs.",
         example: "ChinaPay callback replay 2026-09-04, payment never made",
     })
@@ -722,8 +733,20 @@ export class AdminReverseStatementResponseDto {
     @ApiProperty({ description: "The user the statement belongs to" })
     user: string
 
-    @ApiProperty({ description: "The credit the top-up carried, now taken off the balance" })
+    @ApiProperty({ description: "The credit taken off the balance by this reversal" })
     amount: number
+
+    @ApiProperty({ description: "The full amount the original top-up carried" })
+    statement_amount: number
+
+    @ApiProperty({ description: "Everything reversed off this statement so far, including this reversal" })
+    reversed_total: number
+
+    @ApiProperty({
+        description:
+            "Whether the statement is now reversed in full. Only then is it marked `reversed_by` and its order cancelled.",
+    })
+    fully_reversed: boolean
 
     @ApiProperty({ description: "The user's precise balance before the reversal" })
     balance_before: number
