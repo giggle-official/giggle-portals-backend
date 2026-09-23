@@ -1076,6 +1076,8 @@ describe("CreditService - Subscription Credit", () => {
             mockTx.credit_statements.findUniqueOrThrow = jest.fn().mockResolvedValue(topUp)
             mockTx.credit_statements.create.mockResolvedValue({ id: 99 })
             mockTx.credit_statements.update = jest.fn().mockResolvedValue({})
+            // Nothing of this top-up has been clawed back yet.
+            mockTx.credit_statements.aggregate = jest.fn().mockResolvedValue({ _sum: { amount_precise: null } })
             mockTx.users.findUniqueOrThrow = jest.fn().mockResolvedValue(userRow(1200))
             mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(-3800) })
             mockTx.orders = {
@@ -1086,13 +1088,16 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("appends a negated top_up linked both ways, takes the amount off the balance, cancels the order, logs it", async () => {
-            const result = await service.adminReverseStatement(42, { reason: "replayed callback" }, admin)
+            const result = await service.adminReverseStatement(42, { amount: 5000, reason: "replayed callback" }, admin)
 
             expect(result).toEqual({
                 statement_id: 42,
                 reversal_id: 99,
                 user: "test_user_123",
                 amount: 5000,
+                statement_amount: 5000,
+                reversed_total: 5000,
+                fully_reversed: true,
                 balance_before: 1200,
                 balance_after: -3800,
                 order_id: "fake-order",
@@ -1133,7 +1138,7 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("locks the user row before touching anything", async () => {
-            await service.adminReverseStatement(42, { reason: "x" }, admin)
+            await service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)
 
             expect(mockTx.$queryRaw.mock.calls[0][0].join("?")).toContain("FOR UPDATE")
             expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
@@ -1144,7 +1149,7 @@ describe("CreditService - Subscription Credit", () => {
         it("leaves an order that is not a top-up order alone", async () => {
             mockTx.orders.findUnique.mockResolvedValue({ order_id: "fake-order", is_credit_top_up: false })
 
-            const result = await service.adminReverseStatement(42, { reason: "x" }, admin)
+            const result = await service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)
 
             expect(result.order_cancelled).toBe(false)
             expect(mockTx.orders.update).not.toHaveBeenCalled()
@@ -1160,7 +1165,7 @@ describe("CreditService - Subscription Credit", () => {
             ]) {
                 ;(prisma.credit_statements.findUnique as jest.Mock).mockResolvedValue({ ...topUp, type })
 
-                await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+                await expect(service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)).rejects.toThrow(
                     "Only top_up statements can be reversed",
                 )
             }
@@ -1170,12 +1175,12 @@ describe("CreditService - Subscription Credit", () => {
         /** Checked under the lock, so two admins cannot reverse the same top-up twice. */
         it("refuses a top-up that is already reversed, and a reversal row itself", async () => {
             mockTx.credit_statements.findUniqueOrThrow.mockResolvedValue({ ...topUp, reversed_by: 77 })
-            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+            await expect(service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)).rejects.toThrow(
                 "already reversed by 77",
             )
 
             mockTx.credit_statements.findUniqueOrThrow.mockResolvedValue({ ...topUp, reversal_of: 41, amount_precise: -5000 })
-            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+            await expect(service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)).rejects.toThrow(
                 "A reversal cannot itself be reversed",
             )
 
@@ -1184,14 +1189,93 @@ describe("CreditService - Subscription Credit", () => {
         })
 
         it("requires a reason and an existing statement", async () => {
-            await expect(service.adminReverseStatement(42, { reason: "  " }, admin)).rejects.toThrow(
+            await expect(service.adminReverseStatement(42, { amount: 5000, reason: "  " }, admin)).rejects.toThrow(
                 "A reason is required",
             )
             ;(prisma.credit_statements.findUnique as jest.Mock).mockResolvedValue(null)
-            await expect(service.adminReverseStatement(42, { reason: "x" }, admin)).rejects.toThrow(
+            await expect(service.adminReverseStatement(42, { amount: 5000, reason: "x" }, admin)).rejects.toThrow(
                 "Statement not found",
             )
             expect(mockTx.users.update).not.toHaveBeenCalled()
+        })
+
+        describe("a part of the statement", () => {
+            /** The 2026-09-23 case: 1,000,000 issued, 66,600 of it a mistake. */
+            it("claws back only the amount asked for and leaves the top-up standing", async () => {
+                mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(1200 - 3000) })
+
+                const result = await service.adminReverseStatement(42, { amount: 3000, reason: "over-issued" }, admin)
+
+                expect(result).toMatchObject({
+                    amount: 3000,
+                    statement_amount: 5000,
+                    reversed_total: 3000,
+                    fully_reversed: false,
+                    order_cancelled: false,
+                })
+                expect(mockTx.users.update).toHaveBeenNthCalledWith(1, {
+                    where: { username_in_be: "test_user_123" },
+                    data: { current_credit_balance_precise: { increment: -3000 } },
+                })
+                expect(mockTx.credit_statements.create).toHaveBeenCalledWith({
+                    data: expect.objectContaining({ amount_precise: -3000, reversal_of: 42 }),
+                })
+                // The top-up mostly stands, so it is not marked reversed and its order
+                // is not cancelled. Marking it would drop it out of the top-up counts.
+                expect(mockTx.credit_statements.update).not.toHaveBeenCalled()
+                expect(mockTx.orders.update).not.toHaveBeenCalled()
+            })
+
+            it("counts what earlier reversals already took, and marks it reversed once nothing is left", async () => {
+                mockTx.credit_statements.aggregate.mockResolvedValue({ _sum: { amount_precise: -3000 } })
+
+                const result = await service.adminReverseStatement(42, { amount: 2000, reason: "rest" }, admin)
+
+                expect(result).toMatchObject({ amount: 2000, reversed_total: 5000, fully_reversed: true })
+                expect(mockTx.credit_statements.update).toHaveBeenCalledWith({
+                    where: { id: 42 },
+                    data: { reversed_by: 99 },
+                })
+                expect(mockTx.orders.update).toHaveBeenCalled()
+            })
+
+            it("refuses more than is left unreversed, and moves nothing when it does", async () => {
+                mockTx.credit_statements.aggregate.mockResolvedValue({ _sum: { amount_precise: -4000 } })
+
+                await expect(
+                    service.adminReverseStatement(42, { amount: 1001, reason: "too much" }, admin),
+                ).rejects.toThrow("only 1000 of statement 42 is left unreversed")
+
+                expect(mockTx.users.update).not.toHaveBeenCalled()
+                expect(mockTx.credit_statements.create).not.toHaveBeenCalled()
+                expect(mockTx.admin_logs.create).not.toHaveBeenCalled()
+            })
+
+            /** Read inside the lock, or two admins each clawing back half take back more than was issued. */
+            it("reads what is already reversed only after taking the account lock", async () => {
+                await service.adminReverseStatement(42, { amount: 1000, reason: "x" }, admin)
+
+                expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                    mockTx.credit_statements.aggregate.mock.invocationCallOrder[0],
+                )
+            })
+
+            it("records the amount and the running total in the admin log", async () => {
+                mockTx.credit_statements.aggregate.mockResolvedValue({ _sum: { amount_precise: -1000 } })
+
+                await service.adminReverseStatement(42, { amount: 500, reason: "partial" }, admin)
+
+                expect(mockTx.admin_logs.create).toHaveBeenCalledWith({
+                    data: expect.objectContaining({
+                        data: expect.objectContaining({
+                            amount: 500,
+                            statement_amount: 5000,
+                            reversed_total: 1500,
+                            fully_reversed: false,
+                        }),
+                    }),
+                })
+            })
         })
     })
 

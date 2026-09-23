@@ -75,7 +75,11 @@ describeItest("admin reverse statement", () => {
         ).map((r) => [r.id, num(r.balance_precise)])
 
         const topUp = await db().credit_statements.findFirstOrThrow({ where: { order_id: phantom } })
-        const result = await credit.adminReverseStatement(topUp.id, { reason: "itest phantom top-up" }, admin)
+        const result = await credit.adminReverseStatement(
+            topUp.id,
+            { amount: 10.5, reason: "itest phantom top-up" },
+            admin,
+        )
 
         expect(result).toMatchObject({
             statement_id: topUp.id,
@@ -138,7 +142,7 @@ describeItest("admin reverse statement", () => {
         expect(await balance()).toBe(9.75)
 
         const topUp = await db().credit_statements.findFirstOrThrow({ where: { order_id: phantom } })
-        const result = await credit.adminReverseStatement(topUp.id, { reason: "itest spent" }, admin)
+        const result = await credit.adminReverseStatement(topUp.id, { amount: 500, reason: "itest spent" }, admin)
 
         expect(result.balance_after).toBe(-490.25)
         expect(await balance()).toBe(-490.25)
@@ -150,19 +154,19 @@ describeItest("admin reverse statement", () => {
         const reversed = await db().credit_statements.findFirstOrThrow({
             where: { user: USER, reversed_by: { not: null } },
         })
-        await expect(credit.adminReverseStatement(reversed.id, { reason: "x" }, admin)).rejects.toThrow(
+        await expect(credit.adminReverseStatement(reversed.id, { amount: 1, reason: "x" }, admin)).rejects.toThrow(
             "already reversed",
         )
 
         const reversal = await db().credit_statements.findFirstOrThrow({
             where: { user: USER, reversal_of: { not: null } },
         })
-        await expect(credit.adminReverseStatement(reversal.id, { reason: "x" }, admin)).rejects.toThrow(
+        await expect(credit.adminReverseStatement(reversal.id, { amount: 1, reason: "x" }, admin)).rejects.toThrow(
             "A reversal cannot itself be reversed",
         )
 
         const consume = await db().credit_statements.findFirstOrThrow({ where: { user: USER, type: "consume" } })
-        await expect(credit.adminReverseStatement(consume.id, { reason: "x" }, admin)).rejects.toThrow(
+        await expect(credit.adminReverseStatement(consume.id, { amount: 1, reason: "x" }, admin)).rejects.toThrow(
             "Only top_up statements can be reversed",
         )
         expect(await chainBreaks()).toBe(0)
@@ -182,5 +186,90 @@ describeItest("admin reverse statement", () => {
                 expect.objectContaining({ amount: 100, reversal_of: null, reversed_by: null }),
             ]),
         )
+    })
+
+    /**
+     * The 2026-09-23 case, in miniature: a top-up that was mostly right. Only the
+     * over-issued part comes back, and the top-up itself has to survive it, or the
+     * 933,400 that was legitimately bought stops counting as a top-up.
+     */
+    describe("clawing back part of a top-up", () => {
+        let statementId: number
+        let orderId: string
+
+        beforeAll(async () => {
+            orderId = await topUpOrder(1000)
+            await issue(orderId)
+            statementId = (await db().credit_statements.findFirstOrThrow({ where: { order_id: orderId } })).id
+        })
+
+        it("takes only the amount asked for and leaves the top-up standing", async () => {
+            const before = await balance()
+
+            const result = await credit.adminReverseStatement(
+                statementId,
+                { amount: 66.6, reason: "itest over-issued" },
+                admin,
+            )
+
+            expect(result).toMatchObject({
+                amount: 66.6,
+                statement_amount: 1000,
+                reversed_total: 66.6,
+                fully_reversed: false,
+                order_cancelled: false,
+            })
+            expect(await balance()).toBe(before - 66.6)
+
+            const original = await db().credit_statements.findUniqueOrThrow({ where: { id: statementId } })
+            expect(original.reversed_by).toBeNull()
+            expect(num(original.amount_precise)).toBe(1000)
+            const order = await db().orders.findUniqueOrThrow({ where: { order_id: orderId } })
+            expect(order.current_status).toBe("completed")
+        })
+
+        /** Sums net to what should have been issued; the top-up still counts as one. */
+        it("nets to the amount that should have been issued", async () => {
+            const [row] = await db().$queryRaw<{ net: unknown; live: bigint | number }[]>`
+                SELECT COALESCE(SUM(amount_precise), 0) net,
+                       SUM(CASE WHEN reversal_of IS NULL AND reversed_by IS NULL THEN 1 ELSE 0 END) live
+                  FROM credit_statements
+                 WHERE user = ${USER} AND order_id = ${orderId}`
+            expect(num(row.net)).toBe(933.4)
+            expect(Number(row.live)).toBe(1)
+            expect(await chainBreaks()).toBe(0)
+        })
+
+        it("refuses to claw back more than is left, and moves nothing when it refuses", async () => {
+            const before = await balance()
+            const rows = await db().credit_statements.count({ where: { user: USER } })
+
+            await expect(
+                credit.adminReverseStatement(statementId, { amount: 933.41, reason: "itest too much" }, admin),
+            ).rejects.toThrow(/only 933.4 of statement .* is left unreversed/)
+
+            expect(await balance()).toBe(before)
+            expect(await db().credit_statements.count({ where: { user: USER } })).toBe(rows)
+        })
+
+        it("marks the top-up reversed and cancels its order only once nothing is left", async () => {
+            const result = await credit.adminReverseStatement(
+                statementId,
+                { amount: 933.4, reason: "itest the rest" },
+                admin,
+            )
+
+            expect(result).toMatchObject({ reversed_total: 1000, fully_reversed: true, order_cancelled: true })
+
+            const original = await db().credit_statements.findUniqueOrThrow({ where: { id: statementId } })
+            expect(original.reversed_by).toBe(result.reversal_id)
+            const order = await db().orders.findUniqueOrThrow({ where: { order_id: orderId } })
+            expect(order.current_status).toBe("cancelled")
+
+            await expect(
+                credit.adminReverseStatement(statementId, { amount: 1, reason: "itest again" }, admin),
+            ).rejects.toThrow("already reversed")
+            expect(await chainBreaks()).toBe(0)
+        })
     })
 })
