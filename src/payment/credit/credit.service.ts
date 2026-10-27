@@ -1,13 +1,24 @@
-import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common"
+import {
+    BadRequestException,
+    ForbiddenException,
+    forwardRef,
+    Inject,
+    Injectable,
+    Logger,
+    NotFoundException,
+} from "@nestjs/common"
 import { PrismaService } from "src/common/prisma.service"
 import { CreateUserDto, UserJwtExtractDto } from "src/user/user.controller"
 import {
     AdminReverseStatementDto,
     AdminReverseStatementResponseDto,
     AdminSetTransferLimitDto,
+    ExpireFreeCreditIssueDto,
+    ExpireFreeCreditIssueResponseDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
+    IssueFreeCreditResponseDto,
     PayTopUpOrderDto,
     TopUpDto,
     TransferCreditDto,
@@ -43,6 +54,20 @@ import { legacyInt, Numeric, roundCredits, toNumber } from "src/payment/money"
 /** Caps applied to a transfer when the account carries no override of its own. */
 export const DEFAULT_TRANSFER_MAX_AMOUNT = 100_000
 export const DEFAULT_TRANSFER_MAX_DAILY_COUNT = 20
+
+/** Days a free credit issue lasts by default, and the furthest out a caller may set its last day. */
+const FREE_CREDIT_EXPIRE_DAYS = 730
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Calendar dates a caller states are Beijing dates. */
+const FREE_CREDIT_DATE_TIME_ZONE = "Asia/Shanghai"
+
+/** `YYYY-MM-DD` of `date` in `timeZone`. `en-CA` formats dates that way. */
+function calendarDate(date: Date, timeZone: string): string {
+    return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+        date,
+    )
+}
 
 /** A transfer takes two account locks; give it room on a loaded instance. */
 const TRANSFER_TX_TIMEOUT_MS = 15_000
@@ -162,7 +187,6 @@ const ALL_WIDGETS = ""
 @Injectable()
 export class CreditService {
     private readonly logger = new Logger(CreditService.name)
-    private readonly freeCreditExpireDays = 730 //2 years
 
     constructor(
         private prisma: PrismaService,
@@ -578,7 +602,16 @@ export class CreditService {
         userInfo: UserJwtExtractDto,
         tx: Prisma.TransactionClient,
         allow_free_credit: boolean = true,
+        priority_free_credit_issue_ids: number[] = [],
     ): Promise<{ free_credit_consumed: number; total_credit_consumed: number }> {
+        // Order creation refuses the pair already. Checked again here so an order
+        // that carries both is refused rather than paid with its ids ignored.
+        if (!allow_free_credit && priority_free_credit_issue_ids.length > 0) {
+            throw new BadRequestException(
+                "priority_free_credit_issue_ids cannot be used on an order that does not allow free credit",
+            )
+        }
+
         // Lock user row to prevent concurrent credit consumption race condition
         await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${userInfo.usernameShorted} FOR UPDATE`
 
@@ -601,6 +634,7 @@ export class CreditService {
             allowFreeCredit: allow_free_credit,
             statementType: credit_statement_type.consume,
             orderId: order_id,
+            priorityFreeCreditIssueIds: priority_free_credit_issue_ids,
         })
 
         return {
@@ -700,9 +734,21 @@ export class CreditService {
             orderId: string | null
             /** Set on a transfer: the account on the other side of it. */
             transferPeer?: string | null
+            /**
+             * Free credit issues to spend before every bucket, in this order. Ids
+             * that are spent, expired or not the user's are skipped, so the walk
+             * falls through to the usual order for whatever they do not cover.
+             */
+            priorityFreeCreditIssueIds?: number[]
         },
     ): Promise<{ free_credit_consumed: number }> {
-        const { allowFreeCredit, statementType, orderId, transferPeer = null } = options
+        const {
+            allowFreeCredit,
+            statementType,
+            orderId,
+            transferPeer = null,
+            priorityFreeCreditIssueIds = [],
+        } = options
 
         let needCreditConsumed = amount
         let freeCreditConsumed = 0
@@ -735,6 +781,57 @@ export class CreditService {
         const paidCreditBalance = roundCredits(
             Math.max(0, total_credit_balance_precise - free_credit_balance_precise - subscriptionOnBooks),
         )
+
+        const spendFreeCreditIssue = async (freeCredit: { id: number; balance_precise: Numeric }) => {
+            const consumeAmount = Math.min(toNumber(freeCredit.balance_precise), needCreditConsumed)
+            freeCreditConsumed = roundCredits(freeCreditConsumed + consumeAmount)
+            needCreditConsumed = roundCredits(needCreditConsumed - consumeAmount)
+
+            const userBalanceUpdated = await this.adjustUserBalance(tx, user, -consumeAmount)
+            await this.adjustFreeCreditBalance(tx, freeCredit.id, -consumeAmount)
+
+            //create statement
+            await tx.credit_statements.create({
+                data: {
+                    user: user,
+                    type: statementType,
+                    amount: legacyInt(consumeAmount * -1),
+                    amount_precise: consumeAmount * -1,
+                    balance: userBalanceUpdated.current_credit_balance,
+                    balance_precise: userBalanceUpdated.current_credit_balance_precise,
+                    is_free_credit: true,
+                    order_id: orderId,
+                    transfer_peer: transferPeer,
+                    free_credit_issue_id: freeCredit.id,
+                },
+            })
+        }
+
+        // Ahead of subscription and paid credit: the order names this credit
+        // because it was given for what the order buys. Spending it leaves the
+        // paid balance computed above unchanged, since the total and the free
+        // balance fall by the same amount. An issue left with a balance means the
+        // order is covered; one spent to zero drops out of the free walk below.
+        if (allowFreeCredit && priorityFreeCreditIssueIds.length > 0) {
+            const priorityCredits = await tx.free_credit_issues.findMany({
+                where: {
+                    id: { in: priorityFreeCreditIssueIds },
+                    user: user,
+                    balance_precise: { gt: 0 },
+                    expire_date: { gte: now },
+                },
+            })
+            const byId = new Map(priorityCredits.map((credit) => [credit.id, credit]))
+            for (const id of priorityFreeCreditIssueIds) {
+                if (needCreditConsumed <= 0) {
+                    break
+                }
+                const freeCredit = byId.get(id)
+                if (freeCredit) {
+                    await spendFreeCreditIssue(freeCredit)
+                }
+            }
+        }
 
         // No expire_date filter: subscription credit does not expire. `expire_date`
         // is still recorded, and still orders the walk oldest-first, but it no
@@ -815,28 +912,7 @@ export class CreditService {
                 if (needCreditConsumed <= 0) {
                     break
                 }
-                const consumeAmount = Math.min(toNumber(freeCredit.balance_precise), needCreditConsumed)
-                freeCreditConsumed = roundCredits(freeCreditConsumed + consumeAmount)
-                needCreditConsumed = roundCredits(needCreditConsumed - consumeAmount)
-
-                const userBalanceUpdated = await this.adjustUserBalance(tx, user, -consumeAmount)
-                await this.adjustFreeCreditBalance(tx, freeCredit.id, -consumeAmount)
-
-                //create statement
-                await tx.credit_statements.create({
-                    data: {
-                        user: user,
-                        type: statementType,
-                        amount: legacyInt(consumeAmount * -1),
-                        amount_precise: consumeAmount * -1,
-                        balance: userBalanceUpdated.current_credit_balance,
-                        balance_precise: userBalanceUpdated.current_credit_balance_precise,
-                        is_free_credit: true,
-                        order_id: orderId,
-                        transfer_peer: transferPeer,
-                        free_credit_issue_id: freeCredit.id,
-                    },
-                })
+                await spendFreeCreditIssue(freeCredit)
             }
         }
 
@@ -1138,6 +1214,11 @@ export class CreditService {
     }
 
     async refundCredit(amount: number, order_id: string, user: string, tx: Prisma.TransactionClient): Promise<void> {
+        // Same lock as consumption and expiry. Without it a refund could read a
+        // free credit issue as unexpired, and then put credit back onto it after
+        // `expireFreeCreditIssue` had taken that issue's balance off the account.
+        await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${user} FOR UPDATE`
+
         //find statement, newest first so the refund unwinds consumption in reverse order
         const statements = await tx.credit_statements.findMany({
             where: {
@@ -1617,7 +1698,7 @@ export class CreditService {
         body: IssueFreeCreditDto,
         userInfo: UserJwtExtractDto,
         options: { invited_user_id?: string } = {},
-    ): Promise<UserCreditBalanceDto> {
+    ): Promise<IssueFreeCreditResponseDto> {
         const issuedFreeCredit = await this.prisma.users.findUnique({
             where: {
                 email: body.email,
@@ -1627,7 +1708,11 @@ export class CreditService {
             throw new BadRequestException("User not found")
         }
 
-        await this.prisma.$transaction(async (tx) => {
+        const expireDate = body.expire_date
+            ? this.freeCreditExpireDateFor(body.expire_date)
+            : new Date(Date.now() + FREE_CREDIT_EXPIRE_DAYS * DAY_MS)
+
+        const issueId = await this.prisma.$transaction(async (tx) => {
             const userBalanceUpdated = await this.adjustUserBalance(tx, issuedFreeCredit.username_in_be, body.amount)
 
             const issueRecord = await tx.free_credit_issues.create({
@@ -1636,7 +1721,7 @@ export class CreditService {
                     amount: legacyInt(body.amount),
                     amount_precise: body.amount,
                     description: body?.description,
-                    expire_date: new Date(Date.now() + this.freeCreditExpireDays * 24 * 60 * 60 * 1000),
+                    expire_date: expireDate,
                     widget_tag: userInfo?.developer_info?.tag,
                     app_id: userInfo?.app_id,
                     balance: legacyInt(body.amount),
@@ -1659,9 +1744,41 @@ export class CreditService {
                     free_credit_issue_id: issueRecord.id,
                 },
             })
+
+            return issueRecord.id
         })
 
-        return await this.getUserCredits(issuedFreeCredit.username_in_be)
+        return { ...(await this.getUserCredits(issuedFreeCredit.username_in_be)), issue_id: issueId }
+    }
+
+    /**
+     * The `expire_date` to store for a free credit issue whose last usable day is
+     * `lastDay` (`YYYY-MM-DD`, Beijing).
+     *
+     * The day after it, at midnight UTC. Spending checks `expire_date >= now` and
+     * the production column is a DATE, compared as midnight UTC; storing the last
+     * day itself would end the credit at 08:00 Beijing time on that day, not at
+     * the end of it.
+     */
+    private freeCreditExpireDateFor(lastDay: string): Date {
+        const parsed = new Date(`${lastDay}T00:00:00Z`)
+        // Date rolls 2026-02-30 over into March rather than refusing it.
+        if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== lastDay) {
+            throw new BadRequestException("expire_date is not a valid date")
+        }
+        const now = new Date()
+        const today = calendarDate(now, FREE_CREDIT_DATE_TIME_ZONE)
+        const latest = calendarDate(
+            new Date(now.getTime() + FREE_CREDIT_EXPIRE_DAYS * DAY_MS),
+            FREE_CREDIT_DATE_TIME_ZONE,
+        )
+        if (lastDay <= today) {
+            throw new BadRequestException("expire_date must be after today")
+        }
+        if (lastDay > latest) {
+            throw new BadRequestException(`expire_date must be within ${FREE_CREDIT_EXPIRE_DAYS} days`)
+        }
+        return new Date(parsed.getTime() + DAY_MS)
     }
 
     async payTopUpOrder(body: PayTopUpOrderDto, developer: UserJwtExtractDto): Promise<{ success: boolean }> {
@@ -2448,6 +2565,102 @@ export class CreditService {
     //expire free credit everyday
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     //@Cron(CronExpression.EVERY_MINUTE) //test
+    /**
+     * Takes back what is left of one free credit issue now, rather than at its
+     * expire date. The same deduction the midnight sweep makes, and the issue is
+     * dated today so a later refund of an order that spent it does not put the
+     * credit back.
+     *
+     * Only the whole remainder. A widget may only take back what it issued; an
+     * admin may take back any issue.
+     */
+    async expireFreeCreditIssue(
+        id: number,
+        body: ExpireFreeCreditIssueDto,
+        caller: UserJwtExtractDto,
+        options: { widgetTag?: string } = {},
+    ): Promise<ExpireFreeCreditIssueResponseDto> {
+        const reason = body.reason?.trim()
+        if (!reason) {
+            throw new BadRequestException("A reason is required")
+        }
+        const found = await this.prisma.free_credit_issues.findUnique({ where: { id } })
+        if (!found) {
+            throw new NotFoundException("Free credit issue not found")
+        }
+        if (options.widgetTag !== undefined && found.widget_tag !== options.widgetTag) {
+            throw new ForbiddenException("This free credit was not issued by your widget")
+        }
+
+        return this.prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${found.user} FOR UPDATE`
+            // Re-read under the lock: an order paid, a refund or the midnight sweep
+            // may have moved the balance since the read above.
+            const issue = await tx.free_credit_issues.findUniqueOrThrow({ where: { id } })
+            const amount = toNumber(issue.balance_precise)
+            if (amount <= 0) {
+                throw new BadRequestException("Nothing is left on this free credit issue")
+            }
+
+            // A second back: a DATETIME(0) column rounds fractional seconds, so
+            // `now` could be stored up to half a second ahead, and a refund in that
+            // window would still see the issue as live and put the credit back.
+            const statement = await this.expireFreeCreditIssueRow(tx, issue, new Date(Date.now() - 1000))
+
+            await tx.admin_logs.create({
+                data: {
+                    action: "expire_free_credit_issue",
+                    user: caller.usernameShorted,
+                    data: {
+                        reason,
+                        issue_id: issue.id,
+                        user: issue.user,
+                        widget_tag: options.widgetTag ?? null,
+                        amount,
+                        statement_id: statement.id,
+                    },
+                },
+            })
+
+            return { issue_id: issue.id, expired_amount: amount, statement_id: statement.id }
+        })
+    }
+
+    /**
+     * Deducts what is left on `issue` from its user's balance and zeroes it, with
+     * an `expire_free_credit` statement. Callers hold the user lock and pass the
+     * row as re-read under it. `expireAt` also moves the issue's expire date, for
+     * an issue taken back before its time.
+     */
+    private async expireFreeCreditIssueRow(
+        tx: Prisma.TransactionClient,
+        issue: { id: number; user: string | null; balance_precise: Numeric },
+        expireAt?: Date,
+    ) {
+        const amount = toNumber(issue.balance_precise)
+        const userBalanceUpdated = await this.adjustUserBalance(tx, issue.user, -amount)
+
+        const statement = await tx.credit_statements.create({
+            data: {
+                user: issue.user,
+                amount: legacyInt(amount * -1),
+                amount_precise: amount * -1,
+                balance: userBalanceUpdated.current_credit_balance,
+                balance_precise: userBalanceUpdated.current_credit_balance_precise,
+                is_free_credit: true,
+                type: credit_statement_type.expire_free_credit,
+                free_credit_issue_id: issue.id,
+            },
+        })
+
+        await tx.free_credit_issues.update({
+            where: { id: issue.id },
+            data: { balance: 0, balance_precise: 0, ...(expireAt ? { expire_date: expireAt } : {}) },
+        })
+
+        return statement
+    }
+
     async expireFreeCredit() {
         if (process.env.TASK_SLOT != "1") {
             return
@@ -2467,28 +2680,15 @@ export class CreditService {
         for (const freeCredit of freeCredits) {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    const creditbalance = toNumber(freeCredit.balance_precise)
-                    const userBalanceUpdated = await this.adjustUserBalance(tx, freeCredit.user, -creditbalance)
-
-                    //create statement
-                    await tx.credit_statements.create({
-                        data: {
-                            user: freeCredit.user,
-                            amount: legacyInt(creditbalance * -1),
-                            amount_precise: creditbalance * -1,
-                            balance: userBalanceUpdated.current_credit_balance,
-                            balance_precise: userBalanceUpdated.current_credit_balance_precise,
-                            is_free_credit: true,
-                            type: credit_statement_type.expire_free_credit,
-                            free_credit_issue_id: freeCredit.id,
-                        },
-                    })
-
-                    //update free credit table
-                    await tx.free_credit_issues.update({
-                        where: { id: freeCredit.id },
-                        data: { balance: 0, balance_precise: 0 },
-                    })
+                    await tx.$queryRaw`SELECT id FROM users WHERE username_in_be = ${freeCredit.user} FOR UPDATE`
+                    // Re-read under the lock: the row may have been taken back by
+                    // `expireFreeCreditIssue` since the scan, and deducting the
+                    // balance the scan saw would take it off the account twice.
+                    const current = await tx.free_credit_issues.findUniqueOrThrow({ where: { id: freeCredit.id } })
+                    if (toNumber(current.balance_precise) <= 0) {
+                        return
+                    }
+                    await this.expireFreeCreditIssueRow(tx, current)
                 })
             } catch (error) {
                 this.logger.error(`Error expire free credit: ${error}`)

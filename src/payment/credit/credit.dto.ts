@@ -13,6 +13,7 @@ import {
     IsPositive,
     IsString,
     IsUUID,
+    Matches,
     Max,
     Min,
     ValidateNested,
@@ -319,6 +320,47 @@ export class IssueFreeCreditDto {
     @IsString()
     @IsOptional()
     description?: string
+
+    @ApiProperty({
+        description:
+            "The last day the credit can be spent, `YYYY-MM-DD` in Beijing time. It must be after today and at most " +
+            "730 days from today. Defaults to 730 days from now.",
+        required: false,
+        example: "2026-11-30",
+    })
+    @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "expire_date must be YYYY-MM-DD" })
+    @IsOptional()
+    expire_date?: string
+}
+
+export class IssueFreeCreditResponseDto extends UserCreditBalanceDto {
+    @ApiProperty({
+        description:
+            "The id of the free credit issue just created. Pass it in an order's `priority_free_credit_issue_ids` " +
+            "to have that order spend this credit first, or to the expire endpoint to take it back.",
+    })
+    issue_id: number
+}
+
+export class ExpireFreeCreditIssueDto {
+    @ApiProperty({
+        description: "Why this free credit is being taken back. Stored in admin_logs.",
+        example: "Trial of product X ended",
+    })
+    @IsString()
+    @IsNotEmpty()
+    reason: string
+}
+
+export class ExpireFreeCreditIssueResponseDto {
+    @ApiProperty({ description: "The expired free credit issue" })
+    issue_id: number
+
+    @ApiProperty({ description: "How much was taken off the user's balance: what was left on the issue" })
+    expired_amount: number
+
+    @ApiProperty({ description: "The expire_free_credit statement that carries the deduction" })
+    statement_id: number
 }
 
 /**

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from "@nestjs/testing"
-import { BadRequestException, Logger } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Logger, NotFoundException } from "@nestjs/common"
 import { credit_statement_type } from "@prisma/client"
 
 // Mock all external modules before importing CreditService
@@ -78,6 +78,8 @@ describe("CreditService - Subscription Credit", () => {
 
     beforeEach(async () => {
         mockTx = {
+            // The user row lock. Every path that moves a balance takes it.
+            $queryRaw: jest.fn().mockResolvedValue([{ id: 1 }]),
             users: {
                 update: jest.fn(),
                 findUnique: jest.fn(),
@@ -111,6 +113,8 @@ describe("CreditService - Subscription Credit", () => {
                 findMany: jest.fn(),
                 update: jest.fn(),
                 findUnique: jest.fn(),
+                findUniqueOrThrow: jest.fn(),
+                create: jest.fn(),
                 // Spendable free credit: what is left once expired-but-unswept rows
                 // are taken out. Defaults to "nothing has expired".
                 aggregate: jest.fn().mockResolvedValue(sumOf("balance", null)),
@@ -148,6 +152,7 @@ describe("CreditService - Subscription Credit", () => {
             },
             free_credit_issues: {
                 findMany: jest.fn(),
+                findUnique: jest.fn(),
             },
             $transaction: jest.fn((callback) => callback(mockTx)),
         }
@@ -1480,4 +1485,321 @@ describe("CreditService - Subscription Credit", () => {
         })
     })
 
+    describe("issueFreeCredit - expire date and issue id", () => {
+        const widget = mockDeveloperInfo as any
+
+        beforeEach(() => {
+            prisma.users.findUnique = jest.fn().mockResolvedValue(mockUser) as never
+            prisma.users.findFirst = jest.fn().mockResolvedValue(mockUser) as never
+            prisma.free_credit_issues.findMany = jest.fn().mockResolvedValue([]) as never
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(1100) })
+            mockTx.free_credit_issues.create.mockResolvedValue({ id: 321 })
+            mockTx.credit_statements.create.mockResolvedValue({})
+        })
+
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
+        /** 2026-10-27 20:00 UTC is already 2026-10-28 in Beijing. */
+        const atBeijingEvening = () =>
+            jest.useFakeTimers({ now: new Date("2026-10-27T20:00:00Z"), doNotFake: ["nextTick", "setImmediate"] })
+
+        const storedExpireDate = () => mockTx.free_credit_issues.create.mock.calls[0][0].data.expire_date as Date
+
+        it("returns the new issue's id alongside the balance", async () => {
+            const result = await service.issueFreeCredit({ email: mockUser.email, amount: 100 } as any, widget)
+
+            expect(result).toMatchObject({ issue_id: 321, total_credit_balance: 1000 })
+        })
+
+        it("stores the day after the last usable day, at midnight UTC", async () => {
+            atBeijingEvening()
+
+            await service.issueFreeCredit(
+                { email: mockUser.email, amount: 100, expire_date: "2026-11-30" } as any,
+                widget,
+            )
+
+            expect(storedExpireDate().toISOString()).toBe("2026-12-01T00:00:00.000Z")
+        })
+
+        it("defaults to 730 days from now", async () => {
+            atBeijingEvening()
+
+            await service.issueFreeCredit({ email: mockUser.email, amount: 100 } as any, widget)
+
+            expect(storedExpireDate().getTime()).toBe(new Date("2026-10-27T20:00:00Z").getTime() + 730 * 86_400_000)
+        })
+
+        it.each([
+            ["today in Beijing", "2026-10-28"],
+            ["a past day", "2026-10-01"],
+            ["more than 730 days out", "2028-10-29"],
+            ["a day that does not exist", "2027-02-30"],
+        ])("refuses %s without touching the balance", async (_label, expire_date) => {
+            atBeijingEvening()
+
+            await expect(
+                service.issueFreeCredit({ email: mockUser.email, amount: 100, expire_date } as any, widget),
+            ).rejects.toThrow(BadRequestException)
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+        })
+
+        it("accepts the 730th day", async () => {
+            atBeijingEvening()
+
+            await service.issueFreeCredit(
+                { email: mockUser.email, amount: 100, expire_date: "2028-10-27" } as any,
+                widget,
+            )
+
+            expect(storedExpireDate().toISOString()).toBe("2028-10-28T00:00:00.000Z")
+        })
+    })
+
+    describe("consumeCredit - priority free credit issues", () => {
+        const userInfo = { usernameShorted: "test_user_123" } as any
+
+        /**
+         * Total 400 = 100 subscription + 200 paid + 100 free, the free part being
+         * issue 1 (expires soonest) and the priority issue 7. `priority` lists the
+         * rows the priority lookup finds: spent or expired ids are simply absent.
+         */
+        const givenBuckets = (priority: { id: number; balance_precise: number }[]) => {
+            mockTx.users.findFirst = jest.fn().mockResolvedValue(userRow(400))
+            mockTx.free_credit_issues.findMany.mockImplementation(({ where }: any) => {
+                if (where?.id) {
+                    return priority.filter((row) => where.id.in.includes(row.id))
+                }
+                return [{ id: 1, balance: 100, balance_precise: 100, expire_date: new Date("2099-01-01") }]
+            })
+            mockTx.free_credit_issues.aggregate.mockResolvedValue(sumOf("balance", 100))
+            mockTx.widget_subscription_credit_issues.findMany.mockResolvedValue([
+                { ...mockSubscriptionCredit, current_balance: 100, current_balance_precise: 100 },
+            ])
+            mockTx.widget_subscription_credit_issues.aggregate.mockResolvedValue(sumOf("current_balance", 100))
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(0) })
+            mockTx.free_credit_issues.update.mockResolvedValue({})
+            mockTx.widget_subscription_credit_issues.update.mockResolvedValue({})
+            mockTx.credit_statements.create.mockResolvedValue({})
+        }
+
+        const statements = () => mockTx.credit_statements.create.mock.calls.map((call: any[]) => call[0].data)
+
+        it("spends the whole order from the priority issue when it covers it", async () => {
+            givenBuckets([{ id: 7, balance_precise: 500 }])
+
+            const result = await service.consumeCredit(300, "order_123", userInfo, mockTx as any, true, [7])
+
+            expect(result.free_credit_consumed).toBe(300)
+            expect(statements()).toEqual([
+                expect.objectContaining({ amount_precise: -300, is_free_credit: true, free_credit_issue_id: 7 }),
+            ])
+            expect(mockTx.widget_subscription_credit_issues.update).not.toHaveBeenCalled()
+        })
+
+        it("walks the ids in the order given, then falls through to subscription -> paid -> free", async () => {
+            givenBuckets([
+                { id: 7, balance_precise: 30 },
+                { id: 8, balance_precise: 20 },
+            ])
+
+            await service.consumeCredit(380, "order_123", userInfo, mockTx as any, true, [8, 7])
+
+            expect(statements()).toEqual([
+                expect.objectContaining({ amount_precise: -20, free_credit_issue_id: 8 }),
+                expect.objectContaining({ amount_precise: -30, free_credit_issue_id: 7 }),
+                expect.objectContaining({ amount_precise: -100, is_subscription_credit: true }),
+                expect.objectContaining({ amount_precise: -200 }),
+                expect.objectContaining({ amount_precise: -30, free_credit_issue_id: 1 }),
+            ])
+        })
+
+        it("only looks up live issues of the paying user", async () => {
+            givenBuckets([])
+
+            await service.consumeCredit(50, "order_123", userInfo, mockTx as any, true, [7])
+
+            const lookup = mockTx.free_credit_issues.findMany.mock.calls.find((call: any[]) => call[0].where?.id)
+            expect(lookup[0].where).toEqual({
+                id: { in: [7] },
+                user: "test_user_123",
+                balance_precise: { gt: 0 },
+                expire_date: { gte: expect.any(Date) },
+            })
+            // Nothing found, so the usual order takes it all.
+            expect(statements()).toEqual([
+                expect.objectContaining({ amount_precise: -50, is_subscription_credit: true }),
+            ])
+        })
+
+        it("refuses priority ids on an order that does not allow free credit, before locking anything", async () => {
+            givenBuckets([{ id: 7, balance_precise: 500 }])
+
+            await expect(service.consumeCredit(100, "order_123", userInfo, mockTx as any, false, [7])).rejects.toThrow(
+                BadRequestException,
+            )
+            expect(mockTx.$queryRaw).not.toHaveBeenCalled()
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+        })
+
+        it("still pays a paid-only order when no ids are given", async () => {
+            givenBuckets([])
+
+            await service.consumeCredit(300, "order_123", userInfo, mockTx as any, false, [])
+
+            expect(statements().some((data: any) => data.is_free_credit)).toBe(false)
+        })
+    })
+
+    describe("refundCredit - locking", () => {
+        it("locks the user row before reading the order's statements", async () => {
+            mockTx.credit_statements.findMany = jest.fn().mockResolvedValue([])
+
+            await service.refundCredit(100, "order_123", "test_user_123", mockTx as any)
+
+            expect(mockTx.$queryRaw.mock.calls[0][0].join("?")).toContain("FOR UPDATE")
+            expect(mockTx.$queryRaw.mock.calls[0][1]).toBe("test_user_123")
+            expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                mockTx.credit_statements.findMany.mock.invocationCallOrder[0],
+            )
+        })
+    })
+
+    describe("expireFreeCreditIssue", () => {
+        const caller = { usernameShorted: "admin_1" } as any
+        const issue = { id: 9, user: "test_user_123", widget_tag: "test_widget", balance: 80, balance_precise: 80 }
+
+        beforeEach(() => {
+            prisma.free_credit_issues.findUnique = jest.fn().mockResolvedValue(issue) as never
+            mockTx.free_credit_issues.findUniqueOrThrow.mockResolvedValue(issue)
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(920) })
+            mockTx.credit_statements.create.mockResolvedValue({ id: 555 })
+            mockTx.free_credit_issues.update.mockResolvedValue({})
+            mockTx.admin_logs = { create: jest.fn().mockResolvedValue({}) }
+        })
+
+        it("takes the remainder off the balance, zeroes the issue and dates it now", async () => {
+            const result = await service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller)
+
+            expect(result).toEqual({ issue_id: 9, expired_amount: 80, statement_id: 555 })
+            expect(mockTx.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance_precise: { increment: -80 } },
+            })
+            expect(mockTx.credit_statements.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    type: credit_statement_type.expire_free_credit,
+                    amount_precise: -80,
+                    is_free_credit: true,
+                    free_credit_issue_id: 9,
+                }),
+            })
+            expect(mockTx.free_credit_issues.update).toHaveBeenCalledWith({
+                where: { id: 9 },
+                data: { balance: 0, balance_precise: 0, expire_date: expect.any(Date) },
+            })
+            expect(mockTx.admin_logs.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    action: "expire_free_credit_issue",
+                    user: "admin_1",
+                    data: expect.objectContaining({ reason: "trial ended", issue_id: 9, amount: 80 }),
+                }),
+            })
+        })
+
+        it("deducts what is left as re-read under the lock, not what the first read saw", async () => {
+            mockTx.free_credit_issues.findUniqueOrThrow.mockResolvedValue({ ...issue, balance_precise: 30 })
+
+            await service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller)
+
+            expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                mockTx.free_credit_issues.findUniqueOrThrow.mock.invocationCallOrder[0],
+            )
+            expect(mockTx.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance_precise: { increment: -30 } },
+            })
+        })
+
+        it("refuses an issue with nothing left, leaving no trace", async () => {
+            mockTx.free_credit_issues.findUniqueOrThrow.mockResolvedValue({ ...issue, balance_precise: 0 })
+
+            await expect(service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller)).rejects.toThrow(
+                BadRequestException,
+            )
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+            expect(mockTx.admin_logs.create).not.toHaveBeenCalled()
+        })
+
+        it("refuses a widget taking back another widget's issue", async () => {
+            await expect(
+                service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller, { widgetTag: "other_widget" }),
+            ).rejects.toThrow(ForbiddenException)
+            expect(prisma.$transaction).not.toHaveBeenCalled()
+        })
+
+        it("lets a widget take back its own issue", async () => {
+            await service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller, { widgetTag: "test_widget" })
+
+            expect(mockTx.admin_logs.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({ data: expect.objectContaining({ widget_tag: "test_widget" }) }),
+            })
+        })
+
+        it("requires a reason", async () => {
+            await expect(service.expireFreeCreditIssue(9, { reason: "  " }, caller)).rejects.toThrow("reason")
+        })
+
+        it("reports an unknown issue as not found", async () => {
+            prisma.free_credit_issues.findUnique = jest.fn().mockResolvedValue(null) as never
+
+            await expect(service.expireFreeCreditIssue(9, { reason: "trial ended" }, caller)).rejects.toThrow(
+                NotFoundException,
+            )
+        })
+    })
+
+    describe("expireFreeCredit (midnight sweep)", () => {
+        const scanned = { id: 9, user: "test_user_123", balance: 80, balance_precise: 80 }
+        let slot: string | undefined
+
+        beforeEach(() => {
+            slot = process.env.TASK_SLOT
+            process.env.TASK_SLOT = "1"
+            prisma.free_credit_issues.findMany = jest.fn().mockResolvedValue([scanned]) as never
+            mockTx.users.update.mockResolvedValue({ ...mockUser, ...userRow(920) })
+            mockTx.credit_statements.create.mockResolvedValue({ id: 556 })
+            mockTx.free_credit_issues.update.mockResolvedValue({})
+        })
+
+        afterEach(() => {
+            process.env.TASK_SLOT = slot
+        })
+
+        it("skips a row taken back since the scan", async () => {
+            mockTx.free_credit_issues.findUniqueOrThrow.mockResolvedValue({ ...scanned, balance_precise: 0 })
+
+            await service.expireFreeCredit()
+
+            expect(mockTx.users.update).not.toHaveBeenCalled()
+            expect(mockTx.credit_statements.create).not.toHaveBeenCalled()
+        })
+
+        it("deducts the balance re-read under the lock and leaves expire_date alone", async () => {
+            mockTx.free_credit_issues.findUniqueOrThrow.mockResolvedValue({ ...scanned, balance_precise: 50 })
+
+            await service.expireFreeCredit()
+
+            expect(mockTx.users.update).toHaveBeenCalledWith({
+                where: { username_in_be: "test_user_123" },
+                data: { current_credit_balance_precise: { increment: -50 } },
+            })
+            expect(mockTx.free_credit_issues.update).toHaveBeenCalledWith({
+                where: { id: 9 },
+                data: { balance: 0, balance_precise: 0 },
+            })
+        })
+    })
 })

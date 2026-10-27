@@ -343,6 +343,11 @@ export class OrderService {
         //    paymentMethod = paymentMethod.filter((method) => method !== PaymentMethod.STRIPE)
         //}
 
+        const priorityFreeCreditIssueIds = await this.validatePriorityFreeCreditIssueIds(
+            order,
+            userProfile.usernameShorted,
+        )
+
         const record = await this.prisma.orders.create({
             data: {
                 order_id: orderId,
@@ -370,9 +375,40 @@ export class OrderService {
                 is_credit_top_up: options.is_credit_top_up,
                 sales_agent: await this.getSalesAgent(userProfile.usernameShorted),
                 allow_free_credit: order.allow_free_credit === undefined ? true : order.allow_free_credit,
+                ...(priorityFreeCreditIssueIds.length > 0
+                    ? { priority_free_credit_issue_ids: priorityFreeCreditIssueIds }
+                    : {}),
             },
         })
         return await this.mapOrderDetail(record)
+    }
+
+    /**
+     * The order's `priority_free_credit_issue_ids`, de-duplicated with the first
+     * occurrence kept, or empty when none were sent.
+     *
+     * Refused when the order does not allow free credit at all, and when any id
+     * is not a free credit issue of `owner`. Whether an issue is spent or expired
+     * is not checked here: that can change before the order is paid, so payment
+     * skips such issues instead.
+     */
+    private async validatePriorityFreeCreditIssueIds(order: CreateOrderDto, owner: string): Promise<number[]> {
+        const ids = [...new Set(order.priority_free_credit_issue_ids ?? [])]
+        if (ids.length === 0) {
+            return []
+        }
+        if (order.allow_free_credit === false) {
+            throw new BadRequestException(
+                "priority_free_credit_issue_ids cannot be used together with allow_free_credit: false",
+            )
+        }
+        const owned = await this.prisma.free_credit_issues.count({
+            where: { id: { in: ids }, user: owner },
+        })
+        if (owned !== ids.length) {
+            throw new BadRequestException("priority_free_credit_issue_ids contains an issue that is not this user's")
+        }
+        return ids
     }
 
     async updateRewards(dto: UpdateRewardsDto): Promise<OrderDetailDto> {
@@ -621,6 +657,7 @@ export class OrderService {
                 userInfo,
                 tx,
                 orderRecord.allow_free_credit,
+                priorityFreeCreditIssueIdsOf(orderRecord),
             )
             await tx.orders.update({
                 where: { id: orderRecord.id },
@@ -2725,4 +2762,10 @@ where r.ticker != 'usdc'
 
     //update user_rewards_withdraw
     async updateUserRewardsWithdraw() {}
+}
+
+/** The ids stored on an order by `validatePriorityFreeCreditIssueIds`, in order. */
+function priorityFreeCreditIssueIdsOf(order: orders): number[] {
+    const ids = order.priority_free_credit_issue_ids
+    return Array.isArray(ids) ? ids.filter((id): id is number => Number.isInteger(id)) : []
 }
