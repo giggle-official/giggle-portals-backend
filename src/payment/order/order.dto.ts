@@ -2,6 +2,8 @@ import { ApiProperty, OmitType, PickType } from "@nestjs/swagger"
 import { orders, user_rewards } from "@prisma/client"
 import { Decimal, JsonValue } from "@prisma/client/runtime/library"
 import {
+    ArrayMaxSize,
+    IsArray,
     IsBoolean,
     IsEmail,
     IsEnum,
@@ -60,6 +62,8 @@ export enum PaymentMethod {
      */
     CREDIT_LINE = "credit-line",
 }
+
+export const MAX_PRIORITY_FREE_CREDIT_ISSUES = 20
 
 export class OrderRefundedDetailDto {
     @ApiProperty({
@@ -272,6 +276,11 @@ export class OrderDto
     allow_free_credit: boolean
 
     @ApiProperty({
+        description: "Free credit issue ids the order spends first when paid with credit",
+    })
+    priority_free_credit_issue_ids: JsonValue
+
+    @ApiProperty({
         description: "The paid time of the order",
     })
     paid_time: Date
@@ -430,6 +439,7 @@ export class OrderDetailDto extends OmitType(OrderDto, [
     "buyback_fee_transferred",
     "refund_detail",
     "allow_free_credit",
+    "priority_free_credit_issue_ids",
     "settled",
     "settled_time",
 ]) {
@@ -622,6 +632,23 @@ export class CreateOrderDto {
     @IsOptional()
     @IsBoolean()
     allow_free_credit?: boolean
+
+    @ApiProperty({
+        description:
+            "Free credit issue ids (the `issue_id` returned by issue-free-credit) to spend first when the order is " +
+            "paid with credit, in the order given. An issue that has run out or expired by then is skipped; " +
+            "whatever they do not cover is paid the usual way. Each id must belong to the order's user, at most " +
+            `${MAX_PRIORITY_FREE_CREDIT_ISSUES}, duplicates are dropped. Not allowed with \`allow_free_credit: false\`.`,
+        required: false,
+        type: [Number],
+        example: [5344],
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(MAX_PRIORITY_FREE_CREDIT_ISSUES)
+    @IsInt({ each: true })
+    @IsPositive({ each: true })
+    priority_free_credit_issue_ids?: number[]
 
     @ApiProperty({
         description: "The rewards model of the order, this only allow requester is developer",

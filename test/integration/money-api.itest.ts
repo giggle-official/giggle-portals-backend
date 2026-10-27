@@ -127,10 +127,14 @@ describeItest("money API golden baseline", () => {
 
     describe("free credit", () => {
         it("issue", async () => {
-            matchGolden(
-                "credit.issue-free",
-                await credit.issueFreeCredit({ email: EMAIL, amount: 50, description: "golden" } as never, asWidget),
+            // `issue_id` is the one field added to this response, and it differs on
+            // every run. Everything else must still match the baseline as it was.
+            const { issue_id, ...balance } = await credit.issueFreeCredit(
+                { email: EMAIL, amount: 50, description: "golden" } as never,
+                asWidget,
             )
+            expect(Number.isInteger(issue_id) && issue_id > 0).toBe(true)
+            matchGolden("credit.issue-free", balance)
         })
     })
 

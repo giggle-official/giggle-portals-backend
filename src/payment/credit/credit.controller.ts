@@ -1,12 +1,26 @@
-import { Body, Controller, Param, Post, Req, UseGuards, Get, Query, BadRequestException } from "@nestjs/common"
+import {
+    Body,
+    Controller,
+    Param,
+    Post,
+    Req,
+    UseGuards,
+    Get,
+    Query,
+    BadRequestException,
+    ForbiddenException,
+} from "@nestjs/common"
 import { CreditService } from "./credit.service"
 import {
     AdminReverseStatementDto,
     AdminReverseStatementResponseDto,
     CancelWidgetSubscriptionDto,
+    ExpireFreeCreditIssueDto,
+    ExpireFreeCreditIssueResponseDto,
     GetStatementQueryDto,
     GetStatementsResponseDto,
     IssueFreeCreditDto,
+    IssueFreeCreditResponseDto,
     PayTopUpOrderDto,
     TopUpDto,
     TransferCreditDto,
@@ -114,7 +128,7 @@ export class CreditController {
         tags: ["Credit"],
     })
     @ApiResponse({
-        type: UserCreditBalanceDto,
+        type: IssueFreeCreditResponseDto,
     })
     @ApiBody({
         type: IssueFreeCreditDto,
@@ -123,6 +137,50 @@ export class CreditController {
     @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
     async issueFreeCredit(@Body() body: IssueFreeCreditDto, @Req() req: Request) {
         return this.creditService.issueFreeCredit(body, req.user as UserJwtExtractDto)
+    }
+
+    @Post("/free-credit-issues/:id/expire")
+    @ApiOperation({
+        summary: "Expire a free credit issue now",
+        description:
+            "Takes back what is left of a free credit issue your widget issued, immediately rather than at its " +
+            "expire date: the remainder comes off the user's balance and the issue is dated today, so a later " +
+            "refund does not put it back. You must use widget jwt to call this api",
+        tags: ["Credit"],
+    })
+    @ApiBody({ type: ExpireFreeCreditIssueDto })
+    @ApiResponse({ type: ExpireFreeCreditIssueResponseDto })
+    @UseGuards(IsWidgetGuard, WidgetPoliciesGuard)
+    @CheckWidgetPolicies((abilities) => abilities.can(WIDGET_PERMISSIONS_LIST.CAN_ISSUE_FREE_CREDIT))
+    async expireFreeCreditIssue(
+        @Param("id") id: string,
+        @Body() body: ExpireFreeCreditIssueDto,
+        @Req() req: Request,
+    ): Promise<ExpireFreeCreditIssueResponseDto> {
+        const caller = req.user as UserJwtExtractDto
+        const widgetTag = caller.developer_info?.tag
+        if (!widgetTag) {
+            throw new ForbiddenException("You are not an authorized developer")
+        }
+        return this.creditService.expireFreeCreditIssue(parseIssueId(id), body, caller, { widgetTag })
+    }
+
+    @Post("/admin/free-credit-issues/:id/expire")
+    @ApiTags("Credit")
+    @ApiOperation({
+        summary: "Expire any free credit issue now",
+        description: "The widget expire endpoint without the restriction to the caller's own issues. Admin only.",
+        tags: ["Credit"],
+    })
+    @UseGuards(IsAdminGuard)
+    @ApiBody({ type: ExpireFreeCreditIssueDto })
+    @ApiResponse({ type: ExpireFreeCreditIssueResponseDto })
+    async adminExpireFreeCreditIssue(
+        @Param("id") id: string,
+        @Body() body: ExpireFreeCreditIssueDto,
+        @Req() req: Request,
+    ): Promise<ExpireFreeCreditIssueResponseDto> {
+        return this.creditService.expireFreeCreditIssue(parseIssueId(id), body, req.user as UserJwtExtractDto)
     }
 
     @Post("/issue-credit")
@@ -236,4 +294,12 @@ export class CreditController {
     async cancelWidgetSubscription(@Body() body: CancelWidgetSubscriptionDto, @Req() req: Request) {
         return this.creditService.cancelWidgetSubscription(body.user_id, req.user as UserJwtExtractDto)
     }
+}
+
+function parseIssueId(id: string): number {
+    const issueId = Number(id)
+    if (!Number.isInteger(issueId) || issueId <= 0) {
+        throw new BadRequestException("Invalid free credit issue id")
+    }
+    return issueId
 }
